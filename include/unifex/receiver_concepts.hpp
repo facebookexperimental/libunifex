@@ -36,9 +36,9 @@ inline constexpr struct set_value_cpo {
   template <typename Receiver, typename... Values>
   auto operator()(Receiver&& r, Values&&... values) const noexcept(
       noexcept(tag_invoke(*this, (Receiver &&) r, (Values &&) values...)))
-      -> requires_t<
-          std::is_void,
-          tag_invoke_result_t<set_value_cpo, Receiver, Values...>> {
+      -> tag_invoke_result_t<set_value_cpo, Receiver, Values...> {
+    static_assert(
+      std::is_void_v<tag_invoke_result_t<set_value_cpo, Receiver, Values...>>);
     return tag_invoke(*this, (Receiver &&) r, (Values &&) values...);
   }
 } set_value{};
@@ -54,12 +54,14 @@ inline constexpr struct set_error_cpo {
   }
 
   template <typename Receiver, typename Error>
-  auto operator()(Receiver&& r, Error&& error) const noexcept -> requires_t<
-      std::is_void,
-      tag_invoke_result_t<set_error_cpo, Receiver, Error>> {
+  auto operator()(Receiver&& r, Error&& error) const noexcept
+    -> tag_invoke_result_t<set_error_cpo, Receiver, Error> {
     static_assert(
         noexcept(tag_invoke(*this, (Receiver &&) r, (Error &&) error)),
         "set_error() invocation is required to be noexcept.");
+    static_assert(
+      std::is_void_v<tag_invoke_result_t<set_error_cpo, Receiver, Error>>
+    );
     return tag_invoke(*this, (Receiver &&) r, (Error &&) error);
   }
 } set_error{};
@@ -76,10 +78,11 @@ inline constexpr struct set_done_cpo {
 
   template <typename Receiver>
   auto operator()(Receiver&& r) const noexcept
-      -> requires_t<std::is_void, tag_invoke_result_t<set_done_cpo, Receiver>> {
+      -> tag_invoke_result_t<set_done_cpo, Receiver> {
     static_assert(
         noexcept(tag_invoke(*this, (Receiver &&) r)),
         "set_done() invocation is required to be noexcept.");
+    static_assert(std::is_void_v<tag_invoke_result_t<set_done_cpo, Receiver>>);
     return tag_invoke(*this, (Receiver &&) r);
   }
 } set_done{};

@@ -33,7 +33,9 @@ inline constexpr struct start_cpo {
 
   template <typename Operation>
   auto operator()(Operation& op) const noexcept
-      -> requires_t<std::is_void, tag_invoke_result_t<start_cpo, Operation&>> {
+      -> tag_invoke_result_t<start_cpo, Operation&> {
+    static_assert(
+      std::is_void_v<tag_invoke_result_t<start_cpo, Operation&>>);
     static_assert(
         noexcept(tag_invoke(*this, op)),
         "start() customisation must be noexcept");
