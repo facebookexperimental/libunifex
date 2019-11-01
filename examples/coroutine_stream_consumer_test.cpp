@@ -1,0 +1,69 @@
+#include <unifex/config.hpp>
+
+#if UNIFEX_HAVE_COROUTINES
+
+#include <unifex/awaitable_sender.hpp>
+#include <unifex/delay.hpp>
+#include <unifex/range_stream.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/sender_awaitable.hpp>
+#include <unifex/single.hpp>
+#include <unifex/stop_immediately.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/take_until.hpp>
+#include <unifex/task.hpp>
+#include <unifex/timed_single_thread_context.hpp>
+#include <unifex/typed_via_stream.hpp>
+
+#include <chrono>
+#include <cstdio>
+
+using namespace unifex;
+
+int main() {
+  using namespace std::chrono;
+
+  timed_single_thread_context context;
+
+  auto makeTask = [&]() -> task<int> {
+    auto start = steady_clock::now();
+
+    auto s = take_until(
+        stop_immediately<int>(typed_via_stream(
+            delay(context.get_scheduler(), 50ms), range_stream{0, 100})),
+        single(cpo::schedule_after(context.get_scheduler(), 500ms)));
+
+    int sum = 0;
+    while (auto value = co_await s.next()) {
+      auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+      std::printf("[%i ms] %i\n", (int)ms.count(), *value);
+      std::fflush(stdout);
+
+      sum += *value;
+    }
+
+    co_await s.cleanup();
+
+    auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+    std::printf("[%i ms] sum = %i\n", (int)ms.count(), sum);
+    std::fflush(stdout);
+
+    co_return sum;
+  };
+
+  sync_wait(awaitable_sender{makeTask()});
+
+  return 0;
+}
+
+#else // UNIFEX_HAVE_COROUTINES
+
+#include <cstdio>
+
+int main() {
+  std::printf(
+      "This test only supported for compilers that support coroutines\n");
+  return 0;
+}
+
+#endif

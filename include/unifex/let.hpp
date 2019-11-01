@@ -1,0 +1,259 @@
+#pragma once
+
+#include <unifex/async_trace.hpp>
+#include <unifex/get_stop_token.hpp>
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/manual_lifetime_union.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
+#include <unifex/type_traits.hpp>
+
+#include <exception>
+#include <functional>
+#include <tuple>
+#include <type_traits>
+
+namespace unifex {
+
+template <typename Predecessor, typename SuccessorFactory>
+class let_sender {
+  Predecessor pred_;
+  SuccessorFactory func_;
+
+  template <typename... Values>
+  using successor_type =
+      std::invoke_result_t<SuccessorFactory, std::decay_t<Values>&...>;
+
+  // TODO: Ideally we'd only conditionally add the std::exception_ptr type
+  // to the list of error types if it's possible that one of the following
+  // operations is potentially throwing.
+  //
+  // Need to check whether any of the following bits are potentially-throwing:
+  // - the construction of the value copies
+  // - the invocation of the successor factory
+  // - the invocation of the 'connect()' operation for the receiver.
+  //
+  // Unfortunately, we can't really check this last point reliably until we
+  // know the concrete receiver type. So for now we conseratively report that
+  // we might output std::exception_ptr.
+
+  template <template <typename...> class List>
+  using successor_types =
+      typename Predecessor::template value_types<List, successor_type>;
+
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  struct value_types_impl {
+   public:
+    template <typename... Senders>
+    using apply = deduplicate_t<concat_lists_t<
+        Variant,
+        typename Senders::template value_types<Variant, Tuple>...>>;
+  };
+
+  template <template <typename...> class Variant>
+  struct error_types_impl {
+    template <typename... Senders>
+    using apply = deduplicate_t<concat_lists_t<
+        Variant,
+        Variant<std::exception_ptr>,
+        typename Senders::template error_types<Variant>...>>;
+  };
+
+ public:
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  using value_types =
+      successor_types<value_types_impl<Variant, Tuple>::template apply>;
+
+  template <template <typename...> class Variant>
+  using error_types =
+      successor_types<error_types_impl<Variant>::template apply>;
+
+ private:
+  template <typename Receiver>
+  class operation {
+    template <typename... Values>
+    struct successor_receiver;
+
+    template <typename... Values>
+    using successor_operation =
+        operation_t<successor_type<Values...>, successor_receiver<Values...>>;
+
+    template <typename... Values>
+    using decayed_tuple = std::tuple<std::decay_t<Values>...>;
+
+    template <typename... Values>
+    struct successor_receiver {
+      operation& op_;
+
+      template <typename... SuccessorValues>
+      void value(SuccessorValues&&... values) && noexcept {
+        cleanup();
+        try {
+          cpo::set_value(
+              std::move(op_.receiver_), (SuccessorValues &&) values...);
+        } catch (...) {
+          cpo::set_error(std::move(op_.receiver_), std::current_exception());
+        }
+      }
+
+      void done() && noexcept {
+        cleanup();
+        cpo::set_done(std::move(op_.receiver_));
+      }
+
+      template <typename Error>
+      void error(Error&& error) && noexcept {
+        cleanup();
+        cpo::set_error(std::move(op_.receiver_), (Error &&) error);
+      }
+
+     private:
+      void cleanup() noexcept {
+        op_.succOp_.template get<successor_operation<Values...>>().destruct();
+        op_.values_.template get<decayed_tuple<Values...>>().destruct();
+      }
+
+      template <
+          typename CPO,
+          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+      friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
+        return std::move(cpo)(std::as_const(r.op_.receiver_));
+      }
+
+      template <typename Func>
+      friend void tag_invoke(
+          tag_t<visit_continuations>,
+          const successor_receiver& r,
+          Func&& f) {
+        std::invoke(f, r.op_.receiver_);
+      }
+    };
+
+    struct predecessor_receiver {
+      operation& op_;
+
+      template <typename... Values>
+      void value(Values&&... values) && noexcept {
+        bool destroyedPredOp = false;
+        try {
+          auto& valueTuple =
+              op_.values_.template get<decayed_tuple<Values...>>();
+          valueTuple.construct((Values &&) values...);
+          destroyedPredOp = true;
+          op_.predOp_.destruct();
+          try {
+            auto& succOp =
+                op_.succOp_.template get<successor_operation<Values...>>()
+                    .construct_from([&] {
+                      return cpo::connect(
+                          std::apply(std::move(op_.func_), valueTuple.get()),
+                          successor_receiver<Values...>{op_});
+                    });
+            cpo::start(succOp);
+          } catch (...) {
+            valueTuple.destruct();
+            throw;
+          }
+        } catch (...) {
+          if (!destroyedPredOp) {
+            op_.predOp_.destruct();
+          }
+          cpo::set_error(std::move(op_.receiver_), std::current_exception());
+        }
+      }
+
+      void done() && noexcept {
+        op_.predOp_.destruct();
+        cpo::set_done(std::move(op_.receiver_));
+      }
+
+      template <typename Error>
+      void error(Error&& error) && noexcept {
+        op_.predOp_.destruct();
+        cpo::set_error(std::move(op_.receiver_), (Error &&) error);
+      }
+
+      template <
+          typename CPO,
+          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+      friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
+        return std::move(cpo)(std::as_const(r.op_.receiver_));
+      }
+
+      template <typename Func>
+      friend void tag_invoke(
+          tag_t<visit_continuations>,
+          const predecessor_receiver& r,
+          Func&& f) {
+        std::invoke(f, r.op_.receiver_);
+      }
+    };
+
+   public:
+    template <typename Receiver2>
+    explicit operation(
+        Predecessor&& pred,
+        SuccessorFactory&& func,
+        Receiver2&& receiver)
+        : func_((SuccessorFactory &&) func),
+          receiver_((Receiver2 &&) receiver) {
+      predOp_.construct_from([&] {
+        return cpo::connect((Predecessor &&) pred, predecessor_receiver{*this});
+      });
+    }
+
+    ~operation() {
+      if (!started_) {
+        predOp_.destruct();
+      }
+    }
+
+    void start() noexcept {
+      started_ = true;
+      cpo::start(predOp_.get());
+    }
+
+   private:
+    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
+    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+    UNIFEX_NO_UNIQUE_ADDRESS typename Predecessor::
+        template value_types<manual_lifetime_union, decayed_tuple>
+            values_;
+    union {
+      manual_lifetime<operation_t<Predecessor, predecessor_receiver>> predOp_;
+      typename Predecessor::
+          template value_types<manual_lifetime_union, successor_operation>
+              succOp_;
+    };
+    bool started_ = false;
+  };
+
+ public:
+  template <typename Predecessor2, typename SuccessorFactory2>
+  explicit let_sender(Predecessor2&& pred, SuccessorFactory2&& func)
+      : pred_((Predecessor2 &&) pred), func_((SuccessorFactory2 &&) func) {}
+
+  template <typename Receiver>
+  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
+    return operation<std::remove_cvref_t<Receiver>>{
+        std::move(pred_), std::move(func_), (Receiver &&) receiver};
+  }
+};
+
+template <typename Predecessor, typename SuccessorFactory>
+auto let(Predecessor&& pred, SuccessorFactory&& func) {
+  return let_sender<
+      std::remove_cvref_t<Predecessor>,
+      std::remove_cvref_t<SuccessorFactory>>{(Predecessor &&) pred,
+                                             (SuccessorFactory &&) func};
+}
+
+} // namespace unifex

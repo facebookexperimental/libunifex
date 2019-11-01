@@ -1,0 +1,72 @@
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/timed_single_thread_context.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/typed_via.hpp>
+#include <unifex/when_all.hpp>
+
+#include <chrono>
+#include <iostream>
+
+using namespace unifex;
+using namespace std::chrono;
+using namespace std::chrono_literals;
+
+struct my_error {};
+
+int main() {
+  timed_single_thread_context context;
+
+  auto scheduler = context.get_scheduler();
+
+  auto start = steady_clock::now();
+
+  bool ranPart1Callback = false;
+  bool ranPart2Callback = false;
+  bool ranFinalCallback = false;
+
+  try {
+    sync_wait(transform(
+        when_all(
+            transform(
+                cpo::schedule_after(scheduler, 100ms),
+                [&]() -> steady_clock::time_point::duration {
+                  ranPart1Callback = true;
+                  auto time = steady_clock::now() - start;
+                  auto timeMs = duration_cast<milliseconds>(time).count();
+                  std::cout << "part1 finished - [" << timeMs
+                            << "ms] throwing\n";
+                  throw my_error{};
+                }),
+            transform(
+                cpo::schedule_after(scheduler, 200ms),
+                [&]() {
+                  ranPart2Callback = true;
+                  auto time = steady_clock::now() - start;
+                  auto timeMs = duration_cast<milliseconds>(time).count();
+                  std::cout << "part2 finished - [" << timeMs << "ms]\n";
+                  return time;
+                })),
+        [&](auto&& a, auto&& b) {
+          ranFinalCallback = true;
+          std::cout << "when_all finished - ["
+                    << duration_cast<milliseconds>(std::get<0>(std::get<0>(a)))
+                           .count()
+                    << "ms, "
+                    << duration_cast<milliseconds>(std::get<0>(std::get<0>(b)))
+                           .count()
+                    << "ms]\n";
+        }));
+    assert(false);
+  } catch (my_error) {
+    auto time = steady_clock::now() - start;
+    auto timeMs = duration_cast<milliseconds>(time).count();
+    std::cout << "caught my_error after " << timeMs << "ms\n";
+  }
+
+  assert(ranPart1Callback);
+  assert(!ranPart2Callback);
+  assert(!ranFinalCallback);
+
+  return 0;
+}
