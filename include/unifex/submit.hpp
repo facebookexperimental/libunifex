@@ -20,18 +20,20 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/tag_invoke.hpp>
 
 namespace unifex {
 
 template <typename Sender, typename Receiver>
-struct spawned_op {
-  struct wrapped_receiver {
-    spawned_op* op_;
+class submitted_operation {
+  class wrapped_receiver {
+    submitted_operation* op_;
 
-    explicit wrapped_receiver(spawned_op* op) noexcept : op_(op) {}
+  public:
+    explicit wrapped_receiver(submitted_operation* op) noexcept : op_(op) {}
 
     template <typename... Values>
-        void value(Values&&... values) && noexcept {
+    void value(Values&&... values) && noexcept {
       cpo::set_value(std::move(op_->receiver_), (Values &&) values...);
       delete op_;
     }
@@ -65,8 +67,9 @@ struct spawned_op {
     }
   };
 
+public:
   template <typename Receiver2>
-  spawned_op(Sender&& sender, Receiver2&& receiver)
+  submitted_operation(Sender&& sender, Receiver2&& receiver)
       : receiver_((Receiver2 &&) receiver),
         inner_(cpo::connect((Sender &&) sender, wrapped_receiver{this}))
       {}
@@ -75,24 +78,40 @@ struct spawned_op {
     cpo::start(inner_);
   }
 
+private:
   Receiver receiver_;
   operation_t<Sender, wrapped_receiver> inner_;
 };
 
-template <typename Sender, typename Receiver>
-void spawn(Sender&& sender, Receiver&& receiver) noexcept {
-  auto blocking = cpo::blocking(sender);
-  if (blocking == blocking_kind::always ||
-      blocking == blocking_kind::always_inline) {
-    // The sender will complete synchronously so we can avoid allocating the
-    // state on the heap.
-    auto op = cpo::connect((Sender &&) sender, (Receiver &&) receiver);
-    cpo::start(op);
-  } else {
-    auto* op = new spawned_op<Sender, std::remove_cvref_t<Receiver>>(
-        (Sender &&) sender, (Receiver &&) receiver);
-    op->start();
+inline constexpr struct submit_cpo {
+  template<typename Sender, typename Receiver>
+  void operator()(Sender&& sender, Receiver&& receiver) const {
+    if constexpr (is_tag_invocable_v<submit_cpo, Sender, Receiver>) {
+      static_assert(
+        std::is_same_v<tag_invoke_result_t<submit_cpo, Sender, Receiver>>,
+        "Customisations of submit() must have a void return value");
+      unifex::tag_invoke(*this, (Sender&&)sender, (Receiver&&)receiver);
+    } else {
+      // Default implementation in terms of connect/start
+      switch (cpo::blocking(sender)) {
+        case blocking_kind::always:
+        case blocking_kind::always_inline:
+        {
+          // The sender will complete synchronously so we can avoid allocating the
+          // state on the heap.
+          auto op = cpo::connect((Sender &&) sender, (Receiver &&) receiver);
+          cpo::start(op);
+        }
+        default:
+        {
+          // Otherwise need to heap-allocate the operation-state
+          auto* op = new submitted_operation<Sender, std::remove_cvref_t<Receiver>>(
+            (Sender &&) sender, (Receiver &&) receiver);
+          op->start();
+        }
+      }
+    }
   }
-}
+} submit;
 
 } // namespace unifex

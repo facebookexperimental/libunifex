@@ -177,9 +177,8 @@ which returns an operation-state object which would normally have been heap-allo
 internally to `submit()` for operations that do not complete synchronously, and
 `start(operationState)`, which starts execution of the operation.
 
-The `submit()` function is still available (in Unifex it is called `spawn()`),
-it is just now a customisable algorithm with a default implementation in
-terms of `connect()` and `start()`.
+The `submit()` function is still available, it is just now a customisable algorithm
+with a default implementation in terms of `connect()` and `start()`.
 
 ## Uses `tag_invoke` as the customisation-point mechanism
 

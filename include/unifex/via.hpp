@@ -19,7 +19,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/spawn.hpp>
+#include <unifex/submit.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_stop_token.hpp>
 
@@ -191,7 +191,7 @@ struct via_sender {
     template <typename... Values>
     void value(Values&&... values) && noexcept {
       try {
-        spawn(
+        submit(
             (Successor &&) successor_,
             value_receiver<Receiver, std::remove_cvref_t<Values>...>{
                 {(Values &&) values...}, (Receiver &&) receiver_});
@@ -204,7 +204,7 @@ struct via_sender {
     template <typename Error>
     void error(Error&& error) && noexcept {
       try {
-        spawn(
+        submit(
             (Successor &&) successor_,
             error_receiver<Receiver, std::remove_cvref_t<Error>>{
                 (Error &&) error, (Receiver &&) receiver_});
@@ -216,7 +216,7 @@ struct via_sender {
 
     void done() && noexcept {
       try {
-        spawn(
+        submit(
             (Successor &&) successor_,
             done_receiver<Receiver>{(Receiver &&) receiver_});
       } catch (...) {
