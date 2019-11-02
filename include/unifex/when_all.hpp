@@ -20,6 +20,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/blocking.hpp>
 
 #include <atomic>
 #include <cstddef>
@@ -234,6 +235,46 @@ class when_all_sender {
   }
 
  private:
+
+  // Customise the 'blocking' CPO to combine the blocking-nature
+  // of each of the child operations.
+  friend blocking_kind tag_invoke(tag_t<cpo::blocking>, const when_all_sender& s) noexcept {
+    bool alwaysInline = true;
+    bool alwaysBlocking = true;
+    bool neverBlocking =  false;
+
+    auto handleBlockingStatus = [&](blocking_kind kind) noexcept {
+      switch (kind) {
+        case blocking_kind::never:
+          neverBlocking = true;
+          [[fallthrough]];
+        case blocking_kind::maybe:
+          alwaysBlocking = false;
+          [[fallthrough]];
+        case blocking_kind::always:
+          alwaysInline = false;
+          [[fallthrough]];
+        case blocking_kind::always_inline:
+          break;
+      }
+    };
+
+    std::apply([&](const auto&... senders) {
+      (void)std::initializer_list<int>{
+        (handleBlockingStatus(cpo::blocking(senders)), 0)... };
+    }, s.senders_);
+
+    if (neverBlocking) {
+      return blocking_kind::never;
+    } else if (alwaysInline) {
+      return blocking_kind::always_inline;
+    } else if (alwaysBlocking) {
+      return blocking_kind::always;
+    } else {
+      return blocking_kind::maybe;
+    }
+  }
+
   std::tuple<Senders...> senders_;
 };
 
