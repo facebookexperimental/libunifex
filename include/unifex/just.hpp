@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/blocking.hpp>
 
 #include <exception>
 #include <tuple>
@@ -66,6 +67,10 @@ class just_sender {
   template <typename Receiver>
   operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
     return {std::move(values_), (Receiver &&) r};
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<cpo::blocking>, const just_sender&) noexcept {
+    return blocking_kind::always_inline;
   }
 };
 
