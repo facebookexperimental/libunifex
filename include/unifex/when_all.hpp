@@ -15,14 +15,17 @@
  */
 #pragma once
 
+#include <unifex/async_trace.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
+#include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 
 #include <atomic>
 #include <cstddef>
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <variant>

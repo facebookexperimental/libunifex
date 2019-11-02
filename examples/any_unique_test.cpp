@@ -34,9 +34,10 @@ inline constexpr struct get_typeid_cpo {
   }
 
   template <typename T>
-  auto operator()(const T& x) const noexcept -> unifex::requires_t<
-      is_type_index,
-      unifex::tag_invoke_result_t<get_typeid_cpo, const T&>> {
+  auto operator()(const T& x) const noexcept ->
+      unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
+    static_assert(
+      std::is_same_v<std::type_index, unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);
   }
 } get_typeid;

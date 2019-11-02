@@ -26,11 +26,3 @@
 #else
 # define UNIFEX_HAVE_COROUTINES 0
 #endif
-
-#include <type_traits>
-
-namespace std
-{
-  template<typename T>
-  using remove_cvref_t = remove_cv_t<remove_reference_t<T>>;
-}
