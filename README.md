@@ -44,7 +44,38 @@ The io_uring support depends on liburing: https://github.com/axboe/liburing/
 
 # Building
 
-TODO
+This project can be built using CMake.
+
+The examples below assume using the [Ninja](https://ninja-build.org/) build system.
+You can use other build systems supported by CMake.
+
+## Configuring to build with Clang
+
+First generate the build files under the `./build` subdirectory.
+
+From the libunifex project root:
+```sh
+cmake -G Ninja -H. -Bbuild \
+      -DCMAKE_CXX_COMPILER=/path/to/clang++ \
+      -DCMAKE_CXX_FLAGS="-std=c++2a" \
+      -DCMAKE_EXE_LINKER_FLAGS="-L/path/to/libc++/lib"
+```
+
+## Building Library + Running Tests
+
+To build the library and tests.
+
+From the `./build` subdirectory run:
+```sh
+ninja
+```
+
+Once the tests have been built you can run them.
+
+From the `./build` subdirectory run:
+```sh
+ninja test
+```
 
 # License
 
