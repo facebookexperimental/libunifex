@@ -23,8 +23,8 @@ it will complete with an error, indicating failure, and the caller will
 execute along the error-path (typically by unwinding until it hits a handler).
 
 As the caller is suspended while the callee is executing and the program
-is single-threaded, there is typically nothing that can change the fact that
-the caller needs that result in order to achieve its goal.
+is single-threaded, in many cases there is nothing that can change the fact
+that the caller needs that result in order to achieve its goal.
 
 The program can only pursue one strategy for achieving its goal at a time
 and so needs to wait until the result of the current strategy is known at
@@ -36,7 +36,7 @@ Once we allow a program to execute multiple operations concurrently,
 it is possible that we might have multiple strategies for achieving the
 goal of a program that are executing at the same time.
 
-For example, the goal of (this part of) the program might be
+For example, the goal of (a part of) the program might be
 "try to download this file or stop trying after 30s".
 
 This program might concurrently try download the file and also start
@@ -80,7 +80,27 @@ executing and some other concurrent operation requests that the operation
 stops because its result is no longer required.
 
 However, there is also the lazy cancellation case, where an operation has
-not yet started and so
+not yet started and so can request cancellation of the operation without
+need for synchronisation.
+
+For example, a consumer might be processing elements from a stream one
+at a time until it sees an element that matches a certain predicate.
+When it receives the next element it matches it against the predicate
+and then based on the result can either ask for the next element,
+by calling the `.next()` method on the stream. Or it can cancel the
+stream by calling the `.cleanup()` method on the stream.
+
+As the stream has not yet been asked to produce the next element there
+is no need to cancel an already-running operation and so we can cancel
+the operation
+
+Another example is a coroutine `generator<T>` type, where we can either
+ask for the next element by executing `operator++()` on the iterator or
+we can cancel the execution of the generator by calling the generator
+destructor.
+
+Another example is a sender that has not yet started. This async operation
+can often be trivially cancelled by destroying the sender without starting it.
 
 ## References
 
@@ -93,7 +113,7 @@ used here. See the paper "Cancellation is serendipitous-success"
 Unifex uses stop-tokens to allow a higher-level operation to communicate a
 request to stop to an operation that has already started.
 
-See the section on the "StopToken" concept in [concepts.md](concepts.md).
+See the section on the "StopToken" concept in the [Concepts documentation](concepts.md).
 
 This requires the consumer of the operation to provide the stop-token when
 it launches the operation so that it can later communicate a request to stop
@@ -119,15 +139,25 @@ It is also entirely optional for a sender to call this CPO to obtain a stop-toke
 or to check for a request to stop. A sender that doesn't check for a request to
 stop will just run to completion naturally rather than complete early.
 
+Senders and receivers that do not want to participate in cancellation do not have
+to use it and should not incur any cognitive or runtime overhead if cancellation
+is not used.
+
 ## Stop Token Validity
 
-A sender that calls `get_stop_token()` on the receiver it has been connected to
+A stop-token obtained from a call to `get_stop_token(r)` on a receiver, `r`, must
+be assumed to be invalidated when by a call to a completion-signalling function.
+ie. `set_value(std::move(r), values...)`, `set_error(std::move(r), error)` or
+`set_done(std::move(r))`.
+
+The sender must ensure that any stop-callback that has been construction receiver it has been connected to
 must ensure that any stop-callback that has been constructed using that stop-token
 is destroyed prior to signalling completion on the receiver.
 
-Futher, it is invalid to use a stop token obtained from a call to `get_stop_token()`
+It is invalid to use a stop token obtained from a call to `get_stop_token()`
 after one of the completion-signalling functions has been called on the receiver.
-ie. It is invalid to call `.stop_requested()`, `.stop_possible()` or construct a stop-callback.
+ie. It is invalid to call `.stop_requested()`, `.stop_possible()` or construct
+a stop-callback using that token.
 
 This restriction allows more efficient implementations of stop-tokens that
 avoid heap-allocations and reference-counting. Stop tokens may be lightweight
@@ -142,7 +172,10 @@ or because the higher-level goal has already been met then it is idiomatic
 for a sender to complete by calling the receiver's `set_done()` method.
 
 The `set_done()` method indicates that the operation did not run to
-completion and so may not have satisfied its post-conditions.
+completion and so may not have satisfied its post-conditions. However,
+it did not satisfy the post-conditions because it was unable to do so
+but rather because it was asked to stop early, typically because its
+result is no longer required.
 
 Consumer code that was dependent on the operation completing successfully
 should be cancelled (by not executing it) and should generally propagate
