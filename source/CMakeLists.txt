@@ -27,13 +27,16 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
       uring)
 endif()
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  # Assuming using libc++ with Clang
+  target_link_libraries(unifex
+    PRIVATE
+      -lc++experimental)
+endif()
+
 target_include_directories(unifex
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>
   PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR})
 
-# Link against libstdc++ implementation of std::filesystem
-target_link_libraries(unifex
-  PRIVATE
-    stdc++fs)
