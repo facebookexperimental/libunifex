@@ -19,11 +19,10 @@ namespace unifex {
 
 void manual_event_loop::run() {
   std::unique_lock lock{mutex_};
-  while (!stop_) {
+  while (true) {
     while (head_ == nullptr) {
+      if (stop_) return;
       cv_.wait(lock);
-      if (stop_)
-        return;
     }
     auto* task = head_;
     head_ = task->next_;
