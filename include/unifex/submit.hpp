@@ -21,6 +21,9 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/config.hpp>
+#include <unifex/get_allocator.hpp>
+#include <unifex/scope_guard.hpp>
 
 namespace unifex {
 
@@ -34,19 +37,34 @@ class submitted_operation {
 
     template <typename... Values>
     void value(Values&&... values) && noexcept {
+      auto allocator = get_allocator(op_->receiver_);
       cpo::set_value(std::move(op_->receiver_), (Values &&) values...);
-      delete op_;
+      destroy(std::move(allocator));
     }
 
     template <typename Error>
     void error(Error&& error) && noexcept {
+      auto allocator = get_allocator(op_->receiver_);
       cpo::set_error(std::move(op_->receiver_), (Error &&) error);
-      delete op_;
+      destroy(std::move(allocator));
     }
 
     void done() && noexcept {
+      auto allocator = get_allocator(op_->receiver_);
       cpo::set_done(std::move(op_->receiver_));
-      delete op_;
+      destroy(std::move(allocator));
+    }
+
+  private:
+
+    template<typename Allocator>
+    void destroy(Allocator allocator) noexcept {
+      using allocator_traits = std::allocator_traits<Allocator>;
+      using typed_allocator = typename allocator_traits::template rebind_alloc<submitted_operation>;
+      using typed_allocator_traits = std::allocator_traits<typed_allocator>;
+      typed_allocator typedAllocator{allocator};
+      typed_allocator_traits::destroy(typedAllocator, op_);
+      typed_allocator_traits::deallocate(typedAllocator, op_, 1);
     }
 
     template <
@@ -69,7 +87,7 @@ class submitted_operation {
 
 public:
   template <typename Receiver2>
-  submitted_operation(Sender&& sender, Receiver2&& receiver)
+  explicit submitted_operation(Sender&& sender, Receiver2&& receiver)
       : receiver_((Receiver2 &&) receiver),
         inner_(cpo::connect((Sender &&) sender, wrapped_receiver{this}))
       {}
@@ -79,8 +97,8 @@ public:
   }
 
 private:
-  Receiver receiver_;
-  operation_t<Sender, wrapped_receiver> inner_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS operation_t<Sender, wrapped_receiver> inner_;
 };
 
 inline constexpr struct submit_cpo {
@@ -105,8 +123,27 @@ inline constexpr struct submit_cpo {
         default:
         {
           // Otherwise need to heap-allocate the operation-state
-          auto* op = new submitted_operation<Sender, std::remove_cvref_t<Receiver>>(
-            (Sender &&) sender, (Receiver &&) receiver);
+          using operation_type = submitted_operation<Sender, std::remove_cvref_t<Receiver>>;
+
+          operation_type* op = nullptr;
+          {
+            // Use the receiver's associated allocator to allocate this state.
+            auto allocator = get_allocator(receiver);
+            using allocator_traits = std::allocator_traits<decltype(allocator)>;
+            using typed_allocator = typename allocator_traits::template rebind_alloc<operation_type>;
+            using typed_allocator_traits = std::allocator_traits<typed_allocator>;
+
+            typed_allocator typedAllocator{allocator};
+            op = typed_allocator_traits::allocate(typedAllocator, 1);
+            bool constructorSucceeded = false;
+            scope_guard freeOnError = [&]() noexcept {
+              if (!constructorSucceeded) {
+                typed_allocator_traits::deallocate(typedAllocator, op, 1);
+              }
+            };
+            typed_allocator_traits::construct(typedAllocator, op, (Sender&&)sender, (Receiver&&)receiver);
+            constructorSucceeded = true;
+          }
           op->start();
         }
       }
