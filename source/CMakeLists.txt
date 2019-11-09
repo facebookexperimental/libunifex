@@ -9,9 +9,10 @@ target_sources(unifex
   PRIVATE
     inplace_stop_token.cpp
     manual_event_loop.cpp
-    trampoline_scheduler.cpp
+    static_thread_pool.cpp
     thread_unsafe_event_loop.cpp
-    timed_single_thread_context.cpp)
+    timed_single_thread_context.cpp
+    trampoline_scheduler.cpp)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(unifex
