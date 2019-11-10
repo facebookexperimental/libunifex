@@ -20,6 +20,7 @@
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/async_trace.hpp>
 
+#include <cassert>
 #include <exception>
 #include <experimental/coroutine>
 #include <optional>
