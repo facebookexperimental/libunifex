@@ -21,8 +21,12 @@
 #define UNIFEX_NO_UNIQUE_ADDRESS
 #endif
 
-#if __cpp_coroutines >= 201703L
+// UNIFEX_HAVE_COROUTINES is defined to 1 if you are
+// compiling with coroutine support enabled.
+#ifndef UNIFEX_HAVE_COROUTINES
+#if __cpp_coroutines >= 201703L && __has_include(<experimental/coroutine>)
 # define UNIFEX_HAVE_COROUTINES 1
 #else
 # define UNIFEX_HAVE_COROUTINES 0
+#endif
 #endif

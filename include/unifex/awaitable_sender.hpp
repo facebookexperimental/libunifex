@@ -19,6 +19,11 @@
 #include <unifex/coroutine_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/config.hpp>
+
+#if !UNIFEX_HAVE_COROUTINES
+# error "C++20 coroutine support is required to use <unifex/awaitable_sender.hpp>"
+#endif
 
 #include <experimental/coroutine>
 #include <optional>

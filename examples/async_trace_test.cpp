@@ -14,16 +14,23 @@
  * limitations under the License.
  */
 #include <unifex/async_trace.hpp>
-#include <unifex/awaitable_sender.hpp>
+
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/sender_awaitable.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
+
+#include <unifex/config.hpp>
+#include <unifex/just.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/typed_via.hpp>
 #include <unifex/when_all.hpp>
+
+#if UNIFEX_HAVE_COROUTINES
+#include <unifex/awaitable_sender.hpp>
+#include <unifex/sender_awaitable.hpp>
+#include <unifex/task.hpp>
+#endif
 
 #include <chrono>
 #include <iomanip>
@@ -38,9 +45,9 @@ using namespace std::chrono_literals;
 auto dump_async_trace(std::string tag = {}) {
   return transform(
       async_trace_sender{},
-      [tag = std::move(tag)](const std::vector<async_trace_entry>& entries) {
+      [tag = std::move(tag)](const std::vector<async_trace_entry> &entries) {
         std::cout << "Async Trace (" << tag << "):\n";
-        for (auto& entry : entries) {
+        for (auto &entry : entries) {
           std::cout << " " << entry.depth << " [-> " << entry.parentIndex
                     << "]: " << entry.continuation.type().name() << " @ 0x";
           std::cout.setf(std::ios::hex, std::ios::basefield);
@@ -52,14 +59,14 @@ auto dump_async_trace(std::string tag = {}) {
 }
 
 template <typename Sender>
-auto dump_async_trace_on_start(Sender&& sender, std::string tag = {}) {
+auto dump_async_trace_on_start(Sender &&sender, std::string tag = {}) {
   return unifex::on(dump_async_trace(std::move(tag)), (Sender &&) sender);
 }
 
 template <typename Sender>
-auto dump_async_trace_on_completion(Sender&& sender, std::string tag = {}) {
-  return unifex::typed_via(
-      (Sender &&) sender, dump_async_trace(std::move(tag)));
+auto dump_async_trace_on_completion(Sender &&sender, std::string tag = {}) {
+  return unifex::typed_via((Sender &&) sender,
+                           dump_async_trace(std::move(tag)));
 }
 
 int main() {
@@ -87,11 +94,18 @@ int main() {
                 std::cout << "part2 finished - [" << timeMs << "]\n";
                 return time;
               }),
-          awaitable_sender{[]() -> task<int> {
-            co_await dump_async_trace("coroutine");
-            co_return 42;
-          }()}),
-      [](auto&& a, auto&& b, auto&& c) {
+#if UNIFEX_HAVE_COROUTINES
+          awaitable_sender {
+            []() -> task<int> {
+              co_await dump_async_trace("coroutine");
+              co_return 42;
+            }()
+          }
+#else
+          just(42)
+#endif // UNIFEX_HAVE_COROUTINES
+          ),
+      [](auto &&a, auto &&b, auto &&c) {
         std::cout
             << "when_all finished - ["
             << duration_cast<milliseconds>(std::get<0>(std::get<0>(a))).count()
