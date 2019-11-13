@@ -36,8 +36,11 @@ namespace unifex {
 // then responsible for waking up the consumer.
 template <typename Item, Item* Item::*Next>
 class atomic_intrusive_queue {
- public:
+public:
   atomic_intrusive_queue() noexcept : head_(nullptr) {}
+
+  explicit atomic_intrusive_queue(bool initiallyActive) noexcept
+      : head_(initiallyActive ? nullptr : producer_inactive_value()) {}
 
   ~atomic_intrusive_queue() {
     // Check that all items in this queue have beel dequeued.
@@ -52,6 +55,41 @@ class atomic_intrusive_queue {
   atomic_intrusive_queue(atomic_intrusive_queue&&) = delete;
   atomic_intrusive_queue& operator=(const atomic_intrusive_queue&) = delete;
   atomic_intrusive_queue& operator=(atomic_intrusive_queue&&) = delete;
+
+  // Returns true if the previous state was inactive and this
+  // operation successfully marked it as active.
+  // Returns false if the previous state was active.
+  [[nodiscard]] bool try_mark_active() noexcept {
+    void *oldValue = producer_inactive_value();
+    return head_.compare_exchange_strong(oldValue, nullptr,
+                                         std::memory_order_acquire,
+                                         std::memory_order_relaxed);
+  }
+
+  // Either enqueue an item to the queue if the producer is
+  // active, otherwise if the producer is inactive then
+  // mark the queue as active but do not enqueue the item.
+  // The assumption is that the caller then becomes the
+  // producer and will process item directly.
+  //
+  // Returns true if the item was enqueued.
+  // Returns false if the item was not enqueued and the queue
+  // was transitioned from inactive to active.
+  [[nodiscard]] bool enqueue_or_mark_active(Item *item) noexcept {
+    void *const inactive = producer_inactive_value();
+    void *oldValue = head_.load(std::memory_order_relaxed);
+    void *newValue;
+    do {
+      if (oldValue == inactive) {
+        newValue = nullptr;
+      } else {
+        item->*Next = static_cast<Item *>(oldValue);
+        newValue = item;
+      }
+    } while (!head_.compare_exchange_weak(oldValue, newValue,
+                                          std::memory_order_acq_rel));
+    return oldValue != inactive;
+  }
 
   // Enqueue an item to the queue.
   //
