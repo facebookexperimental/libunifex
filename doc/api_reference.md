@@ -38,6 +38,8 @@
 * StopToken Types
   * `unstoppable_token`
   * `inplace_stop_token` / `inplace_stop_source`
+* Synchronisation Primitives
+  * `async_mutex`
 
 # Receiver Queries
 
@@ -459,3 +461,42 @@ destroyed before the stop-source is destructed.
 
 This is a less-safe but more efficient version of `std::stop_token`
 proposed in [P0660R10](https://wg21.link/P0660R10).
+
+
+## Synchronisation Primitives
+
+### `async_mutex`
+
+A mutex that allows acquiring the mutex asynchronously.
+
+```c++
+namespace unifex
+{
+  class async_mutex {
+  public:
+    async_mutex() noexcept;
+    async_mutex(async_mutex&&) = delete;
+    async_mutex(const async_mutex&) = delete;
+    ~async_mutex();
+
+    // Attempt to acquire the mutex lock synchronously.
+    // Returns true if successful, false otherwise.
+    // If the lock is acquired then the caller is responsible for releasing
+    // the lock by calling unlock().
+    bool try_lock() noexcept;
+
+    // Acquire the mutex lock asynchronously.
+    // Returns a sender that will complete when the lock has been
+    // acquired. The caller is then responsible for calling unlock()
+    // to release the mutex.
+    sender auto async_lock() noexcept;
+
+    // Unlock the mutex.
+    // Only valid to call if you currently own the mutex lock.
+    //
+    // This will cause the next 'async_lock' operation in the queue to complete
+    // (if any).
+    void unlock() noexcept;
+  };
+};
+```
