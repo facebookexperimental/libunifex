@@ -218,16 +218,16 @@ class timed_single_thread_context {
 
    public:
     template <typename Rep, typename Ratio>
-    auto schedule_after(std::chrono::duration<Rep, Ratio> delay) noexcept {
+    auto schedule_after(std::chrono::duration<Rep, Ratio> delay) const noexcept {
       return schedule_after_sender<std::chrono::duration<Rep, Ratio>>{
           context_, delay};
     }
 
-    auto schedule_at(clock_t::time_point dueTime) noexcept {
+    auto schedule_at(clock_t::time_point dueTime) const noexcept {
       return schedule_at_sender{context_, dueTime};
     }
 
-    auto schedule() noexcept {
+    auto schedule() const noexcept {
       return schedule_after(std::chrono::milliseconds{0});
     }
 

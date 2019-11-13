@@ -105,7 +105,7 @@ class manual_event_loop {
     explicit scheduler(manual_event_loop* loop) noexcept : loop_(loop) {}
 
    public:
-    schedule_task schedule() noexcept {
+    schedule_task schedule() const noexcept {
       return schedule_task{loop_};
     }
 

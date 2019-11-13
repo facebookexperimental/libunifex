@@ -217,16 +217,16 @@ class thread_unsafe_event_loop {
     };
 
    public:
-    auto schedule_at(time_point_t dueTime) noexcept {
+    auto schedule_at(time_point_t dueTime) const noexcept {
       return schedule_at_sender{loop_, dueTime};
     }
 
     template <typename Rep, typename Ratio>
-    auto schedule_after(std::chrono::duration<Rep, Ratio> d) noexcept {
+    auto schedule_after(std::chrono::duration<Rep, Ratio> d) const noexcept {
       return schedule_after_sender<std::chrono::duration<Rep, Ratio>>{loop_, d};
     }
 
-    auto schedule() noexcept {
+    auto schedule() const noexcept {
       return schedule_after(std::chrono::milliseconds(0));
     }
 

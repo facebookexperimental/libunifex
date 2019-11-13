@@ -120,7 +120,7 @@ private:
   };
 
 public:
-  schedule_sender schedule() noexcept {
+  schedule_sender schedule() const noexcept {
     return schedule_sender{maxRecursionDepth_};
   }
 };
