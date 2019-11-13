@@ -148,12 +148,18 @@ struct with_type_erased_tag_invoke<
     Derived,
     CPO,
     Ret(Args...) noexcept(NoExcept)> {
+private:
+    template <typename T>
+    static void* get_object_address(T&& t) { return static_cast<T&&>(t).get_object_address(); }
+    template <typename T>
+    static auto  get_vtable(T&& t) { return static_cast<T&&>(t).get_vtable(); }
+public:
   friend Ret tag_invoke(
       base_cpo_t<CPO> cpo,
       replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
     auto& t = extract_this<Args...>{}(args...);
-    void* objPtr = t.get_object_address();
-    auto* fnPtr = t.get_vtable()->template get<CPO>();
+    void* objPtr = get_object_address(t);
+    auto* fnPtr = get_vtable(t)->template get<CPO>();
     return fnPtr(
         std::move(cpo),
         replace_this<Args>::get((Args &&) args, objPtr)...);

@@ -142,19 +142,25 @@ class when_all_sender {
         op_.element_complete();
       }
 
+      Receiver& get_receiver() const { return op_.receiver_; }
+
       template <
           typename CPO,
           std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const element_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.op_.receiver_));
+        return std::move(cpo)(std::as_const(r.get_receiver()));
+      }
+
+      inplace_stop_source& get_stopSource() const {
+          return op_.stopSource_;
       }
 
       friend inplace_stop_token tag_invoke(
           tag_t<get_stop_token>,
           const element_receiver& r) noexcept {
-        return r.op_.stopSource_.get_token();
+        return r.get_stopSource().get_token();
       }
 
       template <typename Func>
@@ -162,7 +168,7 @@ class when_all_sender {
           tag_t<visit_continuations>,
           const element_receiver& r,
           Func&& func) {
-        std::invoke(func, r.op_.receiver_);
+        std::invoke(func, r.get_receiver());
       }
     };
 

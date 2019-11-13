@@ -55,9 +55,13 @@ struct take_until_stream {
       stream.trigger_next_done();
     }
 
+    inplace_stop_source& get_stopSource() const {
+      return stream_.stopSource_;
+    }
+
     friend inplace_stop_token tag_invoke(
         tag_t<get_stop_token>, const trigger_next_receiver& r) noexcept {
-      return r.stream_.stopSource_.get_token();
+      return r.get_stopSource().get_token();
     }
   };
 
@@ -110,9 +114,13 @@ struct take_until_stream {
           cpo::set_error(std::move(op_.receiver_), (Error&&)error);
         }
 
+        inplace_stop_source& get_stopSource() const {
+          return op_.stream_.stopSource_;
+        }
+
         friend inplace_stop_token tag_invoke(
             tag_t<get_stop_token>, const receiver_wrapper& r) noexcept {
-          return r.op_.stream_.stopSource_.get_token();
+          return r.get_stopSource().get_token();
         }
 
         template <typename Func>

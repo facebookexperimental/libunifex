@@ -34,8 +34,10 @@ class with_query_value_operation {
         : receiver_((Receiver2 &&) receiver), op_(op) {}
 
   private:
+    Value& get_value() const { return op_->value_; }
+
     friend const Value &tag_invoke(CPO, const receiver_wrapper &r) noexcept {
-      return r.op_->value_;
+      return r.get_value();
     }
 
     template <typename OtherCPO, typename... Args>
