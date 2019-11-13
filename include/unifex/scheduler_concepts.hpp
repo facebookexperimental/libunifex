@@ -15,7 +15,11 @@
  */
 #pragma once
 
+#include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+
+#include <type_traits>
+#include <exception>
 
 namespace unifex {
 namespace cpo {
@@ -34,7 +38,48 @@ inline constexpr struct schedule_cpo {
           -> decltype(tag_invoke(*this, static_cast<Scheduler&&>(s))) {
     return tag_invoke(*this, static_cast<Scheduler&&>(s));
   }
+
+  struct schedule_sender;
+
+  schedule_sender operator()() const noexcept;
 } schedule;
+
+inline constexpr struct get_scheduler_cpo {
+  template <typename Context>
+  auto operator()(const Context &context) const noexcept
+      -> tag_invoke_result_t<get_scheduler_cpo, const Context &> {
+    static_assert(is_nothrow_tag_invocable_v<get_scheduler_cpo, const Context &>);
+    static_assert(std::is_invocable_v<
+                  decltype(schedule),
+                  tag_invoke_result_t<get_scheduler_cpo, const Context &>>);
+    return tag_invoke(*this, context);
+  }
+} get_scheduler;
+
+struct schedule_cpo::schedule_sender {
+  template<template<typename...> class Variant,
+  template<typename...> class Tuple>
+  using value_types = Variant<Tuple<>>;
+
+  template<template<typename...> class Variant>
+  using error_types = Variant<std::exception_ptr>;
+
+  template <typename Receiver>
+  friend auto tag_invoke(tag_t<connect>, schedule_sender, Receiver &&r)
+      -> std::invoke_result_t<
+          decltype(connect),
+          std::invoke_result_t<
+              decltype(schedule),
+              std::invoke_result_t<decltype(get_scheduler), const Receiver &>>,
+          Receiver> {
+    auto scheduler = get_scheduler(std::as_const(r));
+    return connect(schedule(scheduler), (Receiver &&) r);
+  }
+};
+
+inline schedule_cpo::schedule_sender schedule_cpo::operator()() const noexcept {
+  return {};
+}
 
 inline constexpr struct schedule_after_cpo {
   template <typename TimeScheduler, typename Duration>

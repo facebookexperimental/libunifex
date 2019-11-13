@@ -1,5 +1,7 @@
 # Index
 
+* Receiver Queries
+  * `get_scheduler()`
 * Sender Algorithms
   * `transform()`
   * `via()`
@@ -32,6 +34,19 @@
 * StopToken Types
   * `unstoppable_token`
   * `inplace_stop_token` / `inplace_stop_source`
+
+# Receiver Queries
+
+### `cpo::get_scheduler(receiver)`
+
+A query that can be used to obtain the associated scheduler from the receiver.
+
+This can be used by senders to obtain a scheduler that can be used to schedule
+work if required.
+
+Receivers can customise this CPO to return the current scheduler.
+
+See the `schedule()` algorithm, which schedules onto the current scheduler.
 
 # Sender Algorithms
 
@@ -256,6 +271,29 @@ Any `.error()` produced by an abandoned `.next()` call is reported in
 the `.cleanup()` result.
 
 ## Scheduler Algorithms
+
+### `schedule(Scheduler schedule) -> SenderOf<void>`
+
+This is the basis operation for a scheduler.
+
+The `schedule` operation returns a sender that is a lazy async operation.
+
+A schedule operation logically enqueues an item onto the scheduler's queue when `start()`
+is called and the operation completes when some thread associated with the scheduler's
+execution context dequeues that item.
+
+The operation signals completion by invoking either the `set_value()`,
+`set_done()` or `set_error()` methods on the receiver passed to `connect()`.
+
+As the operation completes on the execution context, the `set_value()` method by definition
+be called on that execution context. Applications can therefore use the `schedule()`
+operation to execute logic on the associated execution context by placing that logic within
+the body of `set_value()`.
+
+### `schedule() -> SenderOf<void>`
+
+This is like `schedule(scheduler)` above but uses the implicit scheduler
+obtained from the receiver passed to `connect()` by a calling `get_scheduler(receiver)`.
 
 ### `delay(TimeScheduler scheduler, Duration d) -> Scheduler`
 
