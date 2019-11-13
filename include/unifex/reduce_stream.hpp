@@ -71,6 +71,19 @@ struct reduce_stream_sender {
         cpo::set_error(static_cast<Receiver&&>(op.receiver_), std::move(ex));
       }
 
+      template <
+          typename CPO,
+          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+      friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
+        return std::move(cpo)(std::as_const(r.op_.receiver_));
+      }
+
+      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const error_cleanup_receiver& r) noexcept {
+        return {};
+      }
+
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>,
@@ -96,6 +109,19 @@ struct reduce_stream_sender {
         cpo::set_value(
             static_cast<Receiver&&>(op.receiver_),
             std::forward<State>(op.state_));
+      }
+
+      template <
+          typename CPO,
+          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+      friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
+        return std::move(cpo)(std::as_const(r.op_.receiver_));
+      }
+
+      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const done_cleanup_receiver& r) noexcept {
+        return {};
       }
 
       template <typename Func>
