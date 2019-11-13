@@ -1,7 +1,9 @@
 # Index
 
 * Receiver Queries
+  * `get_stop_token()`
   * `get_scheduler()`
+  * `get_allocator()`
 * Sender Algorithms
   * `transform()`
   * `via()`
@@ -10,6 +12,8 @@
   * `let()`
   * `sync_wait()`
   * `when_all()`
+  * `with_query_value()`
+  * `with_allocator()`
 * Sender Types
   * `async_trace_sender`
 * Sender Queries
@@ -47,6 +51,26 @@ work if required.
 Receivers can customise this CPO to return the current scheduler.
 
 See the `schedule()` algorithm, which schedules onto the current scheduler.
+
+### `get_allocator(receiver)`
+
+Obtain the current allocator that should be used for heap-allocating storage
+needed by the implementation of a sender if required.
+
+This may be customised by a receiver to return a specific allocator but if
+it has not been customised then defaults to return `std::allocator<char>`.
+
+### `get_stop_token(receiver)`
+
+Obtain the current stop-token from the receiver.
+
+If a sender's operation is able to be cancelled/interrupted then the sender should
+call this function to query the stop-token provided by the receiver and use
+this stop-token to either poll or subscribe for notification of a request to stop.
+
+If a receiver has not customised this it will default to return `unstoppable_token`.
+
+See the [Cancellation](cancellation.md) section for more details on cancellation.
 
 # Sender Algorithms
 
@@ -148,6 +172,33 @@ to `value()`.
 If any of the input senders complete with done or error then it will request
 any senders that have not yet completed to stop and the operation as a whole
 will complete with done or error.
+
+### `with_query_value(Sender sender, CPO cpo, T value) -> Sender`
+
+Wraps `sender` in a new sender that will pass a receiver to `connect()`
+on `sender` that customises CPO to return the specified value.
+
+This can be used to inject contextual information into child operations.
+
+For example:
+```c++
+inline constexpr unspecified get_some_property = {}; // Some CPO
+
+sender auto some_async_operation() { ... }
+
+sender auto inject_context() {
+  // Inject the value '42' as the result of 'get_some_property()' when queried
+  // by child operations of some_async_operation().
+  return with_query_value(some_async_operation(), get_some_property, 42);
+}
+```
+
+### `with_allocator(Sender sender, Allocator allocator) -> Allocator`
+
+Wraps `sender` in a new sender that will injects `allocator` as the
+result of `get_allocator()` query on receivers passed to child operations.
+
+Child operations should use this allocator to perform heap allocations.
 
 ### `async_trace_sender`
 
