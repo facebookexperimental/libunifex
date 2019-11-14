@@ -104,6 +104,8 @@ class let_sender {
     struct successor_receiver {
       operation& op_;
 
+      Receiver&  get_receiver() const { return op_.receiver_; }
+
       template <typename... SuccessorValues>
       void value(SuccessorValues&&... values) && noexcept {
         cleanup();
@@ -138,7 +140,7 @@ class let_sender {
       friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.op_.receiver_));
+        return std::move(cpo)(std::as_const(r.get_receiver()));
       }
 
       template <typename Func>
@@ -146,12 +148,14 @@ class let_sender {
           tag_t<visit_continuations>,
           const successor_receiver& r,
           Func&& f) {
-        std::invoke(f, r.op_.receiver_);
+        std::invoke(f, r.get_receiver());
       }
     };
 
     struct predecessor_receiver {
       operation& op_;
+
+      Receiver&  get_receiver() const { return op_.receiver_; }
 
       template <typename... Values>
       void value(Values&&... values) && noexcept {
@@ -200,7 +204,7 @@ class let_sender {
       friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.op_.receiver_));
+        return std::move(cpo)(std::as_const(r.get_receiver()));
       }
 
       template <typename Func>
@@ -208,7 +212,7 @@ class let_sender {
           tag_t<visit_continuations>,
           const predecessor_receiver& r,
           Func&& f) {
-        std::invoke(f, r.op_.receiver_);
+        std::invoke(f, r.get_receiver());
       }
     };
 

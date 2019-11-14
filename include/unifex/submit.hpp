@@ -67,13 +67,15 @@ class submitted_operation {
       typed_allocator_traits::deallocate(typedAllocator, op_, 1);
     }
 
+    Receiver& get_receiver() const { return op_->receiver_; }
+
     template <
         typename CPO,
         std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
     friend auto tag_invoke(CPO cpo, const wrapped_receiver& r) noexcept(
         std::is_nothrow_invocable_v<CPO, const Receiver&>)
         -> std::invoke_result_t<CPO, const Receiver&> {
-      return std::move(cpo)(std::as_const(r.op_->receiver_));
+      return std::move(cpo)(std::as_const(r.get_receiver()));
     }
 
     template <typename Func>

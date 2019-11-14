@@ -274,11 +274,15 @@ class thread_unsafe_event_loop {
       friend const StopToken& tag_invoke(
           tag_t<get_stop_token>,
           const receiver& r) noexcept {
-        return r.promise_.stopToken_;
+        return r.get_stop_token();
       }
 
      private:
       friend sync_wait_promise;
+
+      StopToken& get_stop_token() const {
+        return promise_.stopToken_;
+      }
 
       explicit receiver(sync_wait_promise& promise) noexcept
           : promise_(promise) {}

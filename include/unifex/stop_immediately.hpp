@@ -99,6 +99,10 @@ struct stop_immediately_stream {
   struct next_receiver {
     stop_immediately_stream& stream_;
 
+    inplace_stop_source& get_stop_source() const {
+      return stream_.stopSource_;
+    }
+
     // Note, parameters passed by value here just in case we are passed
     // references to values owned by the operation object that we will be
     // destroying before passing the values along to the next receiver.
@@ -171,7 +175,7 @@ struct stop_immediately_stream {
 
     friend inplace_stop_token tag_invoke(
         tag_t<get_stop_token>, const next_receiver& r) noexcept {
-      return r.stream_.stopSource_.get_token();
+      return r.get_stop_source().get_token();
     }
 
     template <typename Func>
