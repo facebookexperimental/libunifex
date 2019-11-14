@@ -26,7 +26,7 @@
 #include <unifex/typed_via.hpp>
 #include <unifex/when_all.hpp>
 
-#if UNIFEX_HAVE_COROUTINES
+#if !UNIFEX_NO_COROUTINES
 #include <unifex/awaitable_sender.hpp>
 #include <unifex/sender_awaitable.hpp>
 #include <unifex/task.hpp>
@@ -94,7 +94,7 @@ int main() {
                 std::cout << "part2 finished - [" << timeMs << "]\n";
                 return time;
               }),
-#if UNIFEX_HAVE_COROUTINES
+#if !UNIFEX_NO_COROUTINES
           awaitable_sender {
             []() -> task<int> {
               co_await dump_async_trace("coroutine");
@@ -103,7 +103,7 @@ int main() {
           }
 #else
           just(42)
-#endif // UNIFEX_HAVE_COROUTINES
+#endif // UNIFEX_NO_COROUTINES
           ),
       [](auto &&a, auto &&b, auto &&c) {
         std::cout

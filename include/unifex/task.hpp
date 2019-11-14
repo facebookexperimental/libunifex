@@ -19,7 +19,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/config.hpp>
 
-#if !UNIFEX_HAVE_COROUTINES
+#if UNIFEX_NO_COROUTINES
 # error "C++20 coroutine support is required to use this header"
 #endif
 

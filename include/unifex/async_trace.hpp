@@ -21,7 +21,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/config.hpp>
 
-#if UNIFEX_HAVE_COROUTINES
+#if !UNIFEX_NO_COROUTINES
 #include <experimental/coroutine>
 #endif
 
@@ -36,7 +36,7 @@ inline constexpr struct visit_continuations_cpo {
   friend void
   tag_invoke(visit_continuations_cpo, const Continuation&, Func&&) noexcept {}
 
-#if UNIFEX_HAVE_COROUTINES
+#if !UNIFEX_NO_COROUTINES
   template <
       typename Promise,
       typename Func,
@@ -47,7 +47,7 @@ inline constexpr struct visit_continuations_cpo {
       Func&& func) {
     cpo(h.promise(), (Func &&) func);
   }
-#endif // UNIFEX_HAVE_COROUTINES
+#endif // UNIFEX_NO_COROUTINES
 
   template <typename Continuation, typename Func>
   void operator()(const Continuation& c, Func&& func) const

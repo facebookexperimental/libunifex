@@ -15,7 +15,7 @@
  */
 #include <unifex/config.hpp>
 
-#if UNIFEX_HAVE_COROUTINES
+#if !UNIFEX_NO_COROUTINES
 
 #include <unifex/awaitable_sender.hpp>
 #include <unifex/delay.hpp>
@@ -71,7 +71,7 @@ int main() {
   return 0;
 }
 
-#else // UNIFEX_HAVE_COROUTINES
+#else // UNIFEX_NO_COROUTINES
 
 #include <cstdio>
 
@@ -81,4 +81,4 @@ int main() {
   return 0;
 }
 
-#endif
+#endif // UNIFEX_NO_COROUTINES
