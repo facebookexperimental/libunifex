@@ -33,6 +33,7 @@ class intrusive_queue {
   intrusive_queue& operator=(intrusive_queue other) noexcept {
     std::swap(head_, other.head_);
     std::swap(tail_, other.tail_);
+    return *this;
   }
 
   ~intrusive_queue() {
