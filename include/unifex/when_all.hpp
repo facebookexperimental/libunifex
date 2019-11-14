@@ -153,14 +153,14 @@ class when_all_sender {
         return std::move(cpo)(std::as_const(r.get_receiver()));
       }
 
-      inplace_stop_source& get_stopSource() const {
+      inplace_stop_source& get_stop_source() const {
           return op_.stopSource_;
       }
 
       friend inplace_stop_token tag_invoke(
           tag_t<get_stop_token>,
           const element_receiver& r) noexcept {
-        return r.get_stopSource().get_token();
+        return r.get_stop_source().get_token();
       }
 
       template <typename Func>
