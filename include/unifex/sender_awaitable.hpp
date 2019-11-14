@@ -19,6 +19,12 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/config.hpp>
+
+#if UNIFEX_NO_COROUTINES
+#error                                                                         \
+    "C++20 coroutine support is required to use <unifex/sender_awaitable.hpp>"
+#endif
 
 #include <cassert>
 #include <exception>
