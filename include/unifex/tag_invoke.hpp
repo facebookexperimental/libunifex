@@ -22,7 +22,7 @@
 namespace unifex {
 namespace tag_invoke_impl {
 
-void tag_invoke() = delete;
+void tag_invoke();
 
 struct tag_invoke_cpo {
   template <typename CPO, typename... Args>
