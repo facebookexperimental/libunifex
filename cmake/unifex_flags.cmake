@@ -23,11 +23,6 @@ elseif(UNIFEX_CXX_COMPILER_CLANG)
 endif()
 unset(CMAKE_REQUIRED_FLAGS)
 unset(UNIFEX_PROBE_CODE)
-# if (UNIFEX_COROUTINE_FLAGS)
-#   add_compile_options(${UNIFEX_COROUTINE_FLAGS})
-# else()
-#   add_compile_definitions("UNIFEX_NO_COROUTINES=1")
-# endif()
 
 # Probe for PMR support
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/cmake/pmr_test_code.cpp" UNIFEX_PROBE_CODE)
