@@ -19,9 +19,13 @@ target_include_directories(unifex-interface
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
 target_compile_features(unifex-interface INTERFACE cxx_std_20)
-if (UNIFEX_CXX_COMPILER_CLANG)
+if(UNIFEX_CXX_COMPILER_CLANG)
   target_compile_options(unifex-interface INTERFACE -stdlib=libc++)
-  target_compile_options(unifex-interface INTERFACE -fcoroutines-ts)
+endif()
+if(UNIFEX_COROUTINE_FLAGS)
+  target_compile_options(unifex-interface INTERFACE ${UNIFEX_COROUTINE_FLAGS})
+else()
+  target_compile_definitions(unifex-interface INTERFACE "UNIFEX_NO_COROUTINES=1")
 endif()
 
 enable_testing()

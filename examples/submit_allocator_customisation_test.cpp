@@ -30,7 +30,7 @@ using namespace unifex;
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
 #include UNIFEX_MEMORY_RESOURCE_HEADER
-using namespace UNIFEX_PMR_NAMESPACE;
+using namespace UNIFEX_STD_PMR_NAMESPACE;
 #endif
 
 struct increment_receiver {

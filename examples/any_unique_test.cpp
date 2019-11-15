@@ -55,7 +55,7 @@ struct destructor {
 };
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
-using namespace UNIFEX_PMR_NAMESPACE;
+using namespace UNIFEX_STD_PMR_NAMESPACE;
 
 class counting_memory_resource : public memory_resource {
  public:
