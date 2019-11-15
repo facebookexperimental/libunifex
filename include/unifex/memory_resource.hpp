@@ -15,18 +15,20 @@
  */
 #pragma once
 
-#if __GNUG__ && !__clang__
-#define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#ifndef UNIFEX_NO_MEMORY_RESOURCE
+#if __has_include(<memory_resource>)
+# define UNIFEX_NO_MEMORY_RESOURCE 0
+# include <memory_resource>
+namespace unifex {
+    namespace pmr = std::pmr;
+}
+#elif __has_include(<experimental/memory_resource>)
+# define UNIFEX_NO_MEMORY_RESOURCE 0
+# include <experimental/memory_resource>
+namespace unifex {
+    namespace pmr = std::experimental::pmr;
+}
 #else
-#define UNIFEX_NO_UNIQUE_ADDRESS
-#endif
-
-// UNIFEX_NO_COROUTINES is defined to 1 if compiling without coroutine support
-// enabled and is defined to 0 if coroutine support is enabled.
-#ifndef UNIFEX_NO_COROUTINES
-#if __cpp_coroutines >= 201703L && __has_include(<experimental/coroutine>)
-# define UNIFEX_NO_COROUTINES 0
-#else
-# define UNIFEX_NO_COROUTINES 1
+# define UNIFEX_NO_MEMORY_RESOURCE 1
 #endif
 #endif

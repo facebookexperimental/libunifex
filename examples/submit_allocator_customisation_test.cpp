@@ -23,15 +23,12 @@
 #include <unifex/via.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_allocator.hpp>
+#include <unifex/memory_resource.hpp>
 
 #include <memory>
 
 using namespace unifex;
-
-#if !UNIFEX_NO_MEMORY_RESOURCE
-#include UNIFEX_MEMORY_RESOURCE_HEADER
-using namespace UNIFEX_STD_PMR_NAMESPACE;
-#endif
+using namespace unifex::pmr;
 
 struct increment_receiver {
   int &value_;

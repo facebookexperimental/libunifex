@@ -15,15 +15,12 @@
  */
 #include <unifex/any_unique.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/memory_resource.hpp>
 
 #include <cassert>
 #include <string>
 #include <typeindex>
 #include <atomic>
-
-#if !UNIFEX_NO_MEMORY_RESOURCE
-#include UNIFEX_MEMORY_RESOURCE_HEADER
-#endif
 
 template <typename T>
 using is_type_index = std::is_same<std::type_index, T>;
@@ -55,7 +52,7 @@ struct destructor {
 };
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
-using namespace UNIFEX_STD_PMR_NAMESPACE;
+using namespace unifex::pmr;
 
 class counting_memory_resource : public memory_resource {
  public:
