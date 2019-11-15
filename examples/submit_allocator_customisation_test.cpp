@@ -24,11 +24,14 @@
 #include <unifex/when_all.hpp>
 #include <unifex/with_allocator.hpp>
 
-#include <experimental/memory_resource>
 #include <memory>
 
 using namespace unifex;
-using namespace std::experimental::pmr;
+
+#if !UNIFEX_NO_MEMORY_RESOURCE
+#include UNIFEX_MEMORY_RESOURCE_HEADER
+using namespace UNIFEX_PMR_NAMESPACE;
+#endif
 
 struct increment_receiver {
   int &value_;
@@ -47,6 +50,7 @@ struct increment_receiver {
   [[noreturn]] void done() && noexcept { std::terminate(); }
 };
 
+#if !UNIFEX_NO_MEMORY_RESOURCE
 class counting_memory_resource : public memory_resource {
 public:
   explicit counting_memory_resource(memory_resource *r) noexcept : inner_(r) {}
@@ -77,6 +81,7 @@ private:
   std::atomic<std::size_t> allocated_ = 0;
   std::atomic<std::size_t> count_ = 0;
 };
+#endif
 
 template <typename Scheduler, typename Allocator>
 void test(Scheduler scheduler, Allocator allocator) {
@@ -101,6 +106,7 @@ int main() {
 
   test(thread.get_scheduler(), std::allocator<std::byte>{});
 
+#if !UNIFEX_NO_MEMORY_RESOURCE
   {
     counting_memory_resource res{new_delete_resource()};
     polymorphic_allocator<char> alloc{&res};
@@ -118,4 +124,5 @@ int main() {
       return -1;
     }
   }
+#endif
 }

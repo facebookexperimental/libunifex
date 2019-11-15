@@ -5,7 +5,7 @@ async programming model.
 
 A sender represents a reification of an operation that delivers its
 result by calling another function rather than by returning a value.
-This is analagous to how a function-object represents a reification of
+This is analogous to how a function-object represents a reification of
 a synchronous function that produces its result by returning a value.
 
 The reification of asynchronous operations allows us to compose these
@@ -52,7 +52,7 @@ memory orders.
 Further, implementing this in an ad-hoc way where the details of the
 concurrency pattern are interleaved with the logic of surrounding application
 code can both obscure the application logic, which is now mixed in with the
-synchronisation logic necessary to implement this pattern, and increase the
+synchronization logic necessary to implement this pattern, and increase the
 likelihood of potentially subtle bugs in the implementation.
 
 Ideally we would be able to encapsulate these kinds of patterns in a reusable algorithm
@@ -148,7 +148,7 @@ Design generic algorithms in such a way that those algorithms can dispatch to mo
 efficient implementations when passed particular types of arguments.
 
 This is especially important for high-performance-computing use-cases where they
-want a particular algorigthm, when passed a GPU execution resource, to dispatch
+want a particular algorithm, when passed a GPU execution resource, to dispatch
 to code that runs accelerated on the GPU, rather than to some generic implementation.
 
 For example, a generic `sequence(op1, op2)` algorithm that accepts two async operations
@@ -213,7 +213,7 @@ Future iterations and evolution of Unifex will attempt to address these.
 
 The Async Stream design in Unifex has support for asynchronous cleanup of the
 stream by calling the `cleanup()` customisation-point. This allows a stream to
-perform async operations necessary to release its resources, such as joiing
+perform async operations necessary to release its resources, such as joining
 
 We have not yet incorporated the ability to support async cleanup into
 Senders and this currently makes it difficult to build certain kinds of

@@ -17,9 +17,13 @@
 #include <unifex/type_traits.hpp>
 
 #include <cassert>
-#include <experimental/memory_resource>
 #include <string>
 #include <typeindex>
+#include <atomic>
+
+#if !UNIFEX_NO_MEMORY_RESOURCE
+#include UNIFEX_MEMORY_RESOURCE_HEADER
+#endif
 
 template <typename T>
 using is_type_index = std::is_same<std::type_index, T>;
@@ -50,7 +54,8 @@ struct destructor {
   bool& ref_;
 };
 
-using namespace std::experimental::pmr;
+#if !UNIFEX_NO_MEMORY_RESOURCE
+using namespace UNIFEX_PMR_NAMESPACE;
 
 class counting_memory_resource : public memory_resource {
  public:
@@ -80,6 +85,7 @@ class counting_memory_resource : public memory_resource {
   memory_resource* inner_;
   std::atomic<std::size_t> allocated_ = 0;
 };
+#endif
 
 int main() {
   using A = unifex::any_unique_t<get_typeid>;
@@ -103,6 +109,7 @@ int main() {
     }
     assert(hasDestructorRun);
   }
+#if !UNIFEX_NO_MEMORY_RESOURCE
   {
     counting_memory_resource res{new_delete_resource()};
     polymorphic_allocator<char> alloc{&res};
@@ -114,5 +121,6 @@ int main() {
     }
     assert(res.total_allocated_bytes() == 0);
   }
+#endif
   return 0;
 }

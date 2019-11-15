@@ -30,3 +30,17 @@
 # define UNIFEX_NO_COROUTINES 1
 #endif
 #endif
+
+#ifndef UNIFEX_NO_MEMORY_RESOURCE
+#if __has_include(<memory_resource>)
+# define UNIFEX_NO_MEMORY_RESOURCE 0
+# define UNIFEX_MEMORY_RESOURCE_HEADER <memory_resource>
+# define UNIFEX_PMR_NAMESPACE std::pmr;
+#elif __has_include(<experimental/memory_resource>)
+# define UNIFEX_NO_MEMORY_RESOURCE 0
+# define UNIFEX_MEMORY_RESOURCE_HEADER <experimental/memory_resource>
+# define UNIFEX_PMR_NAMESPACE std::experimental::pmr;
+#else
+# define UNIFEX_NO_MEMORY_RESOURCE 1
+#endif
+#endif

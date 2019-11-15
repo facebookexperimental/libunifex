@@ -7,6 +7,23 @@ cmake_minimum_required(VERSION 3.6)
 
 project(libunifex CXX)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(unifex_options)
+include(unifex_env)
+include(unifex_flags)
+
+add_library(unifex-interface INTERFACE)
+
+target_include_directories(unifex-interface
+  INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
+target_compile_features(unifex-interface INTERFACE cxx_std_20)
+if (UNIFEX_CXX_COMPILER_CLANG)
+  target_compile_options(unifex-interface INTERFACE -stdlib=libc++)
+  target_compile_options(unifex-interface INTERFACE -fcoroutines-ts)
+endif()
+
 enable_testing()
 
 add_subdirectory(source)
