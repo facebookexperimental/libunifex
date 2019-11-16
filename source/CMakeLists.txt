@@ -4,7 +4,6 @@
 # LICENSE.txt file in the root directory of this source tree.
 
 add_library(unifex "")
-
 target_sources(unifex
   PRIVATE
     inplace_stop_token.cpp
@@ -12,10 +11,11 @@ target_sources(unifex
     trampoline_scheduler.cpp
     thread_unsafe_event_loop.cpp
     timed_single_thread_context.cpp)
+target_link_libraries(unifex PUBLIC unifex-interface)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(unifex
-    PRIVATE
+    INTERFACE
       linux/mmap_region.cpp
       linux/monotonic_clock.cpp
       linux/safe_file_descriptor.cpp
@@ -27,16 +27,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
       uring)
 endif()
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  # Assuming using libc++ with Clang
-  target_link_libraries(unifex
-    PRIVATE
-      -lc++experimental)
-endif()
-
 target_include_directories(unifex
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>
   PRIVATE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR})
-
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>)

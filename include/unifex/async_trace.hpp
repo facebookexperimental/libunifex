@@ -20,10 +20,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/config.hpp>
-
-#if !UNIFEX_NO_COROUTINES
-#include <experimental/coroutine>
-#endif
+#include <unifex/coroutine.hpp>
 
 #include <functional>
 #include <typeindex>
@@ -43,7 +40,7 @@ inline constexpr struct visit_continuations_cpo {
       std::enable_if_t<!std::is_void_v<Promise>, int> = 0>
   friend void tag_invoke(
       visit_continuations_cpo cpo,
-      std::experimental::coroutine_handle<Promise> h,
+      coro::coroutine_handle<Promise> h,
       Func&& func) {
     cpo(h.promise(), (Func &&) func);
   }

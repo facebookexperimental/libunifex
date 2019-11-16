@@ -12,6 +12,11 @@ foreach(file-path ${test-sources})
     add_test(NAME "test-${file-name}" COMMAND ${file-name})
 endforeach()
 
+if(CXX_MEMORY_RESOURCE_HAVE_PMR)
+  target_link_libraries(any_unique_test PUBLIC std::memory_resource)
+  target_link_libraries(submit_allocator_customisation_test PUBLIC std::memory_resource)
+endif()
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   file(GLOB linux-test-sources "linux/*_test.cpp")
   foreach(file-path ${linux-test-sources})
