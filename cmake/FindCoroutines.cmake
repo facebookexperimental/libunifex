@@ -61,11 +61,6 @@ Imported Targets
 Variables
 *********
 
-.. variable:: CXX_COROUTINES_IS_EXPERIMENTAL
-
-    Set to ``TRUE`` when the :find-component:`coro.Experimental` version of C++
-    coroutines library was found, otherwise ``FALSE``.
-
 .. variable:: CXX_COROUTINES_HAVE_COROUTINES
 
     Set to ``TRUE`` when coroutines are supported in both the language and the
