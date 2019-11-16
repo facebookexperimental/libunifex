@@ -19,13 +19,12 @@
 #include <unifex/coroutine_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
-#include <unifex/config.hpp>
+#include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "C++20 coroutine support is required to use <unifex/awaitable_sender.hpp>"
 #endif
 
-#include <experimental/coroutine>
 #include <optional>
 #include <type_traits>
 
@@ -41,13 +40,13 @@ struct sender_task {
 
     sender_task get_return_object() noexcept {
       return sender_task{
-          std::experimental::coroutine_handle<promise_type>::from_promise(
+          coro::coroutine_handle<promise_type>::from_promise(
               *this)};
     }
-    std::experimental::suspend_always initial_suspend() noexcept {
+    coro::suspend_always initial_suspend() noexcept {
       return {};
     }
-    [[noreturn]] std::experimental::suspend_always final_suspend() noexcept {
+    [[noreturn]] coro::suspend_always final_suspend() noexcept {
       std::terminate();
     }
     [[noreturn]] void unhandled_exception() noexcept {
@@ -63,7 +62,7 @@ struct sender_task {
         bool await_ready() noexcept {
           return false;
         }
-        void await_suspend(std::experimental::coroutine_handle<>) {
+        void await_suspend(coro::coroutine_handle<>) {
           std::invoke((Func &&) func_);
         }
         [[noreturn]] void await_resume() noexcept {
@@ -82,10 +81,10 @@ struct sender_task {
     continuation_info info_;
   };
 
-  std::experimental::coroutine_handle<promise_type> coro_;
+  coro::coroutine_handle<promise_type> coro_;
 
   explicit sender_task(
-      std::experimental::coroutine_handle<promise_type> coro) noexcept
+      coro::coroutine_handle<promise_type> coro) noexcept
       : coro_(coro) {}
 
   sender_task(sender_task&& other) noexcept

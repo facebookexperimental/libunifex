@@ -15,20 +15,11 @@
  */
 #pragma once
 
-#ifndef UNIFEX_NO_MEMORY_RESOURCE
-#if __has_include(<memory_resource>)
-# define UNIFEX_NO_MEMORY_RESOURCE 0
-# include <memory_resource>
+#include <unifex/config.hpp>
+
+#if !UNIFEX_NO_MEMORY_RESOURCE
+#include UNIFEX_MEMORY_RESOURCE_HEADER
 namespace unifex {
-    namespace pmr = std::pmr;
+    namespace pmr = UNIFEX_MEMORY_RESOURCE_NAMESPACE;
 }
-#elif __has_include(<experimental/memory_resource>)
-# define UNIFEX_NO_MEMORY_RESOURCE 0
-# include <experimental/memory_resource>
-namespace unifex {
-    namespace pmr = std::experimental::pmr;
-}
-#else
-# define UNIFEX_NO_MEMORY_RESOURCE 1
-#endif
 #endif

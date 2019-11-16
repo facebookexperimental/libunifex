@@ -15,18 +15,11 @@
  */
 #pragma once
 
-#if __GNUG__ && !__clang__
-#define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
-#else
-#define UNIFEX_NO_UNIQUE_ADDRESS
-#endif
+#include <unifex/config.hpp>
 
-// UNIFEX_NO_COROUTINES is defined to 1 if compiling without coroutine support
-// enabled and is defined to 0 if coroutine support is enabled.
-#ifndef UNIFEX_NO_COROUTINES
-#if __cpp_coroutines >= 201703L && __has_include(<experimental/coroutine>)
-# define UNIFEX_NO_COROUTINES 0
-#else
-# define UNIFEX_NO_COROUTINES 1
-#endif
+#if !UNIFEX_NO_COROUTINES
+#include UNIFEX_COROUTINES_HEADER
+namespace unifex {
+    namespace coro = UNIFEX_COROUTINES_NAMESPACE;
+}
 #endif

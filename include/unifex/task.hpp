@@ -17,14 +17,13 @@
 
 #include <unifex/async_trace.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/config.hpp>
+#include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "C++20 coroutine support is required to use this header"
 #endif
 
 #include <exception>
-#include <experimental/coroutine>
 #include <optional>
 
 namespace unifex {
@@ -34,11 +33,10 @@ struct task {
   struct promise_type {
     task get_return_object() noexcept {
       return task{
-          std::experimental::coroutine_handle<promise_type>::from_promise(
-              *this)};
+          coro::coroutine_handle<promise_type>::from_promise(*this)};
     }
 
-    std::experimental::suspend_always initial_suspend() noexcept {
+    coro::suspend_always initial_suspend() noexcept {
       return {};
     }
 
@@ -48,7 +46,7 @@ struct task {
           return false;
         }
         auto await_suspend(
-            std::experimental::coroutine_handle<promise_type> h) noexcept {
+            coro::coroutine_handle<promise_type> h) noexcept {
           return h.promise().continuation_;
         }
         void await_resume() noexcept {}
@@ -108,7 +106,7 @@ struct task {
 
     enum class state { empty, value, exception };
 
-    std::experimental::coroutine_handle<> continuation_;
+    coro::coroutine_handle<> continuation_;
     state state_ = state::empty;
     union {
       manual_lifetime<T> value_;
@@ -117,9 +115,9 @@ struct task {
     std::optional<continuation_info> info_;
   };
 
-  std::experimental::coroutine_handle<promise_type> coro_;
+  coro::coroutine_handle<promise_type> coro_;
 
-  explicit task(std::experimental::coroutine_handle<promise_type> h) noexcept
+  explicit task(coro::coroutine_handle<promise_type> h) noexcept
       : coro_(h) {}
 
   ~task() {
@@ -136,13 +134,13 @@ struct task {
 
 private:
   struct awaiter {
-    std::experimental::coroutine_handle<promise_type> coro_;
+    coro::coroutine_handle<promise_type> coro_;
     bool await_ready() noexcept {
       return false;
     }
     template <typename OtherPromise>
     auto await_suspend(
-        std::experimental::coroutine_handle<OtherPromise> h) noexcept {
+        coro::coroutine_handle<OtherPromise> h) noexcept {
       coro_.promise().continuation_ = h;
       coro_.promise().info_.emplace(
           continuation_info::from_continuation(h.promise()));

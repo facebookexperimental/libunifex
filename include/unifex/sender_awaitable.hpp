@@ -19,7 +19,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/async_trace.hpp>
-#include <unifex/config.hpp>
+#include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
 #error                                                                         \
@@ -28,7 +28,6 @@
 
 #include <cassert>
 #include <exception>
-#include <experimental/coroutine>
 #include <optional>
 
 namespace unifex {
@@ -100,7 +99,7 @@ struct sender_awaiter {
   bool await_ready() noexcept { return false; }
 
   template <typename Promise>
-  void await_suspend(std::experimental::coroutine_handle<Promise> h) noexcept {
+  void await_suspend(coro::coroutine_handle<Promise> h) noexcept {
     continuation_ = h;
     if constexpr (!std::is_void_v<Promise>) {
       info_.emplace(continuation_info::from_continuation(h.promise()));
@@ -141,7 +140,7 @@ private:
 
   state state_ = state::empty;
   operation_t<Sender, coroutine_receiver> op_;
-  std::experimental::coroutine_handle<> continuation_;
+  coro::coroutine_handle<> continuation_;
   union {
     manual_lifetime<Value> value_;
     manual_lifetime<std::exception_ptr> ex_;

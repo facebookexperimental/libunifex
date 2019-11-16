@@ -15,13 +15,12 @@
  */
 #pragma once
 
-#include <unifex/config.hpp>
+#include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "C++20 coroutine support is required to use <unifex/coroutine_concepts.hpp>"
 #endif
 
-#include <experimental/coroutine>
 #include <type_traits>
 
 namespace unifex {

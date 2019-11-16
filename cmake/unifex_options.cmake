@@ -4,5 +4,3 @@
 # LICENSE.txt file in the root directory of this source tree.
 
 include(CMakeDependentOption)
-
-set(UNIFEX_STDLIB_PATH "" CACHE FILEPATH "Path to the standard libraries.")
