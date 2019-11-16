@@ -96,6 +96,43 @@ inline constexpr struct schedule_after_cpo {
       -> decltype(tag_invoke(*this, (TimeScheduler &&) s, (Duration &&) d)) {
     return tag_invoke(*this, (TimeScheduler &&) s, (Duration &&) d);
   }
+
+  template<typename Duration>
+  class schedule_after_sender {
+  public:
+    template<template<typename...> class Variant, template<typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template<template<typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    explicit schedule_after_sender(Duration d)
+    : duration_(d)
+    {}
+
+  private:
+    friend schedule_after_cpo;
+
+    template<typename Receiver>
+    friend auto tag_invoke(tag_t<connect>, const schedule_after_sender& s, Receiver&& r)
+    -> std::invoke_result_t<
+          decltype(connect),
+          std::invoke_result_t<
+              schedule_after_cpo,
+              std::invoke_result_t<decltype(get_scheduler), const Receiver &>,
+              const Duration&>,
+          Receiver> {
+      auto scheduler = get_scheduler(r);
+      return connect(schedule_after_cpo{}(scheduler, s.duration_), (Receiver&&)r);
+    }
+
+    Duration duration_;
+  };
+
+  template<typename Duration>
+  constexpr schedule_after_sender<Duration> operator()(Duration d) const {
+    return schedule_after_sender<Duration>{std::move(d)};
+  }
 } schedule_after;
 
 inline constexpr struct schedule_at_cpo {
