@@ -18,5 +18,5 @@
 #include <experimental/filesystem>
 
 namespace unifex {
-    namespace filesystem = coro::filesystem;
+    namespace filesystem = std::experimental::filesystem;
 }
