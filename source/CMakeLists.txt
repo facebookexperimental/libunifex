@@ -29,18 +29,18 @@ endif()
 
 configure_file(
   ../include/unifex/config.hpp.in
-  unifex/config.hpp)
+  "${PROJECT_BINARY_DIR}/include/unifex/config.hpp")
 
 target_include_directories(unifex
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>
-    "${PROJECT_BINARY_DIR}")
+    "${PROJECT_BINARY_DIR}/include")
 
-target_compile_features(unifex INTERFACE cxx_std_20)
+target_compile_features(unifex PUBLIC cxx_std_20)
 
 if(UNIFEX_CXX_COMPILER_CLANG)
-  target_compile_options(unifex INTERFACE -stdlib=libc++)
+  target_compile_options(unifex PUBLIC -stdlib=libc++)
 endif()
 if(CXX_COROUTINES_HAVE_COROUTINES)
-  target_link_libraries(unifex INTERFACE std::coroutines)
+  target_link_libraries(unifex PUBLIC std::coroutines)
 endif()
