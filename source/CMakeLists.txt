@@ -15,7 +15,7 @@ target_link_libraries(unifex PUBLIC unifex-interface)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(unifex
-    INTERFACE
+    PRIVATE
       linux/mmap_region.cpp
       linux/monotonic_clock.cpp
       linux/safe_file_descriptor.cpp

@@ -28,7 +28,6 @@
 #include <memory>
 
 using namespace unifex;
-using namespace unifex::pmr;
 
 struct increment_receiver {
   int &value_;
@@ -48,6 +47,8 @@ struct increment_receiver {
 };
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
+using namespace unifex::pmr;
+
 class counting_memory_resource : public memory_resource {
 public:
   explicit counting_memory_resource(memory_resource *r) noexcept : inner_(r) {}
