@@ -20,7 +20,6 @@
 #include <unifex/type_traits.hpp>
 
 namespace unifex {
-namespace cpo {
 
 inline constexpr struct for_each_cpo {
   template <typename Stream, typename Func>
@@ -44,5 +43,4 @@ inline constexpr struct for_each_cpo {
   }
 } for_each;
 
-} // namespace cpo
 } // namespace unifex

@@ -29,7 +29,7 @@ int main() {
   single_thread_context context;
 
   sync_wait(transform(
-      cpo::for_each(
+      for_each(
           via_stream(
               context.get_scheduler(),
               transform_stream(

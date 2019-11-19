@@ -41,12 +41,12 @@ int main() {
   // composed operations.
   sync_wait(with_query_value(
       transform(
-          cpo::for_each(via_stream(current_scheduler{},
-                                   transform_stream(range_stream{0, 10},
-                                                    [](int value) {
-                                                      return value * value;
-                                                    })),
-                        [](int value) { std::printf("got %i\n", value); }),
+          for_each(via_stream(current_scheduler{},
+                              transform_stream(range_stream{0, 10},
+                                               [](int value) {
+                                                 return value * value;
+                                               })),
+                   [](int value) { std::printf("got %i\n", value); }),
           []() { std::printf("done\n"); }),
       cpo::get_scheduler, ctx.get_scheduler()));
 

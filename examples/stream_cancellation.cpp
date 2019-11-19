@@ -50,7 +50,7 @@ int main() {
 
   sync_wait(
       on(cpo::schedule(context.get_scheduler()),
-         cpo::for_each(
+         for_each(
              on_stream(trampoline_scheduler{}, range_stream{0, 20}),
              [](int value) {
                // Simulate some work

@@ -31,7 +31,7 @@ int main() {
   single_thread_context context2;
 
   sync_wait(transform(
-      cpo::for_each(
+      for_each(
           typed_via_stream(
               context1.get_scheduler(),
               on_stream(

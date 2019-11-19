@@ -255,13 +255,13 @@ The `stream.cleanup()` Sender is passed through unchanged.
 Applies `state = func(state, value)` for each value produced by `stream`.
 Returns a Sender that returns the final value.
 
-### `cpo::for_each(Stream stream, Func func) -> Sender<void>`
+### `for_each(Stream stream, Func func) -> Sender<void>`
 
 Executes func(value) for each value produced by stream.
 Returned sender sends .value() once end of stream is reached.
 
 Stream types can customise this algorithm via ADL by providing an overload
-of `tag_invoke(tag_t<cpo::for_each>, your_stream_type, Func)`.
+of `tag_invoke(tag_t<for_each>, your_stream_type, Func)`.
 
 ### `transform_stream(Stream stream, Func func) -> Stream`
 

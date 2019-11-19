@@ -37,7 +37,7 @@ int main() {
   auto start = steady_clock::now();
 
   [[maybe_unused]] std::optional<unit> result =
-      eventLoop.sync_wait(cpo::for_each(
+      eventLoop.sync_wait(for_each(
           take_until(
               stop_immediately<int>(typed_via_stream(
                   delay(eventLoop.get_scheduler(), 50ms),
