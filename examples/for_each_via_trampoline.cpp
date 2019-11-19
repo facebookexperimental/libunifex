@@ -27,7 +27,7 @@ using namespace unifex;
 
 int main() {
   sync_wait(transform(
-      cpo::for_each(
+      for_each(
           typed_via_stream(
               trampoline_scheduler{},
               transform_stream(

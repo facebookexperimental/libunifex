@@ -44,7 +44,7 @@ int main() {
   scope_guard joinThread = [&]() noexcept { t.join(); };
 
   std::optional<unit> result = sync_wait(
-      cpo::for_each(
+      for_each(
           never_stream{},
           [](auto) {
             std::printf("got value");
