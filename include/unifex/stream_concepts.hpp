@@ -19,7 +19,6 @@
 #include <unifex/sender_concepts.hpp>
 
 namespace unifex {
-namespace cpo {
 
 inline constexpr struct next_cpo {
   template <typename Stream>
@@ -51,13 +50,11 @@ inline constexpr struct cleanup_cpo {
   }
 } cleanup{};
 
-} // namespace cpo
+template <typename Stream>
+using next_sender_t = decltype(next(std::declval<Stream&>()));
 
 template <typename Stream>
-using next_sender_t = decltype(cpo::next(std::declval<Stream&>()));
-
-template <typename Stream>
-using cleanup_sender_t = decltype(cpo::cleanup(std::declval<Stream&>()));
+using cleanup_sender_t = decltype(cleanup(std::declval<Stream&>()));
 
 template <typename Stream, typename Receiver>
 using next_operation_t = operation_t<next_sender_t<Stream>, Receiver>;

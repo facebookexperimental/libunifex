@@ -238,17 +238,17 @@ Senders can customise this algorithm by providing an overload of
 -----------------
 ### `adapt_stream(Stream stream, Func adaptor) -> Stream`
 
-Applies `adaptor()` to `stream.next()` and `stream.cleanup()` senders.
+Applies `adaptor()` to `next(stream)` and `cleanup(stream)` senders.
 
 ### `adapt_stream(Stream stream, Func nextAdaptor, Func cleanupAdaptor) -> Stream`
 
-Applies `nextAdaptor()` to `stream.next()` and
-applies `cleanupAdaptor()` to `stream.cleanup()`.
+Applies `nextAdaptor()` to `next(stream)` and
+applies `cleanupAdaptor()` to `cleanup(stream)`.
 
 ### `next_adapt_stream(Stream stream, Func adaptor) -> Stream`
 
-Applies `adaptor()` to `stream.next()` only.
-The `stream.cleanup()` Sender is passed through unchanged.
+Applies `adaptor()` to `next(stream)` only.
+The `cleanup(stream)` Sender is passed through unchanged.
 
 ### `reduce_stream(Stream stream, T initialState, Func reducer) -> Sender<T>`
 
@@ -287,7 +287,7 @@ providing the `value_types`/`error_types` type aliases.
 
 ### `on_stream(Scheduler scheduler, Stream stream) -> Stream`
 
-Returns a stream that ensures `stream.next()` is started on the specified
+Returns a stream that ensures `next(stream)` is started on the specified
 scheduler's execution context.
 
 ### `type_erase<Ts...>(Stream stream) -> type_erased_stream<Ts...>`
@@ -308,18 +308,18 @@ produce `done()` as the second element of the stream.
 
 ### `stop_immediately<Ts...>(Stream stream) -> Stream`
 
-Returns a stream that will immediately send `.done()` from a pending `.next()`
+Returns a stream that will immediately send `set_done()` from a pending `next()`
 when stop is requested on the provided stop-token.
 
-The request to stop will be passed on to the upstream `.next()` call but
+The request to stop will be passed on to the upstream `next()` call but
 it will not wait for that stream to respond to cancellation before sending
-`.done()`.
+`set_done()`.
 
-The abandoned `.next()` call will be waited-for by the `.cleanup()`.
+The abandoned `next(stream)` call will be waited-for by the `cleanup(stream)`.
 
-Any `.value()` produced by an abandoned `.next()` call is discarded.
-Any `.error()` produced by an abandoned `.next()` call is reported in
-the `.cleanup()` result.
+Any `.value()` produced by an abandoned `next()` call is discarded.
+Any `.error()` produced by an abandoned `next()` call is reported in
+the `cleanup()` result.
 
 ## Scheduler Algorithms
 
@@ -434,10 +434,10 @@ ie. calls to `.value()` will be passed arguments of type `Ts&&...`
 
 ### `never_stream`
 
-A stream whose `.next()` completes with `.done()` once when stop is requested.
+A stream whose `next()` completes with `set_done()` once when stop is requested.
 
 Note that using this stream with a stop-token where `stop_possible()` returns
-`false` will result in a memory-leak. The `.next()` operation will never
+`false` will result in a memory-leak. The `next()` operation will never
 complete.
 
 ## StopToken Types

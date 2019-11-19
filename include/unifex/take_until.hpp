@@ -144,7 +144,7 @@ struct take_until_stream {
       : stream_(stream)
       , receiver_((Receiver2&&)receiver)
       , innerOp_(cpo::connect(
-          cpo::next(stream.source_),
+          next(stream.source_),
           receiver_wrapper{*this}))
       {}
 
@@ -154,7 +154,7 @@ struct take_until_stream {
           try {
             stream_.triggerNextOp_.construct_from([&] {
               return cpo::connect(
-                cpo::next(stream_.trigger_),
+                next(stream_.trigger_),
                 trigger_next_receiver{stream_});
             });
             cpo::start(stream_.triggerNextOp_.get());
@@ -272,7 +272,7 @@ struct take_until_stream {
         try {
           sourceOp_.construct_from([&] {
             return cpo::connect(
-              cpo::cleanup(stream_.source_),
+              cleanup(stream_.source_),
               source_receiver{*this});
           });
           cpo::start(sourceOp_.get());
@@ -298,7 +298,7 @@ struct take_until_stream {
         try {
           triggerOp_.construct_from([&] {
             return cpo::connect(
-              cpo::cleanup(stream_.trigger_),
+              cleanup(stream_.trigger_),
               trigger_receiver{*this});
           });
           cpo::start(triggerOp_.get());
@@ -403,17 +403,17 @@ struct take_until_stream {
       if (!cleanupReady_.load(std::memory_order_acquire)) {
         stopSource_.request_stop();
         if (!cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
-          // Successfully registered completion of trigger.next()
-          // before someone called stream.cleanup(). We have passed
-          // responsibility for calling trigger_.cleanup() to the
-          // stream.cleanup().start() method.
+          // Successfully registered completion of next(trigger)
+          // before someone called cleanup(stream). We have passed
+          // responsibility for calling cleanup(trigger_) to the
+          // call to start() on the cleanup(stream) sender.
           return;
         }
       }
 
-      // Otherwise, the stream.cleanup() operation has already been started
-      // before the trigger.next() operation finished.
-      // We have the responsibility for launching trigger.cleanup().
+      // Otherwise, the cleanup(stream) operation has already been started
+      // before the next(trigger) operation finished.
+      // We have the responsibility for launching cleanup(trigger).
       assert(cleanupOperation_ != nullptr);
       cleanupOperation_->start_trigger_cleanup();
   }
@@ -431,14 +431,13 @@ public:
   , trigger_(std::move(other.trigger_))
   {}
 
-  next_sender next() {
-    return {*this};
+  friend next_sender tag_invoke(tag_t<next>, take_until_stream& s) {
+    return {s};
   }
 
-  cleanup_sender cleanup() {
-    return {*this};
+  friend cleanup_sender tag_invoke(tag_t<cleanup>, take_until_stream& s) {
+    return {s};
   }
-
 };
 
 template<typename SourceStream, typename TriggerStream>

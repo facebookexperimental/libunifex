@@ -163,13 +163,13 @@ struct reduce_stream_sender {
               std::forward<State>(op.state_),
               (Values &&) values...);
           op.next_.construct_from([&]() {
-            return cpo::connect(cpo::next(op.stream_), next_receiver{op});
+            return cpo::connect(next(op.stream_), next_receiver{op});
           });
           cpo::start(op.next_.get());
         } catch (...) {
           op.errorCleanup_.construct_from([&] {
             return cpo::connect(
-                cpo::cleanup(op.stream_),
+                cleanup(op.stream_),
                 error_cleanup_receiver{op, std::current_exception()});
           });
           cpo::start(op.errorCleanup_.get());
@@ -181,7 +181,7 @@ struct reduce_stream_sender {
         op.next_.destruct();
         op.doneCleanup_.construct_from([&]() {
           return cpo::connect(
-              cpo::cleanup(op.stream_), done_cleanup_receiver{op});
+              cleanup(op.stream_), done_cleanup_receiver{op});
         });
         cpo::start(op.doneCleanup_.get());
       }
@@ -191,7 +191,7 @@ struct reduce_stream_sender {
         op.next_.destruct();
         op.errorCleanup_.construct_from([&]() {
           return cpo::connect(
-              cpo::cleanup(op.stream_),
+              cleanup(op.stream_),
               error_cleanup_receiver{op, std::move(ex)});
         });
         cpo::start(op.errorCleanup_.get());
@@ -231,7 +231,7 @@ struct reduce_stream_sender {
     void start() noexcept {
       try {
         next_.construct_from([&]() {
-          return cpo::connect(cpo::next(stream_), next_receiver{*this});
+          return cpo::connect(next(stream_), next_receiver{*this});
         });
         cpo::start(next_.get());
       } catch (...) {

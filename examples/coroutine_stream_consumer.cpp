@@ -49,7 +49,7 @@ int main() {
         single(cpo::schedule_after(context.get_scheduler(), 500ms)));
 
     int sum = 0;
-    while (auto value = co_await s.next()) {
+    while (auto value = co_await next(s)) {
       auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
       std::printf("[%i ms] %i\n", (int)ms.count(), *value);
       std::fflush(stdout);
@@ -57,7 +57,7 @@ int main() {
       sum += *value;
     }
 
-    co_await s.cleanup();
+    co_await cleanup(s);
 
     auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
     std::printf("[%i ms] sum = %i\n", (int)ms.count(), sum);

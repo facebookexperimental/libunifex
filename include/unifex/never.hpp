@@ -22,6 +22,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/stream_concepts.hpp>
 
 #include <type_traits>
 
@@ -76,10 +77,10 @@ struct never_sender {
 };
 
 struct never_stream {
-  never_sender next() noexcept {
+  friend constexpr never_sender tag_invoke(tag_t<next>, never_stream&) noexcept {
     return {};
   }
-  ready_done_sender cleanup() noexcept {
+  friend constexpr ready_done_sender tag_invoke(tag_t<cleanup>, never_stream&) noexcept {
     return {};
   }
 };
