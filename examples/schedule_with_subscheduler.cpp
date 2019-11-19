@@ -25,7 +25,7 @@ int main() {
   auto scheduler = context.get_scheduler();
 
   std::optional<bool> result = sync_wait(transform(
-      cpo::schedule_with_subscheduler(scheduler),
+      schedule_with_subscheduler(scheduler),
       [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
 
   if (result.has_value() && result.value()) {
