@@ -110,12 +110,12 @@ class thread_unsafe_event_loop {
           callback_.destruct();
           if constexpr (is_stop_never_possible_v<
                             stop_token_type_t<Receiver&>>) {
-            cpo::set_value(std::move(receiver_));
+            unifex::set_value(std::move(receiver_));
           } else {
             if (get_stop_token(receiver_).stop_requested()) {
-              cpo::set_done(std::move(receiver_));
+              unifex::set_done(std::move(receiver_));
             } else {
-              cpo::set_value(std::move(receiver_));
+              unifex::set_value(std::move(receiver_));
             }
           }
         }
@@ -181,12 +181,12 @@ class thread_unsafe_event_loop {
           callback_.destruct();
           if constexpr (is_stop_never_possible_v<
                             stop_token_type_t<Receiver&>>) {
-            cpo::set_value(std::move(receiver_));
+            unifex::set_value(std::move(receiver_));
           } else {
             if (get_stop_token(receiver_).stop_requested()) {
-              cpo::set_done(std::move(receiver_));
+              unifex::set_done(std::move(receiver_));
             } else {
-              cpo::set_value(std::move(receiver_));
+              unifex::set_value(std::move(receiver_));
             }
           }
         }

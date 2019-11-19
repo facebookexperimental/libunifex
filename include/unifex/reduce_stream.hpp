@@ -61,19 +61,19 @@ struct reduce_stream_sender {
       void error(Error error) noexcept {
         auto& op = op_;
         op.errorCleanup_.destruct();
-        cpo::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
+        unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
       void done() noexcept {
         auto& op = op_;
         auto ex = std::move(ex_);
         op.errorCleanup_.destruct();
-        cpo::set_error(static_cast<Receiver&&>(op.receiver_), std::move(ex));
+        unifex::set_error(static_cast<Receiver&&>(op.receiver_), std::move(ex));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -100,20 +100,20 @@ struct reduce_stream_sender {
       void error(Error error) && noexcept {
         auto& op = op_;
         op.doneCleanup_.destruct();
-        cpo::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
+        unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
       void done() && noexcept {
         auto& op = op_;
         op.doneCleanup_.destruct();
-        cpo::set_value(
+        unifex::set_value(
             static_cast<Receiver&&>(op.receiver_),
             std::forward<State>(op.state_));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -138,7 +138,7 @@ struct reduce_stream_sender {
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -235,7 +235,7 @@ struct reduce_stream_sender {
         });
         unifex::start(next_.get());
       } catch (...) {
-        cpo::set_error(
+        unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
     }

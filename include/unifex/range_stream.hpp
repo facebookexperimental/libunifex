@@ -56,9 +56,9 @@ struct range_stream {
 
       void start() noexcept {
         if (stream_.next_ < stream_.max_) {
-          cpo::set_value(std::move(receiver_), stream_.next_++);
+          unifex::set_value(std::move(receiver_), stream_.next_++);
         } else {
-          cpo::set_done(std::move(receiver_));
+          unifex::set_done(std::move(receiver_));
         }
       }
     };

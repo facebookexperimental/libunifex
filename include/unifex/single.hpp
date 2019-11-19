@@ -74,7 +74,7 @@ struct single_stream {
 
       void start() noexcept {
         if (done_) {
-          cpo::set_done(std::move(receiver_));
+          unifex::set_done(std::move(receiver_));
         } else {
           unifex::start(innerOp_.get());
         }

@@ -103,12 +103,12 @@ class timed_single_thread_context {
           cancelCallback_.destruct();
           if constexpr (is_stop_never_possible_v<
                             stop_token_type_t<Receiver&>>) {
-            cpo::set_value(static_cast<Receiver&&>(receiver_));
+            unifex::set_value(static_cast<Receiver&&>(receiver_));
           } else {
             if (get_stop_token(receiver_).stop_requested()) {
-              cpo::set_done(static_cast<Receiver&&>(receiver_));
+              unifex::set_done(static_cast<Receiver&&>(receiver_));
             } else {
-              cpo::set_value(static_cast<Receiver&&>(receiver_));
+              unifex::set_value(static_cast<Receiver&&>(receiver_));
             }
           }
         }
@@ -173,13 +173,13 @@ class timed_single_thread_context {
           cancelCallback_.destruct();
           if constexpr (is_stop_never_possible_v<
                             stop_token_type_t<Receiver&>>) {
-            cpo::set_value(
+            unifex::set_value(
                 static_cast<Receiver&&>(receiver_), scheduler{this->context_});
           } else {
             if (get_stop_token(receiver_).stop_requested()) {
-              cpo::set_done(static_cast<Receiver&&>(receiver_));
+              unifex::set_done(static_cast<Receiver&&>(receiver_));
             } else {
-              cpo::set_value(static_cast<Receiver&&>(receiver_));
+              unifex::set_value(static_cast<Receiver&&>(receiver_));
             }
           }
         }

@@ -74,13 +74,13 @@ struct typed_via_sender {
             });
             std::apply(
               [&](Values&&... values) noexcept {
-                cpo::set_value(
+                unifex::set_value(
                   std::forward<Receiver>(op.receiver_),
                   (Values &&) values...);
               },
               std::move(values));
         } catch (...) {
-          cpo::set_error(
+          unifex::set_error(
               std::forward<Receiver>(op.receiver_),
               std::current_exception());
         }
@@ -93,7 +93,7 @@ struct typed_via_sender {
         auto& storedValue = op.value_.template get<std::tuple<Values...>>();
         valueOp.destruct();
         storedValue.destruct();
-        cpo::set_error(
+        unifex::set_error(
             std::forward<Receiver>(op.receiver_), (Error &&) error);
       }
 
@@ -103,12 +103,12 @@ struct typed_via_sender {
         auto& storedValue = op.value_.template get<std::tuple<Values...>>();
         valueOp.destruct();
         storedValue.destruct();
-        cpo::set_done(std::forward<Receiver>(op.receiver_));
+        unifex::set_done(std::forward<Receiver>(op.receiver_));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const value_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -137,7 +137,7 @@ struct typed_via_sender {
         auto error = std::move(storedError).get();
         storedError.destruct();
 
-        cpo::set_error(
+        unifex::set_error(
             std::forward<Receiver>(op.receiver_), std::move(error));
       }
 
@@ -151,7 +151,7 @@ struct typed_via_sender {
         auto& storedError = op.error_.template get<Error>();
         storedError.destruct();
 
-        cpo::set_error(
+        unifex::set_error(
             std::forward<Receiver>(op.receiver_), (OtherError &&) otherError);
       }
 
@@ -161,12 +161,12 @@ struct typed_via_sender {
         auto& storedError = op.error_.template get<Error>();
         errorOp.destruct();
         storedError.destruct();
-        cpo::set_done(std::forward<Receiver>(op.receiver_));
+        unifex::set_done(std::forward<Receiver>(op.receiver_));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const error_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -188,26 +188,26 @@ struct typed_via_sender {
       void value() noexcept {
         auto& op = op_;
         op.succDoneOp_.destruct();
-        cpo::set_done(std::forward<Receiver>(op.receiver_));
+        unifex::set_done(std::forward<Receiver>(op.receiver_));
       }
 
       template <typename OtherError>
       void error(OtherError&& otherError) noexcept {
         auto& op = op_;
         op.succDoneOp_.destruct();
-        cpo::set_error(
+        unifex::set_error(
             std::forward<Receiver>(op.receiver_), (OtherError &&) otherError);
       }
 
       void done() noexcept {
         auto& op = op_;
         op.succDoneOp_.destruct();
-        cpo::set_done(std::forward<Receiver>(op.receiver_));
+        unifex::set_done(std::forward<Receiver>(op.receiver_));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const done_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -253,7 +253,7 @@ struct typed_via_sender {
                   }));
         } catch (...) {
           storedValue.destruct();
-          cpo::set_error(
+          unifex::set_error(
               std::forward<Receiver>(op.receiver_),
               std::current_exception());
         }
@@ -283,7 +283,7 @@ struct typed_via_sender {
                   }));
         } catch (...) {
           storedError.destruct();
-          cpo::set_error(
+          unifex::set_error(
               std::forward<Receiver>(op.receiver_),
               std::current_exception());
         }
@@ -298,7 +298,7 @@ struct typed_via_sender {
                 done_receiver{op});
           }));
         } catch (...) {
-          cpo::set_error(
+          unifex::set_error(
               std::forward<Receiver>(op.receiver_),
               std::current_exception());
         }
@@ -306,7 +306,7 @@ struct typed_via_sender {
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -372,7 +372,7 @@ struct typed_via_sender {
         });
         unifex::start(predOp_.get());
       } catch (...) {
-        cpo::set_error(std::move(receiver_), std::current_exception());
+        unifex::set_error(std::move(receiver_), std::current_exception());
       }
     }
   };

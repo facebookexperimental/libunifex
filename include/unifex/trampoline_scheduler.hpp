@@ -73,12 +73,12 @@ private:
 
     void execute() noexcept final {
       if (is_stop_never_possible_v<stop_token_type_t<Receiver&>>) {
-        cpo::set_value(static_cast<Receiver&&>(receiver_));
+        unifex::set_value(static_cast<Receiver&&>(receiver_));
       } else {
         if (get_stop_token(receiver_).stop_requested()) {
-          cpo::set_done(static_cast<Receiver&&>(receiver_));
+          unifex::set_done(static_cast<Receiver&&>(receiver_));
         } else {
-          cpo::set_value(static_cast<Receiver&&>(receiver_));
+          unifex::set_value(static_cast<Receiver&&>(receiver_));
         }
       }
     }

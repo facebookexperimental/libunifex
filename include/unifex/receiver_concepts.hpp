@@ -22,8 +22,6 @@
 
 namespace unifex {
 
-namespace cpo {
-
 inline constexpr struct set_value_cpo {
   template <typename Receiver, typename... Values>
   friend auto
@@ -94,5 +92,4 @@ constexpr bool is_receiver_cpo_v = is_one_of_v<
     set_error_cpo,
     set_done_cpo>;
 
-} // namespace cpo
 } // namespace unifex

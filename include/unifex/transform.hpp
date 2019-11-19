@@ -94,28 +94,28 @@ struct transform_sender {
         if constexpr (noexcept(std::invoke(
                           (Func &&) func_, (Values &&) values...))) {
           std::invoke((Func &&) func_, (Values &&) values...);
-          cpo::set_value((Receiver &&) receiver_);
+          unifex::set_value((Receiver &&) receiver_);
         } else {
           try {
             std::invoke((Func &&) func_, (Values &&) values...);
-            cpo::set_value((Receiver &&) receiver_);
+            unifex::set_value((Receiver &&) receiver_);
           } catch (...) {
-            cpo::set_error((Receiver &&) receiver_, std::current_exception());
+            unifex::set_error((Receiver &&) receiver_, std::current_exception());
           }
         }
       } else {
         if constexpr (noexcept(std::invoke(
                           (Func &&) func_, (Values &&) values...))) {
-          cpo::set_value(
+          unifex::set_value(
               (Receiver &&) receiver_,
               std::invoke((Func &&) func_, (Values &&) values...));
         } else {
           try {
-            cpo::set_value(
+            unifex::set_value(
                 (Receiver &&) receiver_,
                 std::invoke((Func &&) func_, (Values &&) values...));
           } catch (...) {
-            cpo::set_error((Receiver &&) receiver_, std::current_exception());
+            unifex::set_error((Receiver &&) receiver_, std::current_exception());
           }
         }
       }
@@ -123,16 +123,16 @@ struct transform_sender {
 
     template <typename Error>
     void error(Error&& error) && noexcept {
-      cpo::set_error((Receiver &&) receiver_, (Error &&) error);
+      unifex::set_error((Receiver &&) receiver_, (Error &&) error);
     }
 
     void done() && noexcept {
-      cpo::set_done((Receiver &&) receiver_);
+      unifex::set_done((Receiver &&) receiver_);
     }
 
     template <
         typename CPO,
-        std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
     friend auto tag_invoke(CPO cpo, const transform_receiver& r) noexcept(
         std::is_nothrow_invocable_v<CPO, const Receiver&>)
         -> std::invoke_result_t<CPO, const Receiver&> {

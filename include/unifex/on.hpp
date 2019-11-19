@@ -77,7 +77,7 @@ struct on_sender {
       void value(Values... values) && noexcept {
         auto& op = op_;
         op.succOp_.destruct();
-        cpo::set_value(
+        unifex::set_value(
             static_cast<Receiver&&>(op.receiver_), (Values &&) values...);
       }
 
@@ -85,19 +85,19 @@ struct on_sender {
       void error(Error error) && noexcept {
         auto& op = op_;
         op.succOp_.destruct();
-        cpo::set_error(
+        unifex::set_error(
             static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
       void done() && noexcept {
         auto& op = op_;
         op.succOp_.destruct();
-        cpo::set_done(static_cast<Receiver&&>(op.receiver_));
+        unifex::set_done(static_cast<Receiver&&>(op.receiver_));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -128,7 +128,7 @@ struct on_sender {
           });
           unifex::start(op.succOp_.get());
         } catch (...) {
-          cpo::set_error(
+          unifex::set_error(
               static_cast<Receiver&&>(op.receiver_),
               std::current_exception());
         }
@@ -138,19 +138,19 @@ struct on_sender {
       void error(Error error) noexcept {
         auto& op = op_;
         op.predOp_.destruct();
-        cpo::set_error(
+        unifex::set_error(
             static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
       void done() noexcept {
         auto& op = op_;
         op.predOp_.destruct();
-        cpo::set_done(static_cast<Receiver&&>(op.receiver_));
+        unifex::set_done(static_cast<Receiver&&>(op.receiver_));
       }
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {

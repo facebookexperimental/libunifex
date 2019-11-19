@@ -69,12 +69,12 @@ class manual_event_loop {
 
         void execute() noexcept override {
           if constexpr (is_stop_never_possible_v<stop_token_type>) {
-            cpo::set_value(std::move(receiver_));
+            unifex::set_value(std::move(receiver_));
           } else {
             if (get_stop_token(receiver_).stop_requested()) {
-              cpo::set_done(std::move(receiver_));
+              unifex::set_done(std::move(receiver_));
             } else {
-              cpo::set_value(std::move(receiver_));
+              unifex::set_value(std::move(receiver_));
             }
           }
         }

@@ -81,15 +81,15 @@ struct type_erased_stream {
         : receiver_((Receiver &&) receiver) {}
 
     void value(Values&&... values) noexcept override {
-      cpo::set_value(std::move(receiver_), (Values &&) values...);
+      unifex::set_value(std::move(receiver_), (Values &&) values...);
     }
 
     void done() noexcept override {
-      cpo::set_done(std::move(receiver_));
+      unifex::set_done(std::move(receiver_));
     }
 
     void error(std::exception_ptr ex) noexcept override {
-      cpo::set_error(std::move(receiver_), std::move(ex));
+      unifex::set_error(std::move(receiver_), std::move(ex));
     }
 
    private:
@@ -106,11 +106,11 @@ struct type_erased_stream {
         : receiver_((Receiver &&) receiver) {}
 
     void done() noexcept override {
-      cpo::set_done(std::move(receiver_));
+      unifex::set_done(std::move(receiver_));
     }
 
     void error(std::exception_ptr ex) noexcept override {
-      cpo::set_error(std::move(receiver_), std::move(ex));
+      unifex::set_error(std::move(receiver_), std::move(ex));
     }
 
    private:

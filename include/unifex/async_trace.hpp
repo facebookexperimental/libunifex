@@ -172,9 +172,9 @@ class async_trace_sender {
     void start() noexcept {
       try {
         auto trace = async_trace(receiver_);
-        cpo::set_value(std::move(receiver_), std::move(trace));
+        unifex::set_value(std::move(receiver_), std::move(trace));
       } catch (...) {
-        cpo::set_error(std::move(receiver_), std::current_exception());
+        unifex::set_error(std::move(receiver_), std::current_exception());
       }
     }
   };

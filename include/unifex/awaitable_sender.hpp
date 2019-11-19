@@ -129,7 +129,7 @@ struct awaitable_sender {
             if constexpr (std::is_void_v<result_type>) {
               co_await(Awaitable &&) awaitable;
               co_yield[&] {
-                cpo::set_value(std::move(receiver));
+                unifex::set_value(std::move(receiver));
               };
             } else {
               // This is a bit mind bending control-flow wise.
@@ -143,7 +143,7 @@ struct awaitable_sender {
               co_yield std::invoke(
                   [&](result_type&& result) {
                     return [&] {
-                      cpo::set_value(
+                      unifex::set_value(
                           std::move(receiver), (result_type &&) result);
                     };
                   },
@@ -153,7 +153,7 @@ struct awaitable_sender {
             ex = std::current_exception();
           }
           co_yield[&] {
-            cpo::set_error(std::move(receiver), std::move(ex));
+            unifex::set_error(std::move(receiver), std::move(ex));
           };
         },
         (Awaitable &&) awaitable_,

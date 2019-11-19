@@ -324,7 +324,7 @@ class io_uring_context::schedule_sender {
       try {
         context_.schedule_impl(this);
       } catch (...) {
-        cpo::set_error(
+        unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
     }
@@ -342,12 +342,12 @@ class io_uring_context::schedule_sender {
       operation& op = *static_cast<operation*>(p);
       if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
         if (get_stop_token(op.receiver_).stop_requested()) {
-          cpo::set_done(static_cast<Receiver&&>(op.receiver_));
+          unifex::set_done(static_cast<Receiver&&>(op.receiver_));
           return;
         }
       }
 
-      cpo::set_value(static_cast<Receiver&&>(op.receiver_));
+      unifex::set_value(static_cast<Receiver&&>(op.receiver_));
     }
 
     io_uring_context& context_;
@@ -440,11 +440,11 @@ class io_uring_context::read_sender {
     static void on_read_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(op);
       if (self.result_ >= 0) {
-        cpo::set_value(std::move(self.receiver_), ssize_t(self.result_));
+        unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
       } else if (self.result_ == -ECANCELED) {
-        cpo::set_done(std::move(self.receiver_));
+        unifex::set_done(std::move(self.receiver_));
       } else {
-        cpo::set_error(
+        unifex::set_error(
             std::move(self.receiver_),
             std::error_code{-self.result_, std::system_category()});
       }
@@ -548,11 +548,11 @@ class io_uring_context::write_sender {
     static void on_write_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(op);
       if (self.result_ >= 0) {
-        cpo::set_value(std::move(self.receiver_), ssize_t(self.result_));
+        unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
       } else if (self.result_ == -ECANCELED) {
-        cpo::set_done(std::move(self.receiver_));
+        unifex::set_done(std::move(self.receiver_));
       } else {
-        cpo::set_error(
+        unifex::set_error(
             std::move(self.receiver_),
             std::error_code{-self.result_, std::system_category()});
       }
@@ -708,7 +708,7 @@ class io_uring_context::schedule_at_sender {
       // Avoid instantiating set_done() if we're not going to call it.
       if constexpr (is_stop_ever_possible) {
         auto& timerOp = *static_cast<operation*>(op);
-        cpo::set_done(std::move(timerOp).receiver_);
+        unifex::set_done(std::move(timerOp).receiver_);
       } else {
         // This should never be called if stop is not possible.
         assert(false);
@@ -727,7 +727,7 @@ class io_uring_context::schedule_at_sender {
         }
       }
 
-      cpo::set_value(std::move(timerOp).receiver_);
+      unifex::set_value(std::move(timerOp).receiver_);
     }
 
     static void remove_timer_from_queue_and_complete_with_done(
@@ -745,7 +745,7 @@ class io_uring_context::schedule_at_sender {
           timerOp.context_.remove_timer(&timerOp);
         }
 
-        cpo::set_done(std::move(timerOp).receiver_);
+        unifex::set_done(std::move(timerOp).receiver_);
       } else {
         // Should never be called if stop is not possible.
         assert(false);
