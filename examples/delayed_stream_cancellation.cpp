@@ -47,9 +47,7 @@ int main() {
 
   sync_wait(
       for_each(
-          typed_via_stream(
-              delay(context.get_scheduler(), 100ms), range_stream{0, 100}),
-
+          delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
           [start](int value) {
             auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
             std::printf("[%i ms] %i\n", (int)ms.count(), value);

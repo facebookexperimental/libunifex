@@ -39,9 +39,8 @@ int main() {
   [[maybe_unused]] std::optional<unit> result =
       eventLoop.sync_wait(for_each(
           take_until(
-              stop_immediately<int>(typed_via_stream(
-                  delay(eventLoop.get_scheduler(), 50ms),
-                  range_stream{0, 100})),
+              stop_immediately<int>(
+                  delay(range_stream{0, 100}, eventLoop.get_scheduler(), 50ms)),
               single(schedule_after(eventLoop.get_scheduler(), 500ms))),
           [start](int value) {
             auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
