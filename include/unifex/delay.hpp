@@ -16,28 +16,22 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/adapt_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
 #include <type_traits>
 
-namespace unifex {
-
-template <typename Scheduler, typename Duration>
-struct delayed_scheduler {
-  Scheduler scheduler_;
-  Duration duration_;
-
-  auto schedule() {
-    return unifex::schedule_after(scheduler_, duration_);
+namespace unifex
+{
+  template <typename Stream, typename Scheduler, typename Duration>
+  auto delay(Stream&& stream, Scheduler&& scheduler, Duration&& duration) {
+    return adapt_stream(
+        (Stream &&) stream,
+        [scheduler = (Scheduler &&) scheduler,
+         duration = (Duration &&) duration](auto&& sender) {
+          return typed_via(
+              schedule_after(scheduler, duration),
+              static_cast<decltype(sender)>(sender));
+        });
   }
-};
-
-template <typename Scheduler, typename Duration>
-auto delay(Scheduler&& scheduler, Duration&& duration) {
-  return delayed_scheduler<
-      std::remove_cvref_t<Scheduler>,
-      std::remove_cvref_t<Duration>>{(Scheduler &&) scheduler,
-                                     (Duration &&) duration};
-}
-
-} // namespace unifex
+}  // namespace unifex

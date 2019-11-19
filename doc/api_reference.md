@@ -31,6 +31,7 @@
   * `take_until()`
   * `single()`
   * `stop_immediately()`
+  * `delay()`
 * Stream Types
   * `range_stream`
   * `type_erased_stream<Ts...>`
@@ -323,6 +324,11 @@ Any `set_value()` produced by an abandoned `next()` call is discarded.
 Any `set_error()` produced by an abandoned `next()` call is reported in
 the `cleanup()` result.
 
+### `delay(Stream stream, TimeScheduler scheduler, Duration d) -> Stream`
+
+Adapts `stream` to produce a new stream that delays the delivery of each
+value, done and error signal by the specified duration.
+
 ## Scheduler Algorithms
 
 ### `schedule(Scheduler schedule) -> SenderOf<void>`
@@ -347,11 +353,6 @@ the body of `set_value()`.
 
 This is like `schedule(scheduler)` above but uses the implicit scheduler
 obtained from the receiver passed to `connect()` by a calling `get_scheduler(receiver)`.
-
-### `delay(TimeScheduler scheduler, Duration d) -> Scheduler`
-
-Adapts `scheduler` to produce a new scheduler that delays completion of all
-`schedule()` operations by the specified duration.
 
 ## Scheduler Types
 

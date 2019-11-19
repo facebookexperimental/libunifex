@@ -44,8 +44,8 @@ int main() {
     auto start = steady_clock::now();
 
     auto s = take_until(
-        stop_immediately<int>(typed_via_stream(
-            delay(context.get_scheduler(), 50ms), range_stream{0, 100})),
+        stop_immediately<int>(
+            delay(range_stream{0, 100}, context.get_scheduler(), 50ms)),
         single(schedule_after(context.get_scheduler(), 500ms)));
 
     int sum = 0;
