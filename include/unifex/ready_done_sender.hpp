@@ -33,7 +33,7 @@ struct ready_done_sender {
   using error_types = Variant<>;
 
   friend constexpr blocking_kind tag_invoke(
-      tag_t<cpo::blocking>,
+      tag_t<blocking>,
       const ready_done_sender&) {
     return blocking_kind::always_inline;
   }

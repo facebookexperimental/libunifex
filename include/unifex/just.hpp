@@ -69,7 +69,7 @@ class just_sender {
     return {std::move(values_), (Receiver &&) r};
   }
 
-  friend constexpr blocking_kind tag_invoke(tag_t<cpo::blocking>, const just_sender&) noexcept {
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const just_sender&) noexcept {
     return blocking_kind::always_inline;
   }
 };

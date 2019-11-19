@@ -216,7 +216,7 @@ struct async_trace_entry {
 };
 ```
 
-### `cpo::blocking(const Sender&) -> blocking_kind`
+### `blocking(const Sender&) -> blocking_kind`
 
 Returns `blocking_kind::never` if the receiver will never be called on the
 current thread before `start()` returns.
@@ -232,7 +232,7 @@ called inline on the current thread before `start()` returns.
 Otherwise returns `blocking_kind::maybe`.
 
 Senders can customise this algorithm by providing an overload of
-`tag_invoke(tag_t<cpo::blocking>, const your_sender_type&)`.
+`tag_invoke(tag_t<blocking>, const your_sender_type&)`.
 
 ## Stream Algorithms
 -----------------

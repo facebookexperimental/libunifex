@@ -46,7 +46,7 @@ class manual_event_loop {
 
     private:
       friend constexpr blocking_kind tag_invoke(
-          tag_t<cpo::blocking>,
+          tag_t<blocking>,
           const schedule_task&) noexcept {
         return blocking_kind::never;
       }

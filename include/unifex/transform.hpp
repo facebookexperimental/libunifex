@@ -77,9 +77,9 @@ struct transform_sender {
       calculate_errors<Variant>::template apply>;
 
   friend constexpr auto tag_invoke(
-      tag_t<cpo::blocking>,
+      tag_t<blocking>,
       const transform_sender& sender) {
-    return cpo::blocking(sender.pred_);
+    return blocking(sender.pred_);
   }
 
   template <typename Receiver>

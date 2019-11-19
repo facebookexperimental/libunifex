@@ -186,7 +186,7 @@ class async_trace_sender {
   }
 
   friend blocking_kind tag_invoke(
-      tag_t<cpo::blocking>,
+      tag_t<blocking>,
       const async_trace_sender&) noexcept {
     return blocking_kind::always_inline;
   }

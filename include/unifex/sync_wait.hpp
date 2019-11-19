@@ -162,7 +162,7 @@ template <
     typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
 auto sync_wait(Sender&& sender, StopToken&& stopToken = {})
     -> std::optional<Result> {
-  auto blockingResult = cpo::blocking(sender);
+  auto blockingResult = blocking(sender);
   if (blockingResult == blocking_kind::always ||
       blockingResult == blocking_kind::always_inline) {
     using promise_t = detail::thread_unsafe_sync_wait_promise<Result>;

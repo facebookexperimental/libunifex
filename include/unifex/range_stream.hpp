@@ -43,7 +43,7 @@ struct range_stream {
     using error_types = Variant<>;
 
     friend constexpr blocking_kind tag_invoke(
-        tag_t<cpo::blocking>,
+        tag_t<blocking>,
         const range_stream&) noexcept {
       return blocking_kind::always_inline;
     }
