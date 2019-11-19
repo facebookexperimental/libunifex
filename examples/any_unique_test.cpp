@@ -22,6 +22,9 @@
 #include <typeindex>
 #include <atomic>
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 template <typename T>
 using is_type_index = std::is_same<std::type_index, T>;
 
@@ -84,40 +87,41 @@ class counting_memory_resource : public memory_resource {
 };
 #endif
 
-int main() {
-  using A = unifex::any_unique_t<get_typeid>;
-  using B = unifex::any_unique_t<>;
-  {
-    const A a = std::string{"hello"};
-    auto id = get_typeid(a);
-    assert(id == typeid(std::string));
-  }
-  {
-    const B b = std::string{"hello"};
-    auto id = get_typeid(b);
-    assert(id == typeid(B));
-  }
-  {
-    bool hasDestructorRun = false;
-    {
-      const A a{std::in_place_type<destructor>, hasDestructorRun};
-      assert(get_typeid(a) == typeid(destructor));
-      assert(!hasDestructorRun);
-    }
-    assert(hasDestructorRun);
-  }
-#if !UNIFEX_NO_MEMORY_RESOURCE
-  {
-    counting_memory_resource res{new_delete_resource()};
-    polymorphic_allocator<char> alloc{&res};
-    {
-      A a1{std::string("hello"), alloc};
-      assert(res.total_allocated_bytes() >= sizeof(std::string));
-      A a2{std::allocator_arg, alloc, std::in_place_type<std::string>, "hello"};
-      assert(res.total_allocated_bytes() >= 2 * sizeof(std::string));
-    }
-    assert(res.total_allocated_bytes() == 0);
-  }
-#endif
-  return 0;
+using A = unifex::any_unique_t<get_typeid>;
+using B = unifex::any_unique_t<>;
+
+TEST(AnyUniqueTest, WithTypeid) {
+  const ::A a = std::string{"hello"};
+  auto id = get_typeid(a);
+  EXPECT_EQ(id, typeid(std::string));
 }
+
+TEST(AnyUniqueTest, WithoutTypeid) {
+  const ::B b = std::string{"hello"};
+  auto id = get_typeid(b);
+  EXPECT_EQ(id, typeid(B));
+}
+
+TEST(AnyUniqueTest, TestDestructor) {
+  bool hasDestructorRun = false;
+  {
+    const A a{std::in_place_type<destructor>, hasDestructorRun};
+    EXPECT_EQ(get_typeid(a), typeid(destructor));
+    EXPECT_FALSE(hasDestructorRun);
+  }
+  EXPECT_TRUE(hasDestructorRun);
+}
+
+#if !UNIFEX_NO_MEMORY_RESOURCE
+TEST(AnyUniqueTest, WithCustomAllocator) {
+  counting_memory_resource res{new_delete_resource()};
+  polymorphic_allocator<char> alloc{&res};
+  {
+    A a1{std::string("hello"), alloc};
+    EXPECT_GE(res.total_allocated_bytes(), sizeof(std::string));
+    A a2{std::allocator_arg, alloc, std::in_place_type<std::string>, "hello"};
+    EXPECT_GE(res.total_allocated_bytes(), 2 * sizeof(std::string));
+  }
+  EXPECT_EQ(res.total_allocated_bytes(), 0);
+}
+#endif
