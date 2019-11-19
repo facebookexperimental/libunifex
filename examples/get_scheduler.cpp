@@ -29,12 +29,14 @@ int main() {
   single_thread_context ctx;
 
   struct current_scheduler {
-    auto schedule() { return cpo::schedule(); }
+    auto schedule() const noexcept {
+      return unifex::schedule();
+    }
   };
 
   // Check that the schedule() operation can pick up the current
   // scheduler from the receiver which we inject by using 'with_query_value()'.
-  sync_wait(with_query_value(cpo::schedule(), cpo::get_scheduler,
+  sync_wait(with_query_value(schedule(), get_scheduler,
                              ctx.get_scheduler()));
 
   // Check that this can propagate through multiple levels of
@@ -48,7 +50,7 @@ int main() {
                                                })),
                    [](int value) { std::printf("got %i\n", value); }),
           []() { std::printf("done\n"); }),
-      cpo::get_scheduler, ctx.get_scheduler()));
+      get_scheduler, ctx.get_scheduler()));
 
   return 0;
 }

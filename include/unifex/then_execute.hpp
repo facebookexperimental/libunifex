@@ -24,7 +24,7 @@ namespace unifex {
 template <typename Scheduler, typename Predecessor, typename Func>
 auto then_execute(Scheduler&& s, Predecessor&& p, Func&& f) {
   return transform(
-      typed_via(cpo::schedule((Scheduler &&) s), (Predecessor &&) p),
+      typed_via(schedule((Scheduler &&) s), (Predecessor &&) p),
       (Func &&) f);
 }
 

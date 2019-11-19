@@ -374,8 +374,8 @@ work to run once the call-stack has unwound back to the first call.
 ### `timed_single_thread_context`
 
 A single-threaded execution context that suppors scheduling work at a
-particular time via either `cpo::schedule_at()` with a time-point or
-`cpo::schedule_after()` with a delay in addition to the regular `cpo::schedule()`
+particular time via either `schedule_at()` with a time-point or
+`schedule_after()` with a delay in addition to the regular `schedule()`
 operation which is equivalent to calling `schedule_at()` with the current
 time.
 
@@ -386,8 +386,8 @@ Obtain a TimeScheduler by calling the `.get_scheduler()` method.
 An execution context that assumes all accesses to the scheduler are from the same
 thread. It does not do any thread-synchronisation internally.
 
-Supports `.schedule_at()` and `.schedule_after()` operations in addition to
-the base `.schedule()` operation.
+Supports `schedule_at()` and `schedule_after()` operations in addition to
+the base `schedule()` operation.
 
 Obtain a TimeScheduler to schedule work onto this context by calling the
 `.get_scheduler()` method.

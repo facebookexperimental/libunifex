@@ -97,7 +97,7 @@ namespace unifex
       };
 
       friend schedule_sender
-      tag_invoke(tag_t<cpo::schedule>, const scheduler& s) noexcept {
+      tag_invoke(tag_t<schedule>, const scheduler& s) noexcept {
         return schedule_sender{s.pool_};
       }
 

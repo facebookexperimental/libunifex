@@ -22,7 +22,6 @@
 #include <exception>
 
 namespace unifex {
-namespace cpo {
 
 inline constexpr struct schedule_cpo {
   template <typename Scheduler>
@@ -41,7 +40,7 @@ inline constexpr struct schedule_cpo {
 
   struct schedule_sender;
 
-  schedule_sender operator()() const noexcept;
+  constexpr schedule_sender operator()() const noexcept;
 } schedule;
 
 inline constexpr struct get_scheduler_cpo {
@@ -65,19 +64,19 @@ struct schedule_cpo::schedule_sender {
   using error_types = Variant<std::exception_ptr>;
 
   template <typename Receiver>
-  friend auto tag_invoke(tag_t<connect>, schedule_sender, Receiver &&r)
+  friend auto tag_invoke(tag_t<cpo::connect>, schedule_sender, Receiver &&r)
       -> std::invoke_result_t<
-          decltype(connect),
+          decltype(cpo::connect),
           std::invoke_result_t<
               decltype(schedule),
               std::invoke_result_t<decltype(get_scheduler), const Receiver &>>,
           Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
-    return connect(schedule(scheduler), (Receiver &&) r);
+    return cpo::connect(schedule(scheduler), (Receiver &&) r);
   }
 };
 
-inline schedule_cpo::schedule_sender schedule_cpo::operator()() const noexcept {
+inline constexpr schedule_cpo::schedule_sender schedule_cpo::operator()() const noexcept {
   return {};
 }
 
@@ -133,5 +132,4 @@ inline constexpr struct now_cpo {
   }
 } now;
 
-} // namespace cpo
 } // namespace unifex

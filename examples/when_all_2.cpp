@@ -44,7 +44,7 @@ int main() {
     sync_wait(transform(
         when_all(
             transform(
-                cpo::schedule_after(scheduler, 100ms),
+                schedule_after(scheduler, 100ms),
                 [&]() -> steady_clock::time_point::duration {
                   ranPart1Callback = true;
                   auto time = steady_clock::now() - start;
@@ -54,7 +54,7 @@ int main() {
                   throw my_error{};
                 }),
             transform(
-                cpo::schedule_after(scheduler, 200ms),
+                schedule_after(scheduler, 200ms),
                 [&]() {
                   ranPart2Callback = true;
                   auto time = steady_clock::now() - start;

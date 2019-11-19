@@ -28,7 +28,7 @@ using namespace unifex;
 
 template <typename Scheduler, typename F>
 auto run_on(Scheduler&& s, F&& func) {
-  return transform(cpo::schedule((Scheduler &&) s), (F &&) func);
+  return transform(schedule((Scheduler &&) s), (F &&) func);
 }
 
 TEST(StaticThreadPool, Smoke) {
