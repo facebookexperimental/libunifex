@@ -55,12 +55,12 @@ struct inline_scheduler {
 
       void start() noexcept {
         if constexpr (is_stop_never_possible_v<stop_token_type>) {
-          cpo::set_value((Receiver &&) receiver_);
+          unifex::set_value((Receiver &&) receiver_);
         } else {
           if (get_stop_token(receiver_).stop_requested()) {
-            cpo::set_done((Receiver &&) receiver_);
+            unifex::set_done((Receiver &&) receiver_);
           } else {
-            cpo::set_value((Receiver &&) receiver_);
+            unifex::set_value((Receiver &&) receiver_);
           }
         }
       }

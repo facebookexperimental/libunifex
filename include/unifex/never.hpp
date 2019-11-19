@@ -43,7 +43,7 @@ struct never_sender {
       operation& op_;
       void operator()() noexcept {
         op_.stopCallback_.destruct();
-        cpo::set_done(static_cast<Receiver&&>(op_.receiver_));
+        unifex::set_done(static_cast<Receiver&&>(op_.receiver_));
       }
     };
 

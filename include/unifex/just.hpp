@@ -54,11 +54,11 @@ class just_sender {
       try {
         std::apply(
             [&](Values&&... values) {
-              cpo::set_value((Receiver &&) receiver_, (Values &&) values...);
+              unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
             },
             std::move(values_));
       } catch (...) {
-        cpo::set_error((Receiver &&) receiver_, std::current_exception());
+        unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
     }
   };

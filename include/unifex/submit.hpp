@@ -38,20 +38,20 @@ class submitted_operation {
     template <typename... Values>
     void value(Values&&... values) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
-      cpo::set_value(std::move(op_->receiver_), (Values &&) values...);
+      unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
       destroy(std::move(allocator));
     }
 
     template <typename Error>
     void error(Error&& error) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
-      cpo::set_error(std::move(op_->receiver_), (Error &&) error);
+      unifex::set_error(std::move(op_->receiver_), (Error &&) error);
       destroy(std::move(allocator));
     }
 
     void done() && noexcept {
       auto allocator = get_allocator(op_->receiver_);
-      cpo::set_done(std::move(op_->receiver_));
+      unifex::set_done(std::move(op_->receiver_));
       destroy(std::move(allocator));
     }
 
@@ -71,7 +71,7 @@ class submitted_operation {
 
     template <
         typename CPO,
-        std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
     friend auto tag_invoke(CPO cpo, const wrapped_receiver& r) noexcept(
         std::is_nothrow_invocable_v<CPO, const Receiver&>)
         -> std::invoke_result_t<CPO, const Receiver&> {

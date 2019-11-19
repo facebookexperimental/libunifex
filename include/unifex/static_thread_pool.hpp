@@ -69,11 +69,11 @@ namespace unifex
               if constexpr (!is_stop_never_possible_v<
                                 stop_token_type_t<Receiver>>) {
                 if (get_stop_token(op.receiver_).stop_requested()) {
-                  cpo::set_done((Receiver &&) op.receiver_);
+                  unifex::set_done((Receiver &&) op.receiver_);
                   return;
                 }
               }
-              cpo::set_value((Receiver &&) op.receiver_);
+              unifex::set_value((Receiver &&) op.receiver_);
             };
           }
 

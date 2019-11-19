@@ -146,7 +146,7 @@ class when_all_sender {
 
       template <
           typename CPO,
-          std::enable_if_t<!cpo::is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(CPO cpo, const element_receiver& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
@@ -193,16 +193,16 @@ class when_all_sender {
       stopCallback_.destruct();
 
       if (get_stop_token(receiver_).stop_requested()) {
-        cpo::set_done(std::move(receiver_));
+        unifex::set_done(std::move(receiver_));
       } else if (doneOrError_.load(std::memory_order_relaxed)) {
         if (error_.has_value()) {
           std::visit(
               [this](auto&& error) {
-                cpo::set_error(std::move(receiver_), (decltype(error))error);
+                unifex::set_error(std::move(receiver_), (decltype(error))error);
               },
               std::move(error_.value()));
         } else {
-          cpo::set_done(std::move(receiver_));
+          unifex::set_done(std::move(receiver_));
         }
       } else {
         deliver_value(std::index_sequence_for<Senders...>{});
@@ -212,11 +212,11 @@ class when_all_sender {
     template <std::size_t... Indices>
     void deliver_value(std::index_sequence<Indices...>) noexcept {
       try {
-        cpo::set_value(
+        unifex::set_value(
             std::move(receiver_),
             std::get<Indices>(std::move(values_)).value()...);
       } catch (...) {
-        cpo::set_error(std::move(receiver_), std::current_exception());
+        unifex::set_error(std::move(receiver_), std::current_exception());
       }
     }
 

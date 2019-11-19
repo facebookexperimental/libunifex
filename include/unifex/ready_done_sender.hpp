@@ -43,7 +43,7 @@ struct ready_done_sender {
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
     void start() noexcept {
-      cpo::set_done(static_cast<Receiver&&>(receiver_));
+      unifex::set_done(static_cast<Receiver&&>(receiver_));
     }
   };
 

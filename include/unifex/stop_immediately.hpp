@@ -211,17 +211,17 @@ struct stop_immediately_stream {
 
         void value(Values&&... values) && noexcept final {
           op_.stopCallback_.destruct();
-          cpo::set_value(std::move(op_.receiver_), (Values&&)values...);
+          unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
         }
 
         void done() && noexcept final {
           op_.stopCallback_.destruct();
-          cpo::set_done(std::move(op_.receiver_));
+          unifex::set_done(std::move(op_.receiver_));
         }
 
         void error(std::exception_ptr ex) && noexcept final {
           op_.stopCallback_.destruct();
-          cpo::set_error(std::move(op_.receiver_), std::move(ex));
+          unifex::set_error(std::move(op_.receiver_), std::move(ex));
         }
       };
 
@@ -246,7 +246,7 @@ struct stop_immediately_stream {
       void start() noexcept {
         auto stopToken = get_stop_token(receiver_);
         if (stopToken.stop_requested()) {
-            cpo::set_done(std::move(receiver_));
+            unifex::set_done(std::move(receiver_));
             return;
         }
 
@@ -272,12 +272,12 @@ struct stop_immediately_stream {
             stream_.nextOp_.destruct();
             stream_.state_.store(
               state::source_next_completed, std::memory_order_relaxed);
-            cpo::set_error(std::move(receiver_), std::current_exception());
+            unifex::set_error(std::move(receiver_), std::current_exception());
           }
         } catch (...) {
           stream_.state_.store(
             state::source_next_completed, std::memory_order_relaxed);
-          cpo::set_error(std::move(receiver_), std::current_exception());
+          unifex::set_error(std::move(receiver_), std::current_exception());
         }
       }
     };
@@ -313,10 +313,10 @@ struct stop_immediately_stream {
           op.cleanupOp_.destruct();
 
           if (op.stream_.nextError_) {
-            cpo::set_error(
+            unifex::set_error(
                 std::move(op.receiver_), std::move(op.stream_.nextError_));
           } else {
-            cpo::set_done(std::move(op.receiver_));
+            unifex::set_done(std::move(op.receiver_));
           }
         }
 
@@ -328,10 +328,10 @@ struct stop_immediately_stream {
           // Prefer sending the error from the next(source_) rather than
           // the error from cleanup(source_).
           if (op.stream_.nextError_) {
-            cpo::set_error(
+            unifex::set_error(
               std::move(op.receiver_), std::move(op.stream_.nextError_));
           } else {
-            cpo::set_error(std::move(op.receiver_), (Error&&)error);
+            unifex::set_error(std::move(op.receiver_), (Error&&)error);
           }
         }
       };
@@ -376,7 +376,7 @@ struct stop_immediately_stream {
         // No prior next() call has been made. Nothing to do for cleanup.
         // Send done() immediately.
         assert(oldState == state::not_started);
-        cpo::set_done(std::move(receiver_));
+        unifex::set_done(std::move(receiver_));
       }
 
       void start_cleanup() noexcept final {
@@ -391,9 +391,9 @@ struct stop_immediately_stream {
           // Prefer to send the error from next(source_) over the error
           // from cleanup(source_) if there was one.
           if (stream_.nextError_) {
-            cpo::set_error(std::move(receiver_), std::move(stream_.nextError_));
+            unifex::set_error(std::move(receiver_), std::move(stream_.nextError_));
           } else {
-            cpo::set_error(std::move(receiver_), std::current_exception());
+            unifex::set_error(std::move(receiver_), std::current_exception());
           }
         }
       }

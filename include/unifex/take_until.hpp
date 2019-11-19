@@ -98,20 +98,20 @@ struct take_until_stream {
         template<typename... Values>
         void value(Values&&... values) && noexcept {
           op_.stopCallback_.destruct();
-          cpo::set_value(std::move(op_.receiver_), (Values&&)values...);
+          unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
         }
 
         void done() && noexcept {
           op_.stopCallback_.destruct();
           op_.stream_.stopSource_.request_stop();
-          cpo::set_done(std::move(op_.receiver_));
+          unifex::set_done(std::move(op_.receiver_));
         }
 
         template<typename Error>
         void error(Error&& error) && noexcept {
           op_.stopCallback_.destruct();
           op_.stream_.stopSource_.request_stop();
-          cpo::set_error(std::move(op_.receiver_), (Error&&)error);
+          unifex::set_error(std::move(op_.receiver_), (Error&&)error);
         }
 
         inplace_stop_source& get_stop_source() const {
@@ -319,9 +319,9 @@ struct take_until_stream {
 
         // The other operation finished first.
         if (triggerError_) {
-          cpo::set_error(std::move(receiver_), std::move(triggerError_));
+          unifex::set_error(std::move(receiver_), std::move(triggerError_));
         } else {
-          cpo::set_done(std::move(receiver_));
+          unifex::set_done(std::move(receiver_));
         }
       }
 
@@ -339,7 +339,7 @@ struct take_until_stream {
         // Trigger cleanup finished first
         // Prefer to propagate the source cleanup error over the trigger
         // cleanup error if there was one.
-        cpo::set_error(std::move(receiver_), std::move(sourceError_));
+        unifex::set_error(std::move(receiver_), std::move(sourceError_));
       }
 
       void trigger_cleanup_done() noexcept {
@@ -353,9 +353,9 @@ struct take_until_stream {
 
         // The other operation finished first.
         if (sourceError_) {
-          cpo::set_error(std::move(receiver_), std::move(sourceError_));
+          unifex::set_error(std::move(receiver_), std::move(sourceError_));
         } else {
-          cpo::set_done(std::move(receiver_));
+          unifex::set_done(std::move(receiver_));
         }
       }
 
@@ -374,9 +374,9 @@ struct take_until_stream {
         // Prefer to propagate the source cleanup error over the trigger
         // cleanup error if there was one.
         if (sourceError_) {
-          cpo::set_error(std::move(receiver_), std::move(sourceError_));
+          unifex::set_error(std::move(receiver_), std::move(sourceError_));
         } else {
-          cpo::set_error(std::move(receiver_), std::move(triggerError_));
+          unifex::set_error(std::move(receiver_), std::move(triggerError_));
         }
       }
     };
