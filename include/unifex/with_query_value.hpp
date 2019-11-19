@@ -78,10 +78,10 @@ public:
                                       Value2 &&value)
       : value_((Value2 &&) value),
         innerOp_(
-            cpo::connect((Sender &&) sender,
+            connect((Sender &&) sender,
                          receiver_wrapper{(Receiver2 &&) receiver, this})) {}
 
-  void start() & noexcept { cpo::start(innerOp_); }
+  void start() & noexcept { unifex::start(innerOp_); }
 
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Value value_;

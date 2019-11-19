@@ -83,7 +83,7 @@ struct sender_awaiter {
   };
 
   explicit sender_awaiter(Sender&& sender)
-  : op_(cpo::connect(
+  : op_(connect(
       static_cast<Sender&&>(sender),
       coroutine_receiver{*this}))
   {}
@@ -104,7 +104,7 @@ struct sender_awaiter {
     if constexpr (!std::is_void_v<Promise>) {
       info_.emplace(continuation_info::from_continuation(h.promise()));
     }
-    cpo::start(op_);
+    start(op_);
   }
 
   auto await_resume()

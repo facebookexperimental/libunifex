@@ -339,8 +339,8 @@ class thread_unsafe_event_loop {
     using promise_t = sync_wait_promise<Result, StopToken&&>;
     promise_t promise{(StopToken &&) st};
 
-    auto op = cpo::connect((Sender &&) sender, promise.get_receiver());
-    cpo::start(op);
+    auto op = connect((Sender &&) sender, promise.get_receiver());
+    start(op);
 
     run_until_empty();
 

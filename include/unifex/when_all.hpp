@@ -64,10 +64,10 @@ struct when_all_operation_tuple<Index, Receiver, First, Rest...>
       : when_all_operation_tuple<Index + 1, Receiver, Rest...>{parent,
                                                                (Rest &&)
                                                                    rest...},
-        op_(cpo::connect((First &&) first, Receiver<Index>{parent})) {}
+        op_(connect((First &&) first, Receiver<Index>{parent})) {}
 
   void start() noexcept {
-    cpo::start(op_);
+    unifex::start(op_);
     when_all_operation_tuple<Index + 1, Receiver, Rest...>::start();
   }
 

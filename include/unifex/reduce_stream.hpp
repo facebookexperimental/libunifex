@@ -163,16 +163,16 @@ struct reduce_stream_sender {
               std::forward<State>(op.state_),
               (Values &&) values...);
           op.next_.construct_from([&]() {
-            return cpo::connect(next(op.stream_), next_receiver{op});
+            return unifex::connect(next(op.stream_), next_receiver{op});
           });
-          cpo::start(op.next_.get());
+          unifex::start(op.next_.get());
         } catch (...) {
           op.errorCleanup_.construct_from([&] {
-            return cpo::connect(
+            return unifex::connect(
                 cleanup(op.stream_),
                 error_cleanup_receiver{op, std::current_exception()});
           });
-          cpo::start(op.errorCleanup_.get());
+          unifex::start(op.errorCleanup_.get());
         }
       }
 
@@ -180,21 +180,21 @@ struct reduce_stream_sender {
         auto& op = op_;
         op.next_.destruct();
         op.doneCleanup_.construct_from([&]() {
-          return cpo::connect(
+          return unifex::connect(
               cleanup(op.stream_), done_cleanup_receiver{op});
         });
-        cpo::start(op.doneCleanup_.get());
+        unifex::start(op.doneCleanup_.get());
       }
 
       void error(std::exception_ptr ex) && noexcept {
         auto& op = op_;
         op.next_.destruct();
         op.errorCleanup_.construct_from([&]() {
-          return cpo::connect(
+          return unifex::connect(
               cleanup(op.stream_),
               error_cleanup_receiver{op, std::move(ex)});
         });
-        cpo::start(op.errorCleanup_.get());
+        unifex::start(op.errorCleanup_.get());
       }
 
       template <typename Error>
@@ -231,9 +231,9 @@ struct reduce_stream_sender {
     void start() noexcept {
       try {
         next_.construct_from([&]() {
-          return cpo::connect(next(stream_), next_receiver{*this});
+          return unifex::connect(next(stream_), next_receiver{*this});
         });
-        cpo::start(next_.get());
+        unifex::start(next_.get());
       } catch (...) {
         cpo::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());

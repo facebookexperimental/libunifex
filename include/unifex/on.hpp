@@ -122,11 +122,11 @@ struct on_sender {
         op.predOp_.destruct();
         try {
           op.succOp_.construct_from([&]() {
-            return cpo::connect(
+            return unifex::connect(
                 static_cast<Successor&&>(op.succ_),
                 successor_receiver{op});
           });
-          cpo::start(op.succOp_.get());
+          unifex::start(op.succOp_.get());
         } catch (...) {
           cpo::set_error(
               static_cast<Receiver&&>(op.receiver_),
@@ -174,7 +174,7 @@ struct on_sender {
         : succ_((Successor &&) succ)
         , receiver_((Receiver2&&)receiver) {
       predOp_.construct_from([&] {
-        return cpo::connect(
+        return unifex::connect(
             static_cast<Predecessor&&>(pred),
             predecessor_receiver{*this});
       });
@@ -197,7 +197,7 @@ struct on_sender {
 
     void start() noexcept {
       started_ = true;
-      cpo::start(predOp_.get());
+      unifex::start(predOp_.get());
     }
   };
 

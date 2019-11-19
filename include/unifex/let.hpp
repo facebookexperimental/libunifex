@@ -170,11 +170,11 @@ class let_sender {
             auto& succOp =
                 op_.succOp_.template get<successor_operation<Values...>>()
                     .construct_from([&] {
-                      return cpo::connect(
+                      return unifex::connect(
                           std::apply(std::move(op_.func_), valueTuple.get()),
                           successor_receiver<Values...>{op_});
                     });
-            cpo::start(succOp);
+            unifex::start(succOp);
           } catch (...) {
             valueTuple.destruct();
             throw;
@@ -225,7 +225,7 @@ class let_sender {
         : func_((SuccessorFactory &&) func),
           receiver_((Receiver2 &&) receiver) {
       predOp_.construct_from([&] {
-        return cpo::connect((Predecessor &&) pred, predecessor_receiver{*this});
+        return unifex::connect((Predecessor &&) pred, predecessor_receiver{*this});
       });
     }
 
@@ -237,7 +237,7 @@ class let_sender {
 
     void start() noexcept {
       started_ = true;
-      cpo::start(predOp_.get());
+      unifex::start(predOp_.get());
     }
 
    private:

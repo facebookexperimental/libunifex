@@ -77,14 +77,14 @@ namespace unifex
             };
           }
 
-          friend void tag_invoke(tag_t<cpo::start>, operation& op) noexcept {
+          friend void tag_invoke(tag_t<start>, operation& op) noexcept {
             op.pool_.enqueue(&op);
           }
         };
 
         template <typename Receiver>
         friend operation<std::decay_t<Receiver>>
-        tag_invoke(tag_t<cpo::connect>, schedule_sender s, Receiver&& r) {
+        tag_invoke(tag_t<connect>, schedule_sender s, Receiver&& r) {
           return operation<std::decay_t<Receiver>>{s.pool_, (Receiver &&) r};
         }
 
