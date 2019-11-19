@@ -46,7 +46,7 @@ int main() {
     auto s = take_until(
         stop_immediately<int>(typed_via_stream(
             delay(context.get_scheduler(), 50ms), range_stream{0, 100})),
-        single(cpo::schedule_after(context.get_scheduler(), 500ms)));
+        single(schedule_after(context.get_scheduler(), 500ms)));
 
     int sum = 0;
     while (auto value = co_await next(s)) {

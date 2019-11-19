@@ -35,7 +35,7 @@ int main() {
 
   auto async = [&](auto&& func) {
     return transform(
-        cpo::schedule_after(context.get_scheduler(), 100ms),
+        schedule_after(context.get_scheduler(), 100ms),
         (decltype(func))func);
   };
 

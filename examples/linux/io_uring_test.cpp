@@ -119,13 +119,13 @@ int main() {
       sync_wait(
           when_all(
               transform(
-                  cpo::schedule_at(scheduler, cpo::now(scheduler) + 1s),
+                  schedule_at(scheduler, now(scheduler) + 1s),
                   []() { std::printf("timer 1 completed (1s)\n"); }),
               transform(
-                  cpo::schedule_at(scheduler, cpo::now(scheduler) + 2s),
+                  schedule_at(scheduler, now(scheduler) + 2s),
                   []() { std::printf("timer 2 completed (2s)\n"); }),
               transform(
-                  cpo::schedule_at(scheduler, cpo::now(scheduler) + 1500ms),
+                  schedule_at(scheduler, now(scheduler) + 1500ms),
                   [&]() {
                     std::printf("timer 3 completed (1.5s) cancelling\n");
                     timerStopSource.request_stop();
@@ -145,7 +145,7 @@ int main() {
         write_new_file(scheduler, "test.txt"),
         lazy([] { std::printf("write completed, waiting 1s\n"); }),
         transform(
-            cpo::schedule_at(scheduler, cpo::now(scheduler) + 1s),
+            schedule_at(scheduler, now(scheduler) + 1s),
             []() { std::printf("timer 1 completed (1s)\n"); }),
         lazy([] { std::printf("reading file concurrently\n"); }),
         when_all(

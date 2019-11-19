@@ -45,7 +45,7 @@ namespace unifex
             } else {
                 // Default implementation.
                 return submit(
-                    transform(cpo::schedule((Scheduler&&)s), (Func&&)func),
+                    transform(schedule((Scheduler&&)s), (Func&&)func),
                     detail::default_execute_receiver{});
             }
         }

@@ -26,7 +26,7 @@ auto on_stream(Scheduler&& scheduler, StreamSender&& stream) {
   return adapt_stream(
       (StreamSender &&) stream,
       [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return on(cpo::schedule(s), (decltype(sender))sender);
+        return on(schedule(s), (decltype(sender))sender);
       });
 }
 

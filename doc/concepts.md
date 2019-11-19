@@ -671,7 +671,7 @@ namespace unifex
     requires(const T scheduler) {
       now(scheduler);
       schedule_at(scheduler, now(scheduler));
-      schedule_after(scheduelr, now(scheduler) - now(scheduler));
+      schedule_after(scheduler, now(scheduler) - now(scheduler));
     };
 }
 ```

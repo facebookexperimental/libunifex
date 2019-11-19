@@ -78,7 +78,7 @@ int main() {
       when_all(
           transform(
               dump_async_trace_on_start(
-                  cpo::schedule_after(context.get_scheduler(), 100ms), "part1"),
+                  schedule_after(context.get_scheduler(), 100ms), "part1"),
               [=]() {
                 auto time = steady_clock::now() - start;
                 auto timeMs = duration_cast<milliseconds>(time).count();
@@ -87,7 +87,7 @@ int main() {
               }),
           transform(
               dump_async_trace_on_completion(
-                  cpo::schedule_after(context.get_scheduler(), 200ms), "part2"),
+                  schedule_after(context.get_scheduler(), 200ms), "part2"),
               [=]() {
                 auto time = steady_clock::now() - start;
                 auto timeMs = duration_cast<milliseconds>(time).count();

@@ -42,7 +42,7 @@ int main() {
               stop_immediately<int>(typed_via_stream(
                   delay(eventLoop.get_scheduler(), 50ms),
                   range_stream{0, 100})),
-              single(eventLoop.get_scheduler().schedule_after(500ms))),
+              single(schedule_after(eventLoop.get_scheduler(), 500ms))),
           [start](int value) {
             auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
             std::printf("[%i ms] %i\n", (int)ms.count(), value);

@@ -28,7 +28,7 @@ struct delayed_scheduler {
   Duration duration_;
 
   auto schedule() {
-    return cpo::schedule_after(scheduler_, duration_);
+    return unifex::schedule_after(scheduler_, duration_);
   }
 };
 

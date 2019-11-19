@@ -49,7 +49,7 @@ int main() {
   auto start = steady_clock::now();
 
   sync_wait(
-      on(cpo::schedule(context.get_scheduler()),
+      on(schedule(context.get_scheduler()),
          for_each(
              on_stream(trampoline_scheduler{}, range_stream{0, 20}),
              [](int value) {

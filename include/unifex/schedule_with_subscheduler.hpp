@@ -43,9 +43,9 @@ inline constexpr struct schedule_with_subscheduler_cpo {
   template <typename Scheduler>
   friend auto tag_invoke(schedule_with_subscheduler_cpo, Scheduler&& scheduler)
       -> decltype(transform(
-          std::declval<std::invoke_result_t<decltype(cpo::schedule), Scheduler&>>(),
+          std::declval<std::invoke_result_t<decltype(schedule), Scheduler&>>(),
           std::declval<return_value<std::decay_t<Scheduler>>>())) {
-    auto&& scheduleOp = cpo::schedule(scheduler);
+    auto&& scheduleOp = schedule(scheduler);
     return transform(
         static_cast<decltype(scheduleOp)>(scheduleOp),
         return_value<std::decay_t<Scheduler>>{(Scheduler &&) scheduler});

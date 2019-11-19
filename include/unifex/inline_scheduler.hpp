@@ -72,7 +72,7 @@ struct inline_scheduler {
     }
   };
 
-  schedule_task schedule() {
+  constexpr schedule_task schedule() const noexcept {
     return {};
   }
 };

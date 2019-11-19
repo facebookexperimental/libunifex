@@ -36,7 +36,7 @@ int main() {
   sync_wait(transform(
       when_all(
           transform(
-              cpo::schedule_after(scheduler, 100ms),
+              schedule_after(scheduler, 100ms),
               [=]() {
                 auto time = steady_clock::now() - start;
                 auto timeMs = duration_cast<milliseconds>(time).count();
@@ -44,7 +44,7 @@ int main() {
                 return time;
               }),
           transform(
-              cpo::schedule_after(scheduler, 200ms),
+              schedule_after(scheduler, 200ms),
               [=]() {
                 auto time = steady_clock::now() - start;
                 auto timeMs = duration_cast<milliseconds>(time).count();
