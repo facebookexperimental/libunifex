@@ -39,7 +39,7 @@ struct sender_awaiter {
     sender_awaiter& awaiter_;
 
     template<typename... Values>
-    void value(Values&&... values) && noexcept {
+    void set_value(Values&&... values) && noexcept {
       if constexpr (std::is_nothrow_constructible_v<Value, Values...>) {
         awaiter_.value_.construct((Values&&)values...);
         awaiter_.state_ = state::value;
@@ -56,17 +56,17 @@ struct sender_awaiter {
     }
 
     template<typename Error>
-    void error(Error&& error) && noexcept {
-      std::move(*this).error(std::make_exception_ptr((Error&&)error));
+    void set_error(Error&& error) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
     }
 
-    void error(std::exception_ptr ex) && noexcept {
+    void set_error(std::exception_ptr ex) && noexcept {
       awaiter_.ex_.construct(std::move(ex));
       awaiter_.state_ = state::error;
       awaiter_.continuation_.resume();
     }
 
-    void done() && noexcept {
+    void set_done() && noexcept {
       awaiter_.state_ = state::done;
       awaiter_.continuation_.resume();
     }

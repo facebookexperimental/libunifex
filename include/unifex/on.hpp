@@ -74,7 +74,7 @@ struct on_sender {
       operation& op_;
 
       template <typename... Values>
-      void value(Values... values) && noexcept {
+      void set_value(Values... values) && noexcept {
         auto& op = op_;
         op.succOp_.destruct();
         unifex::set_value(
@@ -82,14 +82,14 @@ struct on_sender {
       }
 
       template <typename Error>
-      void error(Error error) && noexcept {
+      void set_error(Error error) && noexcept {
         auto& op = op_;
         op.succOp_.destruct();
         unifex::set_error(
             static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         auto& op = op_;
         op.succOp_.destruct();
         unifex::set_done(static_cast<Receiver&&>(op.receiver_));
@@ -117,7 +117,7 @@ struct on_sender {
       operation& op_;
 
       template <typename... Values>
-      void value(Values&&...) noexcept {
+      void set_value(Values&&...) noexcept {
         auto& op = op_;
         op.predOp_.destruct();
         try {
@@ -135,14 +135,14 @@ struct on_sender {
       }
 
       template <typename Error>
-      void error(Error error) noexcept {
+      void set_error(Error error) noexcept {
         auto& op = op_;
         op.predOp_.destruct();
         unifex::set_error(
             static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
-      void done() noexcept {
+      void set_done() noexcept {
         auto& op = op_;
         op.predOp_.destruct();
         unifex::set_done(static_cast<Receiver&&>(op.receiver_));

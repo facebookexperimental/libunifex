@@ -31,9 +31,9 @@ namespace unifex {
 template <typename... Values>
 struct type_erased_stream {
   struct next_receiver_base {
-    virtual void value(Values&&... values) noexcept = 0;
-    virtual void done() noexcept = 0;
-    virtual void error(std::exception_ptr ex) noexcept = 0;
+    virtual void set_value(Values&&... values) noexcept = 0;
+    virtual void set_done() noexcept = 0;
+    virtual void set_error(std::exception_ptr ex) noexcept = 0;
 
     using visitor_t = void(const continuation_info&, void*);
 
@@ -50,8 +50,8 @@ struct type_erased_stream {
   };
 
   struct cleanup_receiver_base {
-    virtual void done() noexcept = 0;
-    virtual void error(std::exception_ptr ex) noexcept = 0;
+    virtual void set_done() noexcept = 0;
+    virtual void set_error(std::exception_ptr ex) noexcept = 0;
 
    private:
     template <typename Func>
@@ -80,15 +80,15 @@ struct type_erased_stream {
     explicit concrete_next_receiver(Receiver&& receiver)
         : receiver_((Receiver &&) receiver) {}
 
-    void value(Values&&... values) noexcept override {
+    void set_value(Values&&... values) noexcept override {
       unifex::set_value(std::move(receiver_), (Values &&) values...);
     }
 
-    void done() noexcept override {
+    void set_done() noexcept override {
       unifex::set_done(std::move(receiver_));
     }
 
-    void error(std::exception_ptr ex) noexcept override {
+    void set_error(std::exception_ptr ex) noexcept override {
       unifex::set_error(std::move(receiver_), std::move(ex));
     }
 
@@ -105,11 +105,11 @@ struct type_erased_stream {
     explicit concrete_cleanup_receiver(Receiver&& receiver)
         : receiver_((Receiver &&) receiver) {}
 
-    void done() noexcept override {
+    void set_done() noexcept override {
       unifex::set_done(std::move(receiver_));
     }
 
-    void error(std::exception_ptr ex) noexcept override {
+    void set_error(std::exception_ptr ex) noexcept override {
       unifex::set_error(std::move(receiver_), std::move(ex));
     }
 
@@ -131,35 +131,35 @@ struct type_erased_stream {
       concrete_stream& stream_;
       inplace_stop_token stopToken_;
 
-      void value(Values&&... values) && noexcept {
+      void set_value(Values&&... values) && noexcept {
         try {
           // Take a copy of the values before destroying the next operation
           // state in case the values are references to objects stored in
           // the operation object.
           [&](Values... values) {
             stream_.next_.destruct();
-            receiver_.value((Values &&) values...);
+            receiver_.set_value((Values &&) values...);
           }((Values &&) values...);
         } catch (...) {
           stream_.next_.destruct();
-          receiver_.error(std::current_exception());
+          receiver_.set_error(std::current_exception());
         }
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         stream_.next_.destruct();
-        receiver_.done();
+        receiver_.set_done();
       }
 
-      void error(std::exception_ptr ex) && noexcept {
+      void set_error(std::exception_ptr ex) && noexcept {
         stream_.next_.destruct();
-        receiver_.error(std::move(ex));
+        receiver_.set_error(std::move(ex));
       }
 
       template <typename Error>
-      void error(Error&& error) && noexcept {
+      void set_error(Error&& error) && noexcept {
         // Type-erase any errors that come through.
-        std::move(*this).error(std::make_exception_ptr((Error&&)error));
+        std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
       }
 
       friend const inplace_stop_token& tag_invoke(
@@ -180,20 +180,20 @@ struct type_erased_stream {
       cleanup_receiver_base& receiver_;
       concrete_stream& stream_;
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         stream_.cleanup_.destruct();
-        receiver_.done();
+        receiver_.set_done();
       }
 
-      void error(std::exception_ptr ex) && noexcept {
+      void set_error(std::exception_ptr ex) && noexcept {
         stream_.cleanup_.destruct();
-        receiver_.error(std::move(ex));
+        receiver_.set_error(std::move(ex));
       }
 
       template <typename Error>
-      void error(Error&& error) && noexcept {
+      void set_error(Error&& error) && noexcept {
         // Type-erase any errors that come through.
-        std::move(*this).error(std::make_exception_ptr((Error&)error));
+        std::move(*this).set_error(std::make_exception_ptr((Error&)error));
       }
 
       template <typename Func>
@@ -229,7 +229,7 @@ struct type_erased_stream {
             });
         start(next_.get());
       } catch (...) {
-        receiver.error(std::current_exception());
+        receiver.set_error(std::current_exception());
       }
     }
 
@@ -243,7 +243,7 @@ struct type_erased_stream {
             });
         start(cleanup_.get());
       } catch (...) {
-        receiver.error(std::current_exception());
+        receiver.set_error(std::current_exception());
       }
     }
   };

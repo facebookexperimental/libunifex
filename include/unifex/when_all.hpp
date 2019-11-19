@@ -114,7 +114,7 @@ class when_all_sender {
       operation& op_;
 
       template <typename... Values>
-      void value(Values&&... values) noexcept {
+      void set_value(Values&&... values) noexcept {
         try {
           std::get<Index>(op_.values_)
               .emplace(
@@ -122,12 +122,12 @@ class when_all_sender {
                   (Values &&) values...);
           op_.element_complete();
         } catch (...) {
-          error(std::current_exception());
+          this->set_error(std::current_exception());
         }
       }
 
       template <typename Error>
-      void error(Error&& error) noexcept {
+      void set_error(Error&& error) noexcept {
         if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
           op_.error_.emplace(std::in_place_type<Error>, (Error &&) error);
           op_.stopSource_.request_stop();
@@ -135,7 +135,7 @@ class when_all_sender {
         op_.element_complete();
       }
 
-      void done() noexcept {
+      void set_done() noexcept {
         if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
           op_.stopSource_.request_stop();
         }

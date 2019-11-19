@@ -107,7 +107,7 @@ class let_sender {
       Receiver&  get_receiver() const { return op_.receiver_; }
 
       template <typename... SuccessorValues>
-      void value(SuccessorValues&&... values) && noexcept {
+      void set_value(SuccessorValues&&... values) && noexcept {
         cleanup();
         try {
           unifex::set_value(
@@ -117,13 +117,13 @@ class let_sender {
         }
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         cleanup();
         unifex::set_done(std::move(op_.receiver_));
       }
 
       template <typename Error>
-      void error(Error&& error) && noexcept {
+      void set_error(Error&& error) && noexcept {
         cleanup();
         unifex::set_error(std::move(op_.receiver_), (Error &&) error);
       }
@@ -158,7 +158,7 @@ class let_sender {
       Receiver&  get_receiver() const { return op_.receiver_; }
 
       template <typename... Values>
-      void value(Values&&... values) && noexcept {
+      void set_value(Values&&... values) && noexcept {
         bool destroyedPredOp = false;
         try {
           auto& valueTuple =
@@ -187,13 +187,13 @@ class let_sender {
         }
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         op_.predOp_.destruct();
         unifex::set_done(std::move(op_.receiver_));
       }
 
       template <typename Error>
-      void error(Error&& error) && noexcept {
+      void set_error(Error&& error) && noexcept {
         op_.predOp_.destruct();
         unifex::set_error(std::move(op_.receiver_), (Error &&) error);
       }

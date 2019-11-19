@@ -50,9 +50,9 @@ struct stop_immediately_stream {
   };
 
   struct next_receiver_base {
-    virtual void value(Values&&... values) && noexcept = 0;
-    virtual void done() && noexcept = 0;
-    virtual void error(std::exception_ptr ex) && noexcept = 0;
+    virtual void set_value(Values&&... values) && noexcept = 0;
+    virtual void set_done() && noexcept = 0;
+    virtual void set_error(std::exception_ptr ex) && noexcept = 0;
   };
 
   struct cancel_next_callback {
@@ -86,7 +86,7 @@ struct stop_immediately_stream {
           stream_.stopSource_.request_stop();
           auto receiver = std::exchange(stream_.nextReceiver_, nullptr);
           assert(receiver != nullptr);
-          std::move(*receiver).done();
+          std::move(*receiver).set_done();
         } else {
           assert(oldState == state::source_next_completed);
         }
@@ -106,32 +106,32 @@ struct stop_immediately_stream {
     // Note, parameters passed by value here just in case we are passed
     // references to values owned by the operation object that we will be
     // destroying before passing the values along to the next receiver.
-    void value(Values... values) && noexcept {
+    void set_value(Values... values) && noexcept {
       handle_signal([&](next_receiver_base* receiver) noexcept {
         try {
-          std::move(*receiver).value((Values&&)values...);
+          std::move(*receiver).set_value((Values&&)values...);
         } catch (...) {
-          std::move(*receiver).error(std::current_exception());
+          std::move(*receiver).set_error(std::current_exception());
         }
       });
     }
 
-    void done() && noexcept {
+    void set_done() && noexcept {
       handle_signal([](next_receiver_base* receiver) noexcept {
-        std::move(*receiver).done();
+        std::move(*receiver).set_done();
       });
     }
 
     template<typename Error>
-    void error(Error&& error) && noexcept {
-      std::move(*this).error(std::make_exception_ptr((Error&&)error));
+    void set_error(Error&& error) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
     }
 
-    void error(std::exception_ptr ex) && noexcept {
+    void set_error(std::exception_ptr ex) && noexcept {
       auto& nextError = stream_.nextError_;
       nextError = std::move(ex);
       handle_signal([&](next_receiver_base* receiver) noexcept {
-        std::move(*receiver).error(std::exchange(nextError, {}));
+        std::move(*receiver).set_error(std::exchange(nextError, {}));
       });
     }
 
@@ -209,17 +209,17 @@ struct stop_immediately_stream {
         : op_(op)
         {}
 
-        void value(Values&&... values) && noexcept final {
+        void set_value(Values&&... values) && noexcept final {
           op_.stopCallback_.destruct();
           unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
         }
 
-        void done() && noexcept final {
+        void set_done() && noexcept final {
           op_.stopCallback_.destruct();
           unifex::set_done(std::move(op_.receiver_));
         }
 
-        void error(std::exception_ptr ex) && noexcept final {
+        void set_error(std::exception_ptr ex) && noexcept final {
           op_.stopCallback_.destruct();
           unifex::set_error(std::move(op_.receiver_), std::move(ex));
         }
@@ -308,7 +308,7 @@ struct stop_immediately_stream {
       struct receiver_wrapper {
         operation& op_;
 
-        void done() && noexcept {
+        void set_done() && noexcept {
           auto& op = op_;
           op.cleanupOp_.destruct();
 
@@ -321,7 +321,7 @@ struct stop_immediately_stream {
         }
 
         template<typename Error>
-        void error(Error&& error) && noexcept {
+        void set_error(Error&& error) && noexcept {
           auto& op = op_;
           op.cleanupOp_.destruct();
 
