@@ -74,7 +74,7 @@ struct via_sender {
     UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    void value() noexcept {
+    void set_value() noexcept {
       std::apply(
           [&](Values && ... values) noexcept {
             unifex::set_value(
@@ -84,11 +84,11 @@ struct via_sender {
     }
 
     template <typename Error>
-    void error(Error&& error) noexcept {
+    void set_error(Error&& error) noexcept {
       unifex::set_error(std::forward<Receiver>(receiver_), (Error &&) error);
     }
 
-    void done() noexcept {
+    void set_done() noexcept {
       unifex::set_done(std::forward<Receiver>(receiver_));
     }
 
@@ -115,17 +115,17 @@ struct via_sender {
     UNIFEX_NO_UNIQUE_ADDRESS Error error_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    void value() noexcept {
+    void set_value() noexcept {
       unifex::set_error(std::forward<Receiver>(receiver_), std::move(error_));
     }
 
     template <typename OtherError>
-    void error(OtherError&& otherError) noexcept {
+    void set_error(OtherError&& otherError) noexcept {
       unifex::set_error(
           std::forward<Receiver>(receiver_), (OtherError &&) otherError);
     }
 
-    void done() noexcept {
+    void set_done() noexcept {
       unifex::set_done(std::forward<Receiver>(receiver_));
     }
 
@@ -151,17 +151,17 @@ struct via_sender {
   struct done_receiver {
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    void value() noexcept {
+    void set_value() noexcept {
       unifex::set_done(std::forward<Receiver>(receiver_));
     }
 
     template <typename OtherError>
-    void error(OtherError&& otherError) noexcept {
+    void set_error(OtherError&& otherError) noexcept {
       unifex::set_error(
           std::forward<Receiver>(receiver_), (OtherError &&) otherError);
     }
 
-    void done() noexcept {
+    void set_done() noexcept {
       unifex::set_done(std::forward<Receiver>(receiver_));
     }
 
@@ -189,7 +189,7 @@ struct via_sender {
     Receiver receiver_;
 
     template <typename... Values>
-    void value(Values&&... values) && noexcept {
+    void set_value(Values&&... values) && noexcept {
       try {
         submit(
             (Successor &&) successor_,
@@ -202,7 +202,7 @@ struct via_sender {
     }
 
     template <typename Error>
-    void error(Error&& error) && noexcept {
+    void set_error(Error&& error) && noexcept {
       try {
         submit(
             (Successor &&) successor_,
@@ -214,7 +214,7 @@ struct via_sender {
       }
     }
 
-    void done() && noexcept {
+    void set_done() && noexcept {
       try {
         submit(
             (Successor &&) successor_,

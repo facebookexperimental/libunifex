@@ -59,7 +59,7 @@ struct typed_via_sender {
     struct value_receiver {
       operation& op_;
 
-      void value() noexcept {
+      void set_value() noexcept {
         auto& op = op_;
         auto& valueOp =
             op.succValueOp_.template get<value_operation<Values...>>();
@@ -87,7 +87,7 @@ struct typed_via_sender {
       }
 
       template <typename Error>
-      void error(Error&& error) noexcept {
+      void set_error(Error&& error) noexcept {
         auto& op = op_;
         auto& valueOp = op.succValueOp_.template get<value_operation<Values...>>();
         auto& storedValue = op.value_.template get<std::tuple<Values...>>();
@@ -97,7 +97,7 @@ struct typed_via_sender {
             std::forward<Receiver>(op.receiver_), (Error &&) error);
       }
 
-      void done() noexcept {
+      void set_done() noexcept {
         auto& op = op_;
         auto& valueOp = op.succValueOp_.template get<value_operation<Values...>>();
         auto& storedValue = op.value_.template get<std::tuple<Values...>>();
@@ -128,7 +128,7 @@ struct typed_via_sender {
     struct error_receiver {
       operation& op_;
 
-      void value() noexcept {
+      void set_value() noexcept {
         auto& op = op_;
         auto& errorOp = op.succErrorOp_.template get<error_operation<Error>>();
         errorOp.destruct();
@@ -142,7 +142,7 @@ struct typed_via_sender {
       }
 
       template <typename OtherError>
-      void error(OtherError&& otherError) noexcept {
+      void set_error(OtherError&& otherError) noexcept {
         auto& op = op_;
 
         auto& errorOp = op.succErrorOp_.template get<error_operation<Error>>();
@@ -155,7 +155,7 @@ struct typed_via_sender {
             std::forward<Receiver>(op.receiver_), (OtherError &&) otherError);
       }
 
-      void done() noexcept {
+      void set_done() noexcept {
         auto& op = op_;
         auto& errorOp = op.succErrorOp_.template get<error_operation<Error>>();
         auto& storedError = op.error_.template get<Error>();
@@ -185,21 +185,21 @@ struct typed_via_sender {
     struct done_receiver {
       operation& op_;
 
-      void value() noexcept {
+      void set_value() noexcept {
         auto& op = op_;
         op.succDoneOp_.destruct();
         unifex::set_done(std::forward<Receiver>(op.receiver_));
       }
 
       template <typename OtherError>
-      void error(OtherError&& otherError) noexcept {
+      void set_error(OtherError&& otherError) noexcept {
         auto& op = op_;
         op.succDoneOp_.destruct();
         unifex::set_error(
             std::forward<Receiver>(op.receiver_), (OtherError &&) otherError);
       }
 
-      void done() noexcept {
+      void set_done() noexcept {
         auto& op = op_;
         op.succDoneOp_.destruct();
         unifex::set_done(std::forward<Receiver>(op.receiver_));
@@ -227,7 +227,7 @@ struct typed_via_sender {
       operation& op_;
 
       template <typename... Values>
-      void value(Values&&... values) && noexcept {
+      void set_value(Values&&... values) && noexcept {
         auto& op = op_;
 
         auto& storedValue =
@@ -236,7 +236,7 @@ struct typed_via_sender {
         try {
           storedValue.construct((Values &&) values...);
         } catch (...) {
-          std::move(*this).error(std::current_exception());
+          std::move(*this).set_error(std::current_exception());
           return;
         }
 
@@ -260,7 +260,7 @@ struct typed_via_sender {
       }
 
       template <typename Error>
-      void error(Error&& e) && noexcept {
+      void set_error(Error&& e) && noexcept {
         auto& op = op_;
 
         static_assert(
@@ -289,7 +289,7 @@ struct typed_via_sender {
         }
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         auto& op = op_;
         try {
           unifex::start(op.succDoneOp_.construct_from([&] {

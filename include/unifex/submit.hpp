@@ -36,20 +36,20 @@ class submitted_operation {
     explicit wrapped_receiver(submitted_operation* op) noexcept : op_(op) {}
 
     template <typename... Values>
-    void value(Values&&... values) && noexcept {
+    void set_value(Values&&... values) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
       destroy(std::move(allocator));
     }
 
     template <typename Error>
-    void error(Error&& error) && noexcept {
+    void set_error(Error&& error) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_error(std::move(op_->receiver_), (Error &&) error);
       destroy(std::move(allocator));
     }
 
-    void done() && noexcept {
+    void set_done() && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_done(std::move(op_->receiver_));
       destroy(std::move(allocator));

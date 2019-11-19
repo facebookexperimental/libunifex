@@ -88,7 +88,7 @@ struct transform_sender {
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
     template <typename... Values>
-    void value(Values&&... values) && noexcept {
+    void set_value(Values&&... values) && noexcept {
       using result_type = std::invoke_result_t<Func, Values...>;
       if constexpr (std::is_void_v<result_type>) {
         if constexpr (noexcept(std::invoke(
@@ -122,11 +122,11 @@ struct transform_sender {
     }
 
     template <typename Error>
-    void error(Error&& error) && noexcept {
+    void set_error(Error&& error) && noexcept {
       unifex::set_error((Receiver &&) receiver_, (Error &&) error);
     }
 
-    void done() && noexcept {
+    void set_done() && noexcept {
       unifex::set_done((Receiver &&) receiver_);
     }
 

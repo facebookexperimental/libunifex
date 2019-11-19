@@ -20,12 +20,12 @@
 namespace unifex {
 
 struct null_receiver {
-  void value() noexcept {}
-  [[noreturn]] void done() noexcept {
+  void set_value() noexcept {}
+  [[noreturn]] void set_done() noexcept {
     std::terminate();
   }
   template <typename Error>
-  [[noreturn]] void error(Error&&) noexcept {
+  [[noreturn]] void set_error(Error&&) noexcept {
     std::terminate();
   }
 };

@@ -58,13 +58,13 @@ struct reduce_stream_sender {
       // No value() in cleanup receiver
 
       template <typename Error>
-      void error(Error error) noexcept {
+      void set_error(Error error) noexcept {
         auto& op = op_;
         op.errorCleanup_.destruct();
         unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
-      void done() noexcept {
+      void set_done() noexcept {
         auto& op = op_;
         auto ex = std::move(ex_);
         op.errorCleanup_.destruct();
@@ -97,13 +97,13 @@ struct reduce_stream_sender {
       operation& op_;
 
       template <typename Error>
-      void error(Error error) && noexcept {
+      void set_error(Error error) && noexcept {
         auto& op = op_;
         op.doneCleanup_.destruct();
         unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         auto& op = op_;
         op.doneCleanup_.destruct();
         unifex::set_value(
@@ -154,7 +154,7 @@ struct reduce_stream_sender {
       }
 
       template <typename... Values>
-      void value(Values... values) && noexcept {
+      void set_value(Values... values) && noexcept {
         auto& op = op_;
         op.next_.destruct();
         try {
@@ -176,7 +176,7 @@ struct reduce_stream_sender {
         }
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         auto& op = op_;
         op.next_.destruct();
         op.doneCleanup_.construct_from([&]() {
@@ -186,7 +186,7 @@ struct reduce_stream_sender {
         unifex::start(op.doneCleanup_.get());
       }
 
-      void error(std::exception_ptr ex) && noexcept {
+      void set_error(std::exception_ptr ex) && noexcept {
         auto& op = op_;
         op.next_.destruct();
         op.errorCleanup_.construct_from([&]() {
@@ -198,8 +198,8 @@ struct reduce_stream_sender {
       }
 
       template <typename Error>
-      void error(Error&& e) && noexcept {
-        std::move(*this).error(std::make_exception_ptr((Error &&) e));
+      void set_error(Error&& e) && noexcept {
+        std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
       }
     };
 

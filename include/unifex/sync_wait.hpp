@@ -61,7 +61,7 @@ struct sync_wait_receiver {
   StopToken stopToken_;
 
   template <typename... Values>
-      void value(Values&&... values) && noexcept {
+      void set_value(Values&&... values) && noexcept {
     std::lock_guard lock{promise_.mutex_};
     try {
       promise_.value_.construct((Values &&) values...);
@@ -73,7 +73,7 @@ struct sync_wait_receiver {
     promise_.cv_.notify_one();
   }
 
-  void error(std::exception_ptr err) && noexcept {
+  void set_error(std::exception_ptr err) && noexcept {
     std::lock_guard lock{promise_.mutex_};
     promise_.exception_.construct(std::move(err));
     promise_.state_ = sync_wait_promise<T>::state::error;
@@ -81,11 +81,11 @@ struct sync_wait_receiver {
   }
 
   template <typename Error>
-      void error(Error&& e) && noexcept {
-    std::move(*this).error(std::make_exception_ptr((Error &&) e));
+      void set_error(Error&& e) && noexcept {
+    std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
   }
 
-  void done() && noexcept {
+  void set_done() && noexcept {
     std::lock_guard lock{promise_.mutex_};
     promise_.state_ = sync_wait_promise<T>::state::done;
     promise_.cv_.notify_one();
@@ -124,7 +124,7 @@ struct thread_unsafe_sync_wait_receiver {
   StopToken stopToken_;
 
   template <typename... Values>
-  void value(Values&&... values) && noexcept {
+  void set_value(Values&&... values) && noexcept {
     try {
       promise_.value_.construct((Values &&) values...);
       promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::value;
@@ -134,17 +134,17 @@ struct thread_unsafe_sync_wait_receiver {
     }
   }
 
-  void error(std::exception_ptr err) && noexcept {
+  void set_error(std::exception_ptr err) && noexcept {
     promise_.exception_.construct(std::move(err));
     promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
   }
 
   template <typename Error>
-  void error(Error&& e) && noexcept {
-    std::move(*this).error(std::make_exception_ptr((Error &&) e));
+  void set_error(Error&& e) && noexcept {
+    std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
   }
 
-  void done() && noexcept {
+  void set_done() && noexcept {
     promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::done;
   }
 

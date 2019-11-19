@@ -28,12 +28,12 @@ namespace unifex
     namespace detail
     {
         struct default_execute_receiver {
-            void done() && noexcept {}
+            void set_done() && noexcept {}
             template<typename Error>
-            [[noreturn]] void error(Error&&) && noexcept {
+            [[noreturn]] void set_error(Error&&) && noexcept {
                 std::terminate();
             }
-            void value() && noexcept {}
+            void set_value() && noexcept {}
         };
     }
 

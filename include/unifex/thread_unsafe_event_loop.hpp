@@ -252,7 +252,7 @@ class thread_unsafe_event_loop {
     class receiver {
      public:
       template <typename... Values>
-          void value(Values&&... values) && noexcept {
+          void set_value(Values&&... values) && noexcept {
         try {
           promise_.value_.construct((Values &&) values...);
           promise_.state_ = state::value;
@@ -262,12 +262,12 @@ class thread_unsafe_event_loop {
         }
       }
 
-      void error(std::exception_ptr ex) && noexcept {
+      void set_error(std::exception_ptr ex) && noexcept {
         promise_.exception_.construct(std::move(ex));
         promise_.state_ = state::error;
       }
 
-      void done() && noexcept {
+      void set_done() && noexcept {
         promise_.state_ = state::done;
       }
 

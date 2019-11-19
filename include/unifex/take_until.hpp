@@ -40,16 +40,16 @@ struct take_until_stream {
     take_until_stream& stream_;
 
     template<typename... Values>
-    void value(Values&&...) && noexcept {
-      std::move(*this).done();
+    void set_value(Values&&...) && noexcept {
+      std::move(*this).set_done();
     }
 
     template<typename Error>
-    void error(Error&&) && noexcept {
-      std::move(*this).done();
+    void set_error(Error&&) && noexcept {
+      std::move(*this).set_done();
     }
 
-    void done() && noexcept {
+    void set_done() && noexcept {
       auto& stream = stream_;
       stream.triggerNextOp_.destruct();
       stream.trigger_next_done();
@@ -96,19 +96,19 @@ struct take_until_stream {
         operation& op_;
 
         template<typename... Values>
-        void value(Values&&... values) && noexcept {
+        void set_value(Values&&... values) && noexcept {
           op_.stopCallback_.destruct();
           unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
         }
 
-        void done() && noexcept {
+        void set_done() && noexcept {
           op_.stopCallback_.destruct();
           op_.stream_.stopSource_.request_stop();
           unifex::set_done(std::move(op_.receiver_));
         }
 
         template<typename Error>
-        void error(Error&& error) && noexcept {
+        void set_error(Error&& error) && noexcept {
           op_.stopCallback_.destruct();
           op_.stream_.stopSource_.request_stop();
           unifex::set_error(std::move(op_.receiver_), (Error&&)error);
@@ -196,18 +196,18 @@ struct take_until_stream {
       struct source_receiver {
         operation& op_;
 
-        void done() && noexcept {
+        void set_done() && noexcept {
           auto& op = op_;
           op.sourceOp_.destruct();
           op.source_cleanup_done();
         }
 
         template<typename Error>
-        void error(Error&& error) && noexcept {
-          std::move(*this).error(std::make_exception_ptr((Error&&)error));
+        void set_error(Error&& error) && noexcept {
+          std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
         }
 
-        void error(std::exception_ptr error) && noexcept {
+        void set_error(std::exception_ptr error) && noexcept {
           auto& op = op_;
           op.sourceOp_.destruct();
           op.source_cleanup_error(std::move(error));
@@ -225,18 +225,18 @@ struct take_until_stream {
       struct trigger_receiver {
         operation& op_;
 
-        void done() && noexcept {
+        void set_done() && noexcept {
           auto& op = op_;
           op.sourceOp_.destruct();
           op.trigger_cleanup_done();
         }
 
         template<typename Error>
-        void error(Error&& error) && noexcept {
-          std::move(*this).error(std::make_exception_ptr((Error&&)error));
+        void set_error(Error&& error) && noexcept {
+          std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
         }
 
-        void error(std::exception_ptr error) && noexcept {
+        void set_error(std::exception_ptr error) && noexcept {
           auto& op = op_;
           op.triggerOp_.destruct();
           op.trigger_cleanup_error(std::move(error));

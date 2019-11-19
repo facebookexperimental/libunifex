@@ -33,17 +33,17 @@ struct increment_receiver {
   int &value_;
   manual_event_loop &loop_;
 
-  void value() && noexcept {
+  void set_value() && noexcept {
     if (++value_ == 3) {
       loop_.stop();
     }
   }
 
-  template <typename E>[[noreturn]] void error(E &&error) && noexcept {
+  template <typename E>[[noreturn]] void set_error(E &&error) && noexcept {
     std::terminate();
   }
 
-  [[noreturn]] void done() && noexcept { std::terminate(); }
+  [[noreturn]] void set_done() && noexcept { std::terminate(); }
 };
 
 #if !UNIFEX_NO_MEMORY_RESOURCE

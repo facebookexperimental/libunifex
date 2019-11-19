@@ -22,9 +22,9 @@ template<typename Receiver>
 struct my_receiver {
   Receiver wrappedReceiver_;
 
-  void value() && noexcept;
-  void error(std::exception_ptr) && noexcept;
-  void done() && noexcept;
+  void set_value() && noexcept;
+  void set_error(std::exception_ptr) && noexcept;
+  void set_done() && noexcept;
 
   template <typename Func>
   friend void tag_invoke(

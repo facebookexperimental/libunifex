@@ -26,9 +26,9 @@ inline constexpr struct set_value_cpo {
   template <typename Receiver, typename... Values>
   friend auto
   tag_invoke(set_value_cpo, Receiver&& r, Values&&... values) noexcept(
-      noexcept(static_cast<Receiver&&>(r).value((Values &&) values...)))
-      -> decltype(static_cast<Receiver&&>(r).value((Values &&) values...)) {
-    return static_cast<Receiver&&>(r).value((Values &&) values...);
+      noexcept(static_cast<Receiver&&>(r).set_value((Values &&) values...)))
+      -> decltype(static_cast<Receiver&&>(r).set_value((Values &&) values...)) {
+    return static_cast<Receiver&&>(r).set_value((Values &&) values...);
   }
 
   template <typename Receiver, typename... Values>
@@ -44,11 +44,11 @@ inline constexpr struct set_value_cpo {
 inline constexpr struct set_error_cpo {
   template <typename Receiver, typename Error>
   friend auto tag_invoke(set_error_cpo, Receiver&& r, Error&& e) noexcept
-      -> decltype(static_cast<Receiver&&>(r).error((Error &&) e)) {
+      -> decltype(static_cast<Receiver&&>(r).set_error((Error &&) e)) {
     static_assert(
-        noexcept(static_cast<Receiver&&>(r).error((Error &&) e)),
-        "receiver.error() method must be nothrow invocable");
-    return static_cast<Receiver&&>(r).error((Error &&) e);
+        noexcept(static_cast<Receiver&&>(r).set_error((Error &&) e)),
+        "receiver.set_error() method must be nothrow invocable");
+    return static_cast<Receiver&&>(r).set_error((Error &&) e);
   }
 
   template <typename Receiver, typename Error>
@@ -67,11 +67,11 @@ inline constexpr struct set_error_cpo {
 inline constexpr struct set_done_cpo {
   template <typename Receiver>
   friend auto tag_invoke(set_done_cpo, Receiver&& r) noexcept
-      -> decltype(static_cast<Receiver&&>(r).done()) {
+      -> decltype(static_cast<Receiver&&>(r).set_done()) {
     static_assert(
-        noexcept(static_cast<Receiver&&>(r).done()),
-        "receiver.done() method must be nothrow invocable");
-    return static_cast<Receiver&&>(r).done();
+        noexcept(static_cast<Receiver&&>(r).set_done()),
+        "receiver.set_done() method must be nothrow invocable");
+    return static_cast<Receiver&&>(r).set_done();
   }
 
   template <typename Receiver>

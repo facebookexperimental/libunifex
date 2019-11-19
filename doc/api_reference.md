@@ -87,15 +87,15 @@ execution context that `successor` completes on.
 Any value produced by `successor` is discarded.
 QUESTION: Should we require that `successor` is a `void`-sender?
 
-If `successor` completes with `.done()` then `.done()` is sent.
-If `successor` completes with `.error()` then its error is sent.
+If `successor` completes with `set_done()` then `set_done()` is sent.
+If `successor` completes with `set_error()` then its error is sent.
 Otherwise sends the result of `predecessor`.
 
 ### `typed_via(Sender successor, Sender predecessor) -> Sender`
 
 Returns a sender that produces the result from `predecessor`, which must
 declare the nested `value_types`/`error_types` type aliases which describe which
-overloads of `.value()`/`.error()` they will call, on the execution context that
+overloads of `set_value()`/`set_error()` they will call, on the execution context that
 `successor` completes on.
 
 Any value produced by `successor` is discarded.
@@ -110,7 +110,7 @@ Returns a sender that ensures that `successor` is started on the
 execution context that `predecessor` completes on.
 
 Discards any value produced by predecessor and sends the result of
-`successor`. If `predecessor` completes with `.done()` or `.error()` then
+`successor`. If `predecessor` completes with `set_done()` or `set_error()` then
 sends that signal and never starts executing successor.
 
 ### `let(Sender pred, Invocable func) -> Sender`
@@ -150,9 +150,9 @@ and the operation as a whole completes with that done/error signal.
 
 Blocks the current thread waiting for the specified sender to complete.
 
-Returns a non-empty optional if it completed with `.value()`.
-Or `std::nullopt` if it completed with `.done()`
-Or throws an exception if it completed with `.error()`
+Returns a non-empty optional if it completed with `set_value()`.
+Or `std::nullopt` if it completed with `set_done()`
+Or throws an exception if it completed with `set_error()`
 
 ### `when_all(Senders...) -> Sender`
 
@@ -257,8 +257,8 @@ Returns a Sender that returns the final value.
 
 ### `for_each(Stream stream, Func func) -> Sender<void>`
 
-Executes func(value) for each value produced by stream.
-Returned sender sends .value() once end of stream is reached.
+Executes `func(value)` for each value produced by stream.
+Returned sender completes with `set_value()` once end of stream is reached.
 
 Stream types can customise this algorithm via ADL by providing an overload
 of `tag_invoke(tag_t<for_each>, your_stream_type, Func)`.
@@ -282,7 +282,7 @@ Returns a stream that calls the receiver methods on the specified
 scheduler's execution context.
 
 This differs from `via_stream()` in that it requires that the stream
-declares what overloads of `.value()` and `.error()` it will call by
+declares what overloads of `set_value()` and `set_error()` it will call by
 providing the `value_types`/`error_types` type aliases.
 
 ### `on_stream(Scheduler scheduler, Stream stream) -> Stream`
@@ -317,8 +317,8 @@ it will not wait for that stream to respond to cancellation before sending
 
 The abandoned `next(stream)` call will be waited-for by the `cleanup(stream)`.
 
-Any `.value()` produced by an abandoned `next()` call is discarded.
-Any `.error()` produced by an abandoned `next()` call is reported in
+Any `set_value()` produced by an abandoned `next()` call is discarded.
+Any `set_error()` produced by an abandoned `next()` call is reported in
 the `cleanup()` result.
 
 ## Scheduler Algorithms
@@ -430,7 +430,7 @@ Mainly used for testing purposes.
 ### `type_erased_stream<Ts...>`
 
 A type-erased stream that produces a sequence of value packs of type `(Ts, ...)`.
-ie. calls to `.value()` will be passed arguments of type `Ts&&...`
+ie. calls to `set_value()` will be passed arguments of type `Ts&&...`
 
 ### `never_stream`
 
