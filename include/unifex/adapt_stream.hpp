@@ -23,57 +23,61 @@
 namespace unifex {
 
 template <
-    typename StreamSender,
+    typename Stream,
     typename NextAdaptFunc,
     typename CleanupAdaptFunc>
 struct adapted_stream {
-  StreamSender innerStream_;
+  Stream innerStream_;
   NextAdaptFunc nextAdapter_;
   CleanupAdaptFunc cleanupAdapter_;
 
-  auto next() {
-    return std::invoke(nextAdapter_, cpo::next(innerStream_));
+  friend auto tag_invoke(tag_t<next>, adapted_stream& s)
+    -> std::invoke_result_t<NextAdaptFunc&, next_sender_t<Stream>> {
+    return std::invoke(s.nextAdapter_, next(s.innerStream_));
   }
 
-  auto cleanup() {
-    return std::invoke(cleanupAdapter_, cpo::cleanup(innerStream_));
+  friend auto tag_invoke(tag_t<cleanup>, adapted_stream& s)
+    -> std::invoke_result_t<CleanupAdaptFunc&, cleanup_sender_t<Stream>> {
+    return std::invoke(s.cleanupAdapter_, cleanup(s.innerStream_));
   }
 };
 
-template <typename StreamSender, typename AdaptFunc>
+template <typename Stream, typename AdaptFunc>
 struct both_adapted_stream {
-  StreamSender innerStream_;
+  Stream innerStream_;
   AdaptFunc adapter_;
 
-  auto next() {
-    return std::invoke(adapter_, cpo::next(innerStream_));
+  friend auto tag_invoke(tag_t<next>, both_adapted_stream& s)
+    -> std::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
+    return std::invoke(s.adapter_, next(s.innerStream_));
   }
 
-  auto cleanup() {
-    return std::invoke(adapter_, cpo::cleanup(innerStream_));
+  friend auto tag_invoke(tag_t<cleanup>, both_adapted_stream& s)
+    -> std::invoke_result_t<AdaptFunc&, cleanup_sender_t<Stream>> {
+    return std::invoke(s.adapter_, cleanup(s.innerStream_));
   }
 };
 
-template <typename StreamSender, typename AdapterFunc>
-auto adapt_stream(StreamSender&& stream, AdapterFunc&& adapt) {
+template <typename Stream, typename AdapterFunc>
+auto adapt_stream(Stream&& stream, AdapterFunc&& adapt) {
   return both_adapted_stream<
-      std::remove_cvref_t<StreamSender>,
-      std::remove_cvref_t<AdapterFunc>>{(StreamSender &&) stream,
+      std::remove_cvref_t<Stream>,
+      std::remove_cvref_t<AdapterFunc>>{(Stream &&) stream,
                                         (AdapterFunc &&) adapt};
 }
 
 template <
-    typename StreamSender,
+    typename Stream,
     typename NextAdapterFunc,
     typename CleanupAdapterFunc>
 auto adapt_stream(
-    StreamSender&& stream,
+    Stream&& stream,
     NextAdapterFunc&& adaptNext,
     CleanupAdapterFunc&& adaptCleanup) {
   return adapted_stream<
-      std::remove_cvref_t<StreamSender>,
+      std::remove_cvref_t<Stream>,
       std::remove_cvref_t<NextAdapterFunc>,
-      std::remove_cvref_t<CleanupAdapterFunc>>{(StreamSender &&) stream,
+      std::remove_cvref_t<CleanupAdapterFunc>>{(Stream &&) stream,
                                                (NextAdapterFunc &&) adaptNext,
                                                (CleanupAdapterFunc &&)
                                                    adaptCleanup};

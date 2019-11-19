@@ -87,8 +87,8 @@ For example, a consumer might be processing elements from a stream one
 at a time until it sees an element that matches a certain predicate.
 When it receives the next element it matches it against the predicate
 and then based on the result can either ask for the next element,
-by calling the `.next()` method on the stream. Or it can cancel the
-stream by calling the `.cleanup()` method on the stream.
+by calling the `next()` operation on the stream. Or it can cancel the
+stream by calling the `cleanup()` operation on the stream.
 
 As the stream has not yet been asked to produce the next element there
 is no need to cancel an already-running operation and so we can cancel

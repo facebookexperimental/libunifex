@@ -68,7 +68,7 @@ struct stop_immediately_stream {
         // the next() operation completion signal before delivering the signal
         // to the true receiver. The destructor will will block waiting for
         // this method to return and so we are guaranteed that there will be
-        // no further call to .next() or to .cleanup() before we return here.
+        // no further call to next() or to cleanup() before we return here.
         // The only concurrent state transition can be from
         // 'source_next_active' to 'idle' and there will be no further state
         // changes until we return.
@@ -256,7 +256,7 @@ struct stop_immediately_stream {
         try {
           stream_.nextOp_.construct_from([&] {
             return cpo::connect(
-              cpo::next(stream_.source_),
+              next(stream_.source_),
               next_receiver{stream_});
           });
           stream_.nextReceiver_ = &concreteReceiver_;
@@ -325,8 +325,8 @@ struct stop_immediately_stream {
           auto& op = op_;
           op.cleanupOp_.destruct();
 
-          // Prefer sending the error from the source_.next() rather than
-          // the error from source_.cleanup().
+          // Prefer sending the error from the next(source_) rather than
+          // the error from cleanup(source_).
           if (op.stream_.nextError_) {
             cpo::set_error(
               std::move(op.receiver_), std::move(op.stream_.nextError_));
@@ -383,13 +383,13 @@ struct stop_immediately_stream {
         try {
           cleanupOp_.construct_from([&] {
             return cpo::connect(
-              cpo::cleanup(stream_.source_),
+              cleanup(stream_.source_),
               receiver_wrapper{*this});
           });
           cpo::start(cleanupOp_.get());
         } catch (...) {
-          // Prefer to send the error from source_.next() over the error
-          // from source_.cleanup() if there was one.
+          // Prefer to send the error from next(source_) over the error
+          // from cleanup(source_) if there was one.
           if (stream_.nextError_) {
             cpo::set_error(std::move(receiver_), std::move(stream_.nextError_));
           } else {
@@ -426,10 +426,13 @@ public:
   : source_(std::move(other.source_))
   {}
 
-  next_sender next() { return {*this}; }
+  friend next_sender tag_invoke(tag_t<next>, stop_immediately_stream& s) {
+    return {s};
+  }
 
-  cleanup_sender cleanup() { return {*this}; }
-
+  friend cleanup_sender tag_invoke(tag_t<cleanup>, stop_immediately_stream& s) {
+    return {s};
+  }
 };
 
 template<typename... Values, typename SourceStream>

@@ -18,6 +18,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
 
 #include <type_traits>
 #include <utility>
@@ -69,11 +70,11 @@ struct range_stream {
     }
   };
 
-  next_sender next() & {
-    return next_sender{*this};
+  friend next_sender tag_invoke(tag_t<next>, range_stream& s) noexcept {
+    return next_sender{s};
   }
 
-  ready_done_sender cleanup() & {
+  friend ready_done_sender tag_invoke(tag_t<cleanup>, range_stream&) noexcept {
     return {};
   }
 };

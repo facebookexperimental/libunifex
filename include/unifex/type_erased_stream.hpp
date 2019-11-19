@@ -224,7 +224,7 @@ struct type_erased_stream {
         next_
             .construct_from([&] {
               return cpo::connect(
-                  cpo::next(stream_),
+                  next(stream_),
                   next_receiver_wrapper{receiver, *this, std::move(stopToken)});
             });
         cpo::start(next_.get());
@@ -238,7 +238,7 @@ struct type_erased_stream {
         cleanup_
             .construct_from([&] {
               return cpo::connect(
-                  cpo::cleanup(stream_),
+                  cleanup(stream_),
                   cleanup_receiver_wrapper{receiver, *this});
             });
         cpo::start(cleanup_.get());
@@ -338,12 +338,12 @@ struct type_erased_stream {
                 concrete_stream<std::remove_cvref_t<ConcreteStream>>>(
             (ConcreteStream &&) stream)) {}
 
-  next_sender next() noexcept {
-    return next_sender{*stream_};
+  friend next_sender tag_invoke(tag_t<next>, type_erased_stream& s) noexcept {
+    return next_sender{*s.stream_};
   }
 
-  cleanup_sender cleanup() noexcept {
-    return cleanup_sender{*stream_};
+  friend cleanup_sender tag_invoke(tag_t<cleanup>, type_erased_stream& s) noexcept {
+    return cleanup_sender{*s.stream_};
   }
 };
 

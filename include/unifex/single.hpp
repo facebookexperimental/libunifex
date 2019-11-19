@@ -17,6 +17,7 @@
 
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/scope_guard.hpp>
@@ -90,12 +91,12 @@ struct single_stream {
     }
   };
 
-  next_sender next() {
-    scope_guard g{[&]() noexcept { sender_.reset(); }};
-    return next_sender{std::move(sender_)};
+  friend next_sender tag_invoke(tag_t<next>, single_stream& s) {
+    scope_guard g{[&]() noexcept { s.sender_.reset(); }};
+    return next_sender{std::move(s.sender_)};
   }
 
-  ready_done_sender cleanup() noexcept {
+  friend ready_done_sender tag_invoke(tag_t<cleanup>, single_stream&) noexcept {
     return {};
   }
 
