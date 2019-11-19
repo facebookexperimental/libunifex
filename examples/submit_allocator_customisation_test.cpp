@@ -27,6 +27,8 @@
 
 #include <memory>
 
+#include <gtest/gtest.h>
+
 using namespace unifex;
 
 struct increment_receiver {
@@ -96,31 +98,28 @@ void test(Scheduler scheduler, Allocator allocator) {
 
   sync_wait(with_allocator(when_all(addToValue(1), addToValue(2)), allocator));
 
-  assert(value == 3);
+  EXPECT_EQ(value, 3);
 }
 
-int main() {
+struct SingleThreadFixture : testing::Test {
+protected:
   single_thread_context thread;
+};
 
+TEST_F(SingleThreadFixture, SubmitWithStdAllocator) {
   test(thread.get_scheduler(), std::allocator<std::byte>{});
+}
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
-  {
-    counting_memory_resource res{new_delete_resource()};
-    polymorphic_allocator<char> alloc{&res};
-    test(thread.get_scheduler(), alloc);
+TEST_F(SingleThreadFixture, SubmitWithCountingAllocator) {
+  counting_memory_resource res{new_delete_resource()};
+  polymorphic_allocator<char> alloc{&res};
+  test(thread.get_scheduler(), alloc);
 
-    // Check that it freed all the memory it allocated
-    if (res.total_allocated_bytes() != 0) {
-      std::printf("error: didn't free all memory!\n");
-      return -1;
-    }
+  // Check that it freed all the memory it allocated
+  EXPECT_EQ(res.total_allocated_bytes(), 0);
 
-    // Check that it actually called allocate()
-    if (res.total_allocation_count() != 2) {
-      std::printf("error: didn't perform expected number of allocations\n");
-      return -1;
-    }
-  }
-#endif
+  // Check that it actually called allocate()
+  EXPECT_EQ(res.total_allocation_count(), 2);
 }
+#endif

@@ -22,7 +22,6 @@
 #include <typeindex>
 #include <atomic>
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 template <typename T>

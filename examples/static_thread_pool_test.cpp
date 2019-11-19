@@ -22,6 +22,8 @@
 
 #include <atomic>
 
+#include <gtest/gtest.h>
+
 using namespace unifex;
 
 template <typename Scheduler, typename F>
@@ -29,7 +31,7 @@ auto run_on(Scheduler&& s, F&& func) {
   return transform(cpo::schedule((Scheduler &&) s), (F &&) func);
 }
 
-int main() {
+TEST(StaticThreadPool, Smoke) {
   static_thread_pool tpContext;
   auto tp = tpContext.get_scheduler();
   std::atomic<int> x = 0;
@@ -52,7 +54,5 @@ int main() {
         std::printf("task 3\n");
       })));
 
-  assert(x == 3);
-
-  return 0;
+  EXPECT_EQ(x, 3);
 }

@@ -23,13 +23,15 @@
 #include <chrono>
 #include <iostream>
 
+#include <gtest/gtest.h>
+
 using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
 struct my_error {};
 
-int main() {
+TEST(WhenAll2, Smoke) {
   timed_single_thread_context context;
 
   auto scheduler = context.get_scheduler();
@@ -72,16 +74,14 @@ int main() {
                            .count()
                     << "ms]\n";
         }));
-    assert(false);
+    FAIL();
   } catch (my_error) {
     auto time = steady_clock::now() - start;
     auto timeMs = duration_cast<milliseconds>(time).count();
     std::cout << "caught my_error after " << timeMs << "ms\n";
   }
 
-  assert(ranPart1Callback);
-  assert(!ranPart2Callback);
-  assert(!ranFinalCallback);
-
-  return 0;
+  EXPECT_TRUE(ranPart1Callback);
+  EXPECT_FALSE(ranPart2Callback);
+  EXPECT_FALSE(ranFinalCallback);
 }
