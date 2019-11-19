@@ -223,11 +223,11 @@ struct type_erased_stream {
       try {
         next_
             .construct_from([&] {
-              return cpo::connect(
+              return connect(
                   next(stream_),
                   next_receiver_wrapper{receiver, *this, std::move(stopToken)});
             });
-        cpo::start(next_.get());
+        start(next_.get());
       } catch (...) {
         receiver.error(std::current_exception());
       }
@@ -237,11 +237,11 @@ struct type_erased_stream {
       try {
         cleanup_
             .construct_from([&] {
-              return cpo::connect(
+              return connect(
                   cleanup(stream_),
                   cleanup_receiver_wrapper{receiver, *this});
             });
-        cpo::start(cleanup_.get());
+        start(cleanup_.get());
       } catch (...) {
         receiver.error(std::current_exception());
       }

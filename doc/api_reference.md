@@ -41,7 +41,7 @@
 
 # Receiver Queries
 
-### `cpo::get_scheduler(receiver)`
+### `get_scheduler(receiver)`
 
 A query that can be used to obtain the associated scheduler from the receiver.
 

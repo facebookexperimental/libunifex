@@ -243,11 +243,11 @@ struct typed_via_sender {
         op.predOp_.destruct();
 
         try {
-          cpo::start(
+          unifex::start(
               op.succValueOp_
                   .template get<value_operation<std::remove_cvref_t<Values>...>>()
                   .construct_from([&] {
-                    return cpo::connect(
+                    return unifex::connect(
                         static_cast<Successor&&>(op.succ_),
                         value_receiver<std::remove_cvref_t<Values>...>{op});
                   }));
@@ -273,11 +273,11 @@ struct typed_via_sender {
 
         op.predOp_.destruct();
         try {
-          cpo::start(
+          unifex::start(
               op.succErrorOp_
                   .template get<error_operation<std::remove_cvref_t<Error>>>()
                   .construct_from([&] {
-                    return cpo::connect(
+                    return unifex::connect(
                         static_cast<Successor&&>(op.succ_),
                         error_receiver<std::remove_cvref_t<Error>>{op});
                   }));
@@ -292,8 +292,8 @@ struct typed_via_sender {
       void done() && noexcept {
         auto& op = op_;
         try {
-          cpo::start(op.succDoneOp_.construct_from([&] {
-            return cpo::connect(
+          unifex::start(op.succDoneOp_.construct_from([&] {
+            return unifex::connect(
                 static_cast<Successor&&>(op.succ_),
                 done_receiver{op});
           }));
@@ -366,11 +366,11 @@ struct typed_via_sender {
     void start() noexcept {
       try {
         predOp_.construct_from([&] {
-          return cpo::connect(
+          return unifex::connect(
               static_cast<Predecessor&&>(pred_),
               predecessor_receiver{*this});
         });
-        cpo::start(predOp_.get());
+        unifex::start(predOp_.get());
       } catch (...) {
         cpo::set_error(std::move(receiver_), std::current_exception());
       }

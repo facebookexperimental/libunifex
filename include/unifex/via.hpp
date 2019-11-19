@@ -245,7 +245,7 @@ struct via_sender {
 
   template <typename Receiver>
   auto connect(Receiver&& receiver) && {
-    return cpo::connect(
+    return unifex::connect(
         static_cast<Predecessor&&>(pred_),
         predecessor_receiver<
             std::remove_cvref_t<Receiver>>{static_cast<Successor&&>(succ_),

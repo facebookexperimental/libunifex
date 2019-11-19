@@ -168,12 +168,12 @@ auto sync_wait(Sender&& sender, StopToken&& stopToken = {})
     using promise_t = detail::thread_unsafe_sync_wait_promise<Result>;
     promise_t promise;
 
-    auto operation = cpo::connect(
+    auto operation = connect(
       (Sender&&)sender,
       detail::thread_unsafe_sync_wait_receiver<Result, StopToken&&>{
         promise, (StopToken&&)stopToken});
 
-    cpo::start(operation);
+    start(operation);
 
     assert(promise.state_ != promise_t::state::incomplete);
 
@@ -192,12 +192,12 @@ auto sync_wait(Sender&& sender, StopToken&& stopToken = {})
     promise_t promise;
 
     // Store state for the operation on the stack.
-    auto operation = cpo::connect(
+    auto operation = connect(
         ((Sender &&) sender),
         detail::sync_wait_receiver<Result, StopToken&&>{
           promise, (StopToken&&)stopToken});
 
-    cpo::start(operation);
+    start(operation);
 
     std::unique_lock lock{promise.mutex_};
     promise.cv_.wait(

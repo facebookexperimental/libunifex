@@ -143,7 +143,7 @@ struct take_until_stream {
       explicit operation(take_until_stream& stream, Receiver2&& receiver)
       : stream_(stream)
       , receiver_((Receiver2&&)receiver)
-      , innerOp_(cpo::connect(
+      , innerOp_(unifex::connect(
           next(stream.source_),
           receiver_wrapper{*this}))
       {}
@@ -153,11 +153,11 @@ struct take_until_stream {
           stream_.triggerNextStarted_ = true;
           try {
             stream_.triggerNextOp_.construct_from([&] {
-              return cpo::connect(
+              return unifex::connect(
                 next(stream_.trigger_),
                 trigger_next_receiver{stream_});
             });
-            cpo::start(stream_.triggerNextOp_.get());
+            unifex::start(stream_.triggerNextOp_.get());
           } catch (...) {
             stream_.trigger_next_done();
           }
@@ -166,7 +166,7 @@ struct take_until_stream {
         stopCallback_.construct(
           get_stop_token(receiver_),
           cancel_callback{stream_.stopSource_});
-        cpo::start(innerOp_);
+        unifex::start(innerOp_);
       }
     };
 
@@ -271,11 +271,11 @@ struct take_until_stream {
       void start() noexcept {
         try {
           sourceOp_.construct_from([&] {
-            return cpo::connect(
+            return unifex::connect(
               cleanup(stream_.source_),
               source_receiver{*this});
           });
-          cpo::start(sourceOp_.get());
+          unifex::start(sourceOp_.get());
         } catch (...) {
           source_cleanup_error(std::current_exception());
         }
@@ -297,11 +297,11 @@ struct take_until_stream {
       void start_trigger_cleanup() noexcept final {
         try {
           triggerOp_.construct_from([&] {
-            return cpo::connect(
+            return unifex::connect(
               cleanup(stream_.trigger_),
               trigger_receiver{*this});
           });
-          cpo::start(triggerOp_.get());
+          unifex::start(triggerOp_.get());
         } catch (...) {
           trigger_cleanup_error(std::current_exception());
           return;

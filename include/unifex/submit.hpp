@@ -91,11 +91,11 @@ public:
   template <typename Receiver2>
   explicit submitted_operation(Sender&& sender, Receiver2&& receiver)
       : receiver_((Receiver2 &&) receiver),
-        inner_(cpo::connect((Sender &&) sender, wrapped_receiver{this}))
+        inner_(unifex::connect((Sender &&) sender, wrapped_receiver{this}))
       {}
 
   void start() & noexcept {
-    cpo::start(inner_);
+    unifex::start(inner_);
   }
 
 private:
@@ -119,8 +119,8 @@ inline constexpr struct submit_cpo {
         {
           // The sender will complete synchronously so we can avoid allocating the
           // state on the heap.
-          auto op = cpo::connect((Sender &&) sender, (Receiver &&) receiver);
-          cpo::start(op);
+          auto op = unifex::connect((Sender &&) sender, (Receiver &&) receiver);
+          unifex::start(op);
         }
         default:
         {

@@ -59,7 +59,7 @@ struct single_stream {
       : done_(false)
       {
         innerOp_.construct_from([&] {
-          return cpo::connect(
+          return unifex::connect(
               static_cast<Sender&&>(sender), (Receiver&&)receiver);
         });
       }
@@ -76,7 +76,7 @@ struct single_stream {
         if (done_) {
           cpo::set_done(std::move(receiver_));
         } else {
-          cpo::start(innerOp_.get());
+          unifex::start(innerOp_.get());
         }
       }
     };

@@ -150,7 +150,7 @@ struct transform_sender {
 
   template <typename Receiver>
   auto connect(Receiver&& receiver) && {
-    return cpo::connect(
+    return unifex::connect(
         std::forward<Predecessor>(pred_),
         transform_receiver<std::remove_cvref_t<Receiver>>{
             std::forward<Func>(func_), std::forward<Receiver>(receiver)});

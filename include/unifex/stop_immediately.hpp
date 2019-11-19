@@ -255,7 +255,7 @@ struct stop_immediately_stream {
 
         try {
           stream_.nextOp_.construct_from([&] {
-            return cpo::connect(
+            return unifex::connect(
               next(stream_.source_),
               next_receiver{stream_});
           });
@@ -266,7 +266,7 @@ struct stop_immediately_stream {
             stopCallback_.construct(
               std::move(stopToken),
               cancel_next_callback{stream_});
-            cpo::start(stream_.nextOp_.get());
+            unifex::start(stream_.nextOp_.get());
           } catch (...) {
             stream_.nextReceiver_ = nullptr;
             stream_.nextOp_.destruct();
@@ -382,11 +382,11 @@ struct stop_immediately_stream {
       void start_cleanup() noexcept final {
         try {
           cleanupOp_.construct_from([&] {
-            return cpo::connect(
+            return unifex::connect(
               cleanup(stream_.source_),
               receiver_wrapper{*this});
           });
-          cpo::start(cleanupOp_.get());
+          unifex::start(cleanupOp_.get());
         } catch (...) {
           // Prefer to send the error from next(source_) over the error
           // from cleanup(source_) if there was one.

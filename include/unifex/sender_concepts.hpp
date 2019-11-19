@@ -22,7 +22,6 @@
 #include <type_traits>
 
 namespace unifex {
-namespace cpo {
 
 inline constexpr struct start_cpo {
   template <typename Operation>
@@ -59,10 +58,8 @@ inline constexpr struct connect_cpo {
   }
 } connect{};
 
-} // namespace cpo
-
 template <typename Sender, typename Receiver>
-using operation_t = decltype(cpo::connect(
+using operation_t = decltype(connect(
     std::declval<Sender>(),
     std::declval<Receiver>()));
 
