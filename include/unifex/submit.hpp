@@ -113,7 +113,7 @@ inline constexpr struct submit_cpo {
       unifex::tag_invoke(*this, (Sender&&)sender, (Receiver&&)receiver);
     } else {
       // Default implementation in terms of connect/start
-      switch (cpo::blocking(sender)) {
+      switch (blocking(sender)) {
         case blocking_kind::always:
         case blocking_kind::always_inline:
         {

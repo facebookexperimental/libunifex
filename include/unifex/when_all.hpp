@@ -247,7 +247,7 @@ class when_all_sender {
 
   // Customise the 'blocking' CPO to combine the blocking-nature
   // of each of the child operations.
-  friend blocking_kind tag_invoke(tag_t<cpo::blocking>, const when_all_sender& s) noexcept {
+  friend blocking_kind tag_invoke(tag_t<blocking>, const when_all_sender& s) noexcept {
     bool alwaysInline = true;
     bool alwaysBlocking = true;
     bool neverBlocking =  false;
@@ -270,7 +270,7 @@ class when_all_sender {
 
     std::apply([&](const auto&... senders) {
       (void)std::initializer_list<int>{
-        (handleBlockingStatus(cpo::blocking(senders)), 0)... };
+        (handleBlockingStatus(blocking(senders)), 0)... };
     }, s.senders_);
 
     if (neverBlocking) {

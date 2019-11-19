@@ -41,8 +41,6 @@ enum class blocking_kind {
   always_inline
 };
 
-namespace cpo {
-
 inline constexpr struct blocking_cpo {
   template <typename Sender>
   friend constexpr blocking_kind tag_invoke(
@@ -59,5 +57,4 @@ inline constexpr struct blocking_cpo {
   }
 } blocking;
 
-} // namespace cpo
 } // namespace unifex

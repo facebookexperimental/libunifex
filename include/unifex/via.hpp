@@ -47,10 +47,10 @@ struct via_sender {
       typename Successor::template error_types<Variant>>;
 
   friend constexpr blocking_kind tag_invoke(
-      tag_t<cpo::blocking>,
+      tag_t<blocking>,
       const via_sender& sender) {
-    const auto predBlocking = cpo::blocking(sender.pred_);
-    const auto succBlocking = cpo::blocking(sender.succ_);
+    const auto predBlocking = blocking(sender.pred_);
+    const auto succBlocking = blocking(sender.succ_);
     if (predBlocking == blocking_kind::never &&
         succBlocking == blocking_kind::never) {
       return blocking_kind::never;
