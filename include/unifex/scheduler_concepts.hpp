@@ -113,17 +113,16 @@ inline constexpr struct schedule_after_cpo {
   private:
     friend schedule_after_cpo;
 
-    template<typename Receiver>
+    template<
+      typename Receiver,
+      typename Scheduler =
+        std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
+      typename ScheduleAfterSender =
+        std::invoke_result_t<schedule_after_cpo, Scheduler&, const Duration&>>
     friend auto tag_invoke(tag_t<connect>, const schedule_after_sender& s, Receiver&& r)
-    -> std::invoke_result_t<
-          decltype(connect),
-          std::invoke_result_t<
-              schedule_after_cpo,
-              std::invoke_result_t<decltype(get_scheduler), const Receiver &>,
-              const Duration&>,
-          Receiver> {
-      auto scheduler = get_scheduler(r);
-      return connect(schedule_after_cpo{}(scheduler, s.duration_), (Receiver&&)r);
+        -> operation_t<ScheduleAfterSender, Receiver> {
+      auto scheduler = get_scheduler(std::as_const(r));
+      return connect(schedule_after_cpo{}(scheduler, std::as_const(s.duration_)), (Receiver&&)r);
     }
 
     Duration duration_;
