@@ -17,9 +17,9 @@
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
 #include <unifex/linux/io_uring_context.hpp>
-#include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/sequence.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
@@ -37,20 +37,6 @@ using namespace std::chrono_literals;
 template <typename F>
 auto lazy(F&& f) {
   return transform(just(), (F &&) f);
-}
-
-auto sequence() {
-  return just();
-}
-
-template <typename S>
-auto sequence(S&& s) {
-  return (S &&) s;
-}
-
-template <typename S1, typename S2, typename... Others>
-auto sequence(S1&& s1, S2&& s2, Others&&... others) {
-  return sequence(on((S1 &&) s1, (S2 &&) s2), (Others &&) others...);
 }
 
 static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};

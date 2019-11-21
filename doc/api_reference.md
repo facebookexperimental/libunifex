@@ -10,6 +10,7 @@
   * `typed_via()`
   * `on()`
   * `let()`
+  * `sequence()`
   * `sync_wait()`
   * `when_all()`
   * `with_query_value()`
@@ -147,6 +148,27 @@ whole will complete with the result of the successor.
 
 If the predecessor completes with done/error then `func` is not invoked
 and the operation as a whole completes with that done/error signal.
+
+### `sequence(Sender... predecessors, Sender last) -> Sender`
+
+The `sequence()` algorithm takes a variadic pack of senders and executes
+them sequentially, only starting the next sender if/when the previous sender
+completed successfully (ie. with `set_value`).
+
+All but the `last` sender must produce a `void` value result
+i.e. call `set_value(receiver)` with no additional value args.
+
+If any of the input senders complete with `set_done` or `set_error`
+then the operation as a whole completes with that signal and
+any subsequent operations in the sequence are not started.
+
+This algorithm may be customised by defining a custom `tag_invoke(tag_t<sequence>, ...)`
+overload for your particular sender types. You can either provide a customisation
+for a variadic pack of senders or for a pair of senders.
+
+If you provide a customisation for a pair of senders then this customisation
+will be applied to the first two arguments and then reinvoke `sequence()`
+with the first two arguments replaced with the result of `sequence(first, second)`.
 
 ### `sync_wait(Sender sender, StopToken st = {}) -> std::optional<Result>`
 

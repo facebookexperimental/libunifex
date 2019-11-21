@@ -15,7 +15,7 @@
  */
 #include <unifex/async_trace.hpp>
 
-#include <unifex/on.hpp>
+#include <unifex/sequence.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 
@@ -60,7 +60,7 @@ auto dump_async_trace(std::string tag = {}) {
 
 template <typename Sender>
 auto dump_async_trace_on_start(Sender &&sender, std::string tag = {}) {
-  return unifex::on(dump_async_trace(std::move(tag)), (Sender &&) sender);
+  return unifex::sequence(dump_async_trace(std::move(tag)), (Sender &&) sender);
 }
 
 template <typename Sender>

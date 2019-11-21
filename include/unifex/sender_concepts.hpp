@@ -63,6 +63,14 @@ using operation_t = decltype(connect(
     std::declval<Sender>(),
     std::declval<Receiver>()));
 
+template <typename Sender, typename Receiver>
+inline constexpr bool is_connectable_v =
+  std::is_invocable_v<decltype(connect), Sender, Receiver>;
+
+template <typename Sender, typename Receiver>
+inline constexpr bool is_nothrow_connectable_v =
+  std::is_nothrow_invocable_v<decltype(connect), Sender, Receiver>;
+
 template <typename Sender, typename Adaptor>
 using adapt_error_types_t =
     typename Sender::template error_types<Adaptor::template apply>;
