@@ -4,3 +4,5 @@
 # LICENSE.txt file in the root directory of this source tree.
 
 include(CMakeDependentOption)
+
+option(UNIFEX_BUILD_EXAMPLES "Builds the libunifex examples." ON)
