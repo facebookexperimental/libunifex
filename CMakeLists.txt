@@ -14,7 +14,16 @@ include(unifex_options)
 include(unifex_env)
 include(unifex_flags)
 
-enable_testing()
-
 add_subdirectory(source)
-add_subdirectory(examples)
+
+if(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
+  enable_testing()
+
+  include(gtest)
+  include(CTest)
+
+  add_subdirectory(examples)
+  if(BUILD_TESTING)
+    add_subdirectory(test)
+  endif(BUILD_TESTING)
+endif(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
