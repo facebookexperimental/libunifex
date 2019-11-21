@@ -56,21 +56,21 @@ inline constexpr struct get_scheduler_cpo {
 } get_scheduler;
 
 struct schedule_cpo::schedule_sender {
-  template<template<typename...> class Variant,
-  template<typename...> class Tuple>
+  template<
+    template<typename...> class Variant,
+    template<typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template<template<typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  template <typename Receiver>
+  template <
+    typename Receiver,
+    typename Scheduler =
+      std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
+    typename ScheduleSender = std::invoke_result_t<decltype(schedule), Scheduler&>>
   friend auto tag_invoke(tag_t<connect>, schedule_sender, Receiver &&r)
-      -> std::invoke_result_t<
-          decltype(connect),
-          std::invoke_result_t<
-              decltype(schedule),
-              std::invoke_result_t<decltype(get_scheduler), const Receiver &>>,
-          Receiver> {
+      -> operation_t<ScheduleSender, Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
     return connect(schedule(scheduler), (Receiver &&) r);
   }
