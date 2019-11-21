@@ -107,14 +107,25 @@ The semantics of `typed_via()` is the same as that of `via()` above but
 avoids the need for heap allocation by pre-allocating storage for the
 predecessor's result.
 
-### `on(Sender predecessor, Sender successor) -> Sender`
+### `on(Sender sender, Scheduler scheduler) -> Sender`
 
-Returns a sender that ensures that `successor` is started on the
-execution context that `predecessor` completes on.
+Returns a sender that ensures that `sender` is started on the
+execution context associated with the specified `scheduler`.
 
-Discards any value produced by predecessor and sends the result of
-`successor`. If `predecessor` completes with `set_done()` or `set_error()` then
-sends that signal and never starts executing successor.
+The `sender` is executed with a receiver that customises the
+`get_scheduler` query to return the specified `scheduler`.
+
+The default implementation schedules the call to `connect()`
+and subsequent `start()` onto an execution context associated
+with `scheduler` using the `schedule(scheduler)` operation.
+
+If `schedule(scheduler)` completes with `set_done()` or
+`set_error()` then the `on()` operation completes with
+that signal and never starts executing `sender`.
+
+The `on()` algorithm may be customised by particular schedulers
+and/or scheduler+sender combinations to provide an alternative
+impllementation.
 
 ### `let(Sender pred, Invocable func) -> Sender`
 
