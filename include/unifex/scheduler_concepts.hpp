@@ -56,21 +56,21 @@ inline constexpr struct get_scheduler_cpo {
 } get_scheduler;
 
 struct schedule_cpo::schedule_sender {
-  template<template<typename...> class Variant,
-  template<typename...> class Tuple>
+  template<
+    template<typename...> class Variant,
+    template<typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template<template<typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  template <typename Receiver>
+  template <
+    typename Receiver,
+    typename Scheduler =
+      std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
+    typename ScheduleSender = std::invoke_result_t<decltype(schedule), Scheduler&>>
   friend auto tag_invoke(tag_t<connect>, schedule_sender, Receiver &&r)
-      -> std::invoke_result_t<
-          decltype(connect),
-          std::invoke_result_t<
-              decltype(schedule),
-              std::invoke_result_t<decltype(get_scheduler), const Receiver &>>,
-          Receiver> {
+      -> operation_t<ScheduleSender, Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
     return connect(schedule(scheduler), (Receiver &&) r);
   }
@@ -95,6 +95,42 @@ inline constexpr struct schedule_after_cpo {
       noexcept(tag_invoke(*this, (TimeScheduler &&) s, (Duration &&) d)))
       -> decltype(tag_invoke(*this, (TimeScheduler &&) s, (Duration &&) d)) {
     return tag_invoke(*this, (TimeScheduler &&) s, (Duration &&) d);
+  }
+
+  template<typename Duration>
+  class schedule_after_sender {
+  public:
+    template<template<typename...> class Variant, template<typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template<template<typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    explicit schedule_after_sender(Duration d)
+    : duration_(d)
+    {}
+
+  private:
+    friend schedule_after_cpo;
+
+    template<
+      typename Receiver,
+      typename Scheduler =
+        std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
+      typename ScheduleAfterSender =
+        std::invoke_result_t<schedule_after_cpo, Scheduler&, const Duration&>>
+    friend auto tag_invoke(tag_t<connect>, const schedule_after_sender& s, Receiver&& r)
+        -> operation_t<ScheduleAfterSender, Receiver> {
+      auto scheduler = get_scheduler(std::as_const(r));
+      return connect(schedule_after_cpo{}(scheduler, std::as_const(s.duration_)), (Receiver&&)r);
+    }
+
+    Duration duration_;
+  };
+
+  template<typename Duration>
+  constexpr schedule_after_sender<Duration> operator()(Duration d) const {
+    return schedule_after_sender<Duration>{std::move(d)};
   }
 } schedule_after;
 
