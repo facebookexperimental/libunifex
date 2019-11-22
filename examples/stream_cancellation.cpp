@@ -49,14 +49,14 @@ int main() {
   auto start = steady_clock::now();
 
   sync_wait(
-      on(schedule(context.get_scheduler()),
-         for_each(
+      on(for_each(
              on_stream(trampoline_scheduler{}, range_stream{0, 20}),
              [](int value) {
                // Simulate some work
                std::printf("processing %i\n", value);
                std::this_thread::sleep_for(10ms);
-             })),
+             }),
+         context.get_scheduler()),
       stopSource.get_token());
 
   auto end = steady_clock::now();

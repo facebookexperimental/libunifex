@@ -18,7 +18,6 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/transform.hpp>
-#include <unifex/on.hpp>
 #include <unifex/submit.hpp>
 
 #include <exception>

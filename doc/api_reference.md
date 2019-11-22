@@ -10,6 +10,7 @@
   * `typed_via()`
   * `on()`
   * `let()`
+  * `sequence()`
   * `sync_wait()`
   * `when_all()`
   * `with_query_value()`
@@ -107,14 +108,25 @@ The semantics of `typed_via()` is the same as that of `via()` above but
 avoids the need for heap allocation by pre-allocating storage for the
 predecessor's result.
 
-### `on(Sender predecessor, Sender successor) -> Sender`
+### `on(Sender sender, Scheduler scheduler) -> Sender`
 
-Returns a sender that ensures that `successor` is started on the
-execution context that `predecessor` completes on.
+Returns a sender that ensures that `sender` is started on the
+execution context associated with the specified `scheduler`.
 
-Discards any value produced by predecessor and sends the result of
-`successor`. If `predecessor` completes with `set_done()` or `set_error()` then
-sends that signal and never starts executing successor.
+The `sender` is executed with a receiver that customises the
+`get_scheduler` query to return the specified `scheduler`.
+
+The default implementation schedules the call to `connect()`
+and subsequent `start()` onto an execution context associated
+with `scheduler` using the `schedule(scheduler)` operation.
+
+If `schedule(scheduler)` completes with `set_done()` or
+`set_error()` then the `on()` operation completes with
+that signal and never starts executing `sender`.
+
+The `on()` algorithm may be customised by particular schedulers
+and/or scheduler+sender combinations to provide an alternative
+impllementation.
 
 ### `let(Sender pred, Invocable func) -> Sender`
 
@@ -148,6 +160,27 @@ whole will complete with the result of the successor.
 
 If the predecessor completes with done/error then `func` is not invoked
 and the operation as a whole completes with that done/error signal.
+
+### `sequence(Sender... predecessors, Sender last) -> Sender`
+
+The `sequence()` algorithm takes a variadic pack of senders and executes
+them sequentially, only starting the next sender if/when the previous sender
+completed successfully (ie. with `set_value`).
+
+All but the `last` sender must produce a `void` value result
+i.e. call `set_value(receiver)` with no additional value args.
+
+If any of the input senders complete with `set_done` or `set_error`
+then the operation as a whole completes with that signal and
+any subsequent operations in the sequence are not started.
+
+This algorithm may be customised by defining a custom `tag_invoke(tag_t<sequence>, ...)`
+overload for your particular sender types. You can either provide a customisation
+for a variadic pack of senders or for a pair of senders.
+
+If you provide a customisation for a pair of senders then this customisation
+will be applied to the first two arguments and then reinvoke `sequence()`
+with the first two arguments replaced with the result of `sequence(first, second)`.
 
 ### `sync_wait(Sender sender, StopToken st = {}) -> std::optional<Result>`
 
