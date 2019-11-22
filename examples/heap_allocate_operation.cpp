@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <unifex/heap_allocate.hpp>
+#include <unifex/allocate.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
@@ -30,7 +30,7 @@ int main() {
 
   auto thread = threadContext.get_scheduler();
 
-  sync_wait(heap_allocate(transform(
+  sync_wait(allocate(transform(
       schedule(thread), [] { std::printf("hello libunifex!\n"); })));
 
   return 0;
