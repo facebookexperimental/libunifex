@@ -6,6 +6,7 @@
   * `get_allocator()`
 * Sender Algorithms
   * `transform()`
+  * `finally()`
   * `via()`
   * `typed_via()`
   * `on()`
@@ -82,6 +83,19 @@ See the [Cancellation](cancellation.md) section for more details on cancellation
 
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
+
+### `finally(Sender source, Sender completion) -> Sender`
+
+Returns a sender that will first launch `source` and upon completion of
+`source` will launch the `completion` sender.
+
+If `completion` completes with `set_value()` (which must ) then the
+composed operation completes with the result of `source`.
+Otherwise, if `completion` sender completes with 'done' or 'error'
+then the composed operation completes with the result of `completion`.
+
+Note that `completion` sender must complete with an empty value pack.
+ie. be a `void`-value sender.
 
 ### `via(Sender successor, Sender predecessor) -> Sender`
 
