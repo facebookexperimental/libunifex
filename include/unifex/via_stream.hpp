@@ -30,7 +30,7 @@ auto via_stream(Scheduler&& scheduler, StreamSender&& stream) {
         return via(schedule(s), (decltype(sender))sender);
       },
       [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return typed_via(schedule(s), (decltype(sender))sender);
+        return typed_via((decltype(sender))sender, s);
       });
 }
 

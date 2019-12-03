@@ -26,10 +26,7 @@ auto typed_via_stream(Scheduler&& scheduler, StreamSender&& stream) {
   return adapt_stream(
       (StreamSender &&) stream,
       [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return typed_via(schedule(s), (decltype(sender))sender);
-      },
-      [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return typed_via(schedule(s), (decltype(sender))sender);
+        return typed_via((decltype(sender))sender, s);
       });
 }
 
