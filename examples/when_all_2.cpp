@@ -17,7 +17,6 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform.hpp>
-#include <unifex/typed_via.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
