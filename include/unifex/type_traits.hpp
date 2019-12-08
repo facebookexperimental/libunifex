@@ -26,6 +26,17 @@ struct identity {
   using type = T;
 };
 
+template<typename... Ts>
+struct single_type {};
+
+template<typename T>
+struct single_type<T> {
+    using type = T;
+};
+
+template<typename... Ts>
+using single_type_t = typename single_type<Ts...>::type;
+
 template <template <typename T> class Predicate, typename T>
 using requires_t = std::enable_if_t<Predicate<T>::value, T>;
 
