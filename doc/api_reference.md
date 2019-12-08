@@ -13,6 +13,7 @@
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
+  * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
 * Sender Types
@@ -208,6 +209,19 @@ to `value()`.
 If any of the input senders complete with done or error then it will request
 any senders that have not yet completed to stop and the operation as a whole
 will complete with done or error.
+
+### `allocate(Sender sender) -> Sender`
+
+Takes a Sender and produces a new Sender that will heap-allocate its operation
+state rather than embedding its operation state into the parent operation-state.
+
+This can be used to avoid bloating parent operation-state objects with a large
+child operation-state that might only be used part of the time.
+
+Uses the allocator returned by `get_allocator(receiver)`.
+
+The allocator to be used can be customised by injecting an allocator using the
+`with_allocator()` algorithm.
 
 ### `with_query_value(Sender sender, CPO cpo, T value) -> Sender`
 
