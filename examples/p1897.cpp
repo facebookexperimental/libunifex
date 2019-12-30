@@ -78,8 +78,8 @@ int main() {
       just(42),
       ranges::iota_view{3},
       execution::seq,
-      [](const int& x) {
-        return x+1;
+      [](int& x) {
+        x = x + 3;
       }));
 
   std::cout << "all done " << *result << "\n";

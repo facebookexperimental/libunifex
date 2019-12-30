@@ -37,19 +37,9 @@ struct indexed_for_sender {
 
   template <template <typename...> class Tuple>
   struct indexed_for_result {
-   private:
-    template <typename Result, typename = void>
-    struct impl {
-      using type = Tuple<Result>;
-    };
-    template <typename Result>
-    struct impl<Result, std::enable_if_t<std::is_void_v<Result>>> {
-      using type = Tuple<>;
-    };
-
    public:
     template <typename... Args>
-    using apply = typename impl<std::invoke_result_t<Func, Args...>>::type;
+    using apply = Tuple<Args...>;
   };
 
   template <typename... Args>
@@ -87,38 +77,21 @@ struct indexed_for_sender {
   template <typename Receiver>
   struct indexed_for_receiver {
     UNIFEX_NO_UNIQUE_ADDRESS Func func_;
+    // TODO: Use range and policy
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      using result_type = std::invoke_result_t<Func, Values...>;
-      if constexpr (std::is_void_v<result_type>) {
-        if constexpr (noexcept(std::invoke(
-                          (Func &&) func_, (Values &&) values...))) {
-          std::invoke((Func &&) func_, (Values &&) values...);
-          unifex::set_value((Receiver &&) receiver_);
-        } else {
-          try {
-            std::invoke((Func &&) func_, (Values &&) values...);
-            unifex::set_value((Receiver &&) receiver_);
-          } catch (...) {
-            unifex::set_error((Receiver &&) receiver_, std::current_exception());
-          }
-        }
+      if constexpr (noexcept(std::invoke(
+                        (Func &&) func_, values...))) {
+        std::invoke((Func &&) func_, values...);
+        unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {
-        if constexpr (noexcept(std::invoke(
-                          (Func &&) func_, (Values &&) values...))) {
-          unifex::set_value(
-              (Receiver &&) receiver_,
-              std::invoke((Func &&) func_, (Values &&) values...));
-        } else {
-          try {
-            unifex::set_value(
-                (Receiver &&) receiver_,
-                std::invoke((Func &&) func_, (Values &&) values...));
-          } catch (...) {
-            unifex::set_error((Receiver &&) receiver_, std::current_exception());
-          }
+        try {
+          std::invoke((Func &&) func_, values...);
+          unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+        } catch (...) {
+          unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
       }
     }
