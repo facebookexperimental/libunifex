@@ -25,6 +25,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <cassert>
 #include <exception>
 #include <type_traits>
 #include <utility>
