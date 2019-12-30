@@ -53,30 +53,30 @@ struct int_iterator {
     return *this;
   }
 
+  bool operator!=(const int_iterator& rhs) {
+    return base_ != rhs.base_;
+  }
+
   int base_;
 };
 
 struct iota_view {
   int size_;
+
+  int_iterator begin() {
+    return int_iterator{0};
+  }
+
+  int_iterator end() {
+    return int_iterator{size_};
+  }
 };
-
-template<class T>
-int_iterator begin(const iota_view& r) {
-  return int_iterator{0};
-}
-
-template<class T>
-int_iterator end(const iota_view& r) {
-  return int_iterator{r.size_};
-}
-}
+} // namespace ranges
 
 int main() {
-// TODO: This is still acting as transform
-// TODO: This does not use the range yet or iterate
   auto result = sync_wait(indexed_for(
       just(42),
-      ranges::iota_view{3},
+      ranges::iota_view{10},
       execution::seq,
       [](int& x) {
         x = x + 3;

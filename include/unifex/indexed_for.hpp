@@ -26,6 +26,10 @@
 #include <functional>
 #include <type_traits>
 
+namespace execution {
+class sequenced_policy;
+}
+
 namespace unifex {
 
 template <typename Predecessor, typename Range, typename Policy, typename Func>
@@ -77,18 +81,27 @@ struct indexed_for_sender {
   template <typename Receiver>
   struct indexed_for_receiver {
     UNIFEX_NO_UNIQUE_ADDRESS Func func_;
-    // TODO: Use range and policy
+    UNIFEX_NO_UNIQUE_ADDRESS Range range_;
+    UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+    template<typename... Values>
+    void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
+        noexcept(noexcept(std::invoke((Func &&) func_, values...))) {
+      for(auto idx : range) {
+        std::invoke((Func &&) func_, values...);
+      }
+    }
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
       if constexpr (noexcept(std::invoke(
                         (Func &&) func_, values...))) {
-        std::invoke((Func &&) func_, values...);
+        apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {
         try {
-          std::invoke((Func &&) func_, values...);
+          apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
           unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
         } catch (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
@@ -128,7 +141,10 @@ struct indexed_for_sender {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
         indexed_for_receiver<std::remove_cvref_t<Receiver>>{
-            std::forward<Func>(func_), std::forward<Receiver>(receiver)});
+            std::forward<Func>(func_),
+            std::forward<Range>(range_),
+            std::forward<Policy>(policy_),
+            std::forward<Receiver>(receiver)});
   }
 };
 
