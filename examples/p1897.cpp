@@ -15,6 +15,7 @@
  */
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
+#include <unifex/transform.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
@@ -35,6 +36,8 @@ inline constexpr sequenced_policy seq{};
 
 namespace ranges {
 struct int_iterator {
+  using value_type = int;
+
   const int operator[](size_t offset) const {
     return base_+offset;
   }
@@ -62,6 +65,7 @@ struct int_iterator {
 
 struct iota_view {
   int size_;
+  using iterator = int_iterator;
 
   int_iterator begin() {
     return int_iterator{0};
@@ -78,11 +82,38 @@ int main() {
       just(42),
       ranges::iota_view{10},
       execution::seq,
-      [](int& x) {
-        x = x + 3;
+      [](int idx, int& x) {
+        x = x + idx;
       }));
 
   std::cout << "all done " << *result << "\n";
+
+  // indexed_for example from P1897R2:
+  auto  just_sender =
+    just(std::vector<int>{3, 4, 5}, 10);
+
+  // TODO: Switch to par
+  auto indexed_for_sender =
+    indexed_for(
+      std::move(just_sender),
+      ranges::iota_view{3},
+      execution::seq,
+      [](int idx, std::vector<int>& vec, const int& i){
+        vec[idx] = vec[idx] + i + idx;
+      });
+
+  auto transform_sender = transform(
+    std::move(indexed_for_sender), [](std::vector<int> vec, int /*i*/){return vec;});
+
+  // Slight difference from p1897R2 because unifex's sync_wait returns an optional
+  // to account for cancellation
+  std::vector<int> vector_result =
+    *sync_wait(std::move(transform_sender));
+
+  std::cout << "vector result:\n";
+  for(auto v : vector_result) {
+    std::cout << "\t" << v << "\n";
+  }
 
   return 0;
 }

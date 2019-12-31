@@ -85,18 +85,20 @@ struct indexed_for_sender {
     UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
+
+    // TODO: Par policy overload will depend on random access range
     template<typename... Values>
     void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
-        noexcept(noexcept(std::invoke((Func &&) func_, values...))) {
+        noexcept(noexcept(std::invoke((Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
       for(auto idx : range) {
-        std::invoke((Func &&) func_, values...);
+        std::invoke((Func &&) func, idx, values...);
       }
     }
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
       if constexpr (noexcept(std::invoke(
-                        (Func &&) func_, values...))) {
+                        (Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
         apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {
