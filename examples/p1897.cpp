@@ -80,8 +80,8 @@ struct iota_view {
 int main() {
   auto result = sync_wait(indexed_for(
       just(42),
-      ranges::iota_view{10},
       execution::seq,
+      ranges::iota_view{10},
       [](int idx, int& x) {
         x = x + idx;
       }));
@@ -96,8 +96,8 @@ int main() {
   auto indexed_for_sender =
     indexed_for(
       std::move(just_sender),
-      ranges::iota_view{3},
       execution::seq,
+      ranges::iota_view{3},
       [](int idx, std::vector<int>& vec, const int& i){
         vec[idx] = vec[idx] + i + idx;
       });

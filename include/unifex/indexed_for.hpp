@@ -32,11 +32,11 @@ class sequenced_policy;
 
 namespace unifex {
 
-template <typename Predecessor, typename Range, typename Policy, typename Func>
+template <typename Predecessor, typename Policy, typename Range, typename Func>
 struct indexed_for_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
-  UNIFEX_NO_UNIQUE_ADDRESS Range range_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
+  UNIFEX_NO_UNIQUE_ADDRESS Range range_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
   template <template <typename...> class Tuple>
@@ -81,8 +81,8 @@ struct indexed_for_sender {
   template <typename Receiver>
   struct indexed_for_receiver {
     UNIFEX_NO_UNIQUE_ADDRESS Func func_;
-    UNIFEX_NO_UNIQUE_ADDRESS Range range_;
     UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
+    UNIFEX_NO_UNIQUE_ADDRESS Range range_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
 
@@ -144,16 +144,16 @@ struct indexed_for_sender {
         std::forward<Predecessor>(pred_),
         indexed_for_receiver<std::remove_cvref_t<Receiver>>{
             std::forward<Func>(func_),
-            std::forward<Range>(range_),
             std::forward<Policy>(policy_),
+            std::forward<Range>(range_),
             std::forward<Receiver>(receiver)});
   }
 };
 
-template <typename Sender, typename Range, typename Policy, typename Func>
-auto indexed_for(Sender&& predecessor, Range&& range, Policy&& policy, Func&& func) {
-  return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Range>, std::decay_t<Policy>, std::decay_t<Func>>{
-      (Sender &&) predecessor, (Range&& ) range, (Policy&&) policy, (Func &&) func};
+template <typename Sender, typename Policy, typename Range, typename Func>
+auto indexed_for(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) {
+  return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
+      (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
 }
 
 } // namespace unifex
