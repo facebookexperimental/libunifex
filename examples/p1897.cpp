@@ -31,7 +31,9 @@ using namespace std::chrono_literals;
 
 namespace execution {
 class sequenced_policy {};
+class parallel_policy{};
 inline constexpr sequenced_policy seq{};
+inline constexpr parallel_policy par{};
 }
 
 namespace ranges {
@@ -74,10 +76,15 @@ struct iota_view {
   int_iterator end() {
     return int_iterator{size_};
   }
+
+  size_t size() {
+    return size_;
+  }
 };
 } // namespace ranges
 
 int main() {
+  // use seq, which supports a forward range
   auto result = sync_wait(indexed_for(
       just(42),
       execution::seq,
@@ -92,11 +99,11 @@ int main() {
   auto  just_sender =
     just(std::vector<int>{3, 4, 5}, 10);
 
-  // TODO: Switch to par
+  // Use par which requires range to be random access
   auto indexed_for_sender =
     indexed_for(
       std::move(just_sender),
-      execution::seq,
+      execution::par,
       ranges::iota_view{3},
       [](int idx, std::vector<int>& vec, const int& i){
         vec[idx] = vec[idx] + i + idx;

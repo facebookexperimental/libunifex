@@ -28,6 +28,7 @@
 
 namespace execution {
 class sequenced_policy;
+class parallel_policy;
 }
 
 namespace unifex {
@@ -85,13 +86,22 @@ struct indexed_for_sender {
     UNIFEX_NO_UNIQUE_ADDRESS Range range_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-
-    // TODO: Par policy overload will depend on random access range
+    // sequenced_policy version supports forward range
     template<typename... Values>
     void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
         noexcept(noexcept(std::invoke((Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
       for(auto idx : range) {
         std::invoke((Func &&) func, idx, values...);
+      }
+    }
+
+    // parallel_policy version requires random access range
+    template<typename... Values>
+    void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
+        noexcept(noexcept(std::invoke((Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
+      auto start = range.begin();
+      for(auto idx = 0; idx < range.size(); ++idx) {
+        std::invoke((Func &&) func, start[idx], values...);
       }
     }
 
