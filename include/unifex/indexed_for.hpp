@@ -137,6 +137,7 @@ struct indexed_for_sender {
         Visit&& visit) {
       std::invoke(visit, r.receiver_);
     }
+
   };
 
   template <typename Receiver>
@@ -152,6 +153,7 @@ struct indexed_for_sender {
 };
 
 inline constexpr struct visit_continuations_customization_cpo {
+  // Default version of CPO that returns a sender tied directly together
   template <typename Sender, typename Policy, typename Range, typename Func>
   friend auto
   tag_invoke(visit_continuations_customization_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
@@ -170,6 +172,24 @@ inline constexpr struct visit_continuations_customization_cpo {
     return tag_invoke(visit_continuations_customization_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
   }
 } visit_continuations_customization;
+
+// Customisation for when two indexed_for_senders are chained
+// This simulates how we might customise an arbitrary set of types for
+// optimal interaction
+template <typename InnerPredecessor, typename InnerPolicy, typename InnerRange, typename InnerFunc, typename Policy, typename Range, typename Func>
+auto
+tag_invoke(
+    visit_continuations_customization_cpo,
+    indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& predecessor,
+    Policy&& policy, Range&& range, Func&& func) noexcept {
+  return indexed_for_sender<
+        std::remove_cvref_t<indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>>,
+        std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
+      (indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& ) predecessor,
+      (Policy&&) policy,
+      (Range&& ) range,
+      (Func &&) func};
+}
 
 template <typename Sender, typename Policy, typename Range, typename Func>
 auto indexed_for(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) {
