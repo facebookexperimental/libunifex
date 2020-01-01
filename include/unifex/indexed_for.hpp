@@ -151,10 +151,30 @@ struct indexed_for_sender {
   }
 };
 
+inline constexpr struct visit_continuations_customization_cpo {
+  template <typename Sender, typename Policy, typename Range, typename Func>
+  friend auto
+  tag_invoke(visit_continuations_customization_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
+    return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
+        (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
+  }
+
+  template <typename Sender, typename Policy, typename Range, typename Func>
+  auto operator()( Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) const
+      noexcept(is_nothrow_tag_invocable_v<
+               visit_continuations_cpo,
+               Sender&&,
+               Policy&&,
+               Range&&,
+               Func&&>) {
+    return tag_invoke(visit_continuations_customization_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
+  }
+} visit_continuations_customization;
+
 template <typename Sender, typename Policy, typename Range, typename Func>
 auto indexed_for(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) {
-  return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
-      (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
+  return visit_continuations_customization(
+      (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
 }
 
 } // namespace unifex
