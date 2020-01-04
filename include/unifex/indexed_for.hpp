@@ -47,19 +47,14 @@ struct indexed_for_sender {
     using apply = Tuple<Args...>;
   };
 
-  template <typename... Args>
-  using is_overload_noexcept = std::bool_constant<noexcept(
-      std::invoke(std::declval<Func>(), std::declval<Args>()...))>;
+  template<typename... Args>
+  using is_overload_noexcept = std::is_nothrow_invocable<Func, Args...>;
 
   template <template <typename...> class Variant>
   struct calculate_errors {
    public:
     template <typename... Errors>
-    using apply = std::conditional_t<
-        Predecessor::
-            template value_types<std::conjunction, is_overload_noexcept>::value,
-        Variant<Errors...>,
-        deduplicate_t<Variant<Errors..., std::exception_ptr>>>;
+    using apply = deduplicate<Variant<Errors..., std::exception_ptr>>;
   };
 
   template <
@@ -88,27 +83,26 @@ struct indexed_for_sender {
 
     // sequenced_policy version supports forward range
     template<typename... Values>
-    void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
-        noexcept(noexcept(std::invoke((Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
+    static void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
+        noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
       for(auto idx : range) {
-        std::invoke((Func &&) func, idx, values...);
+        std::invoke(func, idx, values...);
       }
     }
 
     // parallel_policy version requires random access range
     template<typename... Values>
-    void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
-        noexcept(noexcept(std::invoke((Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
+    static void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
+        noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
       auto start = range.begin();
       for(auto idx = 0; idx < range.size(); ++idx) {
-        std::invoke((Func &&) func, start[idx], values...);
+        std::invoke(func, start[idx], values...);
       }
     }
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      if constexpr (noexcept(std::invoke(
-                        (Func &&) func_, std::declval<typename Range::iterator::value_type>(), values...))) {
+      if constexpr (std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
         apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {

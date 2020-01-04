@@ -39,6 +39,10 @@ inline constexpr parallel_policy par{};
 namespace ranges {
 struct int_iterator {
   using value_type = int;
+  using reference = value_type&;
+  using difference_type = size_t;
+  using pointer = value_type*;
+  using iterator_category = std::random_access_iterator_tag;
 
   const int operator[](size_t offset) const {
     return base_+offset;
@@ -53,12 +57,12 @@ struct int_iterator {
     return *this;
   }
 
-  int_iterator& operator++(int) {
+  int_iterator operator++(int) {
     ++base_;
     return *this;
   }
 
-  bool operator!=(const int_iterator& rhs) {
+  bool operator!=(const int_iterator& rhs) const {
     return base_ != rhs.base_;
   }
 
@@ -77,7 +81,7 @@ struct iota_view {
     return int_iterator{size_};
   }
 
-  size_t size() {
+  size_t size() const {
     return size_;
   }
 };
