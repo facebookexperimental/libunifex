@@ -121,6 +121,7 @@ inline constexpr struct submit_cpo {
           // state on the heap.
           auto op = unifex::connect((Sender &&) sender, (Receiver &&) receiver);
           unifex::start(op);
+          break;
         }
         default:
         {
