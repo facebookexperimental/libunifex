@@ -100,8 +100,8 @@ int main() {
 
   std::cout << "all done " << *result << "\n";
 
-  // Use range factory
-  auto factory_result = sync_wait(indexed_for(
+  // Use range selector
+  auto selector_result = sync_wait(indexed_for(
       just(5),
       execution::seq,
       [](int& x){return ranges::iota_view{x};},
@@ -109,33 +109,68 @@ int main() {
         x = x + idx;
       }));
 
-  std::cout << "factory all done " << *factory_result << "\n";
+  std::cout << "selector all done " << *selector_result << "\n";
 
-  // indexed_for example from P1897R2:
-  auto  just_sender =
-    just(std::vector<int>{3, 4, 5}, 10);
+  // Propagate a vector and an int, where the vector is modified by side-effect
+  // but its lifetime is managed by the pipeline
+  {
+    // indexed_for example from P1897R2:
+    auto  just_sender =
+      just(std::vector<int>{3, 4, 5}, 10);
 
-  // Use par which requires range to be random access
-  auto indexed_for_sender =
-    indexed_for(
-      std::move(just_sender),
-      execution::par,
-      ranges::iota_view{3},
-      [](int idx, std::vector<int>& vec, const int& i){
-        vec[idx] = vec[idx] + i + idx;
-      });
+    // Use par which requires range to be random access
+    auto indexed_for_sender =
+      indexed_for(
+        std::move(just_sender),
+        execution::par,
+        ranges::iota_view{3},
+        [](int idx, std::vector<int>& vec, const int& i){
+          vec[idx] = vec[idx] + i + idx;
+        });
 
-  auto transform_sender = transform(
-    std::move(indexed_for_sender), [](std::vector<int> vec, int /*i*/){return vec;});
+    auto transform_sender = transform(
+      std::move(indexed_for_sender), [](std::vector<int> vec, int /*i*/){return vec;});
 
-  // Slight difference from p1897R2 because unifex's sync_wait returns an optional
-  // to account for cancellation
-  std::vector<int> vector_result =
-    *sync_wait(std::move(transform_sender));
+    // Slight difference from p1897R2 because unifex's sync_wait returns an optional
+    // to account for cancellation
+    std::vector<int> vector_result =
+      *sync_wait(std::move(transform_sender));
 
-  std::cout << "vector result:\n";
-  for(auto v : vector_result) {
-    std::cout << "\t" << v << "\n";
+    std::cout << "vector result:\n";
+    for(auto v : vector_result) {
+      std::cout << "\t" << v << "\n";
+    }
+  }
+
+  // Range selector version of the vector version
+  {
+    // indexed_for example from P1897R2:
+    auto  just_sender =
+      just(std::vector<int>{3, 4, 5}, 10);
+
+    // Use par which requires range to be random access
+    auto indexed_for_sender =
+      indexed_for(
+        std::move(just_sender),
+        execution::par,
+        [](std::vector<int>& vec, const int& i){
+          return ranges::iota_view{static_cast<int>(vec.size())};},
+        [](int idx, std::vector<int>& vec, const int& i){
+          vec[idx] = vec[idx] + i + idx;
+        });
+
+    auto transform_sender = transform(
+      std::move(indexed_for_sender), [](std::vector<int> vec, int /*i*/){return vec;});
+
+    // Slight difference from p1897R2 because unifex's sync_wait returns an optional
+    // to account for cancellation
+    std::vector<int> vector_result =
+      *sync_wait(std::move(transform_sender));
+
+    std::cout << "vector result with selector:\n";
+    for(auto v : vector_result) {
+      std::cout << "\t" << v << "\n";
+    }
   }
 
   return 0;

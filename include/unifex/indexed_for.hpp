@@ -34,25 +34,25 @@ class parallel_policy;
 namespace unifex {
 
 namespace indexed_for_detail {
-// Return a range from the range factory, if provided, or simply pass through
+// Return a range from the range selector, if provided, or simply pass through
 // the range.
 struct extract_range {
-  template<typename RangeOrFactory, typename... Values>
-  auto operator()(RangeOrFactory&& rf, Values&... values) {
-    if constexpr(std::is_invocable_v<RangeOrFactory&&, Values&...>) {
-      return std::forward<RangeOrFactory>(rf)(values...);
+  template<typename RangeOrRangeSelector, typename... Values>
+  auto operator()(RangeOrRangeSelector&& rf, Values&... values) {
+    if constexpr(std::is_invocable_v<RangeOrRangeSelector&&, Values&...>) {
+      return std::forward<RangeOrRangeSelector>(rf)(values...);
     } else {
-      return std::forward<RangeOrFactory>(rf);
+      return std::forward<RangeOrRangeSelector>(rf);
     }
   }
 };
 } // namespace indexed_for_detail
 
-template <typename Predecessor, typename Policy, typename RangeOrFactory, typename Func>
+template <typename Predecessor, typename Policy, typename RangeOrRangeSelector, typename Func>
 struct indexed_for_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
-  UNIFEX_NO_UNIQUE_ADDRESS RangeOrFactory range_;
+  UNIFEX_NO_UNIQUE_ADDRESS RangeOrRangeSelector range_or_selector_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
   template <template <typename...> class Tuple>
@@ -90,7 +90,7 @@ struct indexed_for_sender {
   struct indexed_for_receiver {
     UNIFEX_NO_UNIQUE_ADDRESS Func func_;
     UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
-    UNIFEX_NO_UNIQUE_ADDRESS RangeOrFactory range_;
+    UNIFEX_NO_UNIQUE_ADDRESS RangeOrRangeSelector range_or_selector_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
     // sequenced_policy version supports forward range
@@ -115,8 +115,8 @@ struct indexed_for_sender {
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      using Range = std::invoke_result_t<indexed_for_detail::extract_range, RangeOrFactory&&, Values&...>;
-      auto range = indexed_for_detail::extract_range{}(std::move(range_), values...);
+      using Range = std::invoke_result_t<indexed_for_detail::extract_range, RangeOrRangeSelector&&, Values&...>;
+      auto range = indexed_for_detail::extract_range{}(std::move(range_or_selector_), values...);
       if constexpr (std::is_nothrow_invocable_v<Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
         apply_func_with_policy(policy_, (Range&&) range, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
@@ -164,16 +164,16 @@ struct indexed_for_sender {
         indexed_for_receiver<std::remove_cvref_t<Receiver>>{
             std::forward<Func>(func_),
             std::forward<Policy>(policy_),
-            std::forward<RangeOrFactory>(range_),
+            std::forward<RangeOrRangeSelector>(range_or_selector_),
             std::forward<Receiver>(receiver)});
   }
 };
 
-template <typename Sender, typename Policy, typename RangeOrFactory, typename Func>
-auto indexed_for(Sender&& predecessor, Policy&& policy, RangeOrFactory&& range, Func&& func) {
+template <typename Sender, typename Policy, typename RangeOrRangeSelector, typename Func>
+auto indexed_for(Sender&& predecessor, Policy&& policy, RangeOrRangeSelector&& range, Func&& func) {
   return indexed_for_sender<
-      std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<RangeOrFactory>, std::decay_t<Func>>{
-      (Sender &&) predecessor, (Policy&&) policy, (RangeOrFactory&& ) range, (Func &&) func};
+      std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<RangeOrRangeSelector>, std::decay_t<Func>>{
+      (Sender &&) predecessor, (Policy&&) policy, (RangeOrRangeSelector&& ) range, (Func &&) func};
 }
 
 } // namespace unifex
