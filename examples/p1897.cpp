@@ -100,6 +100,17 @@ int main() {
 
   std::cout << "all done " << *result << "\n";
 
+  // Use range factory
+  auto factory_result = sync_wait(indexed_for(
+      just(5),
+      execution::seq,
+      [](int& x){return ranges::iota_view{x};},
+      [](int idx, int& x) {
+        x = x + idx;
+      }));
+
+  std::cout << "factory all done " << *factory_result << "\n";
+
   // indexed_for example from P1897R2:
   auto  just_sender =
     just(std::vector<int>{3, 4, 5}, 10);
