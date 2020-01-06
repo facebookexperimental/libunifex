@@ -99,8 +99,12 @@ struct indexed_for_sender {
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      if constexpr (noexcept(std::is_nothrow_invocable_v<Func&, typename Range::iterator::value_type, Values...>)) {
-        apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
+      using Range = std::invoke_result_t<indexed_for_detail::extract_range, RangeOrFactory&&, Values&...>;
+      auto range = indexed_for_detail::extract_range{}(std::move(range_), values...);
+      if constexpr (
+          std::is_nothrow_invocable_v<
+            Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
+        apply_func_with_policy(policy_, (Range&&) range, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {
         try {
@@ -152,11 +156,11 @@ struct indexed_for_sender {
   }
 };
 
-inline constexpr struct visit_continuations_customization_cpo {
+inline constexpr struct indexed_for_customization_cpo {
   // Default version of CPO that returns a sender tied directly together
   template <typename Sender, typename Policy, typename Range, typename Func>
   friend auto
-  tag_invoke(visit_continuations_customization_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
+  tag_invoke(indexed_for_customization_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
     return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
         (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
   }
@@ -169,9 +173,9 @@ inline constexpr struct visit_continuations_customization_cpo {
                Policy&&,
                Range&&,
                Func&&>) {
-    return tag_invoke(visit_continuations_customization_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
+    return tag_invoke(indexed_for_customization_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
   }
-} visit_continuations_customization;
+} indexed_for_customization;
 
 
 // A version of the indexed_for sender that may be used when the Predecessor is
@@ -328,7 +332,7 @@ struct double_indexed_for_sender {
 template <typename InnerPredecessor, typename InnerPolicy, typename InnerRange, typename InnerFunc, typename Policy, typename Range, typename Func>
 auto
 tag_invoke(
-    visit_continuations_customization_cpo,
+    indexed_for_customization_cpo,
     indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& predecessor,
     Policy&& policy, Range&& range, Func&& func) noexcept {
 
@@ -345,7 +349,7 @@ tag_invoke(
 
 template <typename Sender, typename Policy, typename Range, typename Func>
 auto indexed_for(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) {
-  return visit_continuations_customization(
+  return indexed_for_customization(
       (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
 }
 
