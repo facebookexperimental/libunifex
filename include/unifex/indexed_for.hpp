@@ -47,9 +47,6 @@ struct indexed_for_sender {
     using apply = Tuple<Args...>;
   };
 
-  template<typename... Args>
-  using is_overload_noexcept = std::is_nothrow_invocable<Func, Args...>;
-
   template <template <typename...> class Variant>
   struct calculate_errors {
    public:
@@ -102,7 +99,7 @@ struct indexed_for_sender {
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      if constexpr (std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
+      if constexpr (std::is_nothrow_invocable_v<Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
         apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {

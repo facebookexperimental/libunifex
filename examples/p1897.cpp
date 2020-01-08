@@ -52,14 +52,15 @@ struct int_iterator {
     return base_;
   }
 
-  int_iterator& operator++() {
+  int_iterator operator++() {
     ++base_;
     return *this;
   }
 
   int_iterator operator++(int) {
+    auto cur = *this;
     ++base_;
-    return *this;
+    return cur;
   }
 
   bool operator!=(const int_iterator& rhs) const {
