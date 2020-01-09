@@ -33,6 +33,8 @@ class parallel_policy;
 
 namespace unifex {
 
+namespace indexed_for_detail {
+
 template <typename Predecessor, typename Policy, typename Range, typename Func>
 struct indexed_for_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
@@ -71,6 +73,25 @@ struct indexed_for_sender {
     return blocking(sender.pred_);
   }
 
+  // sequenced_policy version supports forward range
+  template<typename... Values>
+  static void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
+      noexcept(std::is_nothrow_invocable_v<Func&, typename Range::iterator::value_type, Values...>) {
+    for(auto idx : range) {
+      std::invoke(func, idx, values...);
+    }
+  }
+
+  // parallel_policy version requires random access range
+  template<typename... Values>
+  static void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
+      noexcept(std::is_nothrow_invocable_v<Func&, typename Range::iterator::value_type, Values...>) {
+    auto start = range.begin();
+    for(auto idx = 0; idx < range.size(); ++idx) {
+      std::invoke(func, start[idx], values...);
+    }
+  }
+
   template <typename Receiver>
   struct indexed_for_receiver {
     UNIFEX_NO_UNIQUE_ADDRESS Func func_;
@@ -78,28 +99,11 @@ struct indexed_for_sender {
     UNIFEX_NO_UNIQUE_ADDRESS Range range_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    // sequenced_policy version supports forward range
-    template<typename... Values>
-    static void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
-        noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
-      for(auto idx : range) {
-        std::invoke(func, idx, values...);
-      }
-    }
-
-    // parallel_policy version requires random access range
-    template<typename... Values>
-    static void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
-        noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
-      auto start = range.begin();
-      for(auto idx = 0; idx < range.size(); ++idx) {
-        std::invoke(func, start[idx], values...);
-      }
-    }
-
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      if constexpr (std::is_nothrow_invocable_v<Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
+      if constexpr (
+          std::is_nothrow_invocable_v<
+            Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
         apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
       } else {
@@ -137,6 +141,7 @@ struct indexed_for_sender {
         Visit&& visit) {
       std::invoke(visit, r.receiver_);
     }
+
   };
 
   template <typename Receiver>
@@ -151,10 +156,201 @@ struct indexed_for_sender {
   }
 };
 
-template <typename Sender, typename Policy, typename Range, typename Func>
-auto indexed_for(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) {
-  return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
-      (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
+
+// A version of the indexed_for sender that may be used when the Predecessor is
+// known to be an indexed_for_sender. This does not chain using the receiver
+// mechanism but directly applies pred_'s function to the data.
+// This simulates how we would specialse on a custom type rather than the one
+// provided by the standard library.
+template <typename Predecessor, typename Policy, typename Range, typename Func>
+struct double_indexed_for_sender {
+  UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
+  UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
+  UNIFEX_NO_UNIQUE_ADDRESS Range range_;
+  UNIFEX_NO_UNIQUE_ADDRESS Func func_;
+
+  template <template <typename...> class Tuple>
+  struct double_indexed_for_result {
+   public:
+    template <typename... Args>
+    using apply = Tuple<Args...>;
+  };
+
+  template <typename... Args>
+  using is_overload_noexcept = std::bool_constant<noexcept(
+      std::invoke(std::declval<Func>(), std::declval<Args>()...))>;
+
+  template <template <typename...> class Variant>
+  struct calculate_errors {
+   public:
+    template <typename... Errors>
+    using apply = std::conditional_t<
+        Predecessor::
+            template value_types<std::conjunction, is_overload_noexcept>::value,
+        Variant<Errors...>,
+        deduplicate_t<Variant<Errors..., std::exception_ptr>>>;
+  };
+
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  using value_types = deduplicate_t<typename Predecessor::template value_types<
+      Variant,
+      double_indexed_for_result<Tuple>::template apply>>;
+
+  template <template <typename...> class Variant>
+  using error_types = typename Predecessor::template error_types<
+      calculate_errors<Variant>::template apply>;
+
+  friend constexpr auto tag_invoke(
+      tag_t<blocking>,
+      const double_indexed_for_sender& sender) {
+    return blocking(sender.pred_);
+  }
+
+  // sequenced_policy version supports forward range
+  template<typename... Values>
+  static void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
+      noexcept(std::is_nothrow_invocable_v<Func&, typename Range::iterator::value_type, Values...>) {
+    for(auto idx : range) {
+      std::invoke(func, idx, values...);
+    }
+  }
+
+  // parallel_policy version requires random access range
+  template<typename... Values>
+  static void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
+      noexcept(std::is_nothrow_invocable_v<Func&, typename Range::iterator::value_type, Values...>) {
+    auto start = range.begin();
+    for(auto idx = 0; idx < range.size(); ++idx) {
+      std::invoke(func, start[idx], values...);
+    }
+  }
+
+  template <typename Receiver>
+  struct double_indexed_for_receiver {
+    UNIFEX_NO_UNIQUE_ADDRESS decltype(Predecessor::func_) predFunc_;
+    UNIFEX_NO_UNIQUE_ADDRESS Func func_;
+    UNIFEX_NO_UNIQUE_ADDRESS decltype(Predecessor::policy_) predPolicy_;
+    UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
+    UNIFEX_NO_UNIQUE_ADDRESS decltype(Predecessor::range_) predrange_;
+    UNIFEX_NO_UNIQUE_ADDRESS Range range_;
+    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+    template <typename... Values>
+    void set_value(Values&&... values) && noexcept {
+      using PredRange = decltype(Predecessor::range_);
+
+      if constexpr (std::is_nothrow_invocable_v<Func, typename Range::iterator::value_type, Values...> &&
+                    std::is_nothrow_invocable_v<decltype(Predecessor::func_), typename Range::iterator::value_type, Values...>) {
+        // Apply predecessors operation first, then the immediate sender's
+        Predecessor::apply_func_with_policy(predPolicy_, (PredRange&&) predrange_, (decltype(Predecessor::func_) &&) predFunc_, values...);
+        apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
+        unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+      } else {
+        try {
+          Predecessor::apply_func_with_policy(predPolicy_, (PredRange&&) predrange_, (decltype(Predecessor::func_) &&) predFunc_, values...);
+          apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
+          unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+        } catch (...) {
+          unifex::set_error((Receiver &&) receiver_, std::current_exception());
+        }
+      }
+    }
+
+    template <typename Error>
+    void set_error(Error&& error) && noexcept {
+      unifex::set_error((Receiver &&) receiver_, (Error &&) error);
+    }
+
+    void set_done() && noexcept {
+      unifex::set_done((Receiver &&) receiver_);
+    }
+
+    template <
+        typename CPO,
+        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+    friend auto tag_invoke(CPO cpo, const double_indexed_for_receiver& r) noexcept(
+        std::is_nothrow_invocable_v<CPO, const Receiver&>)
+        -> std::invoke_result_t<CPO, const Receiver&> {
+      return std::move(cpo)(std::as_const(r.receiver_));
+    }
+
+    template <typename Visit>
+    friend void tag_invoke(
+        tag_t<visit_continuations>,
+        const double_indexed_for_receiver& r,
+        Visit&& visit) {
+      std::invoke(visit, r.receiver_);
+    }
+
+  };
+
+  template <typename Receiver>
+  auto connect(Receiver&& receiver) && {
+    // Connect the receiver to the predecssor of pred_
+    // we skip the connect/start pairing on the immediate
+    // predecessor as an optimisation (or at least, to
+    // emulate the optimisation we might see in
+    // accelerator implementations)
+    return unifex::connect(
+        std::forward<Predecessor>(pred_).pred_,
+        double_indexed_for_receiver<std::remove_cvref_t<Receiver>>{
+            std::forward<Predecessor>(pred_).func_,
+            std::forward<Func>(func_),
+            std::forward<Predecessor>(pred_).policy_,
+            std::forward<Policy>(policy_),
+            std::forward<Predecessor>(pred_).range_,
+            std::forward<Range>(range_),
+            std::forward<Receiver>(receiver)});
+  }
+};
+
+struct indexed_for_cpo {
+  // Default version of CPO that returns a sender tied directly together
+  template <typename Sender, typename Policy, typename Range, typename Func>
+  friend auto
+  tag_invoke(indexed_for_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
+    return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
+        (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
+  }
+
+  template <typename Sender, typename Policy, typename Range, typename Func>
+  auto operator()( Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) const
+      noexcept(is_nothrow_tag_invocable_v<
+               visit_continuations_cpo,
+               Sender&&,
+               Policy&&,
+               Range&&,
+               Func&&>) {
+    return tag_invoke(
+      indexed_for_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
+  }
+};
+
+// Customisation for when an indexed_for is chained after an indexed_for_sender
+// This simulates how we might customise an arbitrary set of types for
+// optimal interaction
+template <typename InnerPredecessor, typename InnerPolicy, typename InnerRange, typename InnerFunc, typename Policy, typename Range, typename Func>
+auto
+tag_invoke(
+    indexed_for_cpo,
+    indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& predecessor,
+    Policy&& policy, Range&& range, Func&& func) noexcept {
+
+  // Construct the doubled version of the sender that grabs content from the predecessor directly
+  // and does not apply connect/start in between.
+  return double_indexed_for_sender<
+        std::remove_cvref_t<indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>>,
+        std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
+      (indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& ) predecessor,
+      (Policy&&) policy,
+      (Range&& ) range,
+      (Func &&) func};
 }
+
+} // namespace indexed_for_detail
+
+inline constexpr indexed_for_detail::indexed_for_cpo indexed_for;
 
 } // namespace unifex

@@ -127,5 +127,28 @@ int main() {
     std::cout << "\t" << v << "\n";
   }
 
+  // Double indexed_for to show customisation
+  auto first_indexed_for_sender =
+    indexed_for(
+      just(3),
+      execution::seq,
+      ranges::iota_view{3},
+      [](int idx, int& i){
+        i = i + idx;
+      });
+  auto second_indexed_for_sender =
+    indexed_for(
+      std::move(first_indexed_for_sender),
+      execution::seq,
+      ranges::iota_view{3},
+      [](int idx, int& i){
+        i = i + idx;
+      });
+  int chained_result =
+    *sync_wait(std::move(second_indexed_for_sender));
+
+  std::cout << "chained: " << chained_result << "\n";
+
+
   return 0;
 }
