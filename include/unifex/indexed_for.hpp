@@ -37,11 +37,7 @@ template <typename Predecessor, typename Policy, typename Range, typename Func>
 struct indexed_for_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
-<<<<<<< HEAD
   UNIFEX_NO_UNIQUE_ADDRESS Range range_;
-=======
-  UNIFEX_NO_UNIQUE_ADDRESS RangeOrRangeSelector rangeOrSelector_;
->>>>>>> Majority of requested changes
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
   template <template <typename...> class Tuple>
@@ -155,35 +151,10 @@ struct indexed_for_sender {
         indexed_for_receiver<std::remove_cvref_t<Receiver>>{
             std::forward<Func>(func_),
             std::forward<Policy>(policy_),
-<<<<<<< HEAD
             std::forward<Range>(range_),
-=======
-            std::forward<RangeOrRangeSelector>(rangeOrSelector_),
->>>>>>> Majority of requested changes
             std::forward<Receiver>(receiver)});
   }
 };
-
-inline constexpr struct indexed_for_customization_cpo {
-  // Default version of CPO that returns a sender tied directly together
-  template <typename Sender, typename Policy, typename Range, typename Func>
-  friend auto
-  tag_invoke(indexed_for_customization_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
-    return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
-        (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
-  }
-
-  template <typename Sender, typename Policy, typename RangeOrRangeSelector, typename Func>
-  auto operator()( Sender&& predecessor, Policy&& policy, RangeOrRangeSelector&& range_or_selector, Func&& func) const
-      noexcept(is_nothrow_tag_invocable_v<
-               visit_continuations_cpo,
-               Sender&&,
-               Policy&&,
-               RangeOrRangeSelector&&,
-               Func&&>) {
-    return tag_invoke(indexed_for_customization_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (RangeOrRangeSelector&& ) range_or_selector, (Func &&) func);
-  }
-} indexed_for_customization;
 
 
 // A version of the indexed_for sender that may be used when the Predecessor is
@@ -338,13 +309,35 @@ struct double_indexed_for_sender {
   }
 };
 
+struct indexed_for_cpo {
+  // Default version of CPO that returns a sender tied directly together
+  template <typename Sender, typename Policy, typename Range, typename Func>
+  friend auto
+  tag_invoke(indexed_for_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
+    return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
+        (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
+  }
+
+  template <typename Sender, typename Policy, typename RangeOrRangeSelector, typename Func>
+  auto operator()( Sender&& predecessor, Policy&& policy, RangeOrRangeSelector&& range_or_selector, Func&& func) const
+      noexcept(is_nothrow_tag_invocable_v<
+               visit_continuations_cpo,
+               Sender&&,
+               Policy&&,
+               RangeOrRangeSelector&&,
+               Func&&>) {
+    return tag_invoke(
+      indexed_for_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (RangeOrRangeSelector&& ) range_or_selector, (Func &&) func);
+  }
+};
+
 // Customisation for when an indexed_for is chained after an indexed_for_sender
 // This simulates how we might customise an arbitrary set of types for
 // optimal interaction
 template <typename InnerPredecessor, typename InnerPolicy, typename InnerRange, typename InnerFunc, typename Policy, typename Range, typename Func>
 auto
 tag_invoke(
-    indexed_for_customization_cpo,
+    indexed_for_cpo,
     indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& predecessor,
     Policy&& policy, Range&& range, Func&& func) noexcept {
 
@@ -359,10 +352,8 @@ tag_invoke(
       (Func &&) func};
 }
 
-template <typename Sender, typename Policy, typename Range, typename Func>
-auto indexed_for(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) {
-  return indexed_for_customization(
-      (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func);
-}
+} // namespace indexed_for_detail
+
+inline constexpr indexed_for_detail::indexed_for_cpo indexed_for;
 
 } // namespace unifex
