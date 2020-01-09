@@ -311,15 +311,15 @@ struct double_indexed_for_sender {
 
 struct indexed_for_cpo {
   // Default version of CPO that returns a sender tied directly together
-  template <typename Sender, typename Policy, typename Range, typename Func>
+  template <typename Sender, typename Policy, typename RangeOrRangeSelector, typename Func>
   friend auto
-  tag_invoke(indexed_for_cpo, Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) noexcept {
-    return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
-        (Sender &&) predecessor, (Policy&&) policy, (Range&& ) range, (Func &&) func};
+  tag_invoke(indexed_for_cpo, Sender&& predecessor, Policy&& policy, RangeOrRangeSelector&& rangeOrSelector, Func&& func) noexcept {
+    return indexed_for_sender<std::remove_cvref_t<Sender>, std::decay_t<Policy>, std::decay_t<RangeOrRangeSelector>, std::decay_t<Func>>{
+        (Sender &&) predecessor, (Policy&&) policy, (RangeOrRangeSelector&& ) rangeOrSelector, (Func &&) func};
   }
 
   template <typename Sender, typename Policy, typename RangeOrRangeSelector, typename Func>
-  auto operator()( Sender&& predecessor, Policy&& policy, RangeOrRangeSelector&& range_or_selector, Func&& func) const
+  auto operator()( Sender&& predecessor, Policy&& policy, RangeOrRangeSelector&& rangeOrSelector, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<
                visit_continuations_cpo,
                Sender&&,
@@ -327,28 +327,28 @@ struct indexed_for_cpo {
                RangeOrRangeSelector&&,
                Func&&>) {
     return tag_invoke(
-      indexed_for_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (RangeOrRangeSelector&& ) range_or_selector, (Func &&) func);
+      indexed_for_cpo{}, (Sender &&) predecessor, (Policy&&) policy, (RangeOrRangeSelector&& ) rangeOrSelector, (Func &&) func);
   }
 };
 
 // Customisation for when an indexed_for is chained after an indexed_for_sender
 // This simulates how we might customise an arbitrary set of types for
 // optimal interaction
-template <typename InnerPredecessor, typename InnerPolicy, typename InnerRange, typename InnerFunc, typename Policy, typename Range, typename Func>
+template <typename InnerPredecessor, typename InnerPolicy, typename InnerRangeOrRangeSelector, typename InnerFunc, typename Policy, typename RangeOrRangeSelector, typename Func>
 auto
 tag_invoke(
     indexed_for_cpo,
-    indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& predecessor,
-    Policy&& policy, Range&& range, Func&& func) noexcept {
+    indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRangeOrRangeSelector, InnerFunc>&& predecessor,
+    Policy&& policy, RangeOrRangeSelector&& rangeOrSelector, Func&& func) noexcept {
 
   // Construct the doubled version of the sender that grabs content from the predecessor directly
   // and does not apply connect/start in between.
   return double_indexed_for_sender<
-        std::remove_cvref_t<indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>>,
-        std::decay_t<Policy>, std::decay_t<Range>, std::decay_t<Func>>{
-      (indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRange, InnerFunc>&& ) predecessor,
+        std::remove_cvref_t<indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRangeOrRangeSelector, InnerFunc>>,
+        std::decay_t<Policy>, std::decay_t<RangeOrRangeSelector>, std::decay_t<Func>>{
+      (indexed_for_sender<InnerPredecessor, InnerPolicy, InnerRangeOrRangeSelector, InnerFunc>&& ) predecessor,
       (Policy&&) policy,
-      (Range&& ) range,
+      (RangeOrRangeSelector&& ) rangeOrSelector,
       (Func &&) func};
 }
 
