@@ -29,7 +29,7 @@ else()
 endif()
 
 # Probe for libUring support
-find_package(LibUring COMPONENTS Experimental Final)
+find_package(LibUring COMPONENTS)
 # Set some variables to be used by configure_file.
 if(LIBURING_FOUND)
   set(UNIFEX_NO_LIBURING FALSE)
