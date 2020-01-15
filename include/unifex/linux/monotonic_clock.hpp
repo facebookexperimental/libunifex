@@ -21,7 +21,7 @@
 #include <ratio>
 
 namespace unifex {
-namespace linux {
+namespace linuxos {
 
 // A std::chrono-like clock type that wraps the Linux CLOCK_MONOTONIC clock
 // type.
@@ -190,5 +190,5 @@ inline void monotonic_clock::time_point::normalize() noexcept {
   }
 }
 
-} // namespace linux
+} // namespace linuxos
 } // namespace unifex

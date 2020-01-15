@@ -19,7 +19,7 @@
 
 #include <unistd.h>
 
-namespace unifex::linux {
+namespace unifex::linuxos {
 
 void safe_file_descriptor::close() noexcept {
   assert(valid());
@@ -27,4 +27,4 @@ void safe_file_descriptor::close() noexcept {
   assert(result == 0);
 }
 
-} // namespace unifex::linux
+} // namespace unifex::linuxos

@@ -19,7 +19,7 @@
 #include <utility>
 
 namespace unifex {
-namespace linux {
+namespace linuxos {
 
 struct mmap_region {
   mmap_region() noexcept : ptr_(nullptr), size_(0) {}
@@ -52,5 +52,5 @@ struct mmap_region {
   std::size_t size_;
 };
 
-} // namespace linux
+} // namespace linuxos
 } // namespace unifex
