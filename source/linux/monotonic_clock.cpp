@@ -17,7 +17,7 @@
 
 #include <time.h>
 
-namespace unifex::linux {
+namespace unifex::linuxos {
 
 monotonic_clock::time_point monotonic_clock::now() noexcept {
   timespec ts;
@@ -25,4 +25,4 @@ monotonic_clock::time_point monotonic_clock::now() noexcept {
   return time_point::from_seconds_and_nanoseconds(ts.tv_sec, ts.tv_nsec);
 }
 
-} // namespace unifex::linux
+} // namespace unifex::linuxos

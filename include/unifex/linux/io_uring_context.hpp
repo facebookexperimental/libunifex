@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#if __has_include(<liburing.h>)
+
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
 #include <unifex/detail/intrusive_queue.hpp>
@@ -42,7 +44,7 @@
 #include <sys/uio.h>
 
 namespace unifex {
-namespace linux {
+namespace linuxos {
 
 class io_uring_context {
  public:
@@ -902,5 +904,7 @@ inline io_uring_context::scheduler io_uring_context::get_scheduler() noexcept {
   return scheduler{*this};
 }
 
-} // namespace linux
+} // namespace linuxos
 } // namespace unifex
+
+#endif // __has_include(<liburing.h>)

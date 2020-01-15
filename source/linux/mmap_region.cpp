@@ -17,7 +17,7 @@
 
 #include <sys/mman.h>
 
-namespace unifex::linux {
+namespace unifex::linuxos {
 
 mmap_region::~mmap_region() {
   if (size_ > 0) {
@@ -25,4 +25,4 @@ mmap_region::~mmap_region() {
   }
 }
 
-} // namespace unifex::linux
+} // namespace unifex::linuxos

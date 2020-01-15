@@ -26,6 +26,8 @@
 #include <type_traits>
 #include <vector>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 namespace unifex
 {
