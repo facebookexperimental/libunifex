@@ -21,24 +21,29 @@ cache:
 
 matrix:
   include:
-    - env: BUILD_TYPE=Release
-      os: osx
-      compiler: clang
+    # - env: BUILD_TYPE=Release
+    #   os: osx
+    #   compiler: clang
 
-    - env: BUILD_TYPE=Release
+    - env: BUILD_TYPE=Release CLANG_VERSION=9
       os: linux
-      compiler: clang # clang-7 on bionic, according to docs
-
-    - env: BUILD_TYPE=Release
-      os: linux
-      compiler: gcc # gcc-7.4 on bionic
-
-    - env: BUILD_TYPE=Release GCC_VERSION=8
-      os: linux
-      addons: &gcc8
+      addons: &clang9
         apt:
           packages:
-            - g++-8
+            - clang-9
+            - valgrind
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-bionic-9
+            - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
+              key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+
+    - env: BUILD_TYPE=Release GCC_VERSION=9
+      os: linux
+      addons: &gcc9
+        apt:
+          packages:
+            - g++-9
             - valgrind
           sources:
             - ubuntu-toolchain-r-test
