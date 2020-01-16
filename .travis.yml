@@ -1,0 +1,103 @@
+# Copyright (c) 2019-present, Facebook, Inc.
+#
+# This source code is licensed under the Apache License found in the
+# LICENSE.txt file in the root directory of this source tree.
+
+language: cpp
+dist: bionic
+script: cmake
+
+git:
+  depth: 1
+
+env:
+  global:
+    - DEPS_DIR=${TRAVIS_BUILD_DIR}/deps
+    - CMAKE_VERSION="3.12.0"
+
+cache:
+  directories:
+    - ${DEPS_DIR}/cmake-${CMAKE_VERSION}
+
+matrix:
+  include:
+    - env: BUILD_TYPE=Release
+      os: osx
+      compiler: clang
+
+    - env: BUILD_TYPE=Release
+      os: linux
+      compiler: clang # clang-7 on bionic, according to docs
+
+    - env: BUILD_TYPE=Release
+      os: linux
+      compiler: gcc # gcc-7.4 on bionic
+
+    - env: BUILD_TYPE=Release GCC_VERSION=8
+      os: linux
+      addons: &gcc8
+        apt:
+          packages:
+            - g++-8
+            - valgrind
+          sources:
+            - ubuntu-toolchain-r-test
+
+# Install dependencies
+before_install:
+  - set -e
+  - |
+    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      brew update
+      brew install gnu-sed
+      brew install gnu-which
+      brew upgrade cmake
+      export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+    elif [ "$BUILD_TYPE" == "Release" -a "$ASAN" != "On" -a "$MSAN" != "On" ]; then
+      USE_VALGRIND=On
+    fi
+  - |
+    if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
+      if [ -f ${DEPS_DIR}/cmake-${CMAKE_VERSION}/cached ]; then
+        echo "Using cached cmake version ${CMAKE_VERSION}."
+      else
+        CMAKE_URL="https://cmake.org/files/v3.12/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz"
+        mkdir -p ${DEPS_DIR}/cmake-${CMAKE_VERSION}
+        travis_retry wget --no-check-certificate --quiet -O - "${CMAKE_URL}" | tar --strip-components=1 -xz -C ${DEPS_DIR}/cmake-${CMAKE_VERSION}
+        touch ${DEPS_DIR}/cmake-${CMAKE_VERSION}/cached
+      fi
+      export PATH="${DEPS_DIR}/cmake-${CMAKE_VERSION}/bin:${PATH}"
+    fi
+  - if [ -n "$GCC_VERSION" ]; then export CXX="g++-${GCC_VERSION}" CC="gcc-${GCC_VERSION}"; fi
+  - if [ -n "$CLANG_VERSION" ]; then export CXX="clang++-${CLANG_VERSION}" CC="clang-${CLANG_VERSION}"; fi
+  - which $CXX && $CXX --version
+  - which $CC
+  - if [ "$USE_VALGRIND" == "On" ]; then which valgrind; fi
+  - if [ "$ASAN" == "On" ]; then export SANITIZER="Address;Undefined"; fi
+  - if [ "$MSAN" == "On" ]; then export SANITIZER="MemoryWithOrigins"; fi
+
+install:
+  - |
+    if [ -n "$CLANG_VERSION" ]; then
+      if [ "$ASAN" == "On" ]; then
+        CXX_FLAGS="${CXX_FLAGS} -fsanitize=address"
+      elif [ "$MSAN" == "On" ]; then
+        CXX_FLAGS="${CXX_FLAGS} -fsanitize=memory"
+      fi
+    fi
+
+  - mkdir -p build
+  # This cd works, but causes the shell to exit on OSX with set -e. I don't even.
+  - set +e; cd build; set -e; pwd
+  - cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -std=c++2a" -Wdev
+  - cat CMakeFiles/CMakeError.log || true
+  - cat CMakeFiles/CMakeOutput.log || true
+
+  - make -j2 VERBOSE=1
+
+script:
+  - if [ "$USE_VALGRIND" == "On" ]; then CTEST_FLAGS="-D ExperimentalMemCheck"; fi
+  - ctest -j2 -VV ${CTEST_FLAGS}
+
+notifications:
+  email: false
