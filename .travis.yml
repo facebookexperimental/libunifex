@@ -62,7 +62,7 @@ install:
 - cmake --version
 
 before_script:
-- if [ "$CXX" = "clang++9" ]; then
+- if [ "$CXX" = "clang++-9" ]; then
     source .install-libcxx.sh;
   fi
 - mkdir -p build && cd build
