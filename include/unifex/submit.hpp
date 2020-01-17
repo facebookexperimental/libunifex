@@ -100,7 +100,7 @@ public:
 
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  UNIFEX_NO_UNIQUE_ADDRESS operation_t<Sender, wrapped_receiver> inner_;
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/ operation_t<Sender, wrapped_receiver> inner_;
 };
 
 inline constexpr struct submit_cpo {
