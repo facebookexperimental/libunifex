@@ -25,6 +25,8 @@ addons:
     - sourceline: 'ppa:ubuntu-toolchain-r/test'
     packages:
     - clang-9
+    - libc++-8-dev
+    - libc++abi-8-dev
     - cmake
     - gcc-9
     - g++-9
@@ -60,7 +62,7 @@ install:
 
 before_script:
 - mkdir -p build && cd build
-- cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+- cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
 - cmake --build .
 - cd ..
 
