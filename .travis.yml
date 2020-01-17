@@ -1,109 +1,68 @@
-# Copyright (c) 2019-present, Facebook, Inc.
-#
-# This source code is licensed under the Apache License found in the
-# LICENSE.txt file in the root directory of this source tree.
+# Build matrix / environment variables are explained on:
+# http://about.travis-ci.org/docs/user/build-configuration/
+# This file can be validated on: http://lint.travis-ci.org/
 
 language: cpp
 dist: bionic
-script: cmake
+osx_image: xcode10.3
 
-git:
-  depth: 1
+compiler:
+- gcc
+- clang
+os:
+- linux
+- osx
 
 env:
-  global:
-    - DEPS_DIR=${TRAVIS_BUILD_DIR}/deps
-    - CMAKE_VERSION="3.12.0"
+- BUILD_TYPE=Debug
+- BUILD_TYPE=RelWithDebInfo
 
-cache:
-  directories:
-    - ${DEPS_DIR}/cmake-${CMAKE_VERSION}
-
-matrix:
-  include:
-    # - env: BUILD_TYPE=Release
-    #   os: osx
-    #   compiler: clang
-
-    - env: BUILD_TYPE=Release CLANG_VERSION=9
-      os: linux
-      addons: &clang9
-        apt:
-          packages:
-            - clang-9
-            - libstdc++-6-dev
-            - valgrind
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-bionic-9
-            - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
-              key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
-
-    - env: BUILD_TYPE=Release GCC_VERSION=9
-      os: linux
-      addons: &gcc9
-        apt:
-          packages:
-            - g++-9
-            - valgrind
-          sources:
-            - ubuntu-toolchain-r-test
-
-# Install dependencies
-before_install:
-  - set -e
-  - |
-    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-      brew update
-      brew install gnu-sed
-      brew install gnu-which
-      brew upgrade cmake
-      export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
-    elif [ "$BUILD_TYPE" == "Release" -a "$ASAN" != "On" -a "$MSAN" != "On" ]; then
-      USE_VALGRIND=On
-    fi
-  - |
-    if [ "${TRAVIS_OS_NAME}" == "linux" ]; then
-      if [ -f ${DEPS_DIR}/cmake-${CMAKE_VERSION}/cached ]; then
-        echo "Using cached cmake version ${CMAKE_VERSION}."
-      else
-        CMAKE_URL="https://cmake.org/files/v3.12/cmake-${CMAKE_VERSION}-Linux-x86_64.tar.gz"
-        mkdir -p ${DEPS_DIR}/cmake-${CMAKE_VERSION}
-        travis_retry wget --no-check-certificate --quiet -O - "${CMAKE_URL}" | tar --strip-components=1 -xz -C ${DEPS_DIR}/cmake-${CMAKE_VERSION}
-        touch ${DEPS_DIR}/cmake-${CMAKE_VERSION}/cached
-      fi
-      export PATH="${DEPS_DIR}/cmake-${CMAKE_VERSION}/bin:${PATH}"
-    fi
-  - if [ -n "$GCC_VERSION" ]; then export CXX="g++-${GCC_VERSION}" CC="gcc-${GCC_VERSION}"; fi
-  - if [ -n "$CLANG_VERSION" ]; then export CXX="clang++-${CLANG_VERSION}" CC="clang-${CLANG_VERSION}"; fi
-  - which $CXX && $CXX --version
-  - which $CC
-  - if [ "$USE_VALGRIND" == "On" ]; then which valgrind; fi
-  - if [ "$ASAN" == "On" ]; then export SANITIZER="Address;Undefined"; fi
-  - if [ "$MSAN" == "On" ]; then export SANITIZER="MemoryWithOrigins"; fi
+addons:
+  apt:
+    sources:
+    - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
+      key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+    - sourceline: 'ppa:ubuntu-toolchain-r/test'
+    packages:
+    - clang-9
+    - cmake
+    - gcc-9
+    - g++-9
+    - ninja-build
+  homebrew:
+    packages:
+    - cmake
+    - gcc@9
+    - llvm@9
+    - ninja
+    update: true
 
 install:
-  - |
-    if [ -n "$CLANG_VERSION" ]; then
-      if [ "$ASAN" == "On" ]; then
-        CXX_FLAGS="${CXX_FLAGS} -fsanitize=address"
-      elif [ "$MSAN" == "On" ]; then
-        CXX_FLAGS="${CXX_FLAGS} -fsanitize=memory"
-      fi
-    fi
+# The following Homebrew packages aren't linked by default, and need to be
+# prepended to the path explicitly.
+- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    export PATH="$(brew --prefix llvm)/bin:$PATH";
+  fi
+# /usr/bin/gcc points to an older compiler on both Linux and macOS.
+- if [ "$CXX" = "g++" ]; then export CXX="g++-9" CC="gcc-9"; fi
+# /usr/bin/clang points to an older compiler on both Linux and macOS.
+#
+# Homebrew's llvm package doesn't ship a versioned clang++ binary, so the values
+# below don't work on macOS. Fortunately, the path change above makes the
+# default values (clang and clang++) resolve to the correct compiler on macOS.
+- if [ "$TRAVIS_OS_NAME" = "linux" ]; then
+    if [ "$CXX" = "clang++" ]; then export CXX="clang++-9" CC="clang-9"; fi;
+  fi
+- echo ${CC}
+- echo ${CXX}
+- ${CXX} --version
+- cmake --version
 
-  - mkdir -p build
-  # This cd works, but causes the shell to exit on OSX with set -e. I don't even.
-  - set +e; cd build; set -e; pwd
-  - cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS="${CXX_FLAGS} -std=c++2a" -Wdev
-  - cat CMakeFiles/CMakeError.log || true
-  - cat CMakeFiles/CMakeOutput.log || true
-
-  - make -j2 VERBOSE=1
+before_script:
+- mkdir -p build && cd build
+- cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+- cmake --build .
+- cd ..
 
 script:
-  - if [ "$USE_VALGRIND" == "On" ]; then CTEST_FLAGS="-D ExperimentalMemCheck"; fi
-  - ctest -j2 -VV ${CTEST_FLAGS}
-
-notifications:
-  email: false
+- cd build && ctest --verbose && cd ..
