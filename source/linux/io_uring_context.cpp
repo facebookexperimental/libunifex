@@ -32,7 +32,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include <stdio.h>
+#include <cstdio>
 
 //#define LOGGING_ENABLED
 

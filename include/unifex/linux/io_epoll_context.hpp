@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#if __has_include(<liburing.h>)
+#if __has_include(<sys/epoll.h>)
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
@@ -28,7 +28,6 @@
 #include <unifex/span.hpp>
 #include <unifex/stop_token_concepts.hpp>
 
-#include <unifex/linux/mmap_region.hpp>
 #include <unifex/linux/monotonic_clock.hpp>
 #include <unifex/linux/safe_file_descriptor.hpp>
 
@@ -39,14 +38,14 @@
 #include <system_error>
 #include <utility>
 
-#include <liburing.h>
-
+#include <sys/epoll.h>
+#include <sys/timerfd.h>
 #include <sys/uio.h>
 
 namespace unifex {
 namespace linuxos {
 
-class io_uring_context {
+class io_epoll_context {
  public:
   class schedule_sender;
   class schedule_at_sender;
@@ -59,9 +58,9 @@ class io_uring_context {
   class async_write_only_file;
   class scheduler;
 
-  io_uring_context();
+  io_epoll_context();
 
-  ~io_uring_context();
+  ~io_epoll_context();
 
   template <typename StopToken>
   void run(StopToken stopToken);
@@ -92,7 +91,7 @@ class io_uring_context {
 
   struct schedule_at_operation : operation_base {
     explicit schedule_at_operation(
-        io_uring_context& context,
+        io_epoll_context& context,
         const time_point& dueTime,
         bool canBeCancelled) noexcept
         : context_(context),
@@ -101,7 +100,7 @@ class io_uring_context {
 
     schedule_at_operation* timerNext_;
     schedule_at_operation* timerPrev_;
-    io_uring_context& context_;
+    io_epoll_context& context_;
     time_point dueTime_;
     bool canBeCancelled_;
 
@@ -127,10 +126,6 @@ class io_uring_context {
   void schedule_local(operation_base* op) noexcept;
   void schedule_local(operation_queue ops) noexcept;
   void schedule_remote(operation_base* op) noexcept;
-
-  // Schedule some operation to be run when there is next available I/O slots.
-  void schedule_pending_io(operation_base* op) noexcept;
-  void reschedule_pending_io(operation_base* op) noexcept;
 
   // Insert the timer operation into the queue of timers.
   // Must be called from the I/O thread.
@@ -175,26 +170,6 @@ class io_uring_context {
   bool try_submit_timer_io(const time_point& dueTime) noexcept;
   bool try_submit_timer_io_cancel() noexcept;
 
-  // Try to submit an entry to the submission queue
-  //
-  // If there is space in the queue then populateSqe
-  template <typename PopulateFn>
-  bool try_submit_io(PopulateFn populateSqe) noexcept;
-
-  // Total number of operations submitted that have not yet
-  // completed.
-  std::uint32_t pending_operation_count() const noexcept {
-    return cqPendingCount_ + sqUnflushedCount_;
-  }
-
-  // Query whether there is space in the submission ring buffer
-  // and space in the completion ring buffer for an additional
-  // entry.
-  bool can_submit_io() const noexcept {
-    return sqUnflushedCount_ < sqEntryCount_ &&
-        pending_operation_count() < cqEntryCount_;
-  }
-
   std::uintptr_t timer_user_data() const {
     return reinterpret_cast<std::uintptr_t>(&timers_);
   }
@@ -203,47 +178,19 @@ class io_uring_context {
     return reinterpret_cast<std::uintptr_t>(&currentDueTime_);
   }
 
-  struct __kernel_timespec {
-    int64_t tv_sec;
-    long long tv_nsec;
-  };
-
   ////////
   // Data that does not change once initialised.
 
-  // Submission queue state
-  std::uint32_t sqEntryCount_;
-  std::uint32_t sqMask_;
-  io_uring_sqe* sqEntries_;
-  unsigned* sqIndexArray_;
-  const std::atomic<unsigned>* sqHead_;
-  std::atomic<unsigned>* sqTail_;
-  std::atomic<unsigned>* sqFlags_;
-  std::atomic<unsigned>* sqDropped_;
-
-  // Completion queue state
-  std::uint32_t cqEntryCount_;
-  std::uint32_t cqMask_;
-  io_uring_cqe* cqEntries_;
-  std::atomic<unsigned>* cqHead_;
-  const std::atomic<unsigned>* cqTail_;
-  const std::atomic<unsigned>* cqOverflow_;
-
   // Resources
-  safe_file_descriptor iouringFd_;
+  safe_file_descriptor epollFd_;
+  safe_file_descriptor timerFd_;
   safe_file_descriptor remoteQueueEventFd_;
-  mmap_region cqMmap_;
-  mmap_region sqMmap_;
-  mmap_region sqeMmap_;
 
   ///////////////////
   // Data that is modified by I/O thread
 
   // Local queue for operations that are ready to execute.
   operation_queue localQueue_;
-
-  // Operations that are waiting for more space in the I/O queues.
-  operation_queue pendingIoQueue_;
 
   // Set of operations waiting to be executed at a specific time.
   timer_heap timers_;
@@ -252,20 +199,14 @@ class io_uring_context {
   // is due to elapse.
   std::optional<time_point> currentDueTime_;
 
-  // Number of unflushed I/O submission entries.
-  std::uint32_t sqUnflushedCount_ = 0;
-
-  // Number of submitted operations that have not yet received a completion.
-  // We should ensure this number is never greater than cqEntryCount_ so that
-  // we don't end up with an overflowed completion queue.
-  std::uint32_t cqPendingCount_ = 0;
-
   bool remoteQueueReadSubmitted_ = false;
   bool timersAreDirty_ = false;
 
   std::uint32_t activeTimerCount_ = 0;
 
-  __kernel_timespec time_;
+  static const std::uint32_t maxCount_ = 256;
+  epoll_event completed_[maxCount_];
+  std::uint32_t count_;
 
   //////////////////
   // Data that is modified by remote threads
@@ -275,7 +216,7 @@ class io_uring_context {
 };
 
 template <typename StopToken>
-void io_uring_context::run(StopToken stopToken) {
+void io_epoll_context::run(StopToken stopToken) {
   stop_operation stopOp;
   auto onStopRequested = [&] { this->schedule_impl(&stopOp); };
   typename StopToken::template callback_type<decltype(onStopRequested)>
@@ -283,42 +224,7 @@ void io_uring_context::run(StopToken stopToken) {
   run_impl(stopOp.shouldStop_);
 }
 
-template <typename PopulateFn>
-bool io_uring_context::try_submit_io(PopulateFn populateSqe) noexcept {
-  assert(is_running_on_io_thread());
-
-  if (pending_operation_count() < cqEntryCount_) {
-    // Haven't reached limit of completion-queue yet.
-    const auto tail = sqTail_->load(std::memory_order_relaxed);
-    const auto head = sqHead_->load(std::memory_order_acquire);
-    const auto usedCount = (tail - head);
-    assert(usedCount <= sqEntryCount_);
-    if (usedCount < sqEntryCount_) {
-      // There is space in the submission-queue.
-      const auto index = tail & sqMask_;
-      auto& sqe = sqEntries_[index];
-
-      static_assert(noexcept(populateSqe(sqe)));
-
-      if constexpr (std::is_void_v<decltype(populateSqe(sqe))>) {
-        populateSqe(sqe);
-      } else {
-        if (!populateSqe(sqe)) {
-          return false;
-        }
-      }
-
-      sqIndexArray_[index] = index;
-      sqTail_->store(tail + 1, std::memory_order_release);
-      ++sqUnflushedCount_;
-      return true;
-    }
-  }
-
-  return false;
-}
-
-class io_uring_context::schedule_sender {
+class io_epoll_context::schedule_sender {
   template <typename Receiver>
   class operation : private operation_base {
    public:
@@ -335,7 +241,7 @@ class io_uring_context::schedule_sender {
     friend schedule_sender;
 
     template <typename Receiver2>
-    explicit operation(io_uring_context& context, Receiver2&& r)
+    explicit operation(io_epoll_context& context, Receiver2&& r)
         : context_(context), receiver_((Receiver2 &&) r) {
       this->execute_ = &execute_impl;
     }
@@ -352,7 +258,7 @@ class io_uring_context::schedule_sender {
       unifex::set_value(static_cast<Receiver&&>(op.receiver_));
     }
 
-    io_uring_context& context_;
+    io_epoll_context& context_;
     Receiver receiver_;
   };
 
@@ -372,311 +278,15 @@ class io_uring_context::schedule_sender {
   }
 
  private:
-  friend io_uring_context::scheduler;
+  friend io_epoll_context::scheduler;
 
-  explicit schedule_sender(io_uring_context& context) noexcept
+  explicit schedule_sender(io_epoll_context& context) noexcept
       : context_(context) {}
 
-  io_uring_context& context_;
+  io_epoll_context& context_;
 };
 
-class io_uring_context::read_sender {
-  using offset_t = std::uint64_t;
-
-  template <typename Receiver>
-  class operation : private completion_base {
-    friend io_uring_context;
-
-   public:
-    template <typename Receiver2>
-    explicit operation(const read_sender& sender, Receiver2&& r)
-        : context_(sender.context_),
-          fd_(sender.fd_),
-          offset_(sender.offset_),
-          receiver_((Receiver2 &&) r) {
-      buffer_[0].iov_base = sender.buffer_.data();
-      buffer_[0].iov_len = sender.buffer_.size();
-    }
-
-    void start() noexcept {
-      if (!context_.is_running_on_io_thread()) {
-        this->execute_ = &operation::on_schedule_complete;
-        context_.schedule_remote(this);
-      } else {
-        start_io();
-      }
-    }
-
-   private:
-    void populate_sqe(io_uring_sqe& sqe) noexcept {}
-
-    static void on_schedule_complete(operation_base* op) noexcept {
-      static_cast<operation*>(op)->start_io();
-    }
-
-    void start_io() noexcept {
-      assert(context_.is_running_on_io_thread());
-
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
-        sqe.opcode = IORING_OP_READV;
-        sqe.flags = 0;
-        sqe.ioprio = 0;
-        sqe.fd = fd_;
-        sqe.off = offset_;
-        sqe.addr = reinterpret_cast<std::uintptr_t>(&buffer_[0]);
-        sqe.len = 1;
-        sqe.rw_flags = 0;
-        sqe.user_data = reinterpret_cast<std::uintptr_t>(
-            static_cast<completion_base*>(this));
-        sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
-
-        this->execute_ = &operation::on_read_complete;
-      };
-
-      if (!context_.try_submit_io(populateSqe)) {
-        this->execute_ = &operation::on_schedule_complete;
-        context_.schedule_pending_io(this);
-      }
-    }
-
-    static void on_read_complete(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
-      if (self.result_ >= 0) {
-        unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
-      } else if (self.result_ == -ECANCELED) {
-        unifex::set_done(std::move(self.receiver_));
-      } else {
-        unifex::set_error(
-            std::move(self.receiver_),
-            std::error_code{-self.result_, std::system_category()});
-      }
-    }
-
-    io_uring_context& context_;
-    int fd_;
-    offset_t offset_;
-    iovec buffer_[1];
-    Receiver receiver_;
-  };
-
- public:
-  // Produces number of bytes read.
-  template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
-  using value_types = Variant<Tuple<ssize_t>>;
-
-  template <template <typename...> class Variant>
-  using error_types = Variant<std::error_code>;
-
-  explicit read_sender(
-      io_uring_context& context,
-      int fd,
-      offset_t offset,
-      span<std::byte> buffer) noexcept
-      : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
-
-  template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
-  }
-
- private:
-  io_uring_context& context_;
-  int fd_;
-  offset_t offset_;
-  span<std::byte> buffer_;
-};
-
-class io_uring_context::write_sender {
-  using offset_t = std::uint64_t;
-
-  template <typename Receiver>
-  class operation : private completion_base {
-    friend io_uring_context;
-
-   public:
-    template <typename Receiver2>
-    explicit operation(const write_sender& sender, Receiver2&& r)
-        : context_(sender.context_),
-          fd_(sender.fd_),
-          offset_(sender.offset_),
-          receiver_((Receiver2 &&) r) {
-      buffer_[0].iov_base = (void*)sender.buffer_.data();
-      buffer_[0].iov_len = sender.buffer_.size();
-    }
-
-    void start() noexcept {
-      if (!context_.is_running_on_io_thread()) {
-        this->execute_ = &operation::on_schedule_complete;
-        context_.schedule_remote(this);
-      } else {
-        start_io();
-      }
-    }
-
-   private:
-    void populate_sqe(io_uring_sqe& sqe) noexcept {}
-
-    static void on_schedule_complete(operation_base* op) noexcept {
-      static_cast<operation*>(op)->start_io();
-    }
-
-    void start_io() noexcept {
-      assert(context_.is_running_on_io_thread());
-
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
-        sqe.opcode = IORING_OP_WRITEV;
-        sqe.flags = 0;
-        sqe.ioprio = 0;
-        sqe.fd = fd_;
-        sqe.off = offset_;
-        sqe.addr = reinterpret_cast<std::uintptr_t>(&buffer_[0]);
-        sqe.len = 1;
-        sqe.rw_flags = 0;
-        sqe.user_data = reinterpret_cast<std::uintptr_t>(
-            static_cast<completion_base*>(this));
-        sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
-
-        this->execute_ = &operation::on_write_complete;
-      };
-
-      if (!context_.try_submit_io(populateSqe)) {
-        this->execute_ = &operation::on_schedule_complete;
-        context_.schedule_pending_io(this);
-      }
-    }
-
-    static void on_write_complete(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
-      if (self.result_ >= 0) {
-        unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
-      } else if (self.result_ == -ECANCELED) {
-        unifex::set_done(std::move(self.receiver_));
-      } else {
-        unifex::set_error(
-            std::move(self.receiver_),
-            std::error_code{-self.result_, std::system_category()});
-      }
-    }
-
-    io_uring_context& context_;
-    int fd_;
-    offset_t offset_;
-    iovec buffer_[1];
-    Receiver receiver_;
-  };
-
- public:
-  // Produces number of bytes read.
-  template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
-  using value_types = Variant<Tuple<ssize_t>>;
-
-  template <template <typename...> class Variant>
-  using error_types = Variant<std::error_code>;
-
-  explicit write_sender(
-      io_uring_context& context,
-      int fd,
-      offset_t offset,
-      span<const std::byte> buffer) noexcept
-      : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
-
-  template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
-  }
-
- private:
-  io_uring_context& context_;
-  int fd_;
-  offset_t offset_;
-  span<const std::byte> buffer_;
-};
-
-class io_uring_context::async_read_only_file {
- public:
-  using offset_t = std::uint64_t;
-
-  explicit async_read_only_file(io_uring_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
-
-  read_sender async_read_some(
-      uint64_t offset,
-      span<std::byte> buffer) noexcept {
-    return read_sender{context_, fd_.get(), offset, buffer};
-  }
-
- private:
-  friend scheduler;
-
-  friend read_sender tag_invoke(
-      tag_t<async_read_some_at>,
-      async_read_only_file& file,
-      offset_t offset,
-      span<std::byte> buffer) noexcept {
-    return read_sender{file.context_, file.fd_.get(), offset, buffer};
-  }
-
-  io_uring_context& context_;
-  safe_file_descriptor fd_;
-};
-
-class io_uring_context::async_write_only_file {
- public:
-  using offset_t = std::uint64_t;
-
-  explicit async_write_only_file(io_uring_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
-
- private:
-  friend scheduler;
-
-  friend write_sender tag_invoke(
-      tag_t<async_write_some_at>,
-      async_write_only_file& file,
-      offset_t offset,
-      span<const std::byte> buffer) noexcept {
-    return write_sender{file.context_, file.fd_.get(), offset, buffer};
-  }
-
-  io_uring_context& context_;
-  safe_file_descriptor fd_;
-};
-
-class io_uring_context::async_read_write_file {
- public:
-  using offset_t = std::uint64_t;
-
-  explicit async_read_write_file(io_uring_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
-
- private:
-  friend scheduler;
-
-  friend write_sender tag_invoke(
-      tag_t<async_write_some_at>,
-      async_read_write_file& file,
-      offset_t offset,
-      span<const std::byte> buffer) noexcept {
-    return write_sender{file.context_, file.fd_.get(), offset, buffer};
-  }
-
-  friend read_sender tag_invoke(
-      tag_t<async_read_some_at>,
-      async_read_write_file& file,
-      offset_t offset,
-      span<std::byte> buffer) noexcept {
-    return read_sender{file.context_, file.fd_.get(), offset, buffer};
-  }
-
-  io_uring_context& context_;
-  safe_file_descriptor fd_;
-};
-
-class io_uring_context::schedule_at_sender {
+class io_epoll_context::schedule_at_sender {
   template <typename Receiver>
   struct operation : schedule_at_operation {
     static constexpr bool is_stop_ever_possible =
@@ -684,7 +294,7 @@ class io_uring_context::schedule_at_sender {
 
    public:
     explicit operation(
-        io_uring_context& context,
+        io_epoll_context& context,
         const time_point& dueTime,
         Receiver&& r)
         : schedule_at_operation(
@@ -842,7 +452,7 @@ class io_uring_context::schedule_at_sender {
   using error_types = Variant<>;
 
   explicit schedule_at_sender(
-      io_uring_context& context,
+      io_epoll_context& context,
       const time_point& dueTime) noexcept
       : context_(context), dueTime_(dueTime) {}
 
@@ -853,11 +463,11 @@ class io_uring_context::schedule_at_sender {
   }
 
  private:
-  io_uring_context& context_;
+  io_epoll_context& context_;
   time_point dueTime_;
 };
 
-class io_uring_context::scheduler {
+class io_epoll_context::scheduler {
  public:
   scheduler(const scheduler&) noexcept = default;
   scheduler& operator=(const scheduler&) = default;
@@ -876,7 +486,7 @@ class io_uring_context::scheduler {
   }
 
  private:
-  friend io_uring_context;
+  friend io_epoll_context;
 
   friend async_read_only_file tag_invoke(
       tag_t<open_file_read_only>,
@@ -895,16 +505,16 @@ class io_uring_context::scheduler {
     return a.context_ == b.context_;
   }
 
-  explicit scheduler(io_uring_context& context) noexcept : context_(&context) {}
+  explicit scheduler(io_epoll_context& context) noexcept : context_(&context) {}
 
-  io_uring_context* context_;
+  io_epoll_context* context_;
 };
 
-inline io_uring_context::scheduler io_uring_context::get_scheduler() noexcept {
+inline io_epoll_context::scheduler io_epoll_context::get_scheduler() noexcept {
   return scheduler{*this};
 }
 
 } // namespace linuxos
 } // namespace unifex
 
-#endif // __has_include(<liburing.h>)
+#endif // __has_include(<sys/epoll.h>)

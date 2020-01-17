@@ -20,7 +20,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     PRIVATE
       linux/mmap_region.cpp
       linux/monotonic_clock.cpp
-      linux/safe_file_descriptor.cpp)
+      linux/safe_file_descriptor.cpp
+      linux/io_epoll_context.cpp)
 
   target_link_libraries(unifex
     PRIVATE
