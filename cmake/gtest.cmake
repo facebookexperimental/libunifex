@@ -6,14 +6,7 @@
 # Download and unpack googletest at configure time
 configure_file(cmake/CMakeLists.txt.in googletest-download/CMakeLists.txt)
 
-if(UNIFEX_CXX_COMPILER_CLANG)
-  set(UNIFEX_STDLIB_FLAG "-DCMAKE_CXX_FLAGS:STRING=-stdlib=libc++")
-  set(UNIFEX_STDLIB_LIB "-DCMAKE_EXE_LINKER_FLAGS=-lc++ -DCMAKE_STATIC_LINKER_FLAGS=-lc++")
-endif()
-
 execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-  -DCMAKE_CXX_COMPILER:PATH="${CMAKE_CXX_COMPILER}"
-  "${UNIFEX_STDLIB_FLAG}" "${UNIFEX_STDLIB_LIB}"
   RESULT_VARIABLE result
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
 

@@ -24,3 +24,8 @@ if(UNIFEX_CXX_COMPILER_MSVC OR UNIFEX_CXX_COMPILER_CLANGCL)
 else()
   set(UNIFEX_CXX_STD "-std=gnu++2a")
 endif()
+
+if (UNIFEX_CXX_COMPILER_CLANG)
+  add_compile_options(-std=libc++)
+  add_link_options(-lc++)
+endif()
