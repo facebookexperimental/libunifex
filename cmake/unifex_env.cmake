@@ -27,5 +27,5 @@ endif()
 
 if (UNIFEX_CXX_COMPILER_CLANG)
   add_compile_options(-std=libc++)
-  add_link_options(-lc++)
+  link_libraries(c++)
 endif()
