@@ -31,6 +31,7 @@ matrix:
         apt:
           packages:
             - clang-9
+            - libstdc++-6-dev
             - valgrind
           sources:
             - ubuntu-toolchain-r-test
