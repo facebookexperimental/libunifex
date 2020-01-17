@@ -27,6 +27,7 @@ addons:
     - clang-9
     - libc++-8-dev
     - libc++abi-8-dev
+    - libstdc++-8-dev
     - cmake
     - gcc-9
     - g++-9
@@ -61,6 +62,9 @@ install:
 - cmake --version
 
 before_script:
+- if [ -n "${INSTALL_LIBCXX}" ]; then
+    source .install-libcxx.sh;
+  fi
 - mkdir -p build && cd build
 - cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
 - cmake --build .
