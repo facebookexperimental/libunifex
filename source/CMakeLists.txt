@@ -57,6 +57,7 @@ target_compile_features(unifex PUBLIC cxx_std_20)
 
 if(UNIFEX_CXX_COMPILER_CLANG)
   target_compile_options(unifex PUBLIC -stdlib=libc++)
+  target_link_libraries(unifex PUBLIC c++)
 endif()
 if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)
