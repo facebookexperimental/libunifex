@@ -16,6 +16,9 @@ This project contains implementations of the following:
 
 This project is still evolving and should be considered experimental in nature.
 
+**Build status**
+- on Travis-CI: [![Travis Build Status](https://travis-ci.com/facebookexperimental/libunifex.svg?branch=master)](https://travis-ci.com/facebookexperimental/libunifex)
+
 # Documentation
 
 * [Overview](doc/overview.md)
