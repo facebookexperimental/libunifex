@@ -14,6 +14,9 @@
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
+  * `materialize()`
+  * `dematerialize()`
+  * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
 * Sender Types
@@ -230,6 +233,49 @@ to `value()`.
 If any of the input senders complete with done or error then it will request
 any senders that have not yet completed to stop and the operation as a whole
 will complete with done or error.
+
+### `materialize(Sender sender) -> Sender`
+
+Materializes the completion signal of `sender` into the value-channel by
+invoking prepending the completion arguments with the corresponding
+`set_value`, `set_error` or `set_done` CPO as an additional argument.
+
+ie. Transforms the following LHS completion signals to the RHS completion signals
+* `set_value(r, values...)` -> `set_value(r, set_value, values...)`
+* `set_error(r, e)` -> `set_value(r, set_error, e)`
+* `set_done(r)` -> `set_value(r, set_done)`
+
+This allows you to treat any result as a success and process the result as
+a value.
+
+### `dematerialize(Sender sender) -> Sender`
+
+Converts a sender of materialized signals into a sender of those signals.
+This reverses the transformation of signals performed by `materialize()`.
+
+If `sender` completes with `set_value(r, set_value, values...)` then the
+dematerialized sender will complete with `set_value(r, values...)`.
+
+Similarly if `sender` completes with `set_value(r, set_error, e)` then the
+dematerialized sender will complete with `set_error(r, e)`.
+
+And if `sender` completes with `set_value(r, set_done)` then the dematerialized
+sender will complete with `set_done(r)`.
+
+Any `set_error()` or `set_done()` signals are passed through unchanged.
+
+### `allocate(Sender sender) -> Sender`
+
+Takes a Sender and produces a new Sender that will heap-allocate its operation
+state rather than embedding its operation state into the parent operation-state.
+
+This can be used to avoid bloating parent operation-state objects with a large
+child operation-state that might only be used part of the time.
+
+Uses the allocator returned by `get_allocator(receiver)`.
+
+The allocator to be used can be customised by injecting an allocator using the
+`with_allocator()` algorithm.
 
 ### `with_query_value(Sender sender, CPO cpo, T value) -> Sender`
 

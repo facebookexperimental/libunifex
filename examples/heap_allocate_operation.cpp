@@ -13,16 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/linux/monotonic_clock.hpp>
 
-#include <time.h>
+#include <unifex/allocate.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
-namespace unifex::linuxos {
+#include <array>
+#include <cstdio>
 
-monotonic_clock::time_point monotonic_clock::now() noexcept {
-  timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return time_point::from_seconds_and_nanoseconds(ts.tv_sec, ts.tv_nsec);
+using namespace unifex;
+
+int main() {
+  single_thread_context threadContext;
+
+  auto thread = threadContext.get_scheduler();
+
+  sync_wait(allocate(transform(
+      schedule(thread), [] { std::printf("hello libunifex!\n"); })));
+
+  return 0;
 }
-
-} // namespace unifex::linuxos

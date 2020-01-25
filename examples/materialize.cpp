@@ -13,18 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/linux/safe_file_descriptor.hpp>
+
+#include <unifex/when_all.hpp>
+#include <unifex/materialize.hpp>
+#include <unifex/dematerialize.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
 #include <cassert>
+#include <optional>
 
-#include <unistd.h>
+using namespace unifex;
 
-namespace unifex::linuxos {
+int main() {
+    single_thread_context ctx;
 
-void safe_file_descriptor::close() noexcept {
-  assert(valid());
-  [[maybe_unused]] int result = ::close(std::exchange(fd_, -1));
-  assert(result == 0);
+    std::optional<int> result = sync_wait(
+        dematerialize(
+            materialize(
+                transform(
+                    schedule(ctx.get_scheduler()),
+                    []() { return 42; }))));
+    assert(result.value() == 42);
+
+    return 0;
 }
-
-} // namespace unifex::linuxos

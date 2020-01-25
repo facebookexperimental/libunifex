@@ -18,7 +18,7 @@
 #include <utility>
 
 namespace unifex {
-namespace linux {
+namespace linuxos {
 
 class safe_file_descriptor {
  public:
@@ -54,5 +54,5 @@ class safe_file_descriptor {
   int fd_;
 };
 
-} // namespace linux
+} // namespace linuxos
 } // namespace unifex

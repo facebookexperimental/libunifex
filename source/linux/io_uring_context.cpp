@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#if __has_include(<liburing.h>)
+
 #include <unifex/linux/io_uring_context.hpp>
 
 #include <unifex/scope_guard.hpp>
@@ -237,7 +240,7 @@
 // the list of remotely scheduled items and add them to the list of
 // ready-to-run operations.
 
-namespace unifex::linux {
+namespace unifex::linuxos {
 
 static thread_local io_uring_context* currentThreadContext;
 
@@ -821,4 +824,6 @@ io_uring_context::async_read_write_file tag_invoke(
   return io_uring_context::async_read_write_file{*scheduler.context_, result};
 }
 
-} // namespace unifex::linux
+} // namespace unifex::linuxos
+
+#endif // __has_include(<liburing.h>)

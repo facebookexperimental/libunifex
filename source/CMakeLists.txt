@@ -20,13 +20,28 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     PRIVATE
       linux/mmap_region.cpp
       linux/monotonic_clock.cpp
-      linux/safe_file_descriptor.cpp
-      linux/io_uring_context.cpp)
+      linux/safe_file_descriptor.cpp)
 
   target_link_libraries(unifex
     PRIVATE
-      pthread
-      uring)
+      pthread)
+
+if (UNIFEX_NO_LIBURING EQUAL FALSE)
+
+  target_sources(unifex
+    PRIVATE
+      linux/io_uring_context.cpp)
+
+  target_include_directories(unifex
+    PUBLIC
+      ${UNIFEX_URING_HEADER})
+
+  target_link_libraries(unifex
+    PRIVATE
+      ${UNIFEX_URING_LIBRARY})
+
+endif()
+
 endif()
 
 configure_file(
@@ -42,6 +57,7 @@ target_compile_features(unifex PUBLIC cxx_std_20)
 
 if(UNIFEX_CXX_COMPILER_CLANG)
   target_compile_options(unifex PUBLIC -stdlib=libc++)
+  target_link_libraries(unifex PUBLIC c++)
 endif()
 if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)
