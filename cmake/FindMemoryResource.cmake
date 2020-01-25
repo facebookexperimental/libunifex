@@ -116,6 +116,11 @@ else()
   set(CMAKE_REQUIRED_FLAGS "-std=c++17")
 endif()
 
+if("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang" AND NOT "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
+    set(_CXX_MEMORY_RESOURCE_STDLIB "-stdlib=libc++")
+    set(_CXX_MEMORY_RESOURCE_STDLIB_LIB "-lc++")
+endif()
+
 # Normalize and check the component list we were given
 set(want_components ${MemoryResource_FIND_COMPONENTS})
 if(MemoryResource_FIND_COMPONENTS STREQUAL "")
@@ -140,6 +145,8 @@ if(NOT "Experimental" IN_LIST want_components)
 endif()
 
 if(find_final)
+    set(CMAKE_REQUIRED_FLAGS "${_CXX_MEMORY_RESOURCE_STDLIB}")
+    set(CMAKE_REQUIRED_LIBRARIES "${_CXX_MEMORY_RESOURCE_STDLIB_LIB}")
     check_include_file_cxx("memory_resource" _CXX_MEMORY_RESOURCE_HAVE_HEADER)
     mark_as_advanced(_CXX_MEMORY_RESOURCE_HAVE_HEADER)
     if(_CXX_MEMORY_RESOURCE_HAVE_HEADER)
@@ -152,6 +159,8 @@ else()
 endif()
 
 if(find_experimental)
+    set(CMAKE_REQUIRED_FLAGS "${_CXX_MEMORY_RESOURCE_STDLIB}")
+    set(CMAKE_REQUIRED_LIBRARIES "${_CXX_MEMORY_RESOURCE_STDLIB_LIB}")
     check_include_file_cxx("experimental/memory_resource" _CXX_MEMORY_RESOURCE_HAVE_EXPERIMENTAL_HEADER)
     mark_as_advanced(_CXX_MEMORY_RESOURCE_HAVE_EXPERIMENTAL_HEADER)
 else()
@@ -189,6 +198,8 @@ if(CXX_MEMORY_RESOURCE_HAVE_PMR)
     ]] code @ONLY)
 
     # Try to compile a simple memory_resource program without any linker flags
+    set(CMAKE_REQUIRED_FLAGS "${_CXX_MEMORY_RESOURCE_STDLIB}")
+    set(CMAKE_REQUIRED_LIBRARIES "${_CXX_MEMORY_RESOURCE_STDLIB_LIB}")
     check_cxx_source_compiles("${code}" CXX_MEMORY_RESOURCE_NO_LINK_NEEDED)
 
     set(can_link ${CXX_MEMORY_RESOURCE_NO_LINK_NEEDED})
@@ -196,6 +207,7 @@ if(CXX_MEMORY_RESOURCE_HAVE_PMR)
     if(NOT CXX_MEMORY_RESOURCE_NO_LINK_NEEDED)
         set(prev_libraries ${CMAKE_REQUIRED_LIBRARIES})
         # Add the libstdc++experimental flag
+        set(CMAKE_REQUIRED_FLAGS "${_CXX_MEMORY_RESOURCE_STDLIB}")
         set(CMAKE_REQUIRED_LIBRARIES ${prev_libraries} -lstdc++experimental)
         check_cxx_source_compiles("${code}" CXX_MEMORY_RESOURCE_STDCPPEXPERIMENTAL_NEEDED)
         set(can_link ${CXX_MEMORY_RESOURCE_STDCPPEXPERIMENTAL_NEEDED})
@@ -210,7 +222,14 @@ if(CXX_MEMORY_RESOURCE_HAVE_PMR)
     if(can_link)
         add_library(std::memory_resource INTERFACE IMPORTED)
         target_compile_features(std::memory_resource INTERFACE cxx_std_17)
+        if(NOT "x${_CXX_MEMORY_RESOURCE_STDLIB}" STREQUAL "x")
+            target_compile_options(std::memory_resource INTERFACE ${_CXX_MEMORY_RESOURCE_STDLIB})
+        endif()
         set(_found TRUE)
+
+        if(NOT "x${_CXX_MEMORY_RESOURCE_STDLIB_LIB}" STREQUAL "x")
+            target_link_libraries(std::memory_resource INTERFACE ${_CXX_MEMORY_RESOURCE_STDLIB_LIB})
+        endif()
 
         if(CXX_MEMORY_RESOURCE_NO_LINK_NEEDED)
             # Nothing to add...

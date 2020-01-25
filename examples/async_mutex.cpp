@@ -38,12 +38,9 @@ int main() {
 
   auto makeTask = [&](manual_event_loop::scheduler scheduler) -> task<int> {
     for (int i = 0; i < 100'000; ++i) {
-      std::printf("acquiring lock\n");
       co_await mutex.async_lock();
-      std::printf("scheduling\n");
       co_await schedule(scheduler);
       ++sharedState;
-      std::printf("unlocking\n");
       mutex.unlock();
     }
     co_return 0;

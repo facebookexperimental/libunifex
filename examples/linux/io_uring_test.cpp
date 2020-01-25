@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#if __has_include(<liburing.h>)
+
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
@@ -143,3 +146,10 @@ int main() {
 
   return 0;
 }
+
+#else
+#include <cstdio>
+int main() {
+  printf("liburing support not found\n");
+}
+#endif // __has_include(<liburing.h>)

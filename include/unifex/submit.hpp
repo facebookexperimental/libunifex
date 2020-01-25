@@ -100,7 +100,7 @@ public:
 
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  UNIFEX_NO_UNIQUE_ADDRESS operation_t<Sender, wrapped_receiver> inner_;
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/ operation_t<Sender, wrapped_receiver> inner_;
 };
 
 inline constexpr struct submit_cpo {
@@ -121,6 +121,7 @@ inline constexpr struct submit_cpo {
           // state on the heap.
           auto op = unifex::connect((Sender &&) sender, (Receiver &&) receiver);
           unifex::start(op);
+          break;
         }
         default:
         {

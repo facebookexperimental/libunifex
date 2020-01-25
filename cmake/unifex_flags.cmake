@@ -27,3 +27,15 @@ if(CXX_MEMORY_RESOURCE_HAVE_PMR)
 else()
   set(UNIFEX_NO_MEMORY_RESOURCE TRUE)
 endif()
+
+# Probe for libUring support
+find_package(LibUring COMPONENTS)
+# Set some variables to be used by configure_file.
+if(LIBURING_FOUND)
+  set(UNIFEX_NO_LIBURING FALSE)
+  set(UNIFEX_URING_HEADER ${LIBURING_LIBRARIES})
+  set(UNIFEX_URING_LIBRARY ${LIBURING_INCLUDE_DIRS})
+else()
+  set(UNIFEX_NO_LIBURING TRUE)
+endif()
+
