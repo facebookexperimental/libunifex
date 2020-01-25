@@ -25,7 +25,12 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/unstoppable_token.hpp>
 
+#include <cassert>
+#include <exception>
+#include <functional>
 #include <tuple>
+#include <type_traits>
+#include <utility>
 
 namespace unifex
 {
