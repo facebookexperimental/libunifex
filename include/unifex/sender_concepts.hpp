@@ -82,16 +82,6 @@ template <
 using adapt_value_types_t =
     typename Sender::template value_types<Variant, typename Adaptor::apply>;
 
-template <typename... Values>
-struct single_type {
-  // empty so we are SFINAE friendly.
-};
-
-template <typename T>
-struct single_type<T> {
-  using type = T;
-};
-
 template <typename... Types>
 struct single_value_type {
   using type = std::tuple<Types...>;
