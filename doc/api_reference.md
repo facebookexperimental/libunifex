@@ -89,13 +89,21 @@ Returns a sender that transforms the value of the `predecessor` by calling
 Returns a sender that will first launch `source` and upon completion of
 `source` will launch the `completion` sender.
 
-If `completion` completes with `set_value()` (which must ) then the
-composed operation completes with the result of `source`.
-Otherwise, if `completion` sender completes with 'done' or 'error'
+If `completion` completes with `set_value()` (which must complete with an
+empty value pack) then the composed operation completes with the result of
+`source`.
+Otherwise, if `completion` sender completes with `set_done` or `set_error`
 then the composed operation completes with the result of `completion`.
 
-Note that `completion` sender must complete with an empty value pack.
-ie. be a `void`-value sender.
+The composed finally-operation will complete inline on the execution context
+that the `completion` sender completes on, except in the case that the call
+to `connect()` on the completion-sender exits with an exception, in which case
+the operation will complete with `set_error()` inline on whatever execution
+context the `source` sender completed on.
+
+Note that `completion` sender must complete with an empty value pack
+if it completes with `set_value`.
+ie. it must be a `void`-value sender.
 
 ### `via(Sender successor, Sender predecessor) -> Sender`
 
