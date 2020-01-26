@@ -16,14 +16,12 @@
 #pragma once
 
 #include <unifex/async_trace.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/unstoppable_token.hpp>
 
 #include <cassert>
 #include <exception>
@@ -149,11 +147,6 @@ namespace unifex
         std::invoke(func, r.get_receiver());
       }
 
-      friend unstoppable_token tag_invoke(
-          tag_t<get_stop_token>, const finally_value_receiver&) noexcept {
-        return {};
-      }
-
     private:
       const Receiver& get_receiver() const noexcept {
         return op_->receiver_;
@@ -257,11 +250,6 @@ namespace unifex
         std::invoke(func, r.get_receiver());
       }
 
-      friend unstoppable_token tag_invoke(
-          tag_t<get_stop_token>, const finally_error_receiver&) noexcept {
-        return {};
-      }
-
     private:
       const Receiver& get_receiver() const noexcept {
         return op_->receiver_;
@@ -333,11 +321,6 @@ namespace unifex
           const finally_done_receiver& r,
           Func&& func) {
         std::invoke(func, r.get_receiver());
-      }
-
-      friend unstoppable_token
-      tag_invoke(tag_t<get_stop_token>, const finally_done_receiver&) noexcept {
-        return {};
       }
 
     private:
