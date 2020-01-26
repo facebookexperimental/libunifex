@@ -137,7 +137,7 @@ namespace unifex
                                            Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
@@ -146,7 +146,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const finally_value_receiver& r,
           Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
+        std::invoke(func, r.get_receiver());
       }
 
       friend unstoppable_token tag_invoke(
@@ -155,6 +155,10 @@ namespace unifex
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
@@ -241,7 +245,7 @@ namespace unifex
                                            Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
@@ -250,7 +254,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const finally_error_receiver& r,
           Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
+        std::invoke(func, r.get_receiver());
       }
 
       friend unstoppable_token tag_invoke(
@@ -259,6 +263,10 @@ namespace unifex
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
@@ -315,7 +323,7 @@ namespace unifex
                                            Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
@@ -324,7 +332,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const finally_done_receiver& r,
           Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
+        std::invoke(func, r.get_receiver());
       }
 
       friend unstoppable_token
@@ -333,6 +341,10 @@ namespace unifex
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
@@ -455,17 +467,21 @@ namespace unifex
           std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>, const finally_receiver& r, Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
+        std::invoke(func, r.get_receiver());
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
