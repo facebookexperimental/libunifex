@@ -60,6 +60,44 @@ namespace _rec_cpo {
     }
   };
 
+  inline constexpr struct _set_next_fn {
+  private:
+    template<bool>
+    struct _impl {
+    template <typename Receiver, typename... Values>
+      auto operator()(Receiver&& r, Values&&... values) const
+          noexcept(
+              is_nothrow_tag_invocable_v<_set_next_fn, Receiver, Values...>)
+          -> tag_invoke_result_t<_set_next_fn, Receiver, Values...> {
+        return unifex::tag_invoke(
+            _set_next_fn{}, (Receiver &&) r, (Values &&) values...);
+      }
+    };
+  public:
+    template <typename Receiver, typename... Values>
+    auto operator()(Receiver&& r, Values&&... values) const
+        noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_set_next_fn, Receiver, Values...>>,
+            Receiver, Values...>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_set_next_fn, Receiver, Values...>>,
+            Receiver, Values...> {
+      return _impl<is_tag_invocable_v<_set_next_fn, Receiver, Values...>>{}(
+          (Receiver &&) r, (Values &&) values...);
+    }
+  } set_next{};
+
+  template<>
+  struct _set_next_fn::_impl<false> {
+    template <typename Receiver, typename... Values>
+    auto operator()(Receiver&& r, Values&&... values) const
+        noexcept(noexcept(
+            static_cast<Receiver&&>(r).set_next((Values &&) values...)))
+        -> decltype(static_cast<Receiver&&>(r).set_next((Values &&) values...)) {
+      return static_cast<Receiver&&>(r).set_next((Values &&) values...);
+    }
+  };
+
   inline constexpr struct _set_error_fn {
   private:
     template<bool>
@@ -140,6 +178,7 @@ namespace _rec_cpo {
 } // namespace _rec_cpo
 
 using _rec_cpo::set_value;
+using _rec_cpo::set_next;
 using _rec_cpo::set_error;
 using _rec_cpo::set_done;
 
@@ -147,6 +186,7 @@ template <typename T>
 constexpr bool is_receiver_cpo_v = is_one_of_v<
     std::remove_cvref_t<T>,
     _rec_cpo::_set_value_fn,
+    _rec_cpo::_set_next_fn,
     _rec_cpo::_set_error_fn,
     _rec_cpo::_set_done_fn>;
 
