@@ -17,52 +17,12 @@
 
 #include <unifex/tag_invoke.hpp>
 
+#include <unifex/io_concepts.hpp>
+
 #include <unifex/filesystem.hpp>
 
 namespace unifex {
 namespace _filesystem {
-inline constexpr struct async_read_some_at_cpo {
-  template <typename AsyncFile, typename BufferSequence>
-  auto operator()(
-      AsyncFile& file,
-      typename AsyncFile::offset_t offset,
-      BufferSequence&& bufferSequence) const
-      noexcept(is_nothrow_tag_invocable_v<
-               async_read_some_at_cpo,
-               AsyncFile&,
-               typename AsyncFile::offset_t,
-               BufferSequence>)
-          -> tag_invoke_result_t<
-              async_read_some_at_cpo,
-              AsyncFile&,
-              typename AsyncFile::offset_t,
-              BufferSequence> {
-    return unifex::tag_invoke(
-        *this, file, offset, (BufferSequence &&) bufferSequence);
-  }
-} async_read_some_at{};
-
-inline constexpr struct async_write_some_at_cpo {
-  template <typename AsyncFile, typename BufferSequence>
-  auto operator()(
-      AsyncFile& file,
-      typename AsyncFile::offset_t offset,
-      BufferSequence&& bufferSequence) const
-      noexcept(is_nothrow_tag_invocable_v<
-               async_write_some_at_cpo,
-               AsyncFile&,
-               typename AsyncFile::offset_t,
-               BufferSequence>)
-          -> tag_invoke_result_t<
-              async_write_some_at_cpo,
-              AsyncFile&,
-              typename AsyncFile::offset_t,
-              BufferSequence> {
-    return unifex::tag_invoke(
-        *this, file, offset, (BufferSequence &&) bufferSequence);
-  }
-} async_write_some_at{};
-
 inline constexpr struct open_file_read_only_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
@@ -109,8 +69,6 @@ inline constexpr struct open_file_read_write_cpo {
 } open_file_read_write{};
 } // namespace _filesystem
 
-using _filesystem::async_read_some_at;
-using _filesystem::async_write_some_at;
 using _filesystem::open_file_read_only;
 using _filesystem::open_file_write_only;
 using _filesystem::open_file_read_write;
