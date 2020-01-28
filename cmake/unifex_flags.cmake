@@ -6,6 +6,8 @@
 include(CheckCXXCompilerFlag)
 include(CheckCXXSourceCompiles)
 include(CMakePushCheckState)
+include(CheckIncludeFile)
+include(CheckSymbolExists)
 
 # Probe for coroutine TS support
 find_package(Coroutines COMPONENTS Experimental Final)
@@ -39,3 +41,10 @@ else()
   set(UNIFEX_NO_LIBURING TRUE)
 endif()
 
+# Probe for EPOLL support
+CHECK_SYMBOL_EXISTS(epoll_create "sys/epoll.h" UNIFEX_HAVE_SYS_EPOLL_CREATE)
+if(UNIFEX_HAVE_SYS_EPOLL_CREATE)
+  set(UNIFEX_NO_EPOLL FALSE)
+else()
+  set(UNIFEX_NO_EPOLL TRUE)
+endif()

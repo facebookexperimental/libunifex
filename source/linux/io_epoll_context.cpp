@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#if __has_include(<sys/epoll.h>)
+#include <unifex/config.hpp>
+#if !UNIFEX_NO_EPOLL
 
 #include <unifex/linux/io_epoll_context.hpp>
 

@@ -15,7 +15,12 @@
  */
 #pragma once
 
-#if __has_include(<sys/epoll.h>)
+#include <unifex/config.hpp>
+#if !UNIFEX_NO_EPOLL
+
+#include <sys/epoll.h>
+#include <sys/timerfd.h>
+#include <sys/uio.h>
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
@@ -37,10 +42,6 @@
 #include <optional>
 #include <system_error>
 #include <utility>
-
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
-#include <sys/uio.h>
 
 namespace unifex {
 namespace linuxos {
@@ -517,4 +518,4 @@ inline io_epoll_context::scheduler io_epoll_context::get_scheduler() noexcept {
 } // namespace linuxos
 } // namespace unifex
 
-#endif // __has_include(<sys/epoll.h>)
+#endif // !UNIFEX_NO_EPOLL

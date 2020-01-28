@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-#if __has_include(<sys/epoll.h>)
+#include <unifex/config.hpp>
+#if !UNIFEX_NO_EPOLL
 
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
@@ -86,9 +87,9 @@ int main() {
   return 0;
 }
 
-#else
+#else // !UNIFEX_NO_EPOLL
 #include <cstdio>
 int main() {
   printf("epoll support not found\n");
 }
-#endif // __has_include(<sys/epoll.h>)
+#endif // !UNIFEX_NO_EPOLL
