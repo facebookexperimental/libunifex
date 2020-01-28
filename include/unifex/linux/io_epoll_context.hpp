@@ -140,24 +140,14 @@ class io_epoll_context {
 
   // Check if any completion queue items are available and if so add them
   // to the local queue.
-  void acquire_completion_queue_items() noexcept;
+  void acquire_completion_queue_items(epoll_event* completed, uint32_t count) noexcept;
 
-  // Check if any completion queue items have been enqueued and move them
-  // to the local queue.
-  void acquire_remote_queued_items() noexcept;
-
-  // Submit a request to the submission queue containing an IORING_OP_POLL_ADD
-  // for the remote queue eventfd as a way of registering for asynchronous
-  // notification of someone enqueueing
+  // collect the contents of the remote queue and pass them to schedule_local
   //
-  // Returns true if successful. If so then it is no longer permitted
-  // to call 'acquire_remote_queued_items()' until after the completion
-  // for this POLL_ADD operation is received.
+  // Returns true if successful.
   //
-  // Returns false if either no more operations can be submitted at this
-  // time (submission queue full or too many pending completions) or if
-  // some other thread concurrently enqueued work to the remote queue.
-  bool try_register_remote_queue_notification() noexcept;
+  // Returns false if some other thread concurrently enqueued work to the remote queue.
+  bool try_schedule_local_remote_queue_contents() noexcept;
 
   // Signal the remote queue eventfd.
   //
@@ -169,14 +159,9 @@ class io_epoll_context {
   void remove_timer(schedule_at_operation* op) noexcept;
   void update_timers() noexcept;
   bool try_submit_timer_io(const time_point& dueTime) noexcept;
-  bool try_submit_timer_io_cancel() noexcept;
 
-  std::uintptr_t timer_user_data() const {
-    return reinterpret_cast<std::uintptr_t>(&timers_);
-  }
-
-  std::uintptr_t remove_timer_user_data() const {
-    return reinterpret_cast<std::uintptr_t>(&currentDueTime_);
+  void* timer_user_data() const {
+    return const_cast<void*>(reinterpret_cast<const void*>(&timers_));
   }
 
   ////////
@@ -203,11 +188,7 @@ class io_epoll_context {
   bool remoteQueueReadSubmitted_ = false;
   bool timersAreDirty_ = false;
 
-  std::uint32_t activeTimerCount_ = 0;
-
   static const std::uint32_t maxCount_ = 256;
-  epoll_event completed_[maxCount_];
-  std::uint32_t count_;
 
   //////////////////
   // Data that is modified by remote threads
@@ -255,8 +236,16 @@ class io_epoll_context::schedule_sender {
           return;
         }
       }
-
-      unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+      if constexpr (std::is_nothrow_invocable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
+        unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+      } else {
+        try {
+          unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+        } catch (...) {
+          unifex::set_error(
+              static_cast<Receiver&&>(op.receiver_), std::current_exception());
+        }
+      }
     }
 
     io_epoll_context& context_;
