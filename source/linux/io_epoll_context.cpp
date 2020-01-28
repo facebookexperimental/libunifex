@@ -259,7 +259,7 @@ void io_epoll_context::acquire_completion_queue_items(epoll_event* completions, 
       LOG("got remote queue wakeup");
 
       // Read the eventfd to clear the signal.
-      __u64 buffer;
+      std::uint64_t buffer;
       ssize_t bytesRead =
           read(remoteQueueEventFd_.get(), &buffer, sizeof(buffer));
       if (bytesRead < 0) {
@@ -282,7 +282,7 @@ void io_epoll_context::acquire_completion_queue_items(epoll_event* completions, 
       timersAreDirty_ = true;
 
       // Read the eventfd to clear the signal.
-      __u64 buffer;
+      std::uint64_t buffer;
       ssize_t bytesRead =
           read(timerFd_.get(), &buffer, sizeof(buffer));
       if (bytesRead < 0) {
@@ -324,7 +324,7 @@ void io_epoll_context::signal_remote_queue() {
   LOG("writing bytes to eventfd");
 
   // Notify eventfd() by writing a 64-bit integer to it.
-  const __u64 value = 1;
+  const std::uint64_t value = 1;
   ssize_t bytesWritten =
       write(remoteQueueEventFd_.get(), &value, sizeof(value));
   if (bytesWritten < 0) {
