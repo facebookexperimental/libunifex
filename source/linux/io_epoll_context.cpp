@@ -36,7 +36,7 @@
 
 #include <cstdio>
 
-#define LOGGING_ENABLED
+// #define LOGGING_ENABLED
 
 #ifdef LOGGING_ENABLED
 #define LOG(S)             \
