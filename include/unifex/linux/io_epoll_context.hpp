@@ -25,8 +25,6 @@
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
 #include <unifex/detail/intrusive_queue.hpp>
-#include <unifex/file_concepts.hpp>
-#include <unifex/filesystem.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -477,19 +475,6 @@ class io_epoll_context::scheduler {
 
  private:
   friend io_epoll_context;
-
-  friend async_read_only_file tag_invoke(
-      tag_t<open_file_read_only>,
-      scheduler s,
-      const filesystem::path& path);
-  friend async_read_write_file tag_invoke(
-      tag_t<open_file_read_write>,
-      scheduler s,
-      const filesystem::path& path);
-  friend async_write_only_file tag_invoke(
-      tag_t<open_file_write_only>,
-      scheduler s,
-      const filesystem::path& path);
 
   friend bool operator==(const scheduler& a, const scheduler& b) noexcept {
     return a.context_ == b.context_;
