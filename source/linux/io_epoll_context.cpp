@@ -402,7 +402,6 @@ void io_epoll_context::update_timers() noexcept {
         // An earlier time has been scheduled.
         // Cancel the old timer before submitting a new one.
         currentDueTime_.reset();
-        try_submit_timer_io(time_point{});
         if (try_submit_timer_io(earliestDueTime)) {
           currentDueTime_ = earliestDueTime;
           timersAreDirty_ = false;
