@@ -18,6 +18,7 @@
 #include <unifex/config.hpp>
 #include <unifex/adapt_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
+#include <unifex/finally.hpp>
 
 #include <type_traits>
 
@@ -29,9 +30,9 @@ namespace unifex
         (Stream &&) stream,
         [scheduler = (Scheduler &&) scheduler,
          duration = (Duration &&) duration](auto&& sender) {
-          return typed_via(
-              schedule_after(scheduler, duration),
-              static_cast<decltype(sender)>(sender));
+          return finally(
+              static_cast<decltype(sender)>(sender),
+              schedule_after(scheduler, duration));
         });
   }
 }  // namespace unifex

@@ -23,7 +23,7 @@
 #include <unifex/just.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform.hpp>
-#include <unifex/typed_via.hpp>
+#include <unifex/finally.hpp>
 #include <unifex/when_all.hpp>
 
 #if !UNIFEX_NO_COROUTINES
@@ -65,8 +65,8 @@ auto dump_async_trace_on_start(Sender &&sender, std::string tag = {}) {
 
 template <typename Sender>
 auto dump_async_trace_on_completion(Sender &&sender, std::string tag = {}) {
-  return unifex::typed_via((Sender &&) sender,
-                           dump_async_trace(std::move(tag)));
+  return unifex::finally((Sender &&) sender,
+                          dump_async_trace(std::move(tag)));
 }
 
 int main() {

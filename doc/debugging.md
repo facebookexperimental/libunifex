@@ -61,12 +61,12 @@ auto dump_async_trace(std::string tag = {}) {
 
 template <typename Sender>
 auto dump_async_trace_on_start(Sender&& sender, std::string tag = {}) {
-  return unifex::on(dump_async_trace(std::move(tag)), (Sender &&) sender);
+  return unifex::sequence(dump_async_trace(std::move(tag)), (Sender &&) sender);
 }
 
 template <typename Sender>
 auto dump_async_trace_on_completion(Sender&& sender, std::string tag = {}) {
-  return unifex::typed_via(
+  return unifex::finally(
       (Sender &&) sender, dump_async_trace(std::move(tag)));
 }
 ```
