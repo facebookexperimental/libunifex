@@ -150,9 +150,9 @@ be assumed to be invalidated when by a call to a completion-signalling function.
 ie. `set_value(std::move(r), values...)`, `set_error(std::move(r), error)` or
 `set_done(std::move(r))`.
 
-The sender must ensure that any stop-callback that has been construction receiver it has been connected to
-must ensure that any stop-callback that has been constructed using that stop-token
-is destroyed prior to signalling completion on the receiver.
+The sender must ensure that any stop-callback that has been constructed using
+the token obtained by calling `get_stop_token()` on a given receiver is
+destroyed prior to signalling completion on the receiver.
 
 It is invalid to use a stop token obtained from a call to `get_stop_token()`
 after one of the completion-signalling functions has been called on the receiver.

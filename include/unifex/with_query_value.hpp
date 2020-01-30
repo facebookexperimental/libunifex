@@ -85,7 +85,7 @@ public:
 
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Value value_;
-  UNIFEX_NO_UNIQUE_ADDRESS operation_t<Sender, receiver_wrapper> innerOp_;
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/ operation_t<Sender, receiver_wrapper> innerOp_;
 };
 
 } // namespace detail

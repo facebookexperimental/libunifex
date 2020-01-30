@@ -16,16 +16,19 @@
 #pragma once
 
 #include <unifex/async_trace.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/unstoppable_token.hpp>
 
+#include <cassert>
+#include <exception>
+#include <functional>
 #include <tuple>
+#include <type_traits>
+#include <utility>
 
 namespace unifex
 {
@@ -132,7 +135,7 @@ namespace unifex
                                            Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
@@ -141,15 +144,14 @@ namespace unifex
           tag_t<visit_continuations>,
           const finally_value_receiver& r,
           Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
-      }
-
-      friend unstoppable_token tag_invoke(
-          tag_t<get_stop_token>, const finally_value_receiver&) noexcept {
-        return {};
+        std::invoke(func, r.get_receiver());
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
@@ -236,7 +238,7 @@ namespace unifex
                                            Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
@@ -245,15 +247,14 @@ namespace unifex
           tag_t<visit_continuations>,
           const finally_error_receiver& r,
           Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
-      }
-
-      friend unstoppable_token tag_invoke(
-          tag_t<get_stop_token>, const finally_error_receiver&) noexcept {
-        return {};
+        std::invoke(func, r.get_receiver());
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
@@ -310,7 +311,7 @@ namespace unifex
                                            Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
@@ -319,15 +320,14 @@ namespace unifex
           tag_t<visit_continuations>,
           const finally_done_receiver& r,
           Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
-      }
-
-      friend unstoppable_token
-      tag_invoke(tag_t<get_stop_token>, const finally_done_receiver&) noexcept {
-        return {};
+        std::invoke(func, r.get_receiver());
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 
@@ -450,17 +450,21 @@ namespace unifex
           std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
-            static_cast<const Receiver&>(r.op_->receiver_),
+            r.get_receiver(),
             static_cast<Args&&>(args)...);
       }
 
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>, const finally_receiver& r, Func&& func) {
-        std::invoke(func, static_cast<const Receiver&>(r.op_->receiver_));
+        std::invoke(func, r.get_receiver());
       }
 
     private:
+      const Receiver& get_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
       operation_type* op_;
     };
 

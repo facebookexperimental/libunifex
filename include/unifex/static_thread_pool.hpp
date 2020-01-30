@@ -26,6 +26,8 @@
 #include <type_traits>
 #include <vector>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 namespace unifex
 {
@@ -77,18 +79,27 @@ namespace unifex
             };
           }
 
+          void enqueue_(task_base* op) const {
+            pool_.enqueue(op);
+          }
+
           friend void tag_invoke(tag_t<start>, operation& op) noexcept {
-            op.pool_.enqueue(&op);
+            op.enqueue_(&op);
           }
         };
+
+        template<typename Receiver>
+        operation<std::decay_t<Receiver>> make_operation_(Receiver&& r) const {
+          return operation<std::decay_t<Receiver>>{pool_, (Receiver &&) r};
+        }
 
         template <typename Receiver>
         friend operation<std::decay_t<Receiver>>
         tag_invoke(tag_t<connect>, schedule_sender s, Receiver&& r) {
-          return operation<std::decay_t<Receiver>>{s.pool_, (Receiver &&) r};
+          return s.make_operation_((Receiver &&) r);
         }
 
-        friend scheduler;
+        friend class static_thread_pool::scheduler;
 
         explicit schedule_sender(static_thread_pool& pool) noexcept
           : pool_(pool) {}
@@ -96,12 +107,16 @@ namespace unifex
         static_thread_pool& pool_;
       };
 
-      friend schedule_sender
-      tag_invoke(tag_t<schedule>, const scheduler& s) noexcept {
-        return schedule_sender{s.pool_};
+      schedule_sender make_sender_() const {
+        return schedule_sender{pool_};
       }
 
-      friend static_thread_pool;
+      friend schedule_sender
+      tag_invoke(tag_t<schedule>, const scheduler& s) noexcept {
+        return s.make_sender_();
+      }
+
+      friend class static_thread_pool;
       explicit scheduler(static_thread_pool& pool) noexcept : pool_(pool) {}
 
       static_thread_pool& pool_;
