@@ -32,7 +32,6 @@ class intrusive_heap {
       assert(item->*Prev == nullptr);
     }
     while (item != nullptr) {
-      printf("- %p\n", item);
       if (item->*Next != nullptr) {
         assert(item->*Next->*Prev == item);
       }
