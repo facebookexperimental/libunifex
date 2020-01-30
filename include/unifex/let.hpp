@@ -88,7 +88,7 @@ class let_sender {
       successor_types<error_types_impl<Variant>::template apply>;
 
  private:
-  template <typename Receiver>
+  template <typename Predecessor2, typename Receiver>
   class operation {
     template <typename... Values>
     struct successor_receiver;
@@ -217,15 +217,15 @@ class let_sender {
     };
 
    public:
-    template <typename Receiver2>
+    template <typename SuccessorFactory2, typename Receiver2>
     explicit operation(
-        Predecessor&& pred,
-        SuccessorFactory&& func,
+        Predecessor2&& pred,
+        SuccessorFactory2&& func,
         Receiver2&& receiver)
-        : func_((SuccessorFactory &&) func),
+        : func_((SuccessorFactory2 &&) func),
           receiver_((Receiver2 &&) receiver) {
       predOp_.construct_from([&] {
-        return unifex::connect((Predecessor &&) pred, predecessor_receiver{*this});
+        return unifex::connect((Predecessor2 &&) pred, predecessor_receiver{*this});
       });
     }
 
@@ -247,7 +247,7 @@ class let_sender {
         template value_types<manual_lifetime_union, decayed_tuple>
             values_;
     union {
-      manual_lifetime<operation_t<Predecessor, predecessor_receiver>> predOp_;
+      manual_lifetime<operation_t<Predecessor2, predecessor_receiver>> predOp_;
       typename Predecessor::
           template value_types<manual_lifetime_union, successor_operation>
               succOp_;
@@ -261,9 +261,21 @@ class let_sender {
       : pred_((Predecessor2 &&) pred), func_((SuccessorFactory2 &&) func) {}
 
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
-    return operation<std::remove_cvref_t<Receiver>>{
+  operation<Predecessor, std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
+    return operation<Predecessor, std::remove_cvref_t<Receiver>>{
         std::move(pred_), std::move(func_), (Receiver &&) receiver};
+  }
+
+  template <typename Receiver>
+  operation<Predecessor&, std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) & {
+    return operation<Predecessor&, std::remove_cvref_t<Receiver>>{
+        pred_, func_, (Receiver &&) receiver};
+  }
+
+  template <typename Receiver>
+  operation<const Predecessor&, std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) const & {
+    return operation<const Predecessor&, std::remove_cvref_t<Receiver>>{
+      pred_, func_, (Receiver &&) receiver};
   }
 };
 
