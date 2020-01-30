@@ -149,11 +149,30 @@ struct transform_sender {
   };
 
   template <typename Receiver>
-  auto connect(Receiver&& receiver) && {
+  auto connect(Receiver&& receiver) &&
+      -> operation_t<Predecessor, transform_receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
         transform_receiver<std::remove_cvref_t<Receiver>>{
             std::forward<Func>(func_), std::forward<Receiver>(receiver)});
+  }
+
+  template <typename Receiver>
+  auto connect(Receiver&& receiver) &
+      -> operation_t<Predecessor&, transform_receiver<std::remove_cvref_t<Receiver>>>{
+    return unifex::connect(
+        pred_,
+        transform_receiver<std::remove_cvref_t<Receiver>>{
+            func_, std::forward<Receiver>(receiver)});
+  }
+
+  template <typename Receiver>
+  auto connect(Receiver&& receiver) const &
+      -> operation_t<const Predecessor&, transform_receiver<std::remove_cvref_t<Receiver>>> {
+    return unifex::connect(
+        pred_,
+        transform_receiver<std::remove_cvref_t<Receiver>>{
+            func_, std::forward<Receiver>(receiver)});
   }
 };
 
