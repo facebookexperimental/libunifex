@@ -260,6 +260,44 @@ sender will complete with `set_done(r)`.
 
 Any `set_error()` or `set_done()` signals are passed through unchanged.
 
+### `retry_when(Sender source, Invocable<Error> handler) -> Sender`
+
+The `retry_when()` algorithm repeatedly retries executing the input sender
+if it fails with an error after some delay indicated by the handler function.
+
+The `source` sender must be lvalue connectable (ie. can be connected and started
+multiple times).
+
+If the `source` sender completes with `set_value()` or `set_done()` then the
+`retry_when()` operation completes with that same signal.
+
+If the `source` sender completes with an error then the `handler` function is
+invoked with that error value. The `handler` function must return a new sender
+which is then immediately started.
+
+If the invocation of the `handler()` throws an exception or attempting to launch
+the returned sender throws an exception then the `retry_when()` operation immediately
+completes with `set_error(std::current_exception()`.
+
+If the sender returned by `handler()` completes with `set_value()` then the
+`source` operation is relaunched.
+
+Otherwise, if the sender returned by `handler()` completes with `set_error(e)` or
+`set_done()` then this becomes the result of the `retry_when()` operation.
+
+
+Example usage: Retry the operation up to 5 times with increasing delays between retries.
+```c++
+unifex::retry_when(
+  some_operation(),
+  [count = 0, scheduler](std::exception_ptr ex) mutable {
+    if (++count >= 5) {
+      std::rethrow_exception(ex);
+    }
+    return unifex::schedule_after(scheduler, count * 50ms);
+  });
+```
+
 ### `allocate(Sender sender) -> Sender`
 
 Takes a Sender and produces a new Sender that will heap-allocate its operation
