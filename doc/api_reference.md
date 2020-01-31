@@ -120,18 +120,14 @@ If `successor` completes with `set_done()` then `set_done()` is sent.
 If `successor` completes with `set_error()` then its error is sent.
 Otherwise sends the result of `predecessor`.
 
-### `typed_via(Sender successor, Sender predecessor) -> Sender`
+### `typed_via(Sender source, Scheduler scheduler) -> Sender`
 
-Returns a sender that produces the result from `predecessor`, which must
+Returns a sender that produces the result from `source`, which must
 declare the nested `value_types`/`error_types` type aliases which describe which
-overloads of `set_value()`/`set_error()` they will call, on the execution context that
-`successor` completes on.
+overloads of `set_value()`/`set_error()` they will call, on the execution context
+associated with `scheduler`.
 
-Any value produced by `successor` is discarded.
 
-The semantics of `typed_via()` is the same as that of `via()` above but
-avoids the need for heap allocation by pre-allocating storage for the
-predecessor's result.
 
 ### `on(Sender sender, Scheduler scheduler) -> Sender`
 
