@@ -64,6 +64,8 @@ static thread_local io_epoll_context* currentThreadContext;
 
 static constexpr void* remote_queue_event_user_data = nullptr;
 
+static constexpr std::uint32_t io_epoll_max_event_count = 256;
+
 io_epoll_context::io_epoll_context() {
   {
     int fd = epoll_create(1);
@@ -140,9 +142,6 @@ void io_epoll_context::run_impl(const bool& shouldStop) {
     LOG("run loop exited");
   };
 
-  epoll_event completed[maxCount_] = {};
-  std::uint32_t count = 0;
-
   while (true) {
     // Dequeue and process local queue items (ready to run)
     execute_pending_local();
@@ -150,9 +149,6 @@ void io_epoll_context::run_impl(const bool& shouldStop) {
     if (shouldStop) {
       break;
     }
-
-    // Check for any new completion-queue items.
-    acquire_completion_queue_items(completed, std::exchange(count, 0));
 
     if (timersAreDirty_) {
       update_timers();
@@ -167,18 +163,9 @@ void io_epoll_context::run_impl(const bool& shouldStop) {
       remoteQueueReadSubmitted_ = try_schedule_local_remote_queue_contents();
     }
 
-    if (localQueue_.empty()) {
-      LOG("epoll_wait()");
-      int result = epoll_wait(
-        epollFd_.get(),
-        completed,
-        maxCount_,
-        -1);
-      if (result < 0) {
-        int errorCode = errno;
-        throw std::system_error{errorCode, std::system_category()};
-      }
-      count = result;
+    if (remoteQueueReadSubmitted_) {
+      // Check for any new completion-queue items.
+      acquire_completion_queue_items();
     }
   }
 }
@@ -246,7 +233,21 @@ void io_epoll_context::execute_pending_local() noexcept {
   LOGX("processed %zu local queue items\n", count);
 }
 
-void io_epoll_context::acquire_completion_queue_items(epoll_event* completions, uint32_t count) noexcept {
+void io_epoll_context::acquire_completion_queue_items() {
+
+  LOG("epoll_wait()");
+
+  epoll_event completions[io_epoll_max_event_count];
+  int result = epoll_wait(
+    epollFd_.get(),
+    completions,
+    io_epoll_max_event_count,
+    localQueue_.empty() ? -1 : 0);
+  if (result < 0) {
+    int errorCode = errno;
+    throw std::system_error{errorCode, std::system_category()};
+  }
+  std::uint32_t count = result;
 
   LOGX("got %u completions\n", count);
 

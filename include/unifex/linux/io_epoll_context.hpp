@@ -138,7 +138,7 @@ class io_epoll_context {
 
   // Check if any completion queue items are available and if so add them
   // to the local queue.
-  void acquire_completion_queue_items(epoll_event* completed, uint32_t count) noexcept;
+  void acquire_completion_queue_items();
 
   // collect the contents of the remote queue and pass them to schedule_local
   //
@@ -159,7 +159,7 @@ class io_epoll_context {
   bool try_submit_timer_io(const time_point& dueTime) noexcept;
 
   void* timer_user_data() const {
-    return const_cast<void*>(reinterpret_cast<const void*>(&timers_));
+    return const_cast<void*>(static_cast<const void*>(&timers_));
   }
 
   ////////
@@ -185,8 +185,6 @@ class io_epoll_context {
 
   bool remoteQueueReadSubmitted_ = false;
   bool timersAreDirty_ = false;
-
-  static const std::uint32_t maxCount_ = 256;
 
   //////////////////
   // Data that is modified by remote threads
