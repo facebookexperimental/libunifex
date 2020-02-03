@@ -27,7 +27,9 @@
 #include <thread>
 
 #include <fcntl.h>
-#include <poll.h>
+#include <sys/uio.h>
+#include <sys/epoll.h>
+#include <sys/timerfd.h>
 #include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>

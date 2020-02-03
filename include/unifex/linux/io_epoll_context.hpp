@@ -18,10 +18,6 @@
 #include <unifex/config.hpp>
 #if !UNIFEX_NO_EPOLL
 
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
-#include <sys/uio.h>
-
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
 #include <unifex/detail/intrusive_queue.hpp>
@@ -50,11 +46,6 @@ class io_epoll_context {
   class schedule_at_sender;
   template <typename Duration>
   class schedule_after_sender;
-  class read_sender;
-  class write_sender;
-  class async_read_only_file;
-  class async_read_write_file;
-  class async_write_only_file;
   class scheduler;
 
   io_epoll_context();
@@ -74,7 +65,6 @@ class io_epoll_context {
   };
 
   struct completion_base : operation_base {
-    int result_;
   };
 
   struct stop_operation : operation_base {
