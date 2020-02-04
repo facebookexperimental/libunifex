@@ -48,6 +48,7 @@
   * `trampoline_scheduler`
   * `timed_single_thread_context`
   * `thread_unsafe_event_loop`
+  * `new_thread_context`
   * `linux::io_uring_context`
 * StopToken Types
   * `unstoppable_token`
@@ -561,6 +562,18 @@ the base `schedule()` operation.
 
 Obtain a TimeScheduler to schedule work onto this context by calling the
 `.get_scheduler()` method.
+
+### `new_thread_context`
+
+An execution context that implements the `schedule()` operation by spawning
+a new thread to schedule the call to `set_value()`.
+
+If thread creation fails then the `schedule()` operation can fail and `set_error()`
+will be called on the receiver inline with the call to `start()`.
+
+The `new_thread_context` keeps track of the threads that have been created
+and the destructor will ensure that all of these threads are joined before
+returning.
 
 ### `linux::io_uring_context`
 
