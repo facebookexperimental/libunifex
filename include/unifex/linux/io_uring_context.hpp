@@ -88,7 +88,7 @@ class io_uring_context {
     bool shouldStop_ = false;
   };
 
-  using time_point = linux::monotonic_clock::time_point;
+  using time_point = linuxos::monotonic_clock::time_point;
 
   struct schedule_at_operation : operation_base {
     explicit schedule_at_operation(
