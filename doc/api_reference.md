@@ -16,6 +16,7 @@
   * `when_all()`
   * `materialize()`
   * `dematerialize()`
+  * `retry_when()`
   * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
@@ -41,6 +42,14 @@
   * `range_stream`
   * `type_erased_stream<Ts...>`
   * `never_stream`
+* Scheduler Types
+  * `inline_scheduler`
+  * `single_thread_context`
+  * `trampoline_scheduler`
+  * `timed_single_thread_context`
+  * `thread_unsafe_event_loop`
+  * `new_thread_context`
+  * `linux::io_uring_context`
 * StopToken Types
   * `unstoppable_token`
   * `inplace_stop_token` / `inplace_stop_source`
@@ -338,6 +347,8 @@ result of `get_allocator()` query on receivers passed to child operations.
 
 Child operations should use this allocator to perform heap allocations.
 
+## Sender Types
+
 ### `async_trace_sender`
 
 A sender that will produce the current async stack-trace containing the
@@ -353,6 +364,8 @@ struct async_trace_entry {
   continuation_info continuation; // description of this continuation
 };
 ```
+
+## Sender Queries
 
 ### `blocking(const Sender&) -> blocking_kind`
 
@@ -373,7 +386,7 @@ Senders can customise this algorithm by providing an overload of
 `tag_invoke(tag_t<blocking>, const your_sender_type&)`.
 
 ## Stream Algorithms
------------------
+
 ### `adapt_stream(Stream stream, Func adaptor) -> Stream`
 
 Applies `adaptor()` to `next(stream)` and `cleanup(stream)` senders.
@@ -464,6 +477,26 @@ the `cleanup()` result.
 Adapts `stream` to produce a new stream that delays the delivery of each
 value, done and error signal by the specified duration.
 
+## Stream Types
+
+### `range_stream`
+
+Produces a sequence of `int` values within a given range.
+Mainly used for testing purposes.
+
+### `type_erased_stream<Ts...>`
+
+A type-erased stream that produces a sequence of value packs of type `(Ts, ...)`.
+ie. calls to `set_value()` will be passed arguments of type `Ts&&...`
+
+### `never_stream`
+
+A stream whose `next()` completes with `set_done()` once when stop is requested.
+
+Note that using this stream with a stop-token where `stop_possible()` returns
+`false` will result in a memory-leak. The `next()` operation will never
+complete.
+
 ## Scheduler Algorithms
 
 ### `schedule(Scheduler schedule) -> SenderOf<void>`
@@ -530,6 +563,18 @@ the base `schedule()` operation.
 Obtain a TimeScheduler to schedule work onto this context by calling the
 `.get_scheduler()` method.
 
+### `new_thread_context`
+
+An execution context that implements the `schedule()` operation by spawning
+a new thread to schedule the call to `set_value()`.
+
+If thread creation fails then the `schedule()` operation can fail and `set_error()`
+will be called on the receiver inline with the call to `start()`.
+
+The `new_thread_context` keeps track of the threads that have been created
+and the destructor will ensure that all of these threads are joined before
+returning.
+
 ### `linux::io_uring_context`
 
 An I/O event loop execution context that makes use of the Linux io_uring APIs
@@ -557,26 +602,6 @@ These CPOs both return a `SenderOf<ssize_t>` that produces the number of bytes w
 
 For files associated with the `io_uring_context`, these operations will always complete
 on the associated on the thread that is calling `run()` on the associated context.
-
-## Stream Types
-
-### `range_stream`
-
-Produces a sequence of `int` values within a given range.
-Mainly used for testing purposes.
-
-### `type_erased_stream<Ts...>`
-
-A type-erased stream that produces a sequence of value packs of type `(Ts, ...)`.
-ie. calls to `set_value()` will be passed arguments of type `Ts&&...`
-
-### `never_stream`
-
-A stream whose `next()` completes with `set_done()` once when stop is requested.
-
-Note that using this stream with a stop-token where `stop_possible()` returns
-`false` will result in a memory-leak. The `next()` operation will never
-complete.
 
 ## StopToken Types
 
