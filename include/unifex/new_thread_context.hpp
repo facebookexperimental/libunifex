@@ -48,6 +48,13 @@ private:
       }
 
       try {
+        // Acquire the lock before launching the thread.
+        // This prevents the run() method from trying to read the thread_ variable
+        // until after we have finished assigning it.
+        //
+        // Note that this thread_ variable is private to this particular operation
+        // state and so will only be accessed by this start() method and the run()
+        // method.
         std::lock_guard opLock{mut_};
         thread_ = std::thread([this]() noexcept { this->run(); });
       } catch (...) {
@@ -65,13 +72,25 @@ private:
 
   private:
     void run() noexcept {
+      // Read the thread_ and ctx_ members out from the operation-state
+      // and store them as local variables on the stack before calling the
+      // receiver methods as the receiver methods will likely end up
+      // destroying the operation-state object before they return.
+      new_thread_context* ctx = ctx_;
+
       std::thread thisThread;
       {
+        // Wait until we can acquire the mutex here.
+        // This ensures that the read of thread_ happens-after the write to thread_
+        // inside start().
+        //
+        // TODO: This can be replaced with an atomic<bool>::wait() once we have
+        // access to C++20 atomics. This would eliminate the unnecessary synchronisation
+        // performed by the unlock() at end-of-scope here.
         std::lock_guard opLock{mut_};
         thisThread = std::move(thread_);
       }
 
-      new_thread_context* ctx = ctx_;
       if (get_stop_token(receiver_).stop_requested()) {
         unifex::set_done(std::move(receiver_));
       } else {
