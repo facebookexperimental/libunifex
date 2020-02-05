@@ -18,13 +18,14 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
 
+#include <atomic>
 #include <cassert>
 #include <condition_variable>
+#include <exception>
 #include <mutex>
 #include <thread>
 
 namespace unifex {
-
 
 class new_thread_context {
 private:
@@ -42,11 +43,6 @@ private:
     }
 
     void start() & noexcept {
-      {
-        std::unique_lock lk{ctx_->mut_};
-        ++ctx_->activeThreadCount_;
-      }
-
       try {
         // Acquire the lock before launching the thread.
         // This prevents the run() method from trying to read the thread_ variable
@@ -57,15 +53,13 @@ private:
         // method.
         std::lock_guard opLock{mut_};
         thread_ = std::thread([this]() noexcept { this->run(); });
+
+        // Now that we've successfully launched the thread, increment the active
+        // thread count in the context. Do this before we release the lock so that
+        // we ensure the count increment happens before the count decrement that
+        // is performed when the thread is being retired.
+        ctx_->activeThreadCount_.fetch_add(1, std::memory_order_relaxed);
       } catch (...) {
-        {
-          std::lock_guard ctxLock{ctx_->mut_};
-          --ctx_->activeThreadCount_;
-          // Don't need to signal the condition_variable here as the
-          // operation has not yet completed (we haven't called set_error)
-          // and so the caller shouldn't be calling the destructor of the
-          // new_thread_context yet.
-        }
         unifex::set_error(std::move(receiver_), std::current_exception());
       }
     }
@@ -74,8 +68,9 @@ private:
     void run() noexcept {
       // Read the thread_ and ctx_ members out from the operation-state
       // and store them as local variables on the stack before calling the
-      // receiver methods as the receiver methods will likely end up
-      // destroying the operation-state object before they return.
+      // receiver completion-signalling methods as the receiver methods
+      // will likely end up destroying the operation-state object before
+      // they return.
       new_thread_context* ctx = ctx_;
 
       std::thread thisThread;
@@ -148,8 +143,17 @@ public:
   new_thread_context() = default;
 
   ~new_thread_context() {
+    // The activeThreadCount_ counter is initialised to 1 so it will never get to
+    // zero until after enter the destructor and decrement the last count here.
+    // We do this so that the retire_thread() call doesn't end up calling
+    // into the cv_.notify_one() until we are about to start waiting on the
+    // cv.
+    activeThreadCount_.fetch_sub(1, std::memory_order_relaxed);
+
     std::unique_lock lk{mut_};
-    cv_.wait(lk, [this] { return activeThreadCount_ == 0; });
+    cv_.wait(lk, [this]() noexcept {
+      return activeThreadCount_.load(std::memory_order_relaxed) == 0;
+    });
     if (threadToJoin_.joinable()) {
       threadToJoin_.join();
     }
@@ -165,7 +169,7 @@ private:
     {
       std::lock_guard lk{mut_};
       prevThread = std::exchange(threadToJoin_, std::move(t));
-      if (--activeThreadCount_ == 0) {
+      if (activeThreadCount_.fetch_sub(1, std::memory_order_relaxed) == 1) {
         cv_.notify_one();
       }
     }
@@ -178,7 +182,7 @@ private:
   std::mutex mut_;
   std::condition_variable cv_;
   std::thread threadToJoin_;
-  size_t activeThreadCount_ = 0;
+  std::atomic<size_t> activeThreadCount_ = 1;
 };
 
 } // namespace unifex
