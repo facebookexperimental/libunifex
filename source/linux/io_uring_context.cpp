@@ -22,6 +22,8 @@
 
 #include <unifex/scope_guard.hpp>
 
+#include "io_uring_syscall.hpp"
+
 #include <cassert>
 #include <cstring>
 #include <system_error>

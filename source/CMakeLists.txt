@@ -31,7 +31,8 @@ if (NOT UNIFEX_NO_LIBURING)
 
   target_sources(unifex
     PRIVATE
-      linux/io_uring_context.cpp)
+      linux/io_uring_context.cpp
+      linux/io_uring_syscall.cpp)
 
   target_include_directories(unifex
     PUBLIC
@@ -40,7 +41,7 @@ if (NOT UNIFEX_NO_LIBURING)
   target_link_libraries(unifex
     PRIVATE
       ${UNIFEX_URING_LIBRARY})
-      
+
 endif()
 
 endif()
