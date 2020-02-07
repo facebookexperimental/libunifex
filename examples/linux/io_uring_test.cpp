@@ -34,7 +34,7 @@
 #include <vector>
 
 using namespace unifex;
-using namespace unifex::linux;
+using namespace unifex::linuxos;
 using namespace std::chrono_literals;
 
 template <typename F>
