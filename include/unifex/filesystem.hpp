@@ -15,8 +15,20 @@
  */
 #pragma once
 
+#if __has_include(<filesystem>)
+
+#include <filesystem>
+
+namespace unifex {
+    namespace filesystem = std::filesystem;
+}
+
+#else
+
 #include <experimental/filesystem>
 
 namespace unifex {
     namespace filesystem = std::experimental::filesystem;
 }
+
+#endif // __has_include(<filesystem>)
