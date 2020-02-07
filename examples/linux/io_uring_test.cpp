@@ -42,6 +42,11 @@ auto lazy(F&& f) {
   return transform(just(), (F &&) f);
 }
 
+template<typename S>
+auto discard_value(S&& s) {
+  return transform((S&&)s, [](auto&&...) noexcept {});
+}
+
 static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
 
 // This could be made generic across any scheduler that supports the
@@ -57,7 +62,7 @@ auto write_new_file(io_uring_context::scheduler s, const char* path) {
       [](io_uring_context::async_write_only_file& file) {
         const auto buffer = as_bytes(span{data});
         // Start 8 concurrent writes to the file at different offsets.
-        return when_all(
+        return discard_value(when_all(
             // Calls the 'async_write_some_at()' CPO on the file object
             // returned from 'open_file_write_only()'.
             async_write_some_at(file, 0, buffer),
@@ -67,7 +72,7 @@ auto write_new_file(io_uring_context::scheduler s, const char* path) {
             async_write_some_at(file, 4 * buffer.size(), buffer),
             async_write_some_at(file, 5 * buffer.size(), buffer),
             async_write_some_at(file, 6 * buffer.size(), buffer),
-            async_write_some_at(file, 7 * buffer.size(), buffer));
+            async_write_some_at(file, 7 * buffer.size(), buffer)));
       });
 }
 
