@@ -76,7 +76,7 @@ class continuation_info {
   }
 
   std::type_index type() const noexcept {
-    return vtable_->type_;
+    return vtable_->typeIndexGetter_();
   }
 
   const void* address() const noexcept {
@@ -97,9 +97,10 @@ class continuation_info {
  private:
   using callback_t = void(const continuation_info&, void*);
   using visitor_t = void(const void*, callback_t*, void*);
+  using type_index_getter_t = std::type_index() noexcept;
 
   struct vtable_t {
-    const std::type_info& type_;
+    type_index_getter_t* typeIndexGetter_;
     visitor_t* visit_;
   };
 
@@ -117,7 +118,9 @@ template <typename Continuation>
 inline continuation_info continuation_info::from_continuation(
     const Continuation& r) noexcept {
   static constexpr vtable_t vtable{
-      typeid(std::remove_cvref_t<Continuation>),
+      []() noexcept -> std::type_index {
+        return typeid(std::remove_cvref_t<Continuation>);
+      },
       [](const void* address, callback_t* cb, void* data) {
         visit_continuations(
             *static_cast<const Continuation*>(address),
