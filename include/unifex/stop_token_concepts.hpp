@@ -30,6 +30,6 @@ struct is_stop_never_possible<
         std::bool_constant<T{}.stop_possible()>>>> : std::true_type {};
 
 template <typename T>
-constexpr bool is_stop_never_possible_v = is_stop_never_possible<T>::value;
+inline constexpr bool is_stop_never_possible_v = is_stop_never_possible<T>::value;
 
 } // namespace unifex

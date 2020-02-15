@@ -86,7 +86,7 @@ inline constexpr struct set_done_cpo {
 } set_done{};
 
 template <typename T>
-constexpr bool is_receiver_cpo_v = is_one_of_v<
+inline constexpr bool is_receiver_cpo_v = is_one_of_v<
     std::remove_cvref_t<T>,
     set_value_cpo,
     set_error_cpo,

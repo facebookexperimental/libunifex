@@ -636,13 +636,13 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 SourceSender,
                 detail::finally_receiver<
                     SourceSender,
                     CompletionSender,
                     Receiver>> &&
-            is_connectable_v<
+            sender_to<
                 CompletionSender,
                 detail::finally_done_receiver<
                     SourceSender,

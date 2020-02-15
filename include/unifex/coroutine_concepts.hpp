@@ -27,19 +27,19 @@ namespace unifex {
 
 namespace detail {
 template <typename Awaitable, typename = void>
-constexpr bool has_member_operator_co_await_v = false;
+inline constexpr bool has_member_operator_co_await_v = false;
 
 template <typename Awaitable>
-constexpr bool has_member_operator_co_await_v<
+inline constexpr bool has_member_operator_co_await_v<
     Awaitable,
     std::void_t<decltype(std::declval<Awaitable>().operator co_await())>> =
     true;
 
 template <typename Awaitable, typename = void>
-constexpr bool has_free_operator_co_await_v = false;
+inline constexpr bool has_free_operator_co_await_v = false;
 
 template <typename Awaitable>
-constexpr bool has_free_operator_co_await_v<
+inline constexpr bool has_free_operator_co_await_v<
     Awaitable,
     std::void_t<decltype(operator co_await(std::declval<Awaitable>()))>> = true;
 

@@ -47,7 +47,7 @@ template <template<typename...> class T, typename... Args>
 struct instance_of<T, T<Args...>> : std::true_type {};
 
 template <template<typename...> class T, typename X>
-constexpr bool instance_of_v = instance_of<T, X>::value;
+inline constexpr bool instance_of_v = instance_of<T, X>::value;
 
 namespace detail {
 
@@ -156,6 +156,6 @@ struct decayed_tuple {
 };
 
 template <typename T, typename... Ts>
-constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
+inline constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
 
 } // namespace unifex

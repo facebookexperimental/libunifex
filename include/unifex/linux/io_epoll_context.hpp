@@ -265,7 +265,7 @@ class io_epoll_context::schedule_sender {
 class io_epoll_context::schedule_at_sender {
   template <typename Receiver>
   struct operation : schedule_at_operation {
-    static constexpr bool is_stop_ever_possible =
+    static inline constexpr bool is_stop_ever_possible =
         !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
 
    public:

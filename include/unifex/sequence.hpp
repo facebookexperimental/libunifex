@@ -119,7 +119,7 @@ namespace unifex
         auto* op = op_;
         op->status_ = operation_type::status::empty;
         op->predOp_.destruct();
-        if constexpr (is_nothrow_connectable_v<Successor, successor_receiver>) {
+        if constexpr (is_nothrow_sender_to_v<Successor, successor_receiver>) {
           op->succOp_.construct_from([&]() noexcept {
             return unifex::connect(
                 static_cast<Successor&&>(op->successor_), successor_receiver{op});
@@ -323,13 +323,13 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 Predecessor,
                 detail::sequence_predecessor_receiver<
                     Predecessor,
                     Successor,
                     std::remove_cvref_t<Receiver>>> &&
-                is_connectable_v<
+                sender_to<
                     Successor,
                     detail::sequence_successor_receiver<
                         Predecessor,
@@ -352,13 +352,13 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 Predecessor&,
                 detail::sequence_predecessor_receiver<
                     Predecessor&,
                     Successor,
                     std::remove_cvref_t<Receiver>>> &&
-                is_connectable_v<
+                sender_to<
                     Successor,
                     detail::sequence_successor_receiver<
                         Predecessor&,
@@ -380,13 +380,13 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 const Predecessor&,
                 detail::sequence_predecessor_receiver<
                     Predecessor,
                     Successor,
                     Receiver>> &&
-                is_connectable_v<
+                sender_to<
                     Successor,
                     detail::sequence_successor_receiver<
                         Predecessor,

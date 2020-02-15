@@ -205,7 +205,7 @@ namespace unifex
     template <typename Receiver>
     friend auto
     tag_invoke(tag_t<unifex::connect>, materialize_sender&& s, Receiver&& r) noexcept(
-        is_nothrow_connectable_v<
+        is_nothrow_sender_to_v<
             Source,
             detail::materialize_receiver<std::decay_t<Receiver>>>&&
             std::is_nothrow_constructible_v<

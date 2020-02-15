@@ -60,7 +60,7 @@ public:
 
     using source_receiver = retry_when_source_receiver<Source, Func, Receiver>;
 
-    if constexpr (is_nothrow_connectable_v<Source&, source_receiver>) {
+    if constexpr (is_nothrow_sender_to_v<Source&, source_receiver>) {
       auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
           return unifex::connect(op->source_, source_receiver{op});
         });
@@ -180,7 +180,7 @@ public:
     using trigger_op = unifex::connect_result_t<trigger_sender, trigger_receiver>; 
     auto& triggerOpStorage = op->triggerOps_.template get<trigger_op>();
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
-                  is_nothrow_connectable_v<trigger_sender, trigger_receiver>) {
+                  is_nothrow_sender_to_v<trigger_sender, trigger_receiver>) {
       auto& triggerOp = triggerOpStorage.construct_from([&]() noexcept {
           return unifex::connect(std::invoke(op->func_, (Error&&)error), trigger_receiver{op});
         });
@@ -233,7 +233,7 @@ public:
       noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
                std::is_nothrow_constructible_v<Func, Func2> &&
                std::is_nothrow_constructible_v<Receiver, Receiver2> &&
-               is_nothrow_connectable_v<Source&, source_receiver>)
+               is_nothrow_sender_to_v<Source&, source_receiver>)
   : source_((Source2&&)source)
   , func_((Func2&&)func)
   , receiver_((Receiver&&)receiver)
@@ -324,7 +324,7 @@ public:
         std::is_move_constructible_v<Source> &&
         std::is_move_constructible_v<Func> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+        sender_to<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
   Op connect(Receiver&& r) &&
       noexcept(std::is_nothrow_constructible_v<Op, Source, Func, Receiver>) {
     return Op{(Source&&)source_, (Func&&)func_, (Receiver&&)r};
@@ -337,7 +337,7 @@ public:
         std::is_constructible_v<Source, Source&> &&
         std::is_constructible_v<Func, Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+        sender_to<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
   Op connect(Receiver&& r) &
       noexcept(std::is_nothrow_constructible_v<Op, Source&, Func&, Receiver>) {
       return Op{source_, func_, (Receiver&&)r};
@@ -350,7 +350,7 @@ public:
         std::is_constructible_v<Source, const Source&> &&
         std::is_constructible_v<Func, const Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+        sender_to<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
   Op connect(Receiver&& r) &
       noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Func&, Receiver>) {
     return Op{source_, func_, (Receiver&&)r};

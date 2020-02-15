@@ -177,7 +177,7 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 Source,
                 detail::dematerialize_receiver<std::decay_t<Receiver>>>,
             int> = 0>
@@ -195,7 +195,7 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 Source&,
                 detail::dematerialize_receiver<std::decay_t<Receiver>>>,
             int> = 0>
@@ -213,7 +213,7 @@ namespace unifex
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
+            sender_to<
                 const Source&,
                 detail::dematerialize_receiver<std::decay_t<Receiver>>>,
             int> = 0>

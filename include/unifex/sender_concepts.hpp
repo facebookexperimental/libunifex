@@ -64,11 +64,11 @@ using connect_result_t = decltype(connect(
     std::declval<Receiver>()));
 
 template <typename Sender, typename Receiver>
-inline constexpr bool is_connectable_v =
+inline constexpr bool sender_to =
   std::is_invocable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
-inline constexpr bool is_nothrow_connectable_v =
+inline constexpr bool is_nothrow_sender_to_v =
   std::is_nothrow_invocable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Adaptor>
@@ -103,7 +103,7 @@ using single_value_result_t = non_void_t<wrap_reference_t<decay_rvalue_t<
         type::type>>>;
 
 template <typename Sender>
-constexpr bool is_sender_nofail_v =
+inline constexpr bool is_sender_nofail_v =
     Sender::template error_types<is_empty_list>::value;
 
 } // namespace unifex

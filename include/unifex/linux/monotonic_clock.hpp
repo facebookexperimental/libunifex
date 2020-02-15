@@ -34,7 +34,7 @@ class monotonic_clock {
   using ratio = std::ratio<1, 10'000'000>; // 100ns
   using duration = std::chrono::duration<rep, ratio>;
 
-  static constexpr bool is_steady = true;
+  static inline constexpr bool is_steady = true;
 
   class time_point {
    public:
