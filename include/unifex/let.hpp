@@ -95,7 +95,7 @@ class let_sender {
 
     template <typename... Values>
     using successor_operation =
-        operation_t<successor_type<Values...>, successor_receiver<Values...>>;
+        connect_result_t<successor_type<Values...>, successor_receiver<Values...>>;
 
     template <typename... Values>
     using decayed_tuple = std::tuple<std::decay_t<Values>...>;
@@ -247,7 +247,7 @@ class let_sender {
         template value_types<manual_lifetime_union, decayed_tuple>
             values_;
     union {
-      manual_lifetime<operation_t<Predecessor2, predecessor_receiver>> predOp_;
+      manual_lifetime<connect_result_t<Predecessor2, predecessor_receiver>> predOp_;
       typename Predecessor::
           template value_types<manual_lifetime_union, successor_operation>
               succOp_;

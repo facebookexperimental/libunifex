@@ -59,7 +59,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionValueOp_.template get<
-            operation_t<CompletionSender, finally_value_receiver>>();
+            connect_result_t<CompletionSender, finally_value_receiver>>();
         completionOp.destruct();
 
         auto& valueStorage = op->value_.template get<std::tuple<Values...>>();
@@ -95,7 +95,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionValueOp_.template get<
-            operation_t<CompletionSender, finally_value_receiver>>();
+            connect_result_t<CompletionSender, finally_value_receiver>>();
         completionOp.destruct();
 
         // Discard the stored value.
@@ -111,7 +111,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionValueOp_.template get<
-            operation_t<CompletionSender, finally_value_receiver>>();
+            connect_result_t<CompletionSender, finally_value_receiver>>();
         completionOp.destruct();
 
         // Discard the stored value.
@@ -174,7 +174,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionErrorOp_.template get<
-            operation_t<CompletionSender, finally_error_receiver>>();
+            connect_result_t<CompletionSender, finally_error_receiver>>();
         completionOp.destruct();
 
         auto& errorStorage = op->error_.template get<Error>();
@@ -198,7 +198,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionErrorOp_.template get<
-            operation_t<CompletionSender, finally_error_receiver>>();
+            connect_result_t<CompletionSender, finally_error_receiver>>();
         completionOp.destruct();
 
         // Discard existing stored error from source-sender.
@@ -214,7 +214,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionErrorOp_.template get<
-            operation_t<CompletionSender, finally_error_receiver>>();
+            connect_result_t<CompletionSender, finally_error_receiver>>();
         completionOp.destruct();
 
         // Discard existing stored error from source-sender.
@@ -374,7 +374,7 @@ namespace unifex
               std::decay_t<Values>...>;
           auto& completionOp =
               op->completionValueOp_
-                  .template get<operation_t<CompletionSender, value_receiver>>()
+                  .template get<connect_result_t<CompletionSender, value_receiver>>()
                   .construct_from([&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
@@ -407,7 +407,7 @@ namespace unifex
               std::decay_t<Error>>;
           auto& completionOp =
               op->completionErrorOp_
-                  .template get<operation_t<CompletionSender, error_receiver>>()
+                  .template get<connect_result_t<CompletionSender, error_receiver>>()
                   .construct_from([&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
@@ -496,7 +496,7 @@ namespace unifex
       friend class finally_done_receiver;
 
       template <typename... Values>
-      using value_operation = operation_t<
+      using value_operation = connect_result_t<
           CompletionSender,
           finally_value_receiver<
               SourceSender,
@@ -505,7 +505,7 @@ namespace unifex
               std::decay_t<Values>...>>;
 
       template <typename Error>
-      using error_operation = operation_t<
+      using error_operation = connect_result_t<
           CompletionSender,
           finally_error_receiver<
               SourceSender,
@@ -519,7 +519,7 @@ namespace unifex
             error_operation<std::exception_ptr>,
             error_operation<Errors>...>;
 
-      using done_operation = operation_t<
+      using done_operation = connect_result_t<
           CompletionSender,
           finally_done_receiver<SourceSender, CompletionSender, Receiver>>;
 
@@ -576,7 +576,7 @@ namespace unifex
       // Operation storage.
       union {
         // Storage for the source operation state.
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             SourceSender,
             finally_receiver<SourceSender, CompletionSender, Receiver>>>
             sourceOp_;

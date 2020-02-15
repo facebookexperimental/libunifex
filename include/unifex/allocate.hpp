@@ -78,10 +78,10 @@ namespace unifex
     template <typename Receiver>
     friend auto tag_invoke(tag_t<connect>, allocate_sender&& s, Receiver&& r)
         -> allocated_operation<
-            operation_t<Sender, Receiver>,
+            connect_result_t<Sender, Receiver>,
             std::remove_cvref_t<get_allocator_t<Receiver>>> {
       return allocated_operation<
-          operation_t<Sender, Receiver>,
+          connect_result_t<Sender, Receiver>,
           std::remove_cvref_t<get_allocator_t<Receiver>>>{
           (Sender &&) s.sender_, (Receiver &&) r};
     }
@@ -89,10 +89,10 @@ namespace unifex
     template <typename Receiver>
     friend auto tag_invoke(tag_t<connect>, allocate_sender& s, Receiver&& r)
         -> allocated_operation<
-            operation_t<Sender&, Receiver>,
+            connect_result_t<Sender&, Receiver>,
             std::remove_cvref_t<get_allocator_t<Receiver>>> {
       return allocated_operation<
-          operation_t<Sender&, Receiver>,
+          connect_result_t<Sender&, Receiver>,
           std::remove_cvref_t<get_allocator_t<Receiver>>>{
           s.sender_, (Receiver &&) r};
     }
@@ -101,10 +101,10 @@ namespace unifex
     friend auto
     tag_invoke(tag_t<connect>, const allocate_sender& s, Receiver&& r)
         -> allocated_operation<
-            operation_t<const Sender&, Receiver>,
+            connect_result_t<const Sender&, Receiver>,
             std::remove_cvref_t<get_allocator_t<Receiver>>> {
       return allocated_operation<
-          operation_t<const Sender&, Receiver>,
+          connect_result_t<const Sender&, Receiver>,
           std::remove_cvref_t<get_allocator_t<Receiver>>>{
           std::as_const(s.sender_), (Receiver &&) r};
     }

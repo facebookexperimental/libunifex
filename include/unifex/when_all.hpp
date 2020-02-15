@@ -72,7 +72,7 @@ struct when_all_operation_tuple<Index, Receiver, First, Rest...>
   }
 
  private:
-  operation_t<First, Receiver<Index>> op_;
+  connect_result_t<First, Receiver<Index>> op_;
 };
 
 } // namespace detail

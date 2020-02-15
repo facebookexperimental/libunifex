@@ -59,7 +59,7 @@ inline constexpr struct connect_cpo {
 } connect{};
 
 template <typename Sender, typename Receiver>
-using operation_t = decltype(connect(
+using connect_result_t = decltype(connect(
     std::declval<Sender>(),
     std::declval<Receiver>()));
 

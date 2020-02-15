@@ -45,7 +45,7 @@ struct single_stream {
     struct operation {
       union {
         Receiver receiver_;
-        manual_lifetime<operation_t<Sender, Receiver>> innerOp_;
+        manual_lifetime<connect_result_t<Sender, Receiver>> innerOp_;
       };
       bool done_;
 

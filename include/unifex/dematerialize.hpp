@@ -183,7 +183,7 @@ namespace unifex
             int> = 0>
     friend auto
     tag_invoke(tag_t<unifex::connect>, dematerialize_sender&& s, Receiver&& r)
-        -> operation_t<
+        -> connect_result_t<
             Source,
             detail::dematerialize_receiver<std::decay_t<Receiver>>> {
       return unifex::connect(
@@ -201,7 +201,7 @@ namespace unifex
             int> = 0>
     friend auto
     tag_invoke(tag_t<unifex::connect>, dematerialize_sender& s, Receiver&& r)
-        -> operation_t<
+        -> connect_result_t<
             Source&,
             detail::dematerialize_receiver<std::decay_t<Receiver>>> {
       return unifex::connect(
@@ -219,7 +219,7 @@ namespace unifex
             int> = 0>
     friend auto tag_invoke(
         tag_t<unifex::connect>, const dematerialize_sender& s, Receiver&& r)
-        -> operation_t<
+        -> connect_result_t<
             const Source&,
             detail::dematerialize_receiver<std::decay_t<Receiver>>> {
       return unifex::connect(

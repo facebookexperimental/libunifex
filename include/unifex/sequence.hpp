@@ -251,11 +251,11 @@ namespace unifex
       };
       status status_;
       union {
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             Predecessor,
             sequence_predecessor_receiver<Predecessor, Successor, Receiver>>>
             predOp_;
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             Successor,
             sequence_successor_receiver<Predecessor, Successor, Receiver>>>
             succOp_;

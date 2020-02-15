@@ -70,7 +70,7 @@ struct schedule_cpo::schedule_sender {
       std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
     typename ScheduleSender = std::invoke_result_t<decltype(schedule), Scheduler&>>
   friend auto tag_invoke(tag_t<connect>, schedule_sender, Receiver &&r)
-      -> operation_t<ScheduleSender, Receiver> {
+      -> connect_result_t<ScheduleSender, Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
     return connect(schedule(scheduler), (Receiver &&) r);
   }
@@ -120,7 +120,7 @@ inline constexpr struct schedule_after_cpo {
       typename ScheduleAfterSender =
         std::invoke_result_t<schedule_after_cpo, Scheduler&, const Duration&>>
     friend auto tag_invoke(tag_t<connect>, const schedule_after_sender& s, Receiver&& r)
-        -> operation_t<ScheduleAfterSender, Receiver> {
+        -> connect_result_t<ScheduleAfterSender, Receiver> {
       auto scheduler = get_scheduler(std::as_const(r));
       return connect(schedule_after_cpo{}(scheduler, std::as_const(s.duration_)), (Receiver&&)r);
     }

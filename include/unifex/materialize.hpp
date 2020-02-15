@@ -211,7 +211,7 @@ namespace unifex
             std::is_nothrow_constructible_v<
                 detail::materialize_receiver<std::decay_t<Receiver>>,
                 Receiver>)
-        -> operation_t<
+        -> connect_result_t<
             Source,
             detail::materialize_receiver<std::decay_t<Receiver>>> {
       return unifex::connect(
@@ -223,7 +223,7 @@ namespace unifex
     template <typename Receiver>
     friend auto
     tag_invoke(tag_t<unifex::connect>, materialize_sender& s, Receiver&& r)
-        -> operation_t<
+        -> connect_result_t<
             Source&,
             detail::materialize_receiver<std::decay_t<Receiver>>> {
       return unifex::connect(
@@ -235,7 +235,7 @@ namespace unifex
     template <typename Receiver>
     friend auto tag_invoke(
         tag_t<unifex::connect>, const materialize_sender& s, Receiver&& r)
-        -> operation_t<
+        -> connect_result_t<
             const Source&,
             detail::materialize_receiver<std::decay_t<Receiver>>> {
       return unifex::connect(

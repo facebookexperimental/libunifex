@@ -57,9 +57,9 @@ template <typename Stream>
 using cleanup_sender_t = decltype(cleanup(std::declval<Stream&>()));
 
 template <typename Stream, typename Receiver>
-using next_operation_t = operation_t<next_sender_t<Stream>, Receiver>;
+using next_operation_t = connect_result_t<next_sender_t<Stream>, Receiver>;
 
 template <typename Stream, typename Receiver>
-using cleanup_operation_t = operation_t<cleanup_sender_t<Stream>, Receiver>;
+using cleanup_operation_t = connect_result_t<cleanup_sender_t<Stream>, Receiver>;
 
 } // namespace unifex

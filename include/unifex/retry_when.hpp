@@ -130,7 +130,7 @@ private:
   }
 
   void destroy_trigger_op() noexcept {
-    using trigger_op = operation_t<Trigger, retry_when_trigger_receiver>;
+    using trigger_op = connect_result_t<Trigger, retry_when_trigger_receiver>;
     op_->triggerOps_.template get<trigger_op>().destruct();
   }
 
@@ -177,7 +177,7 @@ public:
 
     using trigger_sender = std::invoke_result_t<Func&, Error>;
     using trigger_receiver = detail::retry_when_trigger_receiver<Source, Func, Receiver, trigger_sender>;
-    using trigger_op = unifex::operation_t<trigger_sender, trigger_receiver>; 
+    using trigger_op = unifex::connect_result_t<trigger_sender, trigger_receiver>; 
     auto& triggerOpStorage = op->triggerOps_.template get<trigger_op>();
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender, trigger_receiver>) {
@@ -259,7 +259,7 @@ private:
   template<typename Source2, typename Func2, typename Receiver2, typename Trigger>
   friend class retry_when_trigger_receiver;
 
-  using source_op_t = operation_t<Source&, retry_when_source_receiver<Source, Func, Receiver>>;
+  using source_op_t = connect_result_t<Source&, retry_when_source_receiver<Source, Func, Receiver>>;
 
   template<typename Error>
   using trigger_sender_t = std::invoke_result_t<Func&, std::remove_cvref_t<Error>>;
@@ -268,7 +268,7 @@ private:
   using trigger_receiver_t = retry_when_trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
 
   template<typename Error>
-  using trigger_op_t = operation_t<
+  using trigger_op_t = connect_result_t<
       trigger_sender_t<Error>,
       trigger_receiver_t<Error>>;
 

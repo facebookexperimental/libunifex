@@ -139,7 +139,7 @@ private:
   };
 
   state state_ = state::empty;
-  operation_t<Sender, coroutine_receiver> op_;
+  connect_result_t<Sender, coroutine_receiver> op_;
   coro::coroutine_handle<> continuation_;
   union {
     manual_lifetime<Value> value_;
