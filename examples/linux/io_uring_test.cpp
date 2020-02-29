@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <unifex/config.hpp>
+
 #if !UNIFEX_NO_LIBURING
 
 #include <unifex/inplace_stop_token.hpp>
@@ -157,6 +159,7 @@ int main() {
 #include <cstdio>
 int main() {
   printf("liburing support not found\n");
+  return 0;
 }
 
 #endif // UNIFEX_NO_LIBURING
