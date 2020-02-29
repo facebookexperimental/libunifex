@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <version>
-
 #if __cplusplus >= 201703L
 # ifdef __has_include
 #  if __has_include(<version>)
