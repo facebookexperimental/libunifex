@@ -27,16 +27,17 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     PRIVATE
       pthread)
 
-if (UNIFEX_NO_LIBURING EQUAL FALSE)
+if (NOT UNIFEX_NO_LIBURING)
 
   target_sources(unifex
     PRIVATE
-      linux/io_uring_context.cpp)
+      linux/io_uring_context.cpp
+      linux/io_uring_syscall.cpp)
 
   target_include_directories(unifex
     PUBLIC
-      ${UNIFEX_URING_HEADER})
-
+      ${UNIFEX_URING_INCLUDE_DIRS})
+  
   target_link_libraries(unifex
     PRIVATE
       ${UNIFEX_URING_LIBRARY})

@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-#if __has_include(<liburing.h>)
+#include <unifex/config.hpp>
+
+#if !UNIFEX_NO_LIBURING
 
 #include <unifex/linux/io_uring_context.hpp>
 
 #include <unifex/scope_guard.hpp>
+
+#include "io_uring_syscall.hpp"
 
 #include <cassert>
 #include <cstring>
@@ -826,4 +830,4 @@ io_uring_context::async_read_write_file tag_invoke(
 
 } // namespace unifex::linuxos
 
-#endif // __has_include(<liburing.h>)
+#endif // UNIFEX_NO_LIBURING

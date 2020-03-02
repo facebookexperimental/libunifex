@@ -15,20 +15,37 @@
  */
 #pragma once
 
-#if __has_include(<filesystem>)
-
-#include <filesystem>
-
-namespace unifex {
-    namespace filesystem = std::filesystem;
+#if __cplusplus >= 201703L
+# ifdef __has_include
+#  if __has_include(<version>)
+#   include <version>
+#   if __cpp_lib_filesystem >= 201703L && __has_include(<filesystem>)
+#    include <filesystem>
+#    define UNIFEX_HAVE_FILESYSTEM 1
+namespace unifex
+{
+    namespace filesystem
+    {
+        using std::filesystem::path;
+    }
 }
-
-#else
-
-#include <experimental/filesystem>
-
-namespace unifex {
-    namespace filesystem = std::experimental::filesystem;
+#   endif
+#  endif
+#  ifndef UNIFEX_HAVE_FILESYSTEM
+#   if __has_include(<experimental/filesystem>)
+#    include <experimental/filesystem>
+#    define UNIFEX_HAVE_FILESYSTEM 1
+namespace unifex
+{
+    namespace filesystem
+    {
+        using std::experimental::filesystem::path;
+    }
 }
-
-#endif // __has_include(<filesystem>)
+#   endif
+#  endif
+# endif
+#endif
+#ifndef UNIFEX_HAVE_FILESYSTEM
+# define UNIFEX_HAVE_FILESYSTEM 0
+#endif

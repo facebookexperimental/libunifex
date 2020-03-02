@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#if __has_include(<liburing.h>)
+#if !UNIFEX_NO_LIBURING
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
@@ -39,7 +39,7 @@
 #include <system_error>
 #include <utility>
 
-#include <liburing.h>
+#include <liburing/io_uring.h>
 
 #include <sys/uio.h>
 
