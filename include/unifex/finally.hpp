@@ -22,6 +22,7 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 
 #include <cassert>
 #include <exception>
@@ -616,12 +617,12 @@ namespace unifex
     // TODO: In theory we could eliminate exception_ptr in the case that the
     // connect() operation and move/copy of values
     template <template <typename...> class Variant>
-    using error_types = concat_unique_t<
+    using error_types = typename concat_type_lists_unique_t<
         typename SourceSender::template error_types<
-            decayed_tuple<Variant>::template apply>,
-        typename CompletionSender::template error_types<decayed_tuple<
-            append_unique<Variant, std::exception_ptr>::template apply>::
-                                                            template apply>>;
+            decayed_tuple<type_list>::template apply>,
+        typename CompletionSender::template error_types<
+            decayed_tuple<type_list>::template apply>,
+        type_list<std::exception_ptr>>::template apply<Variant>;
 
     template <typename SourceSender2, typename CompletionSender2>
     explicit finally_sender(

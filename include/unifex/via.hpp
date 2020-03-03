@@ -19,6 +19,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 #include <unifex/submit.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_stop_token.hpp>
@@ -35,16 +36,21 @@ struct via_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Successor succ_;
 
+  template<typename... Ts>
+  using overload_list = type_list<type_list<std::decay_t<Ts>...>>;
+
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types =
-      typename Predecessor::template value_types<Variant, Tuple>;
+  using value_types = type_list_nested_apply_t<
+      typename Predecessor::template value_types<concat_type_lists_unique_t, overload_list>,
+      Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = concat_unique_t<
-      typename Predecessor::template error_types<Variant>,
-      typename Successor::template error_types<Variant>>;
+  using error_types = typename concat_type_lists_unique_t<
+      typename Predecessor::template error_types<type_list>,
+      typename Successor::template error_types<type_list>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   friend constexpr blocking_kind tag_invoke(
       tag_t<blocking>,

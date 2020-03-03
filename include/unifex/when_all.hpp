@@ -22,6 +22,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 #include <unifex/blocking.hpp>
 
 #include <atomic>
@@ -89,10 +90,9 @@ class when_all_sender {
       typename Senders::template value_types<std::variant, std::tuple>...>>;
 
   template <template <typename...> class Variant>
-  using error_types = deduplicate_t<concat_lists_t<
-      Variant,
-      Variant<std::exception_ptr>,
-      typename Senders::template error_types<Variant>...>>;
+  using error_types = typename concat_type_lists_unique_t<
+      typename Senders::template error_types<type_list>...,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename... Senders2>
   explicit when_all_sender(Senders2&&... senders)

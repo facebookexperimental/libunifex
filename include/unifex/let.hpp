@@ -22,6 +22,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 
 #include <exception>
 #include <functional>
@@ -62,18 +63,17 @@ class let_sender {
   struct value_types_impl {
    public:
     template <typename... Senders>
-    using apply = deduplicate_t<concat_lists_t<
-        Variant,
-        typename Senders::template value_types<Variant, Tuple>...>>;
+    using apply = typename concat_type_lists_unique_t<
+        typename Senders::template value_types<type_list, Tuple>...
+        >::template apply<Variant>;
   };
 
   template <template <typename...> class Variant>
   struct error_types_impl {
     template <typename... Senders>
-    using apply = deduplicate_t<concat_lists_t<
-        Variant,
-        Variant<std::exception_ptr>,
-        typename Senders::template error_types<Variant>...>>;
+    using apply = typename concat_type_lists_unique_t<
+        typename Senders::template error_types<type_list>...,
+        type_list<std::exception_ptr>>::template apply<Variant>;
   };
 
  public:

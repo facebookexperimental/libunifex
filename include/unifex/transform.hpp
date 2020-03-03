@@ -22,59 +22,54 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/type_list.hpp>
 
 #include <functional>
 #include <type_traits>
 
 namespace unifex {
 
+namespace detail
+{
+  template <typename Result, typename = void>
+  struct transform_result_overload {
+    using type = type_list<Result>;
+  };
+  template <typename Result>
+  struct transform_result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
+    using type = type_list<>;
+  };
+}
+
 template <typename Predecessor, typename Func>
 struct transform_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
-  template <template <typename...> class Tuple>
-  struct transform_result {
-   private:
-    template <typename Result, typename = void>
-    struct impl {
-      using type = Tuple<Result>;
-    };
-    template <typename Result>
-    struct impl<Result, std::enable_if_t<std::is_void_v<Result>>> {
-      using type = Tuple<>;
-    };
+private:
 
-   public:
-    template <typename... Args>
-    using apply = typename impl<std::invoke_result_t<Func, Args...>>::type;
-  };
+  // This helper transforms an argument list into either
+  // - type_list<type_list<Result>> - if Result is non-void, or
+  // - type_list<type_list<>>       - if Result is void
+  template<typename... Args>
+  using transform_result = type_list<
+    typename detail::transform_result_overload<
+      std::invoke_result_t<Func, Args...>>::type>;
 
-  template <typename... Args>
-  using is_overload_noexcept = std::bool_constant<noexcept(
-      std::invoke(std::declval<Func>(), std::declval<Args>()...))>;
-
-  template <template <typename...> class Variant>
-  struct calculate_errors {
-   public:
-    template <typename... Errors>
-    using apply = std::conditional_t<
-        Predecessor::
-            template value_types<std::conjunction, is_overload_noexcept>::value,
-        Variant<Errors...>,
-        deduplicate_t<Variant<Errors..., std::exception_ptr>>>;
-  };
+public:
 
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types = deduplicate_t<typename Predecessor::template value_types<
-      Variant,
-      transform_result<Tuple>::template apply>>;
+  using value_types = type_list_nested_apply_t<
+    typename Predecessor::template value_types<concat_type_lists_unique_t, transform_result>,
+    Variant,
+    Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename Predecessor::template error_types<
-      calculate_errors<Variant>::template apply>;
+  using error_types = typename concat_type_lists_unique_t<
+    typename Predecessor::template error_types<type_list>,
+    type_list<std::exception_ptr>>::template apply<Variant>;
 
   friend constexpr auto tag_invoke(
       tag_t<blocking>,

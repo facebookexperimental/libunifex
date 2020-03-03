@@ -60,6 +60,9 @@ namespace unifex
   struct concat_type_lists<type_list<Ts...>, type_list<Us...>, type_list<Vs...>, OtherLists...>
     : concat_type_lists<type_list<Ts..., Us..., Vs...>, OtherLists...> {};
 
+  template <typename... UniqueLists>
+  using concat_type_lists_t = typename concat_type_lists<UniqueLists...>::type;
+
   // concat_type_lists_unique<UniqueLists...>
   //
   // Result is produced via '::type' which will contain a type_list<Ts...> that
@@ -89,4 +92,24 @@ namespace unifex
                 type_list<Us>>...>::type,
           OtherLists...> {};
 
+  template <typename... UniqueLists>
+  using concat_type_lists_unique_t = typename concat_type_lists_unique<UniqueLists...>::type;
+
+  namespace detail
+  {
+    template<
+      template<typename...> class Outer,
+      template<typename...> class Inner>
+    struct type_list_nested_apply_impl {
+      template<typename... Lists>
+      using apply = Outer<typename Lists::template apply<Inner>...>;
+    };
+  }
+
+  template<
+    typename ListOfLists,
+    template<typename...> class Outer,
+    template<typename...> class Inner>
+  using type_list_nested_apply_t = typename ListOfLists::template apply<
+    detail::type_list_nested_apply_impl<Outer, Inner>::template apply>;
 } // namespace unifex

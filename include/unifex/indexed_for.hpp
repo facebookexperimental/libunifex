@@ -19,6 +19,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
@@ -40,30 +41,15 @@ struct indexed_for_sender {
   UNIFEX_NO_UNIQUE_ADDRESS Range range_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
-  template <template <typename...> class Tuple>
-  struct indexed_for_result {
-   public:
-    template <typename... Args>
-    using apply = Tuple<Args...>;
-  };
-
-  template <template <typename...> class Variant>
-  struct calculate_errors {
-   public:
-    template <typename... Errors>
-    using apply = deduplicate<Variant<Errors..., std::exception_ptr>>;
-  };
-
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types = deduplicate_t<typename Predecessor::template value_types<
-      Variant,
-      indexed_for_result<Tuple>::template apply>>;
+  using value_types = typename Predecessor::template value_types<Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename Predecessor::template error_types<
-      calculate_errors<Variant>::template apply>;
+  using error_types = typename concat_type_lists_unique_t<
+      typename Predecessor::template error_types<type_list>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   friend constexpr auto tag_invoke(
       tag_t<blocking>,
