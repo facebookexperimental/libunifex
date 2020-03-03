@@ -122,7 +122,17 @@ class timed_single_thread_context {
 
      public:
       template <typename Receiver>
-      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
+      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
+        return operation<std::remove_cvref_t<Receiver>>{
+            context_, duration_, (Receiver &&) receiver};
+      }
+      template <typename Receiver>
+      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) & {
+        return operation<std::remove_cvref_t<Receiver>>{
+            context_, duration_, (Receiver &&) receiver};
+      }
+      template <typename Receiver>
+      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) const & {
         return operation<std::remove_cvref_t<Receiver>>{
             context_, duration_, (Receiver &&) receiver};
       }

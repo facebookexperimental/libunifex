@@ -39,7 +39,13 @@ class just_sender {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  template <typename... Values2>
+  just_sender(const just_sender&) = default;
+  just_sender(just_sender&&) = default;
+
+  template <
+    typename... Values2,
+    std::enable_if_t<
+      (sizeof...(Values2) == sizeof...(Values)), int> = 0>
   explicit just_sender(Values2&&... values) noexcept(
       noexcept((std::is_nothrow_constructible_v<Values, Values2> && ...)))
       : values_((Values2 &&) values...) {}
@@ -64,9 +70,25 @@ class just_sender {
   };
 
  public:
-  template <typename Receiver>
+  template <
+    typename Receiver,
+    std::enable_if_t<std::is_move_constructible_v<std::tuple<Values...>>, int> = 0>
   operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
     return {std::move(values_), (Receiver &&) r};
+  }
+
+  template <
+    typename Receiver,
+    std::enable_if_t<std::is_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>, int> = 0>
+  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) & {
+    return {values_, (Receiver &&) r};
+  }
+
+  template <
+    typename Receiver,
+    std::enable_if_t<std::is_constructible_v<std::tuple<Values...>, const std::tuple<Values...>&>, int> = 0>
+  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) const & {
+    return {values_, (Receiver &&) r};
   }
 
   friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const just_sender&) noexcept {

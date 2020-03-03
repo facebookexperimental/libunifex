@@ -99,7 +99,7 @@ class when_all_sender {
       : senders_((Senders2 &&) senders...) {}
 
  private:
-  template <typename Receiver>
+  template <typename Receiver, typename... Senders2>
   struct operation {
     struct cancel_operation {
       operation& op_;
@@ -172,9 +172,10 @@ class when_all_sender {
       }
     };
 
-    explicit operation(Receiver&& receiver, Senders&&... senders)
+    explicit operation(Receiver&& receiver, Senders2&&... senders)
         : receiver_((Receiver &&) receiver),
-          ops_(*this, (Senders &&) senders...) {}
+          ops_(*this, (Senders2 &&) senders...) {}
+
 
     void start() noexcept {
       stopCallback_.construct(
@@ -205,7 +206,7 @@ class when_all_sender {
           unifex::set_done(std::move(receiver_));
         }
       } else {
-        deliver_value(std::index_sequence_for<Senders...>{});
+        deliver_value(std::index_sequence_for<Senders2...>{});
       }
     }
 
@@ -231,16 +232,32 @@ class when_all_sender {
         Receiver&>::template callback_type<cancel_operation>>
         stopCallback_;
     Receiver receiver_;
-    detail::when_all_operation_tuple<0, element_receiver, Senders...> ops_;
+    detail::when_all_operation_tuple<0, element_receiver, Senders2...> ops_;
   };
 
  public:
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
+  operation<std::remove_cvref_t<Receiver>, Senders...> connect(Receiver&& receiver) && {
     return std::apply([&](Senders&&... senders) {
-      return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver,
+      return operation<std::remove_cvref_t<Receiver>, Senders...>{(Receiver &&) receiver,
                                                       (Senders &&) senders...};
     }, std::move(senders_));
+  }
+
+  template <typename Receiver>
+  operation<std::remove_cvref_t<Receiver>, Senders&...> connect(Receiver&& receiver) & {
+    return std::apply([&](Senders&... senders) {
+      return operation<std::remove_cvref_t<Receiver>, Senders&...>{(Receiver &&) receiver,
+                                                                    senders...};
+    }, senders_);
+  }
+
+  template <typename Receiver>
+  operation<std::remove_cvref_t<Receiver>, const Senders&...> connect(Receiver&& receiver) const & {
+    return std::apply([&](const Senders&... senders) {
+      return operation<std::remove_cvref_t<Receiver>, const Senders&...>{(Receiver &&) receiver,
+                                                                         senders...};
+    }, senders_);
   }
 
  private:

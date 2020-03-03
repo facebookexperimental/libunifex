@@ -529,16 +529,16 @@ namespace unifex
         manual_lifetime_union<std::exception_ptr, Errors...>;
 
     public:
-      template <typename CompletionSender2, typename Receiver2>
+      template <typename SourceSender2, typename CompletionSender2, typename Receiver2>
       explicit finally_operation(
-          SourceSender&& sourceSender,
+          SourceSender2&& sourceSender,
           CompletionSender2&& completionSender,
           Receiver2&& receiver)
         : completionSender_(static_cast<CompletionSender2&&>(completionSender))
         , receiver_(static_cast<Receiver2&&>(receiver)) {
         sourceOp_.construct_from([&] {
           return unifex::connect(
-              static_cast<SourceSender&&>(sourceSender),
+              static_cast<SourceSender2&&>(sourceSender),
               finally_receiver<SourceSender, CompletionSender, Receiver>{this});
         });
       }
@@ -656,6 +656,56 @@ namespace unifex
           finally_operation<SourceSender, CompletionSender, Receiver>{
               static_cast<SourceSender&&>(s.source_),
               static_cast<CompletionSender&&>(s.completion_),
+              static_cast<Receiver&&>(r)};
+    }
+
+    template <
+        typename Receiver,
+        std::enable_if_t<
+            is_connectable_v<
+                SourceSender,
+                detail::finally_receiver<
+                    SourceSender,
+                    CompletionSender,
+                    Receiver>> &&
+            is_connectable_v<
+                CompletionSender,
+                detail::finally_done_receiver<
+                    SourceSender,
+                    CompletionSender,
+                    Receiver>>,
+            int> = 0>
+    friend auto tag_invoke(tag_t<connect>, finally_sender& s, Receiver&& r)
+        -> detail::finally_operation<SourceSender, CompletionSender, Receiver> {
+      return detail::
+          finally_operation<SourceSender, CompletionSender, Receiver>{
+              static_cast<SourceSender&>(s.source_),
+              static_cast<CompletionSender&>(s.completion_),
+              static_cast<Receiver&&>(r)};
+    }
+
+    template <
+        typename Receiver,
+        std::enable_if_t<
+            is_connectable_v<
+                SourceSender,
+                detail::finally_receiver<
+                    SourceSender,
+                    CompletionSender,
+                    Receiver>> &&
+            is_connectable_v<
+                CompletionSender,
+                detail::finally_done_receiver<
+                    SourceSender,
+                    CompletionSender,
+                    Receiver>>,
+            int> = 0>
+    friend auto tag_invoke(tag_t<connect>, const finally_sender& s, Receiver&& r)
+        -> detail::finally_operation<SourceSender, CompletionSender, Receiver> {
+      return detail::
+          finally_operation<SourceSender, CompletionSender, Receiver>{
+              static_cast<const SourceSender&>(s.source_),
+              static_cast<const CompletionSender&>(s.completion_),
               static_cast<Receiver&&>(r)};
     }
 

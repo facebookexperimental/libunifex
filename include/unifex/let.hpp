@@ -217,13 +217,14 @@ class let_sender {
     };
 
    public:
-    template <typename SuccessorFactory2, typename Receiver2>
+    template <typename Predecessor3, typename SuccessorFactory2, typename Receiver2>
     explicit operation(
-        Predecessor2&& pred,
+        Predecessor3&& pred,
         SuccessorFactory2&& func,
         Receiver2&& receiver)
         : func_((SuccessorFactory2 &&) func),
           receiver_((Receiver2 &&) receiver) {
+      static_assert(std::is_same_v<Predecessor3, Predecessor2>);
       predOp_.construct_from([&] {
         return unifex::connect((Predecessor2 &&) pred, predecessor_receiver{*this});
       });

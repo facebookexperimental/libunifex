@@ -280,7 +280,7 @@ class thread_unsafe_event_loop {
      private:
       friend sync_wait_promise;
 
-      StopToken& get_stop_token() const {
+      StopToken& get_stop_token() const noexcept {
         return promise_.stopToken_;
       }
 
