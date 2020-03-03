@@ -28,6 +28,7 @@
 #include <variant>
 #include <optional>
 #include <atomic>
+#include <functional>
 
 namespace unifex
 {
