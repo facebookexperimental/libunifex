@@ -21,6 +21,9 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/stop_when.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -33,26 +36,19 @@ int main() {
 
   timed_single_thread_context context;
 
-  inplace_stop_source stopSource;
-  std::thread t{[&] {
-    std::this_thread::sleep_for(500ms);
-    std::printf("cancelling\n");
-    stopSource.request_stop();
-  }};
-  scope_guard joinThread = [&]() noexcept {
-    t.join();
-  };
-
   auto start = steady_clock::now();
 
   sync_wait(
-      for_each(
-          delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
-          [start](int value) {
-            auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
-            std::printf("[%i ms] %i\n", (int)ms.count(), value);
-          }),
-      stopSource.get_token());
+      stop_when(
+          for_each(
+              delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
+              [start](int value) {
+                auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+                std::printf("[%i ms] %i\n", (int)ms.count(), value);
+              }),
+          transform(
+            schedule_after(context.get_scheduler(), 500ms),
+            [] { std::printf("cancelling\n"); })));
 
   return 0;
 }

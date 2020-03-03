@@ -16,15 +16,11 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/when_all.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/transform_done.hpp>
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/sequence.hpp>
-#include <unifex/with_query_value.hpp>
+#include <unifex/stop_when.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -42,28 +38,19 @@ auto lazy(F&& f) {
 
 TEST(TransformDone, Smoke) {
   timed_single_thread_context context;
-  inplace_stop_source done;
 
   auto scheduler = context.get_scheduler();
 
   int count = 0;
 
   sync_wait(
-    when_all(
-      sequence(
-        schedule_after(scheduler, 100ms),
-        lazy([&, stop = done.get_token()]{
-          EXPECT_FALSE(stop.stop_requested());
-          done.request_stop();
-          EXPECT_TRUE(stop.stop_requested());
-        })),
+    stop_when(
       sequence(
         transform_done(
           schedule_after(scheduler, 200ms), 
-          []{return just();})), 
-        lazy([&]{++count;})), 
-    done.get_token());
+          []{ return just(); }), 
+        lazy([&]{ ++count; })),
+      schedule_after(scheduler, 100ms)));
 
-  EXPECT_TRUE(done.stop_requested());
   EXPECT_EQ(count, 1);
 }
