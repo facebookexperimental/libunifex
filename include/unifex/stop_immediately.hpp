@@ -20,6 +20,7 @@
 #include <unifex/stream_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/get_stop_token.hpp>
@@ -298,9 +299,9 @@ struct stop_immediately_stream {
     using value_types = Variant<>;
 
     template<template<typename...> class Variant>
-    using error_types = adapt_error_types_t<
-      cleanup_sender_t<SourceStream>,
-      append_unique<Variant, std::exception_ptr>>;
+    using error_types = typename concat_type_lists_unique_t<
+      typename cleanup_sender_t<SourceStream>::template error_types<type_list>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
     template<typename Receiver>
     struct operation final : cleanup_operation_base {

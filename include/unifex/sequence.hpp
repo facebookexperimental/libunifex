@@ -24,6 +24,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 
 #include <cassert>
 #include <exception>
@@ -275,9 +276,10 @@ namespace unifex
         typename Successor::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
-    using error_types = concat_unique_t<
-        typename Predecessor::template error_types<Variant>,
-        typename Successor::template error_types<Variant>>;
+    using error_types = typename concat_type_lists_unique_t<
+        typename Predecessor::template error_types<type_list>,
+        typename Successor::template error_types<type_list>,
+        type_list<std::exception_ptr>>::template apply<Variant>;
 
     template <
         typename Predecessor2,

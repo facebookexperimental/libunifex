@@ -21,6 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/type_list.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
@@ -44,10 +45,10 @@ struct reduce_stream_sender {
   using value_types = Variant<Tuple<State>>;
 
   template <template <typename...> class Variant>
-  using error_types = concat_unique_t<
-      typename next_sender_t<StreamSender>::template error_types<Variant>,
-      typename cleanup_sender_t<StreamSender>::template error_types<
-          append_unique<Variant, std::exception_ptr>::template apply>>;
+  using error_types = typename concat_type_lists_unique_t<
+      typename next_sender_t<StreamSender>::template error_types<type_list>,
+      typename cleanup_sender_t<StreamSender>::template error_types<type_list>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename Receiver>
   struct operation {
