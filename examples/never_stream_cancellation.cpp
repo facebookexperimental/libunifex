@@ -18,6 +18,10 @@
 #include <unifex/never.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/stop_when.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/timed_single_thread_context.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -28,29 +32,19 @@ using namespace std::literals::chrono_literals;
 using namespace unifex;
 
 int main() {
-  inplace_stop_source stopSource;
-
-  std::thread t{[&] {
-    std::this_thread::sleep_for(100ms);
-
-    std::printf("requesting stop\n");
-    std::fflush(stdout);
-
-    stopSource.request_stop();
-
-    std::printf("request_stop() returned\n");
-    std::fflush(stdout);
-  }};
-  scope_guard joinThread = [&]() noexcept { t.join(); };
+  timed_single_thread_context context;
 
   std::optional<unit> result = sync_wait(
+    stop_when(
       for_each(
           never_stream{},
           [](auto) {
             std::printf("got value");
             std::fflush(stdout);
           }),
-      stopSource.get_token());
+      transform(
+        schedule_after(context.get_scheduler(), 100ms),
+        [] { std::printf("trigger completing, about to request stop\n"); })));
 
   std::printf("completed with %s\n", result ? "unit" : "nullopt");
 

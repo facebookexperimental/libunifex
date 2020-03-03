@@ -213,7 +213,7 @@ If you provide a customisation for a pair of senders then this customisation
 will be applied to the first two arguments and then reinvoke `sequence()`
 with the first two arguments replaced with the result of `sequence(first, second)`.
 
-### `sync_wait(Sender sender, StopToken st = {}) -> std::optional<Result>`
+### `sync_wait(Sender sender) -> std::optional<Result>`
 
 Blocks the current thread waiting for the specified sender to complete.
 

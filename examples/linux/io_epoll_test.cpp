@@ -27,6 +27,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/with_query_value.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -59,6 +60,7 @@ int main() {
       auto start = std::chrono::steady_clock::now();
       inplace_stop_source timerStopSource;
       sync_wait(
+        with_query_value(
           when_all(
               transform(
                   schedule_at(scheduler, now(scheduler) + 1s),
@@ -72,7 +74,8 @@ int main() {
                     std::printf("timer 3 completed (1.5s) cancelling\n");
                     timerStopSource.request_stop();
                   })),
-          timerStopSource.get_token());
+          get_stop_token,
+          timerStopSource.get_token()));
       auto end = std::chrono::steady_clock::now();
 
       std::printf(
