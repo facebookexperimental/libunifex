@@ -45,7 +45,7 @@ inline constexpr struct blocking_cpo {
   template <typename Sender>
   friend constexpr blocking_kind tag_invoke(
       blocking_cpo,
-      const Sender& s) noexcept {
+      const Sender&) noexcept {
     return blocking_kind::maybe;
   }
 
