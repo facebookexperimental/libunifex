@@ -17,6 +17,7 @@
   * `materialize()`
   * `dematerialize()`
   * `retry_when()`
+  * `stop_when()`
   * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
@@ -305,6 +306,23 @@ unifex::retry_when(
     }
     return unifex::schedule_after(scheduler, count * 50ms);
   });
+```
+
+### `stop_when(Sender source, Sender trigger) -> Sender`
+
+Returns a sender that will start both source and trigger and will cancel the
+other one whenever the first of the two senders completes.
+
+Completes with the result of `source` once both `source` and `trigger` senders
+have completed. The result is produced inline on the execution context of whichever
+sender completed second.
+
+Example usage:
+```c++
+// A simple timeout that cancels an operation after 200ms
+unifex::stop_when(
+  some_operation(),
+  unifex::schedule_after(200ms));
 ```
 
 ### `allocate(Sender sender) -> Sender`
