@@ -14,6 +14,13 @@
  * limitations under the License.
  */
 
+// writes starting!
+// warmup completed!
+// benchmark completed!
+// completed in 10000 ms, 425069reads, 10000060022ns, 4250718ops
+// stats - 425069reads, 2352ns-per-op, 425ops-per-ms
+// writes completed!
+
 #include <unifex/config.hpp>
 #if !UNIFEX_NO_EPOLL
 
@@ -27,7 +34,12 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/repeat.hpp>
+#include <unifex/typed_via.hpp>
+#include <unifex/with_query_value.hpp>
+#include <unifex/unstoppable.hpp>
 
+#include <iostream>
 #include <chrono>
 #include <cstdio>
 #include <string>
@@ -42,6 +54,24 @@ template <typename F>
 auto lazy(F&& f) {
   return transform(just(), (F &&) f);
 }
+
+template <typename F>
+auto defer(F&& f) {
+  return let(just(), (F&&)f);
+}
+
+template <typename S>
+auto discard(S&& s) {
+  return transform(s, [](auto&&...){});
+}
+
+//! Seconds to warmup the benchmark
+static constexpr int WARMUP_DURATION = 3;
+
+//! Seconds to run the benchmark
+static constexpr int BENCHMARK_DURATION = 10;
+
+static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
 
 int main() {
   io_epoll_context ctx;
@@ -83,6 +113,105 @@ int main() {
     }
   } catch (const std::exception& ex) {
     std::printf("error: %s\n", ex.what());
+  }
+
+  auto pipe = open_pipe(scheduler);
+
+  inplace_stop_source stopWarmup;
+  inplace_stop_source stopRead;
+  inplace_stop_source stopWrite;
+  auto buffer = std::vector<char>{};
+  buffer.resize(1);
+  auto offset = 0;
+  auto reps = 0;
+  const auto databuffer = as_bytes(span{data});
+  std::thread w{[&, &wPipe = std::get<1>(pipe)] () { 
+      try {
+        printf("writes starting!\n");
+        while(!stopWrite.stop_requested()) {
+          sync_wait(
+            async_write_some(wPipe, databuffer), 
+            stopWrite.get_token());
+        }
+        printf("writes exiting!\n");
+      } catch (const std::error_code& ec) {
+        std::printf("async_write_some error: %s\n", ec.message().c_str());
+      } catch (const std::exception& ex) {
+        std::printf("async_write_some exception: %s\n", ex.what());
+      }
+    }};
+  scope_guard waitForWrites = [&]() noexcept {
+    stopWrite.request_stop();
+    printf("writes stopping..!\n");
+    w.join();
+    printf("writes stopped!\n");
+  };
+  auto pipe_bench = [&, &rPipe = std::get<0>(pipe)](int seconds, auto& stopSource) {
+    return unstoppable(
+      with_query_value(
+        discard(
+          when_all(
+            transform(
+              defer(
+                [&, seconds](){
+                  return schedule_at(scheduler, now(scheduler) + std::chrono::seconds(seconds));
+                }),
+              [&]{
+                  stopSource.request_stop();
+              }),
+            typed_via(
+              repeat(
+                transform(
+                  discard(
+                    async_read_some(rPipe, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                  [&]{
+                    assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
+                    ++reps;
+                  })), 
+              scheduler)
+          )),
+          get_stop_token, stopSource.get_token()));
+  };
+  auto start = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::high_resolution_clock::now();
+  try {
+    sync_wait(
+      sequence(
+        pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
+        lazy([&]{
+          // restart reps and keep offset in data
+          offset = reps%sizeof(data);
+          reps = 0;
+          printf("warmup completed!\n");
+          // exclude the warmup time
+          start = std::chrono::high_resolution_clock::now();
+        }),
+        pipe_bench(BENCHMARK_DURATION, stopRead),
+        lazy([&]{
+          end = std::chrono::high_resolution_clock::now();
+          printf("benchmark completed!\n");
+          auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                  end - start)
+                  .count();
+          auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                  end - start)
+                  .count();
+          double reads = 1000000000.0 * reps / ns;
+          std::cout
+              << "completed in "
+              << ms << " ms, "
+              << ns << "ns, " 
+              << reps << "ops\n";
+          std::cout
+              << "stats - "
+              << reads << "reads, " 
+              << ns/reps << "ns-per-op, " 
+              << reps/ms << "ops-per-ms\n";
+        })));
+  } catch (const std::error_code& ec) {
+    std::printf("async_read_some error: %s\n", ec.message().c_str());
+  } catch (const std::exception& ex) {
+    std::printf("async_read_some exception: %s\n", ex.what());
   }
   return 0;
 }

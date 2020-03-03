@@ -300,6 +300,7 @@ void io_epoll_context::acquire_completion_queue_items() {
       continue;
     }
 
+    LOGX("completion event %i\n", completed.events);
     auto& completionState = *reinterpret_cast<completion_base*>(completed.data.ptr);
 
     // Save the result in the completion state.
@@ -439,6 +440,19 @@ bool io_epoll_context::try_submit_timer_io(const time_point& dueTime) noexcept {
   return true;
 }
 
+std::pair<io_epoll_context::async_reader, io_epoll_context::async_writer> tag_invoke(
+    tag_t<open_pipe>,
+    io_epoll_context::scheduler scheduler) {
+  int fd[2] = {};
+  int result = ::pipe2(fd, O_NONBLOCK | O_CLOEXEC);
+  if (result < 0) {
+    int errorCode = errno;
+    throw std::system_error{errorCode, std::system_category()};
+  }
+
+  return {io_epoll_context::async_reader{*scheduler.context_, fd[0]}, io_epoll_context::async_writer{*scheduler.context_, fd[1]}};
+}
+
 } // namespace unifex::linuxos
 
-#endif // __has_include(<sys/epoll.h>)
+#endif // !UNIFEX_NO_EPOLL
