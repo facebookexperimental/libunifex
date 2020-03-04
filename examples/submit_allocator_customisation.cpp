@@ -29,23 +29,6 @@
 
 using namespace unifex;
 
-struct increment_receiver {
-  int &value_;
-  manual_event_loop &loop_;
-
-  void set_value() && noexcept {
-    if (++value_ == 3) {
-      loop_.stop();
-    }
-  }
-
-  template <typename E>[[noreturn]] void set_error(E &&error) && noexcept {
-    std::terminate();
-  }
-
-  [[noreturn]] void set_done() && noexcept { std::terminate(); }
-};
-
 #if !UNIFEX_NO_MEMORY_RESOURCE
 using namespace unifex::pmr;
 
