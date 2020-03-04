@@ -67,7 +67,7 @@ int main() {
     // Should have thrown an exception.
     std::printf("error: operation should have failed with an exception\n");
     return 1;
-  } catch (some_error) {
+  } catch (const some_error&) {
     std::printf("[%d] caught some_error in main()\n", (int)timeSinceStartInMs());
   }
 
