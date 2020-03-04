@@ -554,7 +554,7 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
             read(remoteQueueEventFd_.get(), &buffer, sizeof(buffer));
         if (bytesRead < 0) {
           // read() failed
-          int errorCode = errno;
+          [[maybe_unused]] int errorCode = errno;
           LOGX("read on eventfd failed with %i\n", errorCode);
 
           std::terminate();
