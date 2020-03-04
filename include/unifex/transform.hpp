@@ -30,7 +30,7 @@
 #include <utility>
 
 namespace unifex {
-namespace tfx {
+namespace _tfx {
 namespace detail {
   template <typename Result, typename = void>
   struct result_overload {
@@ -182,12 +182,39 @@ public:
         receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
   }
 };
-} // namespace tfx
+} // namespace _tfx
 
-template <typename Sender, typename Func>
-auto transform(Sender&& predecessor, Func&& func) {
-  return tfx::sender<std::remove_cvref_t<Sender>, std::decay_t<Func>>{
-      (Sender &&) predecessor, (Func &&) func};
-}
+namespace _tfx_cpo {
+  inline constexpr struct _fn {
+  private:
+    template<bool>
+    struct _impl {
+      template <typename Sender, typename Func>
+      auto operator()(Sender&& predecessor, Func&& func) const
+          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>) {
+        return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
+      }
+    };
+  public:
+    template <typename Sender, typename Func>
+    auto operator()(Sender&& predecessor, Func&& func) const
+        noexcept(std::is_nothrow_invocable_v<
+          _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func>) {
+      return _impl<is_tag_invocable_v<_fn, Sender, Func>>{}(
+        (Sender&&)predecessor, (Func&&)func);
+    }
+  } transform{};
 
+  template<>
+  struct _fn::_impl<false> {
+    template <typename Sender, typename Func>
+    auto operator()(Sender&& predecessor, Func&& func) const
+        noexcept(std::is_nothrow_constructible_v<
+          _tfx::sender<std::remove_cvref_t<Sender>, std::decay_t<Func>>, Sender, Func>) {
+      return _tfx::sender<std::remove_cvref_t<Sender>, std::decay_t<Func>>{
+          (Sender &&) predecessor, (Func &&) func};
+    }
+  };
+} // namespace _tfx_cpo
+using _tfx_cpo::transform;
 } // namespace unifex
