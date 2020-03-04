@@ -60,8 +60,6 @@ int main() {
   // More complicated 'let' example that shows recursive let-scopes,
   // additional
 
-  auto start = steady_clock::now();
-
   sync_wait(transform(
       when_all(
           let(asyncVector(),

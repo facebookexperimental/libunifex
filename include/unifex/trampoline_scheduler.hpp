@@ -101,8 +101,11 @@ private:
     }
   };
 
-  struct schedule_sender {
-    std::size_t maxRecursionDepth_;
+  class schedule_sender {
+  public:
+    explicit schedule_sender(std::size_t maxDepth) noexcept
+    : maxRecursionDepth_(maxDepth)
+    {}
 
     template <
         template <typename...> class Variant,
@@ -117,6 +120,9 @@ private:
       return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver,
                                                       maxRecursionDepth_};
     }
+
+  private:
+    std::size_t maxRecursionDepth_;
   };
 
 public:
