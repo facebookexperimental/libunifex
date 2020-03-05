@@ -144,7 +144,7 @@ namespace _demat
     class type;
   };
   template <typename Source>
-  using sender = typename sender_<Source>::type;
+  using sender = typename sender_<std::remove_cvref_t<Source>>::type;
 
   template <typename Source>
   class sender_<Source>::type {
@@ -274,9 +274,9 @@ namespace _demat_cpo
   struct _fn::_impl<false> {
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
-        noexcept(std::is_nothrow_constructible_v<
-          _demat::sender<std::remove_cvref_t<Sender>>, Sender>) {
-      return _demat::sender<std::remove_cvref_t<Sender>>{(Sender &&) predecessor};
+        noexcept(std::is_nothrow_constructible_v<_demat::sender<Sender>, Sender>)
+        -> _demat::sender<Sender> {
+      return _demat::sender<Sender>{(Sender &&) predecessor};
     }
   };
 } // namespace _demat_cpo

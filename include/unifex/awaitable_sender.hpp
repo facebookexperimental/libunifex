@@ -106,7 +106,7 @@ struct sender_ {
   struct type;
 };
 template <typename Awaitable>
-using sender = typename sender_<Awaitable>::type;
+using sender = typename sender_<std::remove_cvref_t<Awaitable>>::type;
 
 template <typename Awaitable>
 struct sender_<Awaitable>::type {
@@ -171,9 +171,8 @@ struct sender_<Awaitable>::type {
 namespace _await_cpo {
   inline constexpr struct _fn {
     template <typename Awaitable>
-    auto operator()(Awaitable &&awaitable) const
-        -> _await::sender<std::remove_cvref_t<Awaitable>> {
-      return _await::sender<std::remove_cvref_t<Awaitable>>{(Awaitable &&) awaitable};
+    auto operator()(Awaitable &&awaitable) const -> _await::sender<Awaitable> {
+      return _await::sender<Awaitable>{(Awaitable &&) awaitable};
     }
   } awaitable_sender{};
 } // namespace _await_cpo

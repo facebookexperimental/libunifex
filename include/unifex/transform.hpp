@@ -118,7 +118,7 @@ struct sender_ {
   struct type;
 };
 template <typename Predecessor, typename Func>
-using sender = typename sender_<Predecessor, Func>::type;
+using sender = typename sender_<std::remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
 
 template <typename Predecessor, typename Func>
 struct sender_<Predecessor, Func>::type {
@@ -210,9 +210,9 @@ namespace _tfx_cpo {
     template <typename Sender, typename Func>
     auto operator()(Sender&& predecessor, Func&& func) const
         noexcept(std::is_nothrow_constructible_v<
-          _tfx::sender<std::remove_cvref_t<Sender>, std::decay_t<Func>>, Sender, Func>) {
-      return _tfx::sender<std::remove_cvref_t<Sender>, std::decay_t<Func>>{
-          (Sender &&) predecessor, (Func &&) func};
+          _tfx::sender<Sender, Func>, Sender, Func>)
+        -> _tfx::sender<Sender, Func> {
+      return _tfx::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
     }
   };
 } // namespace _tfx_cpo

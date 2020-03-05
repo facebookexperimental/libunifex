@@ -27,14 +27,14 @@
 namespace unifex {
 namespace _alloc {
   template <typename Operation, typename Allocator>
-  struct operation_ {
+  struct op_ {
     class type;
   };
   template <typename Operation, typename Allocator>
-  using operation = typename operation_<Operation, Allocator>::type;
+  using operation = typename op_<Operation, Allocator>::type;
 
   template <typename Operation, typename Allocator>
-  class operation_<Operation, Allocator>::type {
+  class op_<Operation, Allocator>::type {
     using operation = type;
     using allocator_t = typename std::allocator_traits<
         Allocator>::template rebind_alloc<Operation>;
@@ -75,7 +75,7 @@ namespace _alloc {
     class type;
   };
   template <typename Sender>
-  using sender = typename sender_<Sender>::type;
+  using sender = typename sender_<std::remove_cvref_t<Sender>>::type;
 
   template <typename Sender>
   class sender_<Sender>::type {
@@ -151,9 +151,9 @@ namespace _alloc_cpo {
   struct _fn::_impl<false> {
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
-        noexcept(std::is_nothrow_constructible_v<
-          _alloc::sender<std::remove_cvref_t<Sender>>, Sender>) {
-      return _alloc::sender<std::remove_cvref_t<Sender>>{(Sender &&) predecessor};
+        noexcept(std::is_nothrow_constructible_v<_alloc::sender<Sender>, Sender>)
+        -> _alloc::sender<Sender> {
+      return _alloc::sender<Sender>{(Sender &&) predecessor};
     }
   };
 } // namespace _alloc_cpo

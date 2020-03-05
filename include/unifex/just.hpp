@@ -25,84 +25,95 @@
 #include <utility>
 
 namespace unifex {
-
-namespace detail {
+namespace _just {
 
 template <typename Receiver, typename... Values>
-struct just_operation {
-  struct type {
-    UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+struct op_ {
+  struct type;
+};
+template <typename Receiver, typename... Values>
+using operation = typename op_<std::remove_cvref_t<Receiver>, Values...>::type;
 
-    void start() & noexcept {
-      try {
-        std::apply(
-            [&](Values&&... values) {
-              unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
-            },
-            std::move(values_));
-      } catch (...) {
-        unifex::set_error((Receiver &&) receiver_, std::current_exception());
-      }
+template <typename Receiver, typename... Values>
+struct op_<Receiver, Values...>::type {
+  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+  void start() & noexcept {
+    try {
+      std::apply(
+          [&](Values&&... values) {
+            unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+          },
+          std::move(values_));
+    } catch (...) {
+      unifex::set_error((Receiver &&) receiver_, std::current_exception());
     }
-  };
+  }
 };
 
 template <typename... Values>
-struct just_sender {
-  class type {
-    UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
-
-   public:
-    template <
-        template <typename...> class Variant,
-        template <typename...> class Tuple>
-    using value_types = Variant<Tuple<Values...>>;
-
-    template <template <typename...> class Variant>
-    using error_types = Variant<std::exception_ptr>;
-
-    template <typename... Values2>
-    explicit type(Values2&&... values)
-      noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
-      : values_((Values2 &&) values...) {}
-
-    template <typename Receiver>
-    auto connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
-      -> typename just_operation<std::remove_cvref_t<Receiver>, Values...>::type {
-      return {std::move(values_), (Receiver &&) r};
-    }
-
-    template <typename Receiver>
-    auto connect(Receiver&& r) &
-      noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>)
-      -> typename just_operation<std::remove_cvref_t<Receiver>, Values...>::type {
-      return {values_, (Receiver &&) r};
-    }
-
-    template <typename Receiver>
-    auto connect(Receiver&& r) const &
-      noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
-      -> typename just_operation<std::remove_cvref_t<Receiver>, Values...>::type {
-      return {values_, (Receiver &&) r};
-    }
-
-    friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {
-      return blocking_kind::always_inline;
-    }
-  };
+struct sender_ {
+  class type;
 };
+template <typename... Values>
+using sender = typename sender_<std::decay_t<Values>...>::type;
 
-} // namespace detail
+template <typename... Values>
+class sender_<Values...>::type {
+  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
 
-inline constexpr struct just_fn {
-  template<typename... Values>
-  auto operator()(Values&&... values) const
-    noexcept(std::conjunction_v<std::is_nothrow_constructible<std::decay_t<Values>, Values>...>)
-    -> typename detail::just_sender<std::decay_t<Values>...>::type {
-    return typename detail::just_sender<std::decay_t<Values>...>::type{(Values&&)values...};
+  public:
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  using value_types = Variant<Tuple<Values...>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<std::exception_ptr>;
+
+  template <typename... Values2>
+  explicit type(Values2&&... values)
+    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
+    : values_((Values2 &&) values...) {}
+
+  template <typename Receiver>
+  auto connect(Receiver&& r) &&
+    noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
+    -> operation<Receiver, Values...> {
+    return {std::move(values_), (Receiver &&) r};
   }
-} just;
+
+  template <typename Receiver>
+  auto connect(Receiver&& r) &
+    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>)
+    -> operation<Receiver, Values...> {
+    return {values_, (Receiver &&) r};
+  }
+
+  template <typename Receiver>
+  auto connect(Receiver&& r) const &
+    noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
+    -> operation<Receiver, Values...> {
+    return {values_, (Receiver &&) r};
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {
+    return blocking_kind::always_inline;
+  }
+};
+} // namespace _just
+
+namespace _just_cpo {
+  inline constexpr struct just_fn {
+    template<typename... Values>
+    constexpr auto operator()(Values&&... values) const
+      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
+      -> _just::sender<std::decay_t<Values>...> {
+      return _just::sender<Values...>{(Values&&)values...};
+    }
+  } just{};
+} // namespace _just_cpo
+using _just_cpo::just;
 
 } // namespace unifex
