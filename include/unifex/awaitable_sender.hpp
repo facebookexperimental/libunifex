@@ -29,7 +29,7 @@
 #include <type_traits>
 
 namespace unifex {
-
+namespace _await {
 namespace detail {
 
 struct sender_task {
@@ -99,11 +99,17 @@ struct sender_task {
     coro_.resume();
   }
 };
-
 } // namespace detail
 
 template <typename Awaitable>
-struct awaitable_sender {
+struct sender_ {
+  struct type;
+};
+template <typename Awaitable>
+using sender = typename sender_<Awaitable>::type;
+
+template <typename Awaitable>
+struct sender_<Awaitable>::type {
   Awaitable awaitable_;
 
   using result_type = await_result_t<Awaitable>;
@@ -160,9 +166,16 @@ struct awaitable_sender {
         (Receiver &&) receiver);
   }
 };
+} // namespace _await
 
-template <typename Awaitable>
-awaitable_sender(Awaitable &&)
-    ->awaitable_sender<std::remove_cvref_t<Awaitable>>;
-
+namespace _await_cpo {
+  inline constexpr struct _fn {
+    template <typename Awaitable>
+    auto operator()(Awaitable &&awaitable) const
+        -> _await::sender<std::remove_cvref_t<Awaitable>> {
+      return _await::sender<std::remove_cvref_t<Awaitable>>{(Awaitable &&) awaitable};
+    }
+  } awaitable_sender{};
+} // namespace _await_cpo
+using _await_cpo::awaitable_sender;
 } // namespace unifex

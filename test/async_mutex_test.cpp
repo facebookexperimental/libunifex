@@ -50,8 +50,8 @@ TEST(async_mutex, multiple_threads) {
   single_thread_context ctx2;
 
   sync_wait(when_all(
-      awaitable_sender{makeTask(ctx1.get_scheduler())},
-      awaitable_sender{makeTask(ctx2.get_scheduler())}));
+      awaitable_sender(makeTask(ctx1.get_scheduler())),
+      awaitable_sender(makeTask(ctx2.get_scheduler()))));
 
   EXPECT_EQ(200'000, sharedState);
 }

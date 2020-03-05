@@ -66,7 +66,7 @@ int main() {
     co_return sum;
   };
 
-  sync_wait(awaitable_sender{makeTask()});
+  sync_wait(awaitable_sender(makeTask()));
 
   return 0;
 }
