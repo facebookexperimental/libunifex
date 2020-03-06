@@ -32,6 +32,30 @@ struct tag_invoke_cpo {
     return tag_invoke((CPO&&)cpo, (Args &&) args...);
   }
 };
+
+template<typename CPO, typename... Args>
+using tag_invoke_result_t = decltype(tag_invoke(std::declval<CPO>(), std::declval<Args>()...));
+
+template<typename CPO, typename... Args>
+struct is_tag_invocable {
+private:
+    template<typename XCPO = CPO, typename = tag_invoke_result_t<XCPO, Args...>>
+    static std::true_type try_call(int);
+    static std::false_type try_call(...);
+public:
+    using type = decltype(try_call(0));
+};
+
+template<typename CPO, typename... Args>
+struct is_nothrow_tag_invocable {
+private:
+    template<typename XCPO = CPO, typename = tag_invoke_result_t<XCPO, Args...>>
+    static auto try_call(int) -> std::bool_constant<noexcept(tag_invoke(std::declval<XCPO>(), std::declval<Args>()...))>;
+    static std::false_type try_call(...);
+public:
+    using type = decltype(try_call(0));
+};
+
 } // namespace tag_invoke_impl
 
 namespace tag_invoke_cpo_ns {
@@ -42,26 +66,23 @@ using namespace tag_invoke_cpo_ns;
 template <auto& CPO>
 using tag_t = std::remove_cvref_t<decltype(CPO)>;
 
-template <typename CPO, typename... Args>
-using tag_invoke_result = std::invoke_result<tag_t<tag_invoke>, CPO, Args...>;
+using tag_invoke_impl::tag_invoke_result_t;
+
+template<typename CPO, typename... Args>
+struct tag_invoke_result {
+    using type = tag_invoke_result_t<CPO, Args...>;
+};
 
 template <typename CPO, typename... Args>
-using tag_invoke_result_t =
-    std::invoke_result_t<tag_t<tag_invoke>, CPO, Args...>;
+using is_tag_invocable = typename tag_invoke_impl::is_tag_invocable<CPO, Args...>::type;
 
 template <typename CPO, typename... Args>
-inline constexpr bool is_tag_invocable_v =
-    std::is_invocable_v<tag_t<tag_invoke>, CPO, Args...>;
+inline constexpr bool is_tag_invocable_v = is_tag_invocable<CPO, Args...>::value;
+
+template<typename CPO, typename... Args>
+using is_nothrow_tag_invocable = typename tag_invoke_impl::is_nothrow_tag_invocable<CPO, Args...>::type;
 
 template <typename CPO, typename... Args>
-using is_tag_invocable = std::is_invocable<tag_t<tag_invoke>, CPO, Args...>;
-
-template <typename CPO, typename... Args>
-inline constexpr bool is_nothrow_tag_invocable_v =
-    std::is_nothrow_invocable_v<tag_t<tag_invoke>, CPO, Args...>;
-
-template <typename CPO, typename... Args>
-using is_nothrow_tag_invocable =
-    std::is_nothrow_invocable<tag_t<tag_invoke>, CPO, Args...>;
+inline constexpr bool is_nothrow_tag_invocable_v = is_nothrow_tag_invocable<CPO, Args...>::value;
 
 } // namespace unifex
