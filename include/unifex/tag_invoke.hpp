@@ -34,7 +34,7 @@ struct tag_invoke_cpo {
 };
 
 template<typename CPO, typename... Args>
-using tag_invoke_result_t = decltype(tag_invoke(static_cast<CPO&&(*)()>(nullptr)(), static_cast<Args&&(*)()>(nullptr)()...));
+using tag_invoke_result_t = decltype(tag_invoke(static_cast<CPO&&(*)() noexcept>(nullptr)(), static_cast<Args&&(*)() noexcept>(nullptr)()...));
 
 struct yes_type { char dummy; };
 struct no_type { char dummy[2]; };
@@ -42,10 +42,10 @@ struct no_type { char dummy[2]; };
 template<typename CPO, typename... Args>
 auto try_tag_invoke(int)
   noexcept(noexcept(tag_invoke(static_cast<CPO&&(*)() noexcept>(nullptr)(), static_cast<Args&&(*)() noexcept>(nullptr)()...)))
-  -> decltype(tag_invoke(static_cast<CPO&&(*)() noexcept>(nullptr)(), static_cast<Args&&(*)() noexcept>(nullptr)()...), yes_type{});
+  -> decltype(static_cast<void>(tag_invoke(static_cast<CPO&&(*)() noexcept>(nullptr)(), static_cast<Args&&(*)() noexcept>(nullptr)()...)), yes_type{});
 
 template<typename CPO, typename... Args>
-no_type try_tag_invoke(...);
+no_type try_tag_invoke(...) noexcept(false);
 
 } // namespace tag_invoke_impl
 
