@@ -57,10 +57,9 @@ using trigger_receiver =
 template<typename Source, typename Func, typename Receiver, typename Trigger>
 class trigger_receiver_<Source, Func, Receiver, Trigger>::type {
   using trigger_receiver = type;
-  using operation = operation<Source, Func, Receiver>;
 
 public:
-  explicit type(operation* op) noexcept
+  explicit type(operation<Source, Func, Receiver>* op) noexcept
     : op_(op) {}
 
   type(trigger_receiver&& other) noexcept
@@ -150,15 +149,14 @@ private:
     op_->triggerOps_.template get<trigger_op>().destruct();
   }
 
-  operation* op_;
+  operation<Source, Func, Receiver>* op_;
 };
 
 template<typename Source, typename Func, typename Receiver>
 class source_receiver_<Source, Func, Receiver>::type {
   using source_receiver = type;
-  using operation = operation<Source, Func, Receiver>;
 public:
-  explicit type(operation* op) noexcept
+  explicit type(operation<Source, Func, Receiver>* op) noexcept
   : op_(op) {}
 
   type(type&& other) noexcept
@@ -237,25 +235,25 @@ private:
     return op_->receiver_;
   }
 
-  operation* op_;
+  operation<Source, Func, Receiver>* op_;
 };
 
 template<typename Source, typename Func, typename Receiver>
 class op_<Source, Func, Receiver>::type {
   using operation = type;
-  using source_receiver = source_receiver<Source, Func, Receiver>;
+  using source_receiver_t = source_receiver<Source, Func, Receiver>;
 public:
   template<typename Source2, typename Func2, typename Receiver2>
   explicit type(Source2&& source, Func2&& func, Receiver2&& receiver)
       noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
                std::is_nothrow_constructible_v<Func, Func2> &&
                std::is_nothrow_constructible_v<Receiver, Receiver2> &&
-               is_nothrow_connectable_v<Source&, source_receiver>)
+               is_nothrow_connectable_v<Source&, source_receiver_t>)
   : source_((Source2&&)source)
   , func_((Func2&&)func)
   , receiver_((Receiver&&)receiver) {
     sourceOp_.construct_from([&] {
-        return unifex::connect(source_, source_receiver{this});
+        return unifex::connect(source_, source_receiver_t{this});
       });
   }
 
@@ -270,12 +268,12 @@ public:
   }
 
 private:
-  friend source_receiver;
+  friend source_receiver_t;
 
   template<typename Source2, typename Func2, typename Receiver2, typename Trigger>
   friend class trigger_receiver_;
 
-  using source_op_t = operation_t<Source&, source_receiver>;
+  using source_op_t = operation_t<Source&, source_receiver_t>;
 
   template<typename Error>
   using trigger_sender_t = std::invoke_result_t<Func&, std::remove_cvref_t<Error>>;
