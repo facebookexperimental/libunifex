@@ -381,7 +381,7 @@ class io_uring_context::schedule_sender {
 };
 
 class io_uring_context::read_sender {
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   template <typename Receiver>
   class operation : private completion_base {
@@ -489,7 +489,7 @@ class io_uring_context::read_sender {
 };
 
 class io_uring_context::write_sender {
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   template <typename Receiver>
   class operation : private completion_base {
@@ -598,16 +598,10 @@ class io_uring_context::write_sender {
 
 class io_uring_context::async_read_only_file {
  public:
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   explicit async_read_only_file(io_uring_context& context, int fd) noexcept
       : context_(context), fd_(fd) {}
-
-  read_sender async_read_some(
-      uint64_t offset,
-      span<std::byte> buffer) noexcept {
-    return read_sender{context_, fd_.get(), offset, buffer};
-  }
 
  private:
   friend scheduler;
@@ -626,7 +620,7 @@ class io_uring_context::async_read_only_file {
 
 class io_uring_context::async_write_only_file {
  public:
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   explicit async_write_only_file(io_uring_context& context, int fd) noexcept
       : context_(context), fd_(fd) {}
@@ -648,7 +642,7 @@ class io_uring_context::async_write_only_file {
 
 class io_uring_context::async_read_write_file {
  public:
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   explicit async_read_write_file(io_uring_context& context, int fd) noexcept
       : context_(context), fd_(fd) {}
