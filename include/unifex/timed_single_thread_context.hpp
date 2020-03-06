@@ -59,22 +59,22 @@ namespace _timed_single_thread_context {
   struct scheduler;
 
   template <typename Duration>
-  struct schedule_after_sender_ {
+  struct _schedule_after_sender {
     class type;
   };
   template <typename Duration>
-  using schedule_after_sender = typename schedule_after_sender_<Duration>::type;
+  using schedule_after_sender = typename _schedule_after_sender<Duration>::type;
 
   template <typename Duration, typename Receiver>
-  struct after_op_ {
+  struct _after_op {
     class type;
   };
   template <typename Duration, typename Receiver>
   using after_operation =
-      typename after_op_<Duration, std::remove_cvref_t<Receiver>>::type;
+      typename _after_op<Duration, std::remove_cvref_t<Receiver>>::type;
 
   template <typename Duration, typename Receiver>
-  class after_op_<Duration, Receiver>::type final : task_base {
+  class _after_op<Duration, Receiver>::type final : task_base {
     friend schedule_after_sender<Duration>;
 
     template <typename Receiver2>
@@ -113,7 +113,7 @@ namespace _timed_single_thread_context {
   };
 
   template <typename Duration>
-  class schedule_after_sender_<Duration>::type {
+  class _schedule_after_sender<Duration>::type {
     friend scheduler;
 
     explicit type(
@@ -141,14 +141,14 @@ namespace _timed_single_thread_context {
   };
 
   template <typename Receiver>
-  struct at_op_ {
+  struct _at_op {
     class type;
   };
   template <typename Receiver>
-  using at_operation = typename at_op_<std::remove_cvref_t<Receiver>>::type;
+  using at_operation = typename _at_op<std::remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
-  class at_op_<Receiver>::type final : task_base {
+  class _at_op<Receiver>::type final : task_base {
     template <typename Receiver2>
     explicit type(
         timed_single_thread_context& scheduler,
@@ -163,8 +163,7 @@ namespace _timed_single_thread_context {
       cancelCallback_.destruct();
       if constexpr (is_stop_never_possible_v<
                         stop_token_type_t<Receiver&>>) {
-        unifex::set_value(
-            static_cast<Receiver&&>(receiver_), scheduler{this->context_});
+        unifex::set_value(static_cast<Receiver&&>(receiver_));
       } else {
         if (get_stop_token(receiver_).stop_requested()) {
           unifex::set_done(static_cast<Receiver&&>(receiver_));
@@ -248,9 +247,9 @@ class timed_single_thread_context {
   friend cancel_callback;
   friend scheduler;
   template<typename Duration, typename Receiver>
-  friend class _timed_single_thread_context::after_op_;
+  friend class _timed_single_thread_context::_after_op;
   template<typename Receiver>
-  friend class _timed_single_thread_context::at_op_;
+  friend class _timed_single_thread_context::_at_op;
 
   void enqueue(task_base* task) noexcept;
   void run();
@@ -277,7 +276,7 @@ class timed_single_thread_context {
 
 namespace _timed_single_thread_context {
   template <typename Duration, typename Receiver>
-  inline void after_op_<Duration, Receiver>::type::start() noexcept {
+  inline void _after_op<Duration, Receiver>::type::start() noexcept {
     this->dueTime_ = clock_t::now() + duration_;
     cancelCallback_.construct(
         get_stop_token(receiver_), cancel_callback{this});
@@ -285,7 +284,7 @@ namespace _timed_single_thread_context {
   }
 
   template <typename Receiver>
-  inline void at_op_<Receiver>::type::start() noexcept {
+  inline void _at_op<Receiver>::type::start() noexcept {
     cancelCallback_.construct(
         get_stop_token(receiver_), cancel_callback{this});
     this->context_->enqueue(this);

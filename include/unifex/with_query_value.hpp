@@ -24,14 +24,14 @@ namespace unifex {
 namespace _with_query_value {
 
 template<typename CPO, typename Value, typename Receiver>
-struct receiver_wrapper_ {
+struct _receiver_wrapper {
   class type;
 };
 template<typename CPO, typename Value, typename Receiver>
-using receiver_wrapper = typename receiver_wrapper_<CPO, Value, Receiver>::type;
+using receiver_wrapper = typename _receiver_wrapper<CPO, Value, Receiver>::type;
 
 template<typename CPO, typename Value, typename Receiver>
-class receiver_wrapper_<CPO, Value, Receiver>::type {
+class _receiver_wrapper<CPO, Value, Receiver>::type {
  public:
   template <typename Receiver2>
   explicit type(Receiver2 &&receiver, const Value& val)
@@ -71,14 +71,14 @@ class receiver_wrapper_<CPO, Value, Receiver>::type {
 };
 
 template <typename CPO, typename Value, typename Sender, typename Receiver>
-struct op_ {
+struct _op {
   class type;
 };
 template <typename CPO, typename Value, typename Sender, typename Receiver>
-using operation = typename op_<CPO, Value, Sender, std::remove_cvref_t<Receiver>>::type;
+using operation = typename _op<CPO, Value, Sender, std::remove_cvref_t<Receiver>>::type;
 
 template <typename CPO, typename Value, typename Sender, typename Receiver>
-class op_<CPO, Value, Sender, Receiver>::type {
+class _op<CPO, Value, Sender, Receiver>::type {
  public:
   template <typename Receiver2, typename Value2>
   explicit type(Sender &&sender, Receiver2 &&receiver, Value2 &&value)
@@ -99,15 +99,15 @@ class op_<CPO, Value, Sender, Receiver>::type {
 };
 
 template <typename CPO, typename Value, typename Sender>
-struct sender_ {
+struct _sender {
   class type;
 };
 template <typename CPO, typename Value, typename Sender>
 using sender =
-    typename sender_<CPO, std::decay_t<Value>, std::remove_cvref_t<Sender>>::type;
+    typename _sender<CPO, std::decay_t<Value>, std::remove_cvref_t<Sender>>::type;
 
 template <typename CPO, typename Value, typename Sender>
-class sender_<CPO, Value, Sender>::type {
+class _sender<CPO, Value, Sender>::type {
 public:
   template <template <typename...> class Variant,
             template <typename...> class Tuple>

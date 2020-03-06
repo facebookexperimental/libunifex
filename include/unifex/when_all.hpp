@@ -39,21 +39,21 @@ template <
     std::size_t Index,
     template <std::size_t> class Receiver,
     typename... Senders>
-struct operation_tuple_ {
+struct _operation_tuple {
   struct type;
 };
 template <
     std::size_t Index,
     template <std::size_t> class Receiver,
     typename... Senders>
-using operation_tuple = typename operation_tuple_<Index, Receiver, Senders...>::type;
+using operation_tuple = typename _operation_tuple<Index, Receiver, Senders...>::type;
 
 template <
     std::size_t Index,
     template <std::size_t> class Receiver,
     typename First,
     typename... Rest>
-struct operation_tuple_<Index, Receiver, First, Rest...> {
+struct _operation_tuple<Index, Receiver, First, Rest...> {
   struct type;
 };
 template <
@@ -61,7 +61,7 @@ template <
     template <std::size_t> class Receiver,
     typename First,
     typename... Rest>
-struct operation_tuple_<Index, Receiver, First, Rest...>::type
+struct _operation_tuple<Index, Receiver, First, Rest...>::type
   : operation_tuple<Index + 1, Receiver, Rest...> {
   template <typename Parent>
   explicit type(Parent& parent, First&& first, Rest&&... rest)
@@ -78,11 +78,11 @@ struct operation_tuple_<Index, Receiver, First, Rest...>::type
 };
 
 template <std::size_t Index, template <std::size_t> class Receiver>
-struct operation_tuple_<Index, Receiver> {
+struct _operation_tuple<Index, Receiver> {
   struct type;
 };
 template <std::size_t Index, template <std::size_t> class Receiver>
-struct operation_tuple_<Index, Receiver>::type {
+struct _operation_tuple<Index, Receiver>::type {
   template <typename Parent>
   explicit type(Parent&) noexcept {}
 
@@ -103,14 +103,14 @@ using error_types = typename concat_type_lists_unique_t<
     type_list<std::exception_ptr>>::template apply<Variant>;
 
 template <size_t Index, typename Operation>
-struct element_receiver_ {
+struct _element_receiver {
   struct type;
 };
 template <size_t Index, typename Operation>
-using element_receiver = typename element_receiver_<Index, Operation>::type;
+using element_receiver = typename _element_receiver<Index, Operation>::type;
 
 template <size_t Index, typename Operation>
-struct element_receiver_<Index, Operation>::type {
+struct _element_receiver<Index, Operation>::type {
   using element_receiver = type;
   Operation& op_;
   using receiver_type = typename Operation::receiver_type;
@@ -175,18 +175,18 @@ struct element_receiver_<Index, Operation>::type {
 };
 
 template <typename Receiver, typename... Senders>
-struct op_ {
+struct _op {
   struct type;
 };
 template <typename Receiver, typename... Senders>
-using operation = typename op_<std::remove_cvref_t<Receiver>, Senders...>::type;
+using operation = typename _op<std::remove_cvref_t<Receiver>, Senders...>::type;
 
 template <typename Receiver, typename... Senders>
-struct op_<Receiver, Senders...>::type {
+struct _op<Receiver, Senders...>::type {
   using operation = type;
   using receiver_type = Receiver;
   template<std::size_t Index, typename Operation>
-  friend class element_receiver_;
+  friend class _element_receiver;
 
   explicit type(Receiver&& receiver, Senders&&... senders)
     : receiver_((Receiver &&) receiver),
@@ -253,14 +253,14 @@ struct op_<Receiver, Senders...>::type {
 };
 
 template <typename... Senders>
-struct sender_ {
+struct _sender {
   class type;
 };
 template <typename... Senders>
-using sender = typename sender_<std::remove_cvref_t<Senders>...>::type;
+using sender = typename _sender<std::remove_cvref_t<Senders>...>::type;
 
 template <typename... Senders>
-class sender_<Senders...>::type {
+class _sender<Senders...>::type {
   using sender = type;
  public:
   static_assert(sizeof...(Senders) > 0);
@@ -332,7 +332,7 @@ class sender_<Senders...>::type {
 } // namespace _when_all
 
 namespace _when_all_cpo {
-  struct _fn {
+  inline constexpr struct _fn {
     template <typename... Senders>
     auto operator()(Senders&&... senders) const 
         -> _when_all::sender<Senders...> {

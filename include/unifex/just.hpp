@@ -28,14 +28,14 @@ namespace unifex {
 namespace _just {
 
 template <typename Receiver, typename... Values>
-struct op_ {
+struct _op {
   struct type;
 };
 template <typename Receiver, typename... Values>
-using operation = typename op_<std::remove_cvref_t<Receiver>, Values...>::type;
+using operation = typename _op<std::remove_cvref_t<Receiver>, Values...>::type;
 
 template <typename Receiver, typename... Values>
-struct op_<Receiver, Values...>::type {
+struct _op<Receiver, Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
@@ -53,14 +53,14 @@ struct op_<Receiver, Values...>::type {
 };
 
 template <typename... Values>
-struct sender_ {
+struct _sender {
   class type;
 };
 template <typename... Values>
-using sender = typename sender_<std::decay_t<Values>...>::type;
+using sender = typename _sender<std::decay_t<Values>...>::type;
 
 template <typename... Values>
-class sender_<Values...>::type {
+class _sender<Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
 
   public:

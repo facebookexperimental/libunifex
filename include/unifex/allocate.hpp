@@ -27,14 +27,14 @@
 namespace unifex {
 namespace _alloc {
   template <typename Operation, typename Allocator>
-  struct op_ {
+  struct _op {
     class type;
   };
   template <typename Operation, typename Allocator>
-  using operation = typename op_<Operation, Allocator>::type;
+  using operation = typename _op<Operation, Allocator>::type;
 
   template <typename Operation, typename Allocator>
-  class op_<Operation, Allocator>::type {
+  class _op<Operation, Allocator>::type {
     using operation = type;
     using allocator_t = typename std::allocator_traits<
         Allocator>::template rebind_alloc<Operation>;
@@ -71,14 +71,14 @@ namespace _alloc {
   };
 
   template <typename Sender>
-  struct sender_ {
+  struct _sender {
     class type;
   };
   template <typename Sender>
-  using sender = typename sender_<std::remove_cvref_t<Sender>>::type;
+  using sender = typename _sender<std::remove_cvref_t<Sender>>::type;
 
   template <typename Sender>
-  class sender_<Sender>::type {
+  class _sender<Sender>::type {
     using sender = type;
   public:
     template <

@@ -34,14 +34,14 @@
 namespace unifex {
 namespace _reduce {
 template<typename Operation>
-struct error_cleanup_receiver_ {
+struct _error_cleanup_receiver {
   struct type;
 };
 template<typename Operation>
-using error_cleanup_receiver = typename error_cleanup_receiver_<Operation>::type;
+using error_cleanup_receiver = typename _error_cleanup_receiver<Operation>::type;
 
 template<typename Operation>
-struct error_cleanup_receiver_<Operation>::type {
+struct _error_cleanup_receiver<Operation>::type {
   using error_cleanup_receiver = type;
   using receiver_type = typename Operation::receiver_type;
   Operation& op_;
@@ -88,14 +88,14 @@ struct error_cleanup_receiver_<Operation>::type {
 };
 
 template<typename Operation>
-struct done_cleanup_receiver_ {
+struct _done_cleanup_receiver {
   struct type;
 };
 template<typename Operation>
-using done_cleanup_receiver = typename done_cleanup_receiver_<Operation>::type;
+using done_cleanup_receiver = typename _done_cleanup_receiver<Operation>::type;
 
 template<typename Operation>
-struct done_cleanup_receiver_<Operation>::type {
+struct _done_cleanup_receiver<Operation>::type {
   using done_cleanup_receiver = type;
   using state_type = typename Operation::state_type;
   using receiver_type = typename Operation::receiver_type;
@@ -141,14 +141,14 @@ struct done_cleanup_receiver_<Operation>::type {
 };
 
 template<typename Operation>
-struct next_receiver_ {
+struct _next_receiver {
   struct type;
 };
 template<typename Operation>
-using next_receiver = typename next_receiver_<Operation>::type;
+using next_receiver = typename _next_receiver<Operation>::type;
 
 template<typename Operation>
-struct next_receiver_<Operation>::type {
+struct _next_receiver<Operation>::type {
   using next_receiver = type;
   using state_type = typename Operation::state_type;
   using receiver_type = typename Operation::receiver_type;
@@ -222,15 +222,15 @@ struct next_receiver_<Operation>::type {
 };
 
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
-struct op_ {
+struct _op {
   struct type;
 };
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
 using operation =
-    typename op_<StreamSender, State, ReducerFunc, std::remove_cvref_t<Receiver>>::type;
+    typename _op<StreamSender, State, ReducerFunc, std::remove_cvref_t<Receiver>>::type;
 
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
-struct op_<StreamSender, State, ReducerFunc, Receiver>::type {
+struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
   using operation = type;
   using state_type = State;
   using receiver_type = Receiver;
@@ -274,17 +274,17 @@ struct op_<StreamSender, State, ReducerFunc, Receiver>::type {
 };
 
 template <typename StreamSender, typename State, typename ReducerFunc>
-struct sender_ {
+struct _sender {
   struct type;
 };
 template <typename StreamSender, typename State, typename ReducerFunc>
-using sender = typename sender_<
+using sender = typename _sender<
     std::remove_cvref_t<StreamSender>,
     std::remove_cvref_t<State>,
     std::remove_cvref_t<ReducerFunc>>::type;
 
 template <typename StreamSender, typename State, typename ReducerFunc>
-struct sender_<StreamSender, State, ReducerFunc>::type {
+struct _sender<StreamSender, State, ReducerFunc>::type {
   using sender = type;
   StreamSender stream_;
   State initialState_;
@@ -316,7 +316,7 @@ struct sender_<StreamSender, State, ReducerFunc>::type {
 } // namespace _reduce
 
 namespace _reduce_cpo {
-  struct _fn {
+  inline constexpr struct _fn {
     template <typename StreamSender, typename State, typename ReducerFunc>
     auto operator()(
         StreamSender&& stream,

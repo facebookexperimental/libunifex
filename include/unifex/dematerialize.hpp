@@ -24,130 +24,115 @@
 
 #include <type_traits>
 
-namespace unifex
-{
-namespace _demat
-{
-  namespace detail
-  {
-    template <typename Receiver>
-    struct receiver_ {
-      class type;
-    };
-    template <typename Receiver>
-    using receiver = typename receiver_<Receiver>::type;
+namespace unifex {
+namespace _demat {
+  template <typename Receiver>
+  struct _receiver {
+    class type;
+  };
+  template <typename Receiver>
+  using receiver = typename _receiver<std::remove_cvref_t<Receiver>>::type;
 
-    template <typename Receiver>
-    class receiver_<Receiver>::type {
-    public:
-      template <
-        typename Receiver2,
-        std::enable_if_t<std::is_constructible_v<Receiver, Receiver2>, int> = 0>
-      explicit type(Receiver2&& receiver) noexcept(
-          std::is_nothrow_constructible_v<Receiver, Receiver2>)
-        : receiver_(static_cast<Receiver2&&>(receiver)) {}
+  template <typename Receiver>
+  class _receiver<Receiver>::type {
+   public:
+    template <
+      typename Receiver2,
+      std::enable_if_t<std::is_constructible_v<Receiver, Receiver2>, int> = 0>
+    explicit type(Receiver2&& receiver) noexcept(
+        std::is_nothrow_constructible_v<Receiver, Receiver2>)
+      : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
-      template <
-          typename CPO,
-          typename... Values,
-          std::enable_if_t<
-              is_receiver_cpo_v<CPO> &&
-                  std::is_invocable_v<CPO, Receiver, Values...>,
-              int> = 0>
-      void set_value(CPO cpo, Values&&... values) && noexcept(
-          std::is_nothrow_invocable_v<CPO, Receiver, Values...>) {
-        static_cast<CPO&&>(cpo)(
-            static_cast<Receiver&&>(receiver_),
-            static_cast<Values&&>(values)...);
-      }
+    template <
+        typename CPO,
+        typename... Values,
+        std::enable_if_t<
+            is_receiver_cpo_v<CPO> && std::is_invocable_v<CPO, Receiver, Values...>,
+            int> = 0>
+    void set_value(CPO cpo, Values&&... values) && noexcept(
+        std::is_nothrow_invocable_v<CPO, Receiver, Values...>) {
+      static_cast<CPO&&>(cpo)(
+          static_cast<Receiver&&>(receiver_),
+          static_cast<Values&&>(values)...);
+    }
 
-      template <
-          typename Error,
-          std::enable_if_t<
-              std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>,
-              int> = 0>
-      void set_error(Error&& error) && noexcept {
-        unifex::set_error(
-            static_cast<Receiver&&>(receiver_), static_cast<Error&&>(error));
-      }
+    template <
+        typename Error,
+        std::enable_if_t<
+            std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>,
+            int> = 0>
+    void set_error(Error&& error) && noexcept {
+      unifex::set_error(
+          static_cast<Receiver&&>(receiver_), static_cast<Error&&>(error));
+    }
 
-      template <
-          typename... DummyPack,
-          std::enable_if_t<
-              sizeof...(DummyPack) == 0 &&
-                  std::is_invocable_v<decltype(unifex::set_done), Receiver>,
-              int> = 0>
-      void set_done(DummyPack...) && noexcept {
-        unifex::set_done(static_cast<Receiver&&>(receiver_));
-      }
+    template <
+        typename... DummyPack,
+        std::enable_if_t<
+            sizeof...(DummyPack) == 0 &&
+                std::is_invocable_v<decltype(unifex::set_done), Receiver>,
+            int> = 0>
+    void set_done(DummyPack...) && noexcept {
+      unifex::set_done(static_cast<Receiver&&>(receiver_));
+    }
 
-      template <
-          typename CPO,
-          typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-      friend auto tag_invoke(
-          CPO cpo,
-          const type& r,
-          Args&&... args) noexcept(std::
-                                       is_nothrow_invocable_v<
-                                           CPO,
-                                           const Receiver&,
-                                           Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            std::as_const(r.receiver_), static_cast<Args&&>(args)...);
-      }
+    template <
+        typename CPO,
+        typename... Args,
+        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+    friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
+        noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
+        -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+      return static_cast<CPO&&>(cpo)(
+          std::as_const(r.receiver_), static_cast<Args&&>(args)...);
+    }
 
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const type& r,
-          Func&& func) noexcept(std::
-                                    is_nothrow_invocable_v<
-                                        Func&,
-                                        const Receiver&>) {
-        std::invoke(func, std::as_const(r.receiver_));
-      }
+    template <typename Func>
+    friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) noexcept(std::
+                                  is_nothrow_invocable_v<
+                                      Func&,
+                                      const Receiver&>) {
+      std::invoke(func, std::as_const(r.receiver_));
+    }
 
-    private:
-      Receiver receiver_;
-    };
+   private:
+    Receiver receiver_;
+  };
 
-    template <typename CPO, template <typename...> class Tuple>
-    struct tuple {
-    private:
-      template <typename... Values>
-      struct apply_impl;
+  template <typename CPO, template <typename...> class Tuple>
+  struct tuple {
+   private:
+    template <typename... Values>
+    struct apply_impl;
 
-      template <typename First, typename... Rest>
-      struct apply_impl<First, Rest...>
-        : std::conditional<
-              std::is_base_of_v<CPO, std::decay_t<First>>,
-              type_list<Tuple<Rest...>>,
-              type_list<>> {};
+    template <typename First, typename... Rest>
+    struct apply_impl<First, Rest...>
+      : std::conditional<
+            std::is_base_of_v<CPO, std::decay_t<First>>,
+            type_list<Tuple<Rest...>>,
+            type_list<>> {};
 
-    public:
-      template <typename... Values>
-      using apply = typename apply_impl<Values...>::type;
-    };
+   public:
+    template <typename... Values>
+    using apply = typename apply_impl<Values...>::type;
+  };
 
-    template <template <typename...> class Variant>
-    struct variant {
-      template <typename... Lists>
-      using apply =
-          typename concat_type_lists<Lists...>::type::template apply<Variant>;
-    };
-  }  // namespace detail
+  template <template <typename...> class Variant>
+  struct variant {
+    template <typename... Lists>
+    using apply =
+        typename concat_type_lists<Lists...>::type::template apply<Variant>;
+  };
 
   template <typename Source>
-  struct sender_ {
+  struct _sender {
     class type;
   };
   template <typename Source>
-  using sender = typename sender_<std::remove_cvref_t<Source>>::type;
+  using sender = typename _sender<std::remove_cvref_t<Source>>::type;
 
   template <typename Source>
-  class sender_<Source>::type {
+  class _sender<Source>::type {
     template <template <typename...> class Variant>
     struct append_error_types {
     private:
@@ -170,78 +155,56 @@ namespace _demat
 
   public:
     template <
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple>
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
     using value_types = typename Source::template value_types<
-        detail::variant<Variant>::template apply,
-        detail::tuple<tag_t<set_value>, Tuple>::template apply>;
+        variant<Variant>::template apply,
+        tuple<tag_t<set_value>, Tuple>::template apply>;
 
     template <template <typename...> class Variant>
     using error_types = typename Source::template value_types<
-        detail::variant<
-            append_error_types<Variant>::template apply>::template apply,
-        detail::tuple<tag_t<set_error>, single_type_t>::
-            template apply>;
+        variant<append_error_types<Variant>::template apply>::template apply,
+        tuple<tag_t<set_error>, single_type_t>::template apply>;
 
     template <typename Source2>
-    explicit type(Source2&& source) noexcept(
-        std::is_nothrow_constructible_v<Source, Source2>)
+    explicit type(Source2&& source)
+        noexcept(std::is_nothrow_constructible_v<Source, Source2>)
       : source_(static_cast<Source2&&>(source)) {}
 
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
-                Source,
-                detail::receiver<std::decay_t<Receiver>>>,
+            is_connectable_v<Source, receiver<Receiver>>,
             int> = 0>
-    friend auto
-    tag_invoke(tag_t<unifex::connect>, type&& s, Receiver&& r)
-        -> operation_t<
-            Source,
-            detail::receiver<std::decay_t<Receiver>>> {
+    friend auto tag_invoke(tag_t<unifex::connect>, type&& s, Receiver&& r)
+        -> operation_t<Source, receiver<Receiver>> {
       return unifex::connect(
           static_cast<Source&&>(s.source_),
-          detail::receiver<std::decay_t<Receiver>>{
-              static_cast<Receiver&&>(r)});
+          receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
-                Source&,
-                detail::receiver<std::decay_t<Receiver>>>,
+            is_connectable_v<Source&, receiver<Receiver>>,
             int> = 0>
-    friend auto
-    tag_invoke(tag_t<unifex::connect>, type& s, Receiver&& r)
-        -> operation_t<
-            Source&,
-            detail::receiver<std::decay_t<Receiver>>> {
+    friend auto tag_invoke(tag_t<unifex::connect>, type& s, Receiver&& r)
+        -> operation_t<Source&, receiver<Receiver>> {
       return unifex::connect(
           s.source_,
-          detail::receiver<std::decay_t<Receiver>>{
-              static_cast<Receiver&&>(r)});
+          receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<
-                const Source&,
-                detail::receiver<std::decay_t<Receiver>>>,
+            is_connectable_v<const Source&, receiver<Receiver>>,
             int> = 0>
-    friend auto tag_invoke(
-        tag_t<unifex::connect>, const type& s, Receiver&& r)
-        -> operation_t<
-            const Source&,
-            detail::receiver<std::decay_t<Receiver>>> {
+    friend auto tag_invoke(tag_t<unifex::connect>, const type& s, Receiver&& r)
+        -> operation_t<const Source&, receiver<Receiver>> {
       return unifex::connect(
           std::as_const(s.source_),
-          detail::receiver<std::decay_t<Receiver>>{
-              static_cast<Receiver&&>(r)});
+          receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
   private:
@@ -249,10 +212,9 @@ namespace _demat
   };
 } // namespace _demat
 
-namespace _demat_cpo
-{
+namespace _demat_cpo {
   inline constexpr struct _fn {
-  private:
+   private:
     template<bool>
     struct _impl {
       template <typename Sender>
@@ -261,7 +223,7 @@ namespace _demat_cpo
         return unifex::tag_invoke(_fn{}, (Sender&&) predecessor);
       }
     };
-  public:
+   public:
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
         noexcept(std::is_nothrow_invocable_v<

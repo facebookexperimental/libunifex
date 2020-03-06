@@ -33,16 +33,16 @@ namespace unifex {
 namespace _via {
 
 template <typename Receiver, typename... Values>
-struct value_receiver_ {
+struct _value_receiver {
   struct type;
 };
 template <typename Receiver, typename... Values>
-using value_receiver = typename value_receiver_<
+using value_receiver = typename _value_receiver<
     Receiver,
     std::decay_t<Values>...>::type;
 
 template <typename Receiver, typename... Values>
-struct value_receiver_<Receiver, Values...>::type {
+struct _value_receiver<Receiver, Values...>::type {
   using value_receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -84,14 +84,14 @@ struct value_receiver_<Receiver, Values...>::type {
 };
 
 template <typename Receiver, typename Error>
-struct error_receiver_ {
+struct _error_receiver {
   struct type;
 };
 template <typename Receiver, typename Error>
-using error_receiver = typename error_receiver_<Receiver, std::decay_t<Error>>::type;
+using error_receiver = typename _error_receiver<Receiver, std::decay_t<Error>>::type;
 
 template <typename Receiver, typename Error>
-struct error_receiver_<Receiver, Error>::type {
+struct _error_receiver<Receiver, Error>::type {
   using error_receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Error error_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -129,14 +129,14 @@ struct error_receiver_<Receiver, Error>::type {
 };
 
 template <typename Receiver>
-struct done_receiver_ {
+struct _done_receiver {
   struct type;
 };
 template <typename Receiver>
-using done_receiver = typename done_receiver_<Receiver>::type;
+using done_receiver = typename _done_receiver<Receiver>::type;
 
 template <typename Receiver>
-struct done_receiver_<Receiver>::type {
+struct _done_receiver<Receiver>::type {
   using done_receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
@@ -173,15 +173,15 @@ struct done_receiver_<Receiver>::type {
 };
 
 template <typename Successor, typename Receiver>
-struct predecessor_receiver_ {
+struct _predecessor_receiver {
   struct type;
 };
 template <typename Successor, typename Receiver>
 using predecessor_receiver =
-    typename predecessor_receiver_<Successor, std::remove_cvref_t<Receiver>>::type;
+    typename _predecessor_receiver<Successor, std::remove_cvref_t<Receiver>>::type;
 
 template <typename Successor, typename Receiver>
-struct predecessor_receiver_<Successor, Receiver>::type {
+struct _predecessor_receiver<Successor, Receiver>::type {
   using predecessor_receiver = type;
   Successor successor_;
   Receiver receiver_;
@@ -242,16 +242,16 @@ struct predecessor_receiver_<Successor, Receiver>::type {
 };
 
 template <typename Predecessor, typename Successor>
-struct sender_ {
+struct _sender {
   struct type;
 };
 template <typename Predecessor, typename Successor>
-using sender = typename sender_<
+using sender = typename _sender<
     std::remove_cvref_t<Predecessor>,
     std::remove_cvref_t<Successor>>::type;
 
 template <typename Predecessor, typename Successor>
-struct sender_<Predecessor, Successor>::type {
+struct _sender<Predecessor, Successor>::type {
   using sender = type;
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Successor succ_;
@@ -307,7 +307,7 @@ struct sender_<Predecessor, Successor>::type {
 } // namespace _via
 
 namespace _via_cpo {
-  struct _fn {
+  inline constexpr struct _fn {
     template <typename Predecessor, typename Successor>
     auto operator()(Successor&& succ, Predecessor&& pred) const
         noexcept(std::is_nothrow_constructible_v<

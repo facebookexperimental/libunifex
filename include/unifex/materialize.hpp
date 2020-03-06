@@ -28,14 +28,14 @@ namespace unifex
   namespace _mat
   {
     template <typename Receiver>
-    struct receiver_ {
+    struct _receiver {
       class type;
     };
     template <typename Receiver>
-    using receiver = typename receiver_<std::remove_cvref_t<Receiver>>::type;
+    using receiver = typename _receiver<std::remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
-    class receiver_<Receiver>::type {
+    class _receiver<Receiver>::type {
       using receiver = type;
     public:
       template <typename Receiver2>
@@ -185,14 +185,14 @@ namespace unifex
     };
 
     template <typename Source>
-    struct sender_ {
+    struct _sender {
       class type;
     };
     template <typename Source>
-    using sender = typename sender_<std::remove_cvref_t<Source>>::type;
+    using sender = typename _sender<std::remove_cvref_t<Source>>::type;
 
     template <typename Source>
-    class sender_<Source>::type {
+    class _sender<Source>::type {
       using sender = type;
     public:
       template <

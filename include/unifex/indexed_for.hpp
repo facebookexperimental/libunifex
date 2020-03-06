@@ -35,14 +35,14 @@ class parallel_policy;
 namespace unifex {
 namespace _ifor {
 template <typename Policy, typename Range, typename Func, typename Receiver>
-struct receiver_ {
+struct _receiver {
   struct type;
 };
 template <typename Policy, typename Range, typename Func, typename Receiver>
 using receiver =
-    typename receiver_<Policy, Range, Func, std::remove_cvref_t<Receiver>>::type;
+    typename _receiver<Policy, Range, Func, std::remove_cvref_t<Receiver>>::type;
 template <typename Policy, typename Range, typename Func, typename Receiver>
-struct receiver_<Policy, Range, Func, Receiver>::type {
+struct _receiver<Policy, Range, Func, Receiver>::type {
   using receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
@@ -112,18 +112,18 @@ struct receiver_<Policy, Range, Func, Receiver>::type {
 };
 
 template <typename Predecessor, typename Policy, typename Range, typename Func>
-struct sender_ {
+struct _sender {
   struct type;
 };
 template <typename Predecessor, typename Policy, typename Range, typename Func>
-using sender = typename sender_<
+using sender = typename _sender<
     std::remove_cvref_t<Predecessor>,
     std::decay_t<Policy>,
     std::decay_t<Range>,
     std::decay_t<Func>>::type;
 
 template <typename Predecessor, typename Policy, typename Range, typename Func>
-struct sender_<Predecessor, Policy, Range, Func>::type {
+struct _sender<Predecessor, Policy, Range, Func>::type {
   using sender = type;
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;

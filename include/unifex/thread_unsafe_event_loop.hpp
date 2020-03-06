@@ -77,21 +77,21 @@ namespace _thread_unsafe_event_loop {
   class scheduler;
 
   template <typename Duration>
-  struct schedule_after_sender_ {
+  struct _schedule_after_sender {
     class type;
   };
   template <typename Duration>
-  using schedule_after_sender = typename schedule_after_sender_<Duration>::type;
+  using schedule_after_sender = typename _schedule_after_sender<Duration>::type;
 
   template <typename Duration, typename Receiver>
-  struct after_op_ {
+  struct _after_op {
     class type;
   };
   template <typename Duration, typename Receiver>
-  using after_operation = typename after_op_<Duration, std::remove_cvref_t<Receiver>>::type;
+  using after_operation = typename _after_op<Duration, std::remove_cvref_t<Receiver>>::type;
 
   template <typename Duration, typename Receiver>
-  class after_op_<Duration, Receiver>::type final : public operation_base {
+  class _after_op<Duration, Receiver>::type final : public operation_base {
     friend schedule_after_sender<Duration>;
    public:
     void start() noexcept {
@@ -133,7 +133,7 @@ namespace _thread_unsafe_event_loop {
   };
 
   template <typename Duration>
-  class schedule_after_sender_<Duration>::type {
+  class _schedule_after_sender<Duration>::type {
     using schedule_after_sender = type;
    public:
     template <
@@ -164,14 +164,14 @@ namespace _thread_unsafe_event_loop {
   struct schedule_at_sender;
 
   template <typename Receiver>
-  struct at_op_ {
+  struct _at_op {
     class type;
   };
   template <typename Receiver>
-  using at_operation = typename at_op_<std::remove_cvref_t<Receiver>>::type;
+  using at_operation = typename _at_op<std::remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
-  class at_op_<Receiver>::type final : public operation_base {
+  class _at_op<Receiver>::type final : public operation_base {
    public:
     void start() noexcept {
       callback_.construct(
@@ -263,14 +263,14 @@ namespace _thread_unsafe_event_loop {
   };
 
   template <typename T, typename StopToken>
-  struct sync_wait_promise_ {
+  struct _sync_wait_promise {
     class type;
   };
   template <typename T, typename StopToken>
-  using sync_wait_promise = typename sync_wait_promise_<T, StopToken>::type;
+  using sync_wait_promise = typename _sync_wait_promise<T, StopToken>::type;
 
   template <typename T, typename StopToken>
-  class sync_wait_promise_<T, StopToken>::type {
+  class _sync_wait_promise<T, StopToken>::type {
     using sync_wait_promise = type;
     enum class state { incomplete, done, value, error };
 

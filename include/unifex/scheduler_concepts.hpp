@@ -102,11 +102,11 @@ inline constexpr _schedule::sender _schedule::_fn::operator()() const noexcept {
 
 namespace _schedule_after {
   template<typename Duration>
-  struct sender_ {
+  struct _sender {
     class type;
   };
   template<typename Duration>
-  using sender = typename sender_<Duration>::type;
+  using sender = typename _sender<Duration>::type;
 
   inline constexpr struct _fn {
     template<bool>
@@ -147,7 +147,7 @@ namespace _schedule_after {
   };
 
   template<typename Duration>
-  class sender_<Duration>::type {
+  class _sender<Duration>::type {
   public:
     template<template<typename...> class Variant, template<typename...> class Tuple>
     using value_types = Variant<Tuple<>>;

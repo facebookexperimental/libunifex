@@ -39,21 +39,22 @@ namespace unifex
         typename SourceSender,
         typename CompletionSender,
         typename Receiver>
-    struct op_ {
+    struct _op {
       class type;
     };
     template <
         typename SourceSender,
         typename CompletionSender,
         typename Receiver>
-    using operation = typename op_<SourceSender, CompletionSender, Receiver>::type;
+    using operation =
+        typename _op<SourceSender, CompletionSender, std::remove_cvref_t<Receiver>>::type;
 
     template <
         typename SourceSender,
         typename CompletionSender,
         typename Receiver,
         typename... Values>
-    struct value_receiver_ {
+    struct _value_receiver {
       class type;
     };
     template <
@@ -62,7 +63,7 @@ namespace unifex
         typename Receiver,
         typename... Values>
     using value_receiver =
-      typename value_receiver_<
+      typename _value_receiver<
         SourceSender,
         CompletionSender,
         Receiver,
@@ -73,7 +74,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver,
         typename... Values>
-    class value_receiver_<SourceSender, CompletionSender, Receiver, Values...>::type {
+    class _value_receiver<SourceSender, CompletionSender, Receiver, Values...>::type {
       using value_receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -188,7 +189,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver,
         typename Error>
-    struct error_receiver_ {
+    struct _error_receiver {
       class type;
     };
     template <
@@ -197,7 +198,7 @@ namespace unifex
         typename Receiver,
         typename Error>
     using error_receiver =
-      typename error_receiver_<
+      typename _error_receiver<
         SourceSender,
         CompletionSender,
         Receiver,
@@ -208,7 +209,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver,
         typename Error>
-    class error_receiver_<SourceSender, CompletionSender, Receiver, Error>::type {
+    class _error_receiver<SourceSender, CompletionSender, Receiver, Error>::type {
       using error_receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -307,15 +308,15 @@ namespace unifex
     };
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    struct done_receiver_ {
+    struct _done_receiver {
       class type;
     };
     template <typename SourceSender, typename CompletionSender, typename Receiver>
     using done_receiver =
-        typename done_receiver_<SourceSender, CompletionSender, Receiver>::type;
+        typename _done_receiver<SourceSender, CompletionSender, Receiver>::type;
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    class done_receiver_<SourceSender, CompletionSender, Receiver>::type {
+    class _done_receiver<SourceSender, CompletionSender, Receiver>::type {
       using done_receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -385,14 +386,14 @@ namespace unifex
     };
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    struct receiver_ {
+    struct _receiver {
       class type;
     };
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    using receiver = typename receiver_<SourceSender, CompletionSender, Receiver>::type;
+    using receiver = typename _receiver<SourceSender, CompletionSender, Receiver>::type;
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    class receiver_<SourceSender, CompletionSender, Receiver>::type {
+    class _receiver<SourceSender, CompletionSender, Receiver>::type {
       using receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -457,18 +458,18 @@ namespace unifex
         op->sourceOp_.destruct();
 
         try {
-          using error_receiver = error_receiver<
+          using error_receiver_t = error_receiver<
               SourceSender,
               CompletionSender,
               Receiver,
               Error>;
           auto& completionOp =
               op->completionErrorOp_
-                  .template get<operation_t<CompletionSender, error_receiver>>()
+                  .template get<operation_t<CompletionSender, error_receiver_t>>()
                   .construct_from([&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
-                        error_receiver{op});
+                        error_receiver_t{op});
                   });
           unifex::start(completionOp);
         } catch (...) {
@@ -529,7 +530,7 @@ namespace unifex
         typename SourceSender,
         typename CompletionSender,
         typename Receiver>
-    class op_<SourceSender, CompletionSender, Receiver>::type {
+    class _op<SourceSender, CompletionSender, Receiver>::type {
       friend receiver<SourceSender, CompletionSender, Receiver>;
       friend done_receiver<SourceSender, CompletionSender, Receiver>;
 
@@ -538,14 +539,14 @@ namespace unifex
           typename CompletionSender2,
           typename Receiver2,
           typename... Values>
-      friend class value_receiver_;
+      friend class _value_receiver;
 
       template <
           typename SourceSender2,
           typename CompletionSender2,
           typename Receiver2,
           typename Error>
-      friend class error_receiver_;
+      friend class _error_receiver;
 
       template <typename... Values>
       using value_operation = operation_t<
@@ -643,16 +644,16 @@ namespace unifex
     };
 
     template <typename SourceSender, typename CompletionSender>
-    struct sender_ {
+    struct _sender {
       class type;
     };
     template <typename SourceSender, typename CompletionSender>
-    using sender = typename sender_<
+    using sender = typename _sender<
         std::remove_cvref_t<SourceSender>,
         std::remove_cvref_t<CompletionSender>>::type;
 
     template <typename SourceSender, typename CompletionSender>
-    class sender_<SourceSender, CompletionSender>::type {
+    class _sender<SourceSender, CompletionSender>::type {
       using sender = type;
     public:
       template <

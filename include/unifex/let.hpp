@@ -35,14 +35,14 @@ template <typename... Values>
 using decayed_tuple = std::tuple<std::decay_t<Values>...>;
 
 template <typename Operation, typename... Values>
-struct successor_receiver_ {
+struct _successor_receiver {
   struct type;
 };
 template <typename Operation, typename... Values>
-using successor_receiver = typename successor_receiver_<Operation, Values...>::type;
+using successor_receiver = typename _successor_receiver<Operation, Values...>::type;
 
 template <typename Operation, typename... Values>
-struct successor_receiver_<Operation, Values...>::type {
+struct _successor_receiver<Operation, Values...>::type {
   using successor_receiver = type;
   Operation& op_;
 
@@ -100,14 +100,14 @@ private:
 };
 
 template <typename Operation>
-struct predecessor_receiver_ {
+struct _predecessor_receiver {
   struct type;
 };
 template <typename Operation>
-using predecessor_receiver = typename predecessor_receiver_<Operation>::type;
+using predecessor_receiver = typename _predecessor_receiver<Operation>::type;
 
 template <typename Operation>
-struct predecessor_receiver_<Operation>::type {
+struct _predecessor_receiver<Operation>::type {
   using predecessor_receiver = type;
   using receiver_type = typename Operation::receiver_type;
 
@@ -180,17 +180,17 @@ struct predecessor_receiver_<Operation>::type {
 };
 
 template <typename Predecessor, typename SuccessorFactory, typename Receiver>
-struct op_ {
+struct _op {
   struct type;
 };
 template <typename Predecessor, typename SuccessorFactory, typename Receiver>
-using operation = typename op_<
+using operation = typename _op<
     Predecessor,
     SuccessorFactory,
     std::remove_cvref_t<Receiver>>::type;
 
 template <typename Predecessor, typename SuccessorFactory, typename Receiver>
-struct op_<Predecessor, SuccessorFactory, Receiver>::type {
+struct _op<Predecessor, SuccessorFactory, Receiver>::type {
   using operation = type;
   using receiver_type = Receiver;
 
@@ -204,7 +204,7 @@ struct op_<Predecessor, SuccessorFactory, Receiver>::type {
 
   friend predecessor_receiver<operation>;
   template<typename Operation, typename... Values>
-  friend struct successor_receiver_;
+  friend struct _successor_receiver;
 
   template <typename SuccessorFactory2, typename Receiver2>
   explicit type(
@@ -246,16 +246,16 @@ private:
 };
 
 template <typename Predecessor, typename SuccessorFactory>
-struct sender_ {
+struct _sender {
   class type;
 };
 template <typename Predecessor, typename SuccessorFactory>
-using sender = typename sender_<
+using sender = typename _sender<
     std::remove_cvref_t<Predecessor>,
     std::remove_cvref_t<SuccessorFactory>>::type;
 
 template <typename Predecessor, typename SuccessorFactory>
-class sender_<Predecessor, SuccessorFactory>::type {
+class _sender<Predecessor, SuccessorFactory>::type {
   using sender = type;
   Predecessor pred_;
   SuccessorFactory func_;

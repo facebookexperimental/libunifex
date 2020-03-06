@@ -43,14 +43,14 @@ namespace detail {
 }
 
 template <typename Receiver, typename Func>
-struct receiver_ {
+struct _receiver {
   struct type;
 };
 template <typename Receiver, typename Func>
-using receiver = typename receiver_<Receiver, Func>::type;
+using receiver = typename _receiver<Receiver, Func>::type;
 
 template <typename Receiver, typename Func>
-struct receiver_<Receiver, Func>::type {
+struct _receiver<Receiver, Func>::type {
   using receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -114,14 +114,14 @@ struct receiver_<Receiver, Func>::type {
 };
 
 template <typename Predecessor, typename Func>
-struct sender_ {
+struct _sender {
   struct type;
 };
 template <typename Predecessor, typename Func>
-using sender = typename sender_<std::remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
+using sender = typename _sender<std::remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
 
 template <typename Predecessor, typename Func>
-struct sender_<Predecessor, Func>::type {
+struct _sender<Predecessor, Func>::type {
   using sender = type;
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;

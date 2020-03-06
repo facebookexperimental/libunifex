@@ -36,28 +36,28 @@ namespace unifex
   namespace _seq
   {
     template <typename Predecessor, typename Successor, typename Receiver>
-    struct op_ {
+    struct _op {
       class type;
     };
     template <typename Predecessor, typename Successor, typename Receiver>
-    using operation = typename op_<
+    using operation = typename _op<
         Predecessor,
         Successor,
         std::remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    struct successor_receiver_ {
+    struct _successor_receiver {
       class type;
     };
     template <typename Predecessor, typename Successor, typename Receiver>
     using successor_receiver =
-        typename successor_receiver_<
+        typename _successor_receiver<
             Predecessor,
             Successor,
             std::remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    class successor_receiver_<Predecessor, Successor, Receiver>::type {
+    class _successor_receiver<Predecessor, Successor, Receiver>::type {
       using successor_receiver = type;
       using operation_type = operation<Predecessor, Successor, Receiver>;
 
@@ -117,18 +117,18 @@ namespace unifex
     };
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    struct predecessor_receiver_ {
+    struct _predecessor_receiver {
       class type;
     };
     template <typename Predecessor, typename Successor, typename Receiver>
     using predecessor_receiver =
-        typename predecessor_receiver_<
+        typename _predecessor_receiver<
             Predecessor,
             Successor,
             std::remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    class predecessor_receiver_<Predecessor, Successor, Receiver>::type {
+    class _predecessor_receiver<Predecessor, Successor, Receiver>::type {
       using predecessor_receiver = type;
       using operation_type = operation<Predecessor, Successor, Receiver>;
 
@@ -142,16 +142,16 @@ namespace unifex
       void set_value() && noexcept {
         // Take a copy of op_ before destroying predOp_ as this may end up
         // destroying *this.
-        using successor_receiver =
+        using successor_receiver_t =
             successor_receiver<Predecessor, Successor, Receiver>;
 
         auto* op = op_;
         op->status_ = operation_type::status::empty;
         op->predOp_.destruct();
-        if constexpr (is_nothrow_connectable_v<Successor, successor_receiver>) {
+        if constexpr (is_nothrow_connectable_v<Successor, successor_receiver_t>) {
           op->succOp_.construct_from([&]() noexcept {
             return unifex::connect(
-                static_cast<Successor&&>(op->successor_), successor_receiver{op});
+                static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
           });
           op->status_ = operation_type::status::successor_operation_constructed;
           unifex::start(op->succOp_.get());
@@ -159,7 +159,7 @@ namespace unifex
           try {
             op->succOp_.construct_from([&]() {
               return unifex::connect(
-                  static_cast<Successor&&>(op->successor_), successor_receiver{op});
+                  static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
             });
             op->status_ = operation_type::status::successor_operation_constructed;
             unifex::start(op->succOp_.get());
@@ -226,7 +226,7 @@ namespace unifex
     };
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    class op_<Predecessor, Successor, Receiver>::type {
+    class _op<Predecessor, Successor, Receiver>::type {
       using operation = type;
     public:
       template <typename Successor2, typename Receiver2>
@@ -292,16 +292,16 @@ namespace unifex
     };
 
     template <typename Predecessor, typename Successor>
-    struct sender_ {
+    struct _sender {
       class type;
     };
     template <typename Predecessor, typename Successor>
-    using sender = typename sender_<
+    using sender = typename _sender<
         std::remove_cvref_t<Predecessor>,
         std::remove_cvref_t<Successor>>::type;
 
     template <typename Predecessor, typename Successor>
-    class sender_<Predecessor, Successor>::type {
+    class _sender<Predecessor, Successor>::type {
       using sender = type;
     public:
       template <

@@ -102,14 +102,14 @@ struct sender_task {
 } // namespace detail
 
 template <typename Awaitable>
-struct sender_ {
+struct _sender {
   struct type;
 };
 template <typename Awaitable>
-using sender = typename sender_<std::remove_cvref_t<Awaitable>>::type;
+using sender = typename _sender<std::remove_cvref_t<Awaitable>>::type;
 
 template <typename Awaitable>
-struct sender_<Awaitable>::type {
+struct _sender<Awaitable>::type {
   Awaitable awaitable_;
 
   using result_type = await_result_t<Awaitable>;
