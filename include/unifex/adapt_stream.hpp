@@ -21,66 +21,78 @@
 #include <type_traits>
 
 namespace unifex {
+namespace _adapt_stream {
+template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc>
+struct _adapted {
+  struct type;
+};
+template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc = void>
+using adapted = typename _adapted<
+    std::remove_cvref_t<Stream>,
+    std::decay_t<NextAdaptFunc>,
+    std::decay_t<CleanupAdaptFunc>>::type;
 
-template <
-    typename Stream,
-    typename NextAdaptFunc,
-    typename CleanupAdaptFunc>
-struct adapted_stream {
+template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc>
+struct _adapted<Stream, NextAdaptFunc, CleanupAdaptFunc>::type {
   Stream innerStream_;
   NextAdaptFunc nextAdapter_;
   CleanupAdaptFunc cleanupAdapter_;
 
-  friend auto tag_invoke(tag_t<next>, adapted_stream& s)
-    -> std::invoke_result_t<NextAdaptFunc&, next_sender_t<Stream>> {
+  friend auto tag_invoke(tag_t<next>, type& s)
+      -> std::invoke_result_t<NextAdaptFunc&, next_sender_t<Stream>> {
     return std::invoke(s.nextAdapter_, next(s.innerStream_));
   }
 
-  friend auto tag_invoke(tag_t<cleanup>, adapted_stream& s)
-    -> std::invoke_result_t<CleanupAdaptFunc&, cleanup_sender_t<Stream>> {
+  friend auto tag_invoke(tag_t<cleanup>, type& s)
+      -> std::invoke_result_t<CleanupAdaptFunc&, cleanup_sender_t<Stream>> {
     return std::invoke(s.cleanupAdapter_, cleanup(s.innerStream_));
   }
 };
 
 template <typename Stream, typename AdaptFunc>
-struct both_adapted_stream {
+struct _adapted<Stream, AdaptFunc, void> {
+  struct type;
+};
+template <typename Stream, typename AdaptFunc>
+struct _adapted<Stream, AdaptFunc, void>::type {
   Stream innerStream_;
   AdaptFunc adapter_;
 
-  friend auto tag_invoke(tag_t<next>, both_adapted_stream& s)
-    -> std::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
+  friend auto tag_invoke(tag_t<next>, type& s)
+      -> std::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
     return std::invoke(s.adapter_, next(s.innerStream_));
   }
 
-  friend auto tag_invoke(tag_t<cleanup>, both_adapted_stream& s)
-    -> std::invoke_result_t<AdaptFunc&, cleanup_sender_t<Stream>> {
+  friend auto tag_invoke(tag_t<cleanup>, type& s)
+      -> std::invoke_result_t<AdaptFunc&, cleanup_sender_t<Stream>> {
     return std::invoke(s.adapter_, cleanup(s.innerStream_));
   }
 };
+} // namespace _adapt_stream
 
-template <typename Stream, typename AdapterFunc>
-auto adapt_stream(Stream&& stream, AdapterFunc&& adapt) {
-  return both_adapted_stream<
-      std::remove_cvref_t<Stream>,
-      std::remove_cvref_t<AdapterFunc>>{(Stream &&) stream,
-                                        (AdapterFunc &&) adapt};
-}
+namespace _adapt_stream_cpo {
+  inline constexpr struct _fn {
+    template <typename Stream, typename AdapterFunc>
+    auto operator()(Stream&& stream, AdapterFunc&& adapt) const
+        -> _adapt_stream::adapted<Stream, AdapterFunc> {
+      return {(Stream &&) stream, (AdapterFunc &&) adapt};
+    }
 
-template <
-    typename Stream,
-    typename NextAdapterFunc,
-    typename CleanupAdapterFunc>
-auto adapt_stream(
-    Stream&& stream,
-    NextAdapterFunc&& adaptNext,
-    CleanupAdapterFunc&& adaptCleanup) {
-  return adapted_stream<
-      std::remove_cvref_t<Stream>,
-      std::remove_cvref_t<NextAdapterFunc>,
-      std::remove_cvref_t<CleanupAdapterFunc>>{(Stream &&) stream,
-                                               (NextAdapterFunc &&) adaptNext,
-                                               (CleanupAdapterFunc &&)
-                                                   adaptCleanup};
-}
-
+    template <
+        typename Stream,
+        typename NextAdapterFunc,
+        typename CleanupAdapterFunc>
+    auto operator()(
+        Stream&& stream,
+        NextAdapterFunc&& adaptNext,
+        CleanupAdapterFunc&& adaptCleanup) const
+        -> _adapt_stream::adapted<Stream, NextAdapterFunc, CleanupAdapterFunc> {
+      return {
+          (Stream &&) stream,
+          (NextAdapterFunc &&) adaptNext,
+          (CleanupAdapterFunc &&) adaptCleanup};
+    }
+  } adapt_stream {};
+} // namespace _adapt_stream_cpo
+using _adapt_stream_cpo::adapt_stream;
 } // namespace unifex
