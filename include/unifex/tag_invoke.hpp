@@ -57,6 +57,12 @@ using namespace tag_invoke_cpo_ns;
 template <auto& CPO>
 using tag_t = std::remove_cvref_t<decltype(CPO)>;
 
+// Manually implement the traits here rather than defining them in terms of
+// the corresponding std::invoke_result/is_invocable/is_nothrow_invocable traits
+// to improve compile-times. We don't need all of the generality of the std::
+// traits and the tag_invoke traits are used heavily through libunifex so
+// optimising them for compile time makes a big difference.
+
 using tag_invoke_impl::tag_invoke_result_t;
 
 template<typename CPO, typename... Args>
