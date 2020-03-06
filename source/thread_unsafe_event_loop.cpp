@@ -19,7 +19,7 @@
 
 namespace unifex {
 
-void thread_unsafe_event_loop::cancel_callback::operator()() noexcept {
+void _thread_unsafe_event_loop::cancel_callback::operator()() noexcept {
   auto now = clock_t::now();
   if (now < op_->dueTime_) {
     op_->dueTime_ = now;
