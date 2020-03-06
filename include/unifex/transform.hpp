@@ -199,7 +199,9 @@ namespace _tfx_cpo {
     template <typename Sender, typename Func>
     auto operator()(Sender&& predecessor, Func&& func) const
         noexcept(std::is_nothrow_invocable_v<
-          _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func>) {
+            _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func> {
       return _impl<is_tag_invocable_v<_fn, Sender, Func>>{}(
         (Sender&&)predecessor, (Func&&)func);
     }

@@ -30,25 +30,41 @@
 #include <exception>
 
 namespace unifex {
-
-namespace detail {
-
-template<typename Source, typename Func, typename Receiver>
-class retry_when_operation;
+namespace _retry_when {
 
 template<typename Source, typename Func, typename Receiver>
-class retry_when_source_receiver;
+struct op_ {
+  class type;
+};
+template<typename Source, typename Func, typename Receiver>
+using operation = typename op_<Source, Func, std::remove_cvref_t<Receiver>>::type;
+
+template<typename Source, typename Func, typename Receiver>
+struct source_receiver_ {
+  class type;
+};
+template<typename Source, typename Func, typename Receiver>
+using source_receiver = typename source_receiver_<Source, Func, Receiver>::type;
 
 template<typename Source, typename Func, typename Receiver, typename Trigger>
-class retry_when_trigger_receiver {
-  using operation = retry_when_operation<Source, Func, Receiver>;
+struct trigger_receiver_ {
+  class type;
+};
+template<typename Source, typename Func, typename Receiver, typename Trigger>
+using trigger_receiver =
+    typename trigger_receiver_<Source, Func, Receiver, Trigger>::type;
+
+template<typename Source, typename Func, typename Receiver, typename Trigger>
+class trigger_receiver_<Source, Func, Receiver, Trigger>::type {
+  using trigger_receiver = type;
+  using operation = operation<Source, Func, Receiver>;
 
 public:
-  explicit retry_when_trigger_receiver(operation* op) noexcept
-  : op_(op) {}
+  explicit type(operation* op) noexcept
+    : op_(op) {}
 
-  retry_when_trigger_receiver(retry_when_trigger_receiver&& other) noexcept
-  : op_(std::exchange(other.op_, nullptr))
+  type(trigger_receiver&& other) noexcept
+    : op_(std::exchange(other.op_, nullptr))
   {}
 
   void set_value() && noexcept {
@@ -58,7 +74,7 @@ public:
     auto* op = op_;
     destroy_trigger_op();
 
-    using source_receiver = retry_when_source_receiver<Source, Func, Receiver>;
+    using source_receiver = source_receiver<Source, Func, Receiver>;
 
     if constexpr (is_nothrow_connectable_v<Source&, source_receiver>) {
       auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
@@ -108,7 +124,7 @@ public:
 private:
 
   template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const retry_when_trigger_receiver& r, Args&&... args)
+  friend auto tag_invoke(CPO cpo, const trigger_receiver& r, Args&&... args)
       noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
       -> std::invoke_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
@@ -117,7 +133,7 @@ private:
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
-      const retry_when_trigger_receiver& r,
+      const trigger_receiver& r,
       VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
@@ -130,7 +146,7 @@ private:
   }
 
   void destroy_trigger_op() noexcept {
-    using trigger_op = operation_t<Trigger, retry_when_trigger_receiver>;
+    using trigger_op = operation_t<Trigger, trigger_receiver>;
     op_->triggerOps_.template get<trigger_op>().destruct();
   }
 
@@ -138,13 +154,14 @@ private:
 };
 
 template<typename Source, typename Func, typename Receiver>
-class retry_when_source_receiver {
-  using operation = retry_when_operation<Source, Func, Receiver>;
+class source_receiver_<Source, Func, Receiver>::type {
+  using source_receiver = type;
+  using operation = operation<Source, Func, Receiver>;
 public:
-  explicit retry_when_source_receiver(operation* op) noexcept
+  explicit type(operation* op) noexcept
   : op_(op) {}
 
-  retry_when_source_receiver(retry_when_source_receiver&& other) noexcept
+  type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
  
@@ -176,7 +193,7 @@ public:
     op->sourceOp_.destruct();
 
     using trigger_sender = std::invoke_result_t<Func&, Error>;
-    using trigger_receiver = detail::retry_when_trigger_receiver<Source, Func, Receiver, trigger_sender>;
+    using trigger_receiver = trigger_receiver<Source, Func, Receiver, trigger_sender>;
     using trigger_op = unifex::operation_t<trigger_sender, trigger_receiver>; 
     auto& triggerOpStorage = op->triggerOps_.template get<trigger_op>();
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
@@ -199,7 +216,7 @@ public:
 
 private:
   template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const retry_when_source_receiver& r, Args&&... args)
+  friend auto tag_invoke(CPO cpo, const source_receiver& r, Args&&... args)
       noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
       -> std::invoke_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
@@ -208,7 +225,7 @@ private:
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
-      const retry_when_source_receiver& r,
+      const source_receiver& r,
       VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
@@ -224,26 +241,25 @@ private:
 };
 
 template<typename Source, typename Func, typename Receiver>
-class retry_when_operation {
-  using source_receiver = detail::retry_when_source_receiver<Source, Func, Receiver>;
-
+class op_<Source, Func, Receiver>::type {
+  using operation = type;
+  using source_receiver = source_receiver<Source, Func, Receiver>;
 public:
   template<typename Source2, typename Func2, typename Receiver2>
-  explicit retry_when_operation(Source2&& source, Func2&& func, Receiver2&& receiver)
+  explicit type(Source2&& source, Func2&& func, Receiver2&& receiver)
       noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
                std::is_nothrow_constructible_v<Func, Func2> &&
                std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                is_nothrow_connectable_v<Source&, source_receiver>)
   : source_((Source2&&)source)
   , func_((Func2&&)func)
-  , receiver_((Receiver&&)receiver)
-  {
+  , receiver_((Receiver&&)receiver) {
     sourceOp_.construct_from([&] {
         return unifex::connect(source_, source_receiver{this});
       });
   }
 
-  ~retry_when_operation() {
+  ~type() {
     if (isSourceOpConstructed_) {
       sourceOp_.destruct();
     }
@@ -254,18 +270,18 @@ public:
   }
 
 private:
-  friend retry_when_source_receiver<Source, Func, Receiver>;
+  friend source_receiver;
 
   template<typename Source2, typename Func2, typename Receiver2, typename Trigger>
-  friend class retry_when_trigger_receiver;
+  friend class trigger_receiver_;
 
-  using source_op_t = operation_t<Source&, retry_when_source_receiver<Source, Func, Receiver>>;
+  using source_op_t = operation_t<Source&, source_receiver>;
 
   template<typename Error>
   using trigger_sender_t = std::invoke_result_t<Func&, std::remove_cvref_t<Error>>;
 
   template<typename Error>
-  using trigger_receiver_t = retry_when_trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
+  using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
 
   template<typename Error>
   using trigger_op_t = operation_t<
@@ -285,10 +301,17 @@ private:
   };
 };
 
-} // namespace detail
+template<typename Source, typename Func>
+struct sender_ {
+  class type;
+};
+template<typename Source, typename Func>
+using sender = typename sender_<std::remove_cvref_t<Source>, std::decay_t<Func>>::type;
 
 template<typename Source, typename Func>
-class retry_sender {
+class sender_<Source, Func>::type {
+  using sender = type;
+
   template<typename Error>
   using trigger_sender = std::invoke_result_t<Func&, std::remove_cvref_t<Error>>;
 
@@ -306,84 +329,104 @@ public:
   using error_types = typename Source::template error_types<make_error_type_list>::template apply<Variant>;
 
   template<typename Source2, typename Func2>
-  explicit retry_sender(Source2&& source, Func2&& func)
+  explicit type(Source2&& source, Func2&& func)
     noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
              std::is_nothrow_constructible_v<Func, Func2>)
-  : source_((Source2&&)source)
-  , func_((Func2&&)func)
+    : source_((Source2&&)source)
+    , func_((Func2&&)func)
   {}
 
   // TODO: The connect() methods are currently under-constrained.
   // Ideally they should also check that func() invoked with each of the errors can be connected
-  // with the corresponding retry_when_trigger_receiver.
+  // with the corresponding trigger_receiver.
 
   template<
     typename Receiver,
-    typename Op = detail::retry_when_operation<Source, Func, std::remove_cvref_t<Receiver>>,
     std::enable_if_t<
         std::is_move_constructible_v<Source> &&
         std::is_move_constructible_v<Func> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  Op connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_constructible_v<Op, Source, Func, Receiver>) {
-    return Op{(Source&&)source_, (Func&&)func_, (Receiver&&)r};
+        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+  operation<Source, Func, Receiver> connect(Receiver&& r) &&
+      noexcept(std::is_nothrow_constructible_v<
+          operation<Source, Func, Receiver>, Source, Func, Receiver>) {
+    return operation<Source, Func, Receiver>{
+        (Source&&)source_, (Func&&)func_, (Receiver&&)r};
   }
 
   template<
     typename Receiver,
-    typename Op = detail::retry_when_operation<Source, Func, std::remove_cvref_t<Receiver>>,
+    typename Op = operation<Source, Func, Receiver>,
     std::enable_if_t<
         std::is_constructible_v<Source, Source&> &&
         std::is_constructible_v<Func, Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  Op connect(Receiver&& r) &
-      noexcept(std::is_nothrow_constructible_v<Op, Source&, Func&, Receiver>) {
-      return Op{source_, func_, (Receiver&&)r};
+        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+  operation<Source, Func, Receiver> connect(Receiver&& r) &
+      noexcept(std::is_nothrow_constructible_v<
+          operation<Source, Func, Receiver>, Source&, Func&, Receiver>) {
+      return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
   }
 
   template<
     typename Receiver,
-    typename Op = detail::retry_when_operation<Source, Func, std::remove_cvref_t<Receiver>>,
     std::enable_if_t<
         std::is_constructible_v<Source, const Source&> &&
         std::is_constructible_v<Func, const Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, detail::retry_when_source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  Op connect(Receiver&& r) &
-      noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Func&, Receiver>) {
-    return Op{source_, func_, (Receiver&&)r};
+        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+  operation<Source, Func, Receiver> connect(Receiver&& r) &
+      noexcept(std::is_nothrow_constructible_v<
+          operation<Source, Func, Receiver>, const Source&, const Func&, Receiver>) {
+    return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
   }
 
 private:
   Source source_;
   Func func_;
 };
+} // namespace _retry_when
 
-inline constexpr struct retry_when_cpo {
-  template<typename Source, typename Func>
-  auto operator()(Source&& source, Func&& func) const
-      noexcept(is_nothrow_tag_invocable_v<retry_when_cpo, Source, Func>)
-      -> tag_invoke_result_t<retry_when_cpo, Source, Func> {
-    return tag_invoke(*this, (Source&&)source, (Func&&)func);
-  }
+namespace _retry_when_cpo {
+  inline constexpr struct _fn {
+  private:
+    template<bool>
+    struct _impl {
+      template <typename Source, typename Func>
+      auto operator()(Source&& source, Func&& func) const
+          noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>) {
+        return unifex::tag_invoke(_fn{}, (Source&&)source, (Func&&)func);
+      }
+    };
+  public:
+    template<typename Source, typename Func>
+    auto operator()(Source&& source, Func&& func) const
+        noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func> {
+        return _impl<is_tag_invocable_v<_fn, Source, Func>>{}(
+          (Source&&)source, (Func&&)func);
+      }
+  } retry_when{};
 
-  template<
-    typename Source,
-    typename Func,
-    std::enable_if_t<
-        !is_tag_invocable_v<retry_when_cpo, Source, Func> &&
-        std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
-        std::is_constructible_v<std::remove_cvref_t<Func>, Func>, int> = 0>
-  auto operator()(Source&& source, Func&& func) const
-      noexcept(std::is_nothrow_constructible_v<
-                   retry_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Func>>,
-                   Source, Func>)
-      -> retry_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Func>> {
-    return retry_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Func>>{
-        (Source&&)source, (Func&&)func};
-  }
-} retry_when{};
+  template<>
+  struct _fn::_impl<false> {
+    template<
+      typename Source,
+      typename Func,
+      std::enable_if_t<
+          !is_tag_invocable_v<_fn, Source, Func> &&
+          std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
+          std::is_constructible_v<std::remove_cvref_t<Func>, Func>, int> = 0>
+    auto operator()(Source&& source, Func&& func) const
+        noexcept(std::is_nothrow_constructible_v<
+          _retry_when::sender<Source, Func>, Source, Func>)
+        -> _retry_when::sender<Source, Func> {
+      return _retry_when::sender<Source, Func>{(Source&&)source, (Func&&)func};
+    }
+  };
+} // namespace _retry_when_cpo
+using _retry_when_cpo::retry_when;
 
 } // namespace unifex
