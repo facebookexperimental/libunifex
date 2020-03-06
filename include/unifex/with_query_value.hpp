@@ -137,7 +137,8 @@ private:
 
 template <typename Sender, typename CPO, typename Value>
 with_query_value_sender<CPO, std::decay_t<Value>, std::decay_t<Sender>>
-with_query_value(Sender &&sender, CPO cpo, Value &&value) {
+with_query_value(Sender &&sender, CPO, Value &&value) {
+  static_assert(std::is_empty_v<CPO>, "with_query_value() does not support stateful CPOs");
   return with_query_value_sender<CPO, std::decay_t<Value>,
                                  std::decay_t<Sender>>{(Sender &&) sender,
                                                        (Value &&) value};

@@ -44,11 +44,11 @@ struct int_iterator {
   using pointer = value_type*;
   using iterator_category = std::random_access_iterator_tag;
 
-  const int operator[](size_t offset) const {
+  int operator[](size_t offset) const {
     return base_+offset;
   }
 
-  const int operator*() const {
+  int operator*() const {
     return base_;
   }
 

@@ -111,6 +111,8 @@ int main() {
             << duration_cast<milliseconds>(std::get<0>(std::get<0>(a))).count()
             << ", "
             << duration_cast<milliseconds>(std::get<0>(std::get<0>(b))).count()
+            << ", "
+            << std::get<0>(std::get<0>(c))
             << "]\n";
       }));
 

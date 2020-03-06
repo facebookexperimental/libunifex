@@ -81,7 +81,7 @@ struct reduce_stream_sender {
         return std::move(cpo)(std::as_const(r.op_.receiver_));
       }
 
-      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const error_cleanup_receiver& r) noexcept {
+      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const error_cleanup_receiver&) noexcept {
         return {};
       }
 
@@ -121,7 +121,7 @@ struct reduce_stream_sender {
         return std::move(cpo)(std::as_const(r.op_.receiver_));
       }
 
-      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const done_cleanup_receiver& r) noexcept {
+      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const done_cleanup_receiver&) noexcept {
         return {};
       }
 

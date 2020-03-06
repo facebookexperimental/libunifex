@@ -66,7 +66,7 @@ struct indexed_for_sender {
 
     // sequenced_policy version supports forward range
     template<typename... Values>
-    static void apply_func_with_policy(const execution::sequenced_policy& policy, Range&& range, Func&& func, Values&... values)
+    static void apply_func_with_policy(const execution::sequenced_policy&, Range&& range, Func&& func, Values&... values)
         noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
       for(auto idx : range) {
         std::invoke(func, idx, values...);
@@ -75,10 +75,11 @@ struct indexed_for_sender {
 
     // parallel_policy version requires random access range
     template<typename... Values>
-    static void apply_func_with_policy(const execution::parallel_policy& policy, Range&& range, Func&& func, Values&... values)
+    static void apply_func_with_policy(const execution::parallel_policy&, Range&& range, Func&& func, Values&... values)
         noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
       auto start = range.begin();
-      for(auto idx = 0; idx < range.size(); ++idx) {
+      using size_type = decltype(range.size());
+      for (size_type idx = 0; idx < range.size(); ++idx) {
         std::invoke(func, start[idx], values...);
       }
     }
