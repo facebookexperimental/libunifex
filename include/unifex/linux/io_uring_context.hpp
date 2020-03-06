@@ -408,8 +408,6 @@ class io_uring_context::read_sender {
     }
 
    private:
-    void populate_sqe(io_uring_sqe& sqe) noexcept {}
-
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_io();
     }
@@ -516,8 +514,6 @@ class io_uring_context::write_sender {
     }
 
    private:
-    void populate_sqe(io_uring_sqe& sqe) noexcept {}
-
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_io();
     }
