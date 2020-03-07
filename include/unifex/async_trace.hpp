@@ -28,39 +28,42 @@
 
 namespace unifex {
 
-inline constexpr struct visit_continuations_cpo {
-  template <typename Continuation, typename Func>
-  friend void
-  tag_invoke(visit_continuations_cpo, const Continuation&, Func&&) noexcept {}
+namespace _visit_continuations {
+  inline constexpr struct _fn {
+    template <typename Continuation, typename Func>
+    friend void
+    tag_invoke(_fn, const Continuation&, Func&&) noexcept {}
 
 #if !UNIFEX_NO_COROUTINES
-  template <
-      typename Promise,
-      typename Func,
-      std::enable_if_t<!std::is_void_v<Promise>, int> = 0>
-  friend void tag_invoke(
-      visit_continuations_cpo cpo,
-      coro::coroutine_handle<Promise> h,
-      Func&& func) {
-    cpo(h.promise(), (Func &&) func);
-  }
+    template <
+        typename Promise,
+        typename Func,
+        std::enable_if_t<!std::is_void_v<Promise>, int> = 0>
+    friend void tag_invoke(
+        _fn cpo,
+        coro::coroutine_handle<Promise> h,
+        Func&& func) {
+      cpo(h.promise(), (Func &&) func);
+    }
 #endif // UNIFEX_NO_COROUTINES
 
-  template <typename Continuation, typename Func>
-  void operator()(const Continuation& c, Func&& func) const
-      noexcept(is_nothrow_tag_invocable_v<
-               visit_continuations_cpo,
-               const Continuation&,
-               Func&&>) {
-    static_assert(
-        std::is_void_v<tag_invoke_result_t<
-            visit_continuations_cpo,
-            const Continuation&,
-            Func&&>>,
-        "tag_invoke() overload for visit_continuations() must return void");
-    return tag_invoke(visit_continuations_cpo{}, c, (Func &&) func);
-  }
-} visit_continuations;
+    template <typename Continuation, typename Func>
+    void operator()(const Continuation& c, Func&& func) const
+        noexcept(is_nothrow_tag_invocable_v<
+                _fn,
+                const Continuation&,
+                Func&&>) {
+      static_assert(
+          std::is_void_v<tag_invoke_result_t<
+              _fn,
+              const Continuation&,
+              Func&&>>,
+          "tag_invoke() overload for visit_continuations() must return void");
+      return tag_invoke(_fn{}, c, (Func &&) func);
+    }
+  } visit_continuations {};
+} // namespace _visit_continuations
+using _visit_continuations::visit_continuations;
 
 class continuation_info {
  public:
@@ -103,14 +106,15 @@ class continuation_info {
   explicit continuation_info(
       const void* address,
       const vtable_t* vtable) noexcept
-      : address_(address), vtable_(vtable) {}
+    : address_(address)
+    , vtable_(vtable) {}
 
   const void* address_;
   const vtable_t* vtable_;
 };
 
 template <typename Continuation>
-continuation_info continuation_info::from_continuation(
+inline continuation_info continuation_info::from_continuation(
     const Continuation& r) noexcept {
   static constexpr vtable_t vtable{
       typeid(std::remove_cvref_t<Continuation>),
@@ -125,71 +129,82 @@ continuation_info continuation_info::from_continuation(
                            &vtable};
 }
 
-struct async_trace_entry {
-  async_trace_entry(
-      std::size_t depth,
-      std::size_t parentIndex,
-      const continuation_info& continuation) noexcept
-      : depth(depth), parentIndex(parentIndex), continuation(continuation) {}
+namespace _async_trace {
+  struct entry {
+    entry(
+        std::size_t depth,
+        std::size_t parentIndex,
+        const continuation_info& continuation) noexcept
+      : depth(depth)
+      , parentIndex(parentIndex)
+      , continuation(continuation) {}
 
-  std::size_t depth;
-  std::size_t parentIndex;
-  continuation_info continuation;
-};
+    std::size_t depth;
+    std::size_t parentIndex;
+    continuation_info continuation;
+  };
+} // namespace _async_trace
+using async_trace_entry = _async_trace::entry;
 
-template <typename Continuation>
-std::vector<async_trace_entry> async_trace(const Continuation& c) {
-  std::vector<async_trace_entry> results;
-  results.emplace_back(0, 0, continuation_info::from_continuation(c));
+namespace _async_trace_cpo {
+  inline constexpr struct _fn {
+    template <typename Continuation>
+    std::vector<async_trace_entry> operator()(const Continuation& c) const {
+      std::vector<async_trace_entry> results;
+      results.emplace_back(0, 0, continuation_info::from_continuation(c));
 
-  // Breadth-first search of async call-stack graph.
-  for (std::size_t i = 0; i < results.size(); ++i) {
-    auto [depth, parentIndex, info] = results[i];
-    visit_continuations(
-        info, [depth = depth, i, &results](const continuation_info& x) {
-          results.emplace_back(depth + 1, i, x);
-        });
-  }
-
-  return results;
-}
-
-class async_trace_sender {
- public:
-  template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
-  using value_types = Variant<Tuple<std::vector<async_trace_entry>>>;
-
-  template <template <typename...> class Variant>
-  using error_types = Variant<std::exception_ptr>;
-
- private:
-  template <typename Receiver>
-  struct operation {
-    Receiver receiver_;
-
-    void start() noexcept {
-      try {
-        auto trace = async_trace(receiver_);
-        unifex::set_value(std::move(receiver_), std::move(trace));
-      } catch (...) {
-        unifex::set_error(std::move(receiver_), std::current_exception());
+      // Breadth-first search of async call-stack graph.
+      for (std::size_t i = 0; i < results.size(); ++i) {
+        auto [depth, parentIndex, info] = results[i];
+        visit_continuations(
+            info, [depth = depth, i, &results](const continuation_info& x) {
+              results.emplace_back(depth + 1, i, x);
+            });
       }
+      return results;
+    }
+  } async_trace {};
+} // namespace _async_trace_cpo
+using _async_trace_cpo::async_trace;
+
+namespace _async_trace {
+  template <typename Receiver>
+  struct _op {
+    struct type {
+      Receiver receiver_;
+
+      void start() noexcept {
+        try {
+          auto trace = async_trace(receiver_);
+          unifex::set_value(std::move(receiver_), std::move(trace));
+        } catch (...) {
+          unifex::set_error(std::move(receiver_), std::current_exception());
+        }
+      }
+    };
+  };
+  template <typename Receiver>
+  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+
+  struct sender {
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
+    using value_types = Variant<Tuple<std::vector<entry>>>;
+
+    template <template <typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    template <typename Receiver>
+    operation<Receiver> connect(Receiver&& r) {
+      return operation<Receiver>{(Receiver &&) r};
+    }
+
+    friend blocking_kind tag_invoke(tag_t<blocking>, const sender&) noexcept {
+      return blocking_kind::always_inline;
     }
   };
-
- public:
-  template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) r};
-  }
-
-  friend blocking_kind tag_invoke(
-      tag_t<blocking>,
-      const async_trace_sender&) noexcept {
-    return blocking_kind::always_inline;
-  }
-};
+} // namespace _async_trace
+using async_trace_sender = _async_trace::sender;
 
 } // namespace unifex

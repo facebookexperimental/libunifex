@@ -59,42 +59,48 @@ private:
   private:
     friend async_mutex;
 
-    explicit lock_sender(async_mutex &mutex) noexcept : mutex_(mutex) {}
+    explicit lock_sender(async_mutex &mutex) noexcept
+      : mutex_(mutex) {}
 
     lock_sender(const lock_sender &) = delete;
     lock_sender(lock_sender &&) = default;
 
-    template <typename Receiver> class operation : waiter_base {
-      friend lock_sender;
+    template <typename Receiver>
+    struct _op {
+      class type : waiter_base {
+        friend lock_sender;
 
-      template <typename Receiver2>
-      explicit operation(async_mutex &mutex, Receiver2 &&r) noexcept
-          : mutex_(mutex), receiver_((Receiver2 &&) r) {
-        this->resume_ = [](waiter_base * self) noexcept {
-          operation &op = *static_cast<operation *>(self);
-          unifex::set_value((Receiver &&) op.receiver_);
-        };
-      }
-
-      operation(operation &&) = delete;
-
-      friend void tag_invoke(tag_t<start>, operation &op) noexcept {
-        if (!op.mutex_.try_enqueue(&op)) {
-          // Failed to enqueue because we acquired the lock
-          // synchronously. Invoke the continuation inline
-          // without type-erasure here.
-          set_value((Receiver &&) op.receiver_);
+        template <typename Receiver2>
+        explicit type(async_mutex &mutex, Receiver2 &&r) noexcept
+            : mutex_(mutex), receiver_((Receiver2 &&) r) {
+          this->resume_ = [](waiter_base * self) noexcept {
+            type &op = *static_cast<type *>(self);
+            unifex::set_value((Receiver &&) op.receiver_);
+          };
         }
-      }
 
-      async_mutex &mutex_;
-      Receiver receiver_;
+        type(type &&) = delete;
+
+        friend void tag_invoke(tag_t<start>, type &op) noexcept {
+          if (!op.mutex_.try_enqueue(&op)) {
+            // Failed to enqueue because we acquired the lock
+            // synchronously. Invoke the continuation inline
+            // without type-erasure here.
+            set_value((Receiver &&) op.receiver_);
+          }
+        }
+
+        async_mutex &mutex_;
+        Receiver receiver_;
+      };
     };
+    template <typename Receiver>
+    using operation = typename _op<std::decay_t<Receiver>>::type;
 
     template <typename Receiver>
-    friend operation<std::decay_t<Receiver>>
+    friend operation<Receiver>
     tag_invoke(tag_t<connect>, lock_sender &&s, Receiver &&r) noexcept {
-      return operation<std::decay_t<Receiver>>{s.mutex_, (Receiver &&) r};
+      return operation<Receiver>{s.mutex_, (Receiver &&) r};
     }
 
     async_mutex &mutex_;
