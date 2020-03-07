@@ -25,14 +25,13 @@
 #include <utility>
 
 namespace unifex {
+namespace _any_unique {
 
-namespace detail {
-
-template <typename CPO, typename Sig = typename CPO::type_erased_signature_t>
+template <typename CPO, bool NoExcept = false, typename Sig = typename CPO::type_erased_signature_t>
 struct vtable_entry;
 
-template <typename CPO, typename Ret, typename... Args, bool NoExcept>
-struct vtable_entry<CPO, Ret(Args...) noexcept(NoExcept)> {
+template <typename CPO, bool NoExcept, typename Ret, typename... Args>
+struct vtable_entry<CPO, NoExcept, Ret(Args...)> {
   using fn_t =
       Ret(detail::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...)
       noexcept(NoExcept);
@@ -42,11 +41,11 @@ struct vtable_entry<CPO, Ret(Args...) noexcept(NoExcept)> {
   }
 
   template <typename T>
-  static constexpr vtable_entry create() noexcept {
+  static constexpr _any_unique::vtable_entry<CPO> create() noexcept {
     // auto& f = vtable_entry::concrete_impl<T>;
     // constexpr fn_t* f = &vtable_entry::concrete_impl<T>;
     // return vtable_entry{&f};
-    return vtable_entry{[](
+    return _any_unique::vtable_entry<CPO>{+[](
           detail::base_cpo_t<CPO> cpo,
           replace_this_with_void_ptr_t<Args>... args) noexcept(NoExcept) {
         void* thisPointer = extract_this<Args...>{}(args...);
@@ -57,10 +56,18 @@ struct vtable_entry<CPO, Ret(Args...) noexcept(NoExcept)> {
   }
 
  private:
-
-  explicit constexpr vtable_entry(fn_t* fn) noexcept : fn_(fn) {}
+  explicit constexpr vtable_entry(fn_t* fn) noexcept
+    : fn_(fn) {}
 
   fn_t* fn_;
+};
+
+template <typename CPO, typename Ret, typename... Args>
+struct vtable_entry<CPO, false, Ret(Args...) noexcept>
+  : vtable_entry<CPO, true, Ret(Args...)> {
+ private:
+  friend vtable_entry<CPO, true, Ret(Args...)>;
+  using vtable_entry<CPO, true, Ret(Args...)>::vtable_entry;
 };
 
 template <typename... CPOs>
@@ -78,7 +85,7 @@ struct vtable : private vtable_entry<CPOs>... {
 
  private:
   explicit constexpr vtable(vtable_entry<CPOs>... entries) noexcept
-      : vtable_entry<CPOs>{entries}... {}
+    : vtable_entry<CPOs>{entries}... {}
 };
 
 template <typename... CPOs>
@@ -99,7 +106,7 @@ struct indirect_vtable_holder {
 
  private:
   constexpr indirect_vtable_holder(const vtable<CPOs...>& vtable)
-      : vtable_(vtable) {}
+    : vtable_(vtable) {}
 
   const vtable<CPOs...>& vtable_;
 };
@@ -121,7 +128,7 @@ struct inline_vtable_holder {
 
  private:
   constexpr inline_vtable_holder(const vtable<CPOs...>& vtable)
-      : vtable_(vtable) {}
+    : vtable_(vtable) {}
 
   vtable<CPOs...> vtable_;
 };
@@ -135,60 +142,113 @@ using vtable_holder = std::conditional_t<
 template <
     typename Derived,
     typename CPO,
+    bool NoExcept,
+    typename Sig>
+struct _with_type_erased_tag_invoke;
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept = false,
     typename Sig = typename CPO::type_erased_signature_t>
-struct with_type_erased_tag_invoke;
+using with_type_erased_tag_invoke =
+    typename _with_type_erased_tag_invoke<Derived, CPO, NoExcept, Sig>::type;
 
 template <
     typename Derived,
     typename CPO,
+    bool NoExcept,
     typename Ret,
-    typename... Args,
-    bool NoExcept>
-struct with_type_erased_tag_invoke<
+    typename... Args>
+struct _with_type_erased_tag_invoke<
     Derived,
     CPO,
-    Ret(Args...) noexcept(NoExcept)> {
-private:
-    template <typename T>
-    static void* get_object_address(T&& t) { return static_cast<T&&>(t).get_object_address(); }
-    template <typename T>
-    static auto  get_vtable(T&& t) { return static_cast<T&&>(t).get_vtable(); }
-public:
-  friend Ret tag_invoke(
-      base_cpo_t<CPO> cpo,
-      replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
-    auto& t = extract_this<Args...>{}(args...);
-    void* objPtr = get_object_address(t);
-    auto* fnPtr = get_vtable(t)->template get<CPO>();
-    return fnPtr(
-        std::move(cpo),
-        replace_this<Args>::get((Args &&) args, objPtr)...);
-  }
+    NoExcept,
+    Ret(Args...)> {
+  struct type {
+   private:
+      template <typename T>
+      static void* get_object_address(T&& t) {
+        return static_cast<T&&>(t).get_object_address();
+      }
+      template <typename T>
+      static auto  get_vtable(T&& t) {
+        return static_cast<T&&>(t).get_vtable();
+      }
+   public:
+    friend Ret tag_invoke(
+        detail::base_cpo_t<CPO> cpo,
+        replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
+      auto& t = extract_this<Args...>{}(args...);
+      void* objPtr = get_object_address(t);
+      auto* fnPtr = get_vtable(t)->template get<CPO>();
+      return fnPtr(
+          std::move(cpo),
+          replace_this<Args>::get((Args &&) args, objPtr)...);
+    }
+  };
 };
 
 template <
     typename Derived,
     typename CPO,
+    typename Ret,
+    typename... Args>
+struct _with_type_erased_tag_invoke<
+    Derived,
+    CPO,
+    false,
+    Ret(Args...) noexcept>
+  : _with_type_erased_tag_invoke<Derived, CPO, true, Ret(Args...)> {
+};
+
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept,
+    typename Sig>
+struct _with_forwarding_tag_invoke;
+
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept = false,
     typename Sig = typename CPO::type_erased_signature_t>
-struct with_forwarding_tag_invoke;
+using with_forwarding_tag_invoke =
+    typename _with_forwarding_tag_invoke<Derived, CPO, NoExcept, Sig>::type;
+
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept,
+    typename Ret,
+    typename... Args>
+struct _with_forwarding_tag_invoke<
+    Derived,
+    CPO,
+    NoExcept,
+    Ret(Args...)> {
+  struct type {
+    friend Ret tag_invoke(
+        detail::base_cpo_t<CPO> cpo,
+        replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
+      auto& wrapper = extract_this<Args...>{}(args...);
+      auto& wrapped = wrapper.value;
+      return std::move(cpo)(replace_this<Args>::get((Args &&) args, wrapped)...);
+    }
+  };
+};
 
 template <
     typename Derived,
     typename CPO,
     typename Ret,
-    typename... Args,
-    bool NoExcept>
-struct with_forwarding_tag_invoke<
+    typename... Args>
+struct _with_forwarding_tag_invoke<
     Derived,
     CPO,
-    Ret(Args...) noexcept(NoExcept)> {
-  friend Ret tag_invoke(
-      detail::base_cpo_t<CPO> cpo,
-      replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
-    auto& wrapper = extract_this<Args...>{}(args...);
-    auto& wrapped = wrapper.value;
-    return std::move(cpo)(replace_this<Args>::get((Args &&) args, wrapped)...);
-  }
+    false,
+    Ret(Args...) noexcept>
+  : _with_forwarding_tag_invoke<Derived, CPO, true, Ret(Args...)> {
 };
 
 inline constexpr struct deallocate_cpo {
@@ -202,21 +262,23 @@ inline constexpr struct deallocate_cpo {
   }
 } deallocate;
 
-} // namespace detail
+template <typename... CPOs>
+struct _make {
+  class type;
+};
 
 template <typename... CPOs>
-class any_unique
-    : private detail::
-          with_type_erased_tag_invoke<any_unique<CPOs...>, CPOs>... {
+class _make<CPOs...>::type
+  : private with_type_erased_tag_invoke<type, CPOs>... {
  public:
   template <typename Concrete, typename Allocator, typename... Args>
-  explicit any_unique(
+  explicit type(
       std::allocator_arg_t,
       Allocator alloc,
       std::in_place_type_t<Concrete>,
       Args&&... args)
-      : vtable_(vtable_holder_t::template create<
-                concrete_impl<Concrete, Allocator>>()) {
+    : vtable_(vtable_holder_t::template create<
+              concrete_impl<Concrete, Allocator>>()) {
     using concrete_type = concrete_impl<Concrete, Allocator>;
     using allocator_type = typename concrete_type::allocator_type;
     using allocator_traits = std::allocator_traits<allocator_type>;
@@ -245,77 +307,74 @@ class any_unique
           !(std::is_same_v<std::allocator_arg_t, std::decay_t<Concrete>> ||
             instance_of_v<std::in_place_type_t, std::decay_t<Concrete>>),
           int> = 0>
-  any_unique(Concrete&& concrete, Allocator alloc)
-      : any_unique(
-            std::allocator_arg,
-            std::move(alloc),
-            std::in_place_type<std::remove_cvref_t<Concrete>>,
-            (Concrete &&) concrete) {}
+  type(Concrete&& concrete, Allocator alloc)
+    : type(
+          std::allocator_arg,
+          std::move(alloc),
+          std::in_place_type<std::remove_cvref_t<Concrete>>,
+          (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
-  explicit any_unique(std::in_place_type_t<Concrete> tag, Args&&... args)
-      : any_unique(
-            std::allocator_arg,
-            std::allocator<unsigned char>{},
-            tag,
-            (Args &&) args...) {}
+  explicit type(std::in_place_type_t<Concrete> tag, Args&&... args)
+    : type(
+          std::allocator_arg,
+          std::allocator<unsigned char>{},
+          tag,
+          (Args &&) args...) {}
 
   template <
       typename Concrete,
       std::enable_if_t<!instance_of_v<std::in_place_type_t, Concrete>, int> = 0>
-  any_unique(Concrete&& concrete)
-      : any_unique(
-            std::in_place_type<std::remove_cvref_t<Concrete>>,
-            (Concrete &&) concrete) {}
+  type(Concrete&& concrete)
+    : type(
+          std::in_place_type<std::remove_cvref_t<Concrete>>,
+          (Concrete &&) concrete) {}
 
-  any_unique(any_unique&& other) noexcept
-      : impl_(std::exchange(other.impl_, nullptr)), vtable_(other.vtable_) {}
+  type(type&& other) noexcept
+    : impl_(std::exchange(other.impl_, nullptr)), vtable_(other.vtable_) {}
 
-  ~any_unique() {
+  ~type() {
     if (impl_ != nullptr) {
-      auto* deallocateFn = vtable_->template get<detail::deallocate_cpo>();
-      deallocateFn(detail::deallocate_cpo{}, impl_);
+      auto* deallocateFn = vtable_->template get<deallocate_cpo>();
+      deallocateFn(deallocate_cpo{}, impl_);
     }
   }
 
  private:
-  using vtable_holder_t =
-      detail::vtable_holder<detail::deallocate_cpo, CPOs...>;
+  using vtable_holder_t = vtable_holder<deallocate_cpo, CPOs...>;
 
   template <typename Concrete, typename Allocator>
-  struct concrete_impl final : private detail::with_forwarding_tag_invoke<
-                                   concrete_impl<Concrete, Allocator>,
-                                   CPOs>... {
-    using allocator_type = typename std::allocator_traits<
-        Allocator>::template rebind_alloc<concrete_impl>;
+  struct _concrete_impl {
+    struct type final
+      : private with_forwarding_tag_invoke<type, CPOs>... {
+      using allocator_type = typename std::allocator_traits<
+          Allocator>::template rebind_alloc<type>;
 
-    template <typename... Args>
-    explicit concrete_impl(
-        std::allocator_arg_t,
-        allocator_type alloc,
-        Args&&... args) noexcept(std::
-                                     is_nothrow_move_constructible_v<
-                                         allocator_type>&&
-                                         std::is_nothrow_constructible_v<
-                                             Concrete,
-                                             Args...>)
-        : value((Args &&) args...), alloc(std::move(alloc)) {}
+      template <typename... Args>
+      explicit type(std::allocator_arg_t, allocator_type alloc, Args&&... args)
+        noexcept(std::is_nothrow_move_constructible_v<allocator_type> &&
+            std::is_nothrow_constructible_v<Concrete, Args...>)
+        : value((Args &&) args...)
+        , alloc(std::move(alloc)) {}
 
-    friend void tag_invoke(
-        detail::deallocate_cpo,
-        concrete_impl&& impl) noexcept {
-      allocator_type allocCopy = std::move(impl.alloc);
-      impl.~concrete_impl();
-      std::allocator_traits<allocator_type>::deallocate(
-          allocCopy, std::addressof(impl), 1);
-    }
+      friend void tag_invoke(
+          deallocate_cpo,
+          type&& impl) noexcept {
+        allocator_type allocCopy = std::move(impl.alloc);
+        impl.~type();
+        std::allocator_traits<allocator_type>::deallocate(
+            allocCopy, std::addressof(impl), 1);
+      }
 
-    UNIFEX_NO_UNIQUE_ADDRESS Concrete value;
-    UNIFEX_NO_UNIQUE_ADDRESS allocator_type alloc;
+      UNIFEX_NO_UNIQUE_ADDRESS Concrete value;
+      UNIFEX_NO_UNIQUE_ADDRESS allocator_type alloc;
+    };
   };
+  template <typename Concrete, typename Allocator>
+  using concrete_impl = typename _concrete_impl<Concrete, Allocator>::type;
 
-  template <typename Derived, typename CPO, typename Sig>
-  friend struct detail::with_type_erased_tag_invoke;
+  template <typename Derived, typename CPO, bool NoExcept, typename Sig>
+  friend struct _with_type_erased_tag_invoke;
 
   const vtable_holder_t& get_vtable() const noexcept {
     return vtable_;
@@ -328,6 +387,10 @@ class any_unique
   void* impl_;
   vtable_holder_t vtable_;
 };
+} // namespace _any_unique
+
+template <typename... CPOs>
+using any_unique = typename _any_unique::_make<CPOs...>::type;
 
 template <auto&... CPOs>
 using any_unique_t = any_unique<tag_t<CPOs>...>;
