@@ -349,7 +349,15 @@ class io_uring_context::schedule_sender {
         }
       }
 
-      unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+      if constexpr (noexcept(unifex::set_value(static_cast<Receiver&&>(op.receiver_)))) {
+        unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+      } else {
+        try {
+          unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+        } catch (...) {
+          unifex::set_error(static_cast<Receiver&&>(op.receiver_), std::current_exception());
+        }
+      }
     }
 
     io_uring_context& context_;
@@ -381,7 +389,7 @@ class io_uring_context::schedule_sender {
 };
 
 class io_uring_context::read_sender {
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   template <typename Receiver>
   class operation : private completion_base {
@@ -408,8 +416,6 @@ class io_uring_context::read_sender {
     }
 
    private:
-    void populate_sqe(io_uring_sqe& sqe) noexcept {}
-
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_io();
     }
@@ -442,7 +448,15 @@ class io_uring_context::read_sender {
     static void on_read_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(op);
       if (self.result_ >= 0) {
-        unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
+        if constexpr (noexcept(unifex::set_value(std::move(self.receiver_), ssize_t(self.result_)))) {
+          unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
+        } else {
+          try {
+            unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
+          } catch (...) {
+            unifex::set_error(std::move(self.receiver_), std::current_exception());
+          }
+        }
       } else if (self.result_ == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else {
@@ -466,8 +480,10 @@ class io_uring_context::read_sender {
       template <typename...> class Tuple>
   using value_types = Variant<Tuple<ssize_t>>;
 
+  // Note: Only case it might complete with exception_ptr is if the
+  // receiver's set_value() exits with an exception.
   template <template <typename...> class Variant>
-  using error_types = Variant<std::error_code>;
+  using error_types = Variant<std::error_code, std::exception_ptr>;
 
   explicit read_sender(
       io_uring_context& context,
@@ -489,7 +505,7 @@ class io_uring_context::read_sender {
 };
 
 class io_uring_context::write_sender {
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   template <typename Receiver>
   class operation : private completion_base {
@@ -516,8 +532,6 @@ class io_uring_context::write_sender {
     }
 
    private:
-    void populate_sqe(io_uring_sqe& sqe) noexcept {}
-
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_io();
     }
@@ -550,7 +564,15 @@ class io_uring_context::write_sender {
     static void on_write_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(op);
       if (self.result_ >= 0) {
-        unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
+        if constexpr (noexcept(unifex::set_value(std::move(self.receiver_), ssize_t(self.result_)))) {
+          unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
+        } else {
+          try {
+            unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
+          } catch (...) {
+            unifex::set_error(std::move(self.receiver_), std::current_exception());
+          }
+        }
       } else if (self.result_ == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else {
@@ -574,8 +596,10 @@ class io_uring_context::write_sender {
       template <typename...> class Tuple>
   using value_types = Variant<Tuple<ssize_t>>;
 
+  // Note: Only case it might complete with exception_ptr is if the
+  // receiver's set_value() exits with an exception.
   template <template <typename...> class Variant>
-  using error_types = Variant<std::error_code>;
+  using error_types = Variant<std::error_code, std::exception_ptr>;
 
   explicit write_sender(
       io_uring_context& context,
@@ -598,16 +622,10 @@ class io_uring_context::write_sender {
 
 class io_uring_context::async_read_only_file {
  public:
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   explicit async_read_only_file(io_uring_context& context, int fd) noexcept
       : context_(context), fd_(fd) {}
-
-  read_sender async_read_some(
-      uint64_t offset,
-      span<std::byte> buffer) noexcept {
-    return read_sender{context_, fd_.get(), offset, buffer};
-  }
 
  private:
   friend scheduler;
@@ -626,7 +644,7 @@ class io_uring_context::async_read_only_file {
 
 class io_uring_context::async_write_only_file {
  public:
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   explicit async_write_only_file(io_uring_context& context, int fd) noexcept
       : context_(context), fd_(fd) {}
@@ -648,7 +666,7 @@ class io_uring_context::async_write_only_file {
 
 class io_uring_context::async_read_write_file {
  public:
-  using offset_t = std::uint64_t;
+  using offset_t = std::int64_t;
 
   explicit async_read_write_file(io_uring_context& context, int fd) noexcept
       : context_(context), fd_(fd) {}
@@ -729,7 +747,15 @@ class io_uring_context::schedule_at_sender {
         }
       }
 
-      unifex::set_value(std::move(timerOp).receiver_);
+      if constexpr (noexcept(unifex::set_value(std::move(timerOp).receiver_))) {
+        unifex::set_value(std::move(timerOp).receiver_);
+      } else {
+        try {
+          unifex::set_value(std::move(timerOp).receiver_);
+        } catch (...) {
+          unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
+        }
+      }
     }
 
     static void remove_timer_from_queue_and_complete_with_done(
@@ -838,8 +864,10 @@ class io_uring_context::schedule_at_sender {
       template <typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
+  // Note: Only case it might complete with exception_ptr is if the
+  // receiver's set_value() exits with an exception.
   template <template <typename...> class Variant>
-  using error_types = Variant<>;
+  using error_types = Variant<std::exception_ptr>;
 
   explicit schedule_at_sender(
       io_uring_context& context,
