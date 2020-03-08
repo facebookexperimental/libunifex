@@ -27,14 +27,13 @@
 namespace unifex {
 namespace _any_unique {
 
-template <typename CPO, bool NoExcept = false, typename Sig = typename CPO::type_erased_signature_t>
+template <typename CPO, typename Sig = typename CPO::type_erased_signature_t>
 struct vtable_entry;
 
-template <typename CPO, bool NoExcept, typename Ret, typename... Args>
-struct vtable_entry<CPO, NoExcept, Ret(Args...)> {
+template <typename CPO, typename Ret, typename... Args>
+struct vtable_entry<CPO, Ret(Args...)> {
   using fn_t =
-      Ret(detail::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...)
-      noexcept(NoExcept);
+      Ret(detail::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...);
 
   constexpr fn_t* get() const noexcept {
     return fn_;
@@ -42,17 +41,15 @@ struct vtable_entry<CPO, NoExcept, Ret(Args...)> {
 
   template <typename T>
   static constexpr _any_unique::vtable_entry<CPO> create() noexcept {
-    // auto& f = vtable_entry::concrete_impl<T>;
-    // constexpr fn_t* f = &vtable_entry::concrete_impl<T>;
-    // return vtable_entry{&f};
-    return _any_unique::vtable_entry<CPO>{+[](
+      constexpr fn_t* f = [](
           detail::base_cpo_t<CPO> cpo,
-          replace_this_with_void_ptr_t<Args>... args) noexcept(NoExcept) {
-        void* thisPointer = extract_this<Args...>{}(args...);
-        T& obj = *static_cast<T*>(thisPointer);
-        return std::move(cpo)(
-            replace_this<Args>::get((Args &&) args, obj)...);
-      }};
+          replace_this_with_void_ptr_t<Args>... args) {
+              void* thisPointer = extract_this<Args...>{}(args...);
+              T& obj = *static_cast<T*>(thisPointer);
+              return std::move(cpo)(
+                  replace_this<Args>::get((Args &&) args, obj)...);
+      };
+    return _any_unique::vtable_entry<CPO>{f};
   }
 
  private:
@@ -63,11 +60,33 @@ struct vtable_entry<CPO, NoExcept, Ret(Args...)> {
 };
 
 template <typename CPO, typename Ret, typename... Args>
-struct vtable_entry<CPO, false, Ret(Args...) noexcept>
-  : vtable_entry<CPO, true, Ret(Args...)> {
- private:
-  friend vtable_entry<CPO, true, Ret(Args...)>;
-  using vtable_entry<CPO, true, Ret(Args...)>::vtable_entry;
+struct vtable_entry<CPO, Ret(Args...) noexcept> {
+    using fn_t =
+        Ret(detail::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...)
+        noexcept;
+
+    constexpr fn_t* get() const noexcept {
+        return fn_;
+    }
+
+    template <typename T>
+    static constexpr _any_unique::vtable_entry<CPO> create() noexcept {
+        constexpr fn_t* f = [](
+            detail::base_cpo_t<CPO> cpo,
+            replace_this_with_void_ptr_t<Args>... args) noexcept {
+                void* thisPointer = extract_this<Args...>{}(args...);
+                T& obj = *static_cast<T*>(thisPointer);
+                return std::move(cpo)(
+                    replace_this<Args>::get((Args&&)args, obj)...);
+        };
+        return _any_unique::vtable_entry<CPO>{f};
+    }
+
+private:
+    explicit constexpr vtable_entry(fn_t* fn) noexcept
+        : fn_(fn) {}
+
+    fn_t* fn_;
 };
 
 template <typename... CPOs>
