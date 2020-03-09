@@ -73,7 +73,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<is_receiver_cpo_v<CPO> && std::is_same_v<R, successor_receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+              is_receiver_cpo<CPO>,
+              std::is_same<R, successor_receiver>,
+              std::is_invocable<CPO, Receiver, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
@@ -91,7 +95,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, successor_receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+              std::negation<is_receiver_cpo<CPO>>,
+              std::is_same<R, successor_receiver>,
+              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -205,7 +213,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, predecessor_receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+              std::negation<is_receiver_cpo<CPO>>,
+              std::is_same<R, predecessor_receiver>,
+              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -362,12 +374,14 @@ namespace unifex
       template <
           typename Receiver,
           std::enable_if_t<
-              is_connectable_v<
+            std::conjunction_v<
+              is_connectable<
                   Predecessor,
-                  predecessor_receiver<Predecessor, Successor, Receiver>> &&
-                  is_connectable_v<
-                      Successor,
-                      successor_receiver<Predecessor, Successor, Receiver>>,
+                  predecessor_receiver<Predecessor, Successor, Receiver>>,
+              is_connectable<
+                  Successor,
+                  successor_receiver<Predecessor, Successor, Receiver>>,
+              std::is_move_constructible<Successor>>,
               int> = 0>
       auto connect(Receiver&& receiver) &&
           -> operation<Predecessor, Successor,  Receiver> {
@@ -380,13 +394,14 @@ namespace unifex
       template <
           typename Receiver,
           std::enable_if_t<
-              is_connectable_v<
+             std::conjunction_v<
+               is_connectable<
                   Predecessor&,
-                  predecessor_receiver<Predecessor&, Successor, Receiver>> &&
-                  is_connectable_v<
-                      Successor,
-                      successor_receiver<Predecessor&, Successor, Receiver>> &&
-                  std::is_constructible_v<Successor, Successor&>,
+                  predecessor_receiver<Predecessor&, Successor, Receiver>>,
+               is_connectable<
+                  Successor,
+                  successor_receiver<Predecessor&, Successor, Receiver>>,
+               std::is_constructible<Successor, Successor&>>,
               int> = 0>
       auto connect(Receiver&& receiver) &
           -> operation<Predecessor&, Successor, Receiver> {
@@ -397,13 +412,14 @@ namespace unifex
       template <
           typename Receiver,
           std::enable_if_t<
-              is_connectable_v<
+              std::conjunction_v<
+                is_connectable<
                   const Predecessor&,
-                  predecessor_receiver<const Predecessor&, Successor, Receiver>> &&
-                  is_connectable_v<
-                      Successor,
-                      successor_receiver<const Predecessor&, Successor, Receiver>> &&
-                  std::is_constructible_v<Successor, const Successor&>,
+                  predecessor_receiver<const Predecessor&, Successor, Receiver>>,
+                is_connectable<
+                  Successor,
+                  successor_receiver<const Predecessor&, Successor, Receiver>>,
+                std::is_copy_constructible<Successor>>,
               int> = 0>
       auto connect(Receiver&& receiver) const&
           -> operation<const Predecessor&, Successor, Receiver> {

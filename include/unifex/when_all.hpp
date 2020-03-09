@@ -150,7 +150,11 @@ struct _element_receiver<Index, Operation>::type final {
       typename CPO,
       typename R,
       typename... Args,
-      std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, element_receiver>, int> = 0>
+      std::enable_if_t<
+        std::conjunction_v<
+          std::negation<is_receiver_cpo<CPO>>,
+          std::is_same<R, element_receiver>,
+          std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
       std::is_nothrow_invocable_v<CPO, const receiver_type&, Args...>)
       -> std::invoke_result_t<CPO, const receiver_type&, Args...> {

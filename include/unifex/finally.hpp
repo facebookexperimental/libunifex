@@ -154,7 +154,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, value_receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+              std::negation<is_receiver_cpo<CPO>>,
+              std::is_same<R, value_receiver>,
+              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -278,7 +282,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, error_receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+                std::negation<is_receiver_cpo<CPO>>,
+                std::is_same<R, error_receiver>,
+                std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -357,7 +365,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, done_receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+             std::negation<is_receiver_cpo<CPO>>,
+             std::is_same<R, done_receiver>,
+             std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -506,7 +518,11 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, receiver>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+              std::negation<is_receiver_cpo<CPO>>,
+              std::is_same<R, receiver>,
+              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto
       tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)

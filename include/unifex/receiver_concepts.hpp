@@ -92,4 +92,7 @@ constexpr bool is_receiver_cpo_v = is_one_of_v<
     set_error_cpo,
     set_done_cpo>;
 
+template <typename T>
+struct is_receiver_cpo : std::bool_constant<is_receiver_cpo_v<T>> {};
+
 } // namespace unifex
