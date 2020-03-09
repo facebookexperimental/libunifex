@@ -32,6 +32,7 @@
 namespace unifex {
 
 namespace detail {
+
 template <typename T>
 struct sync_wait_promise {
   sync_wait_promise() {}
@@ -55,47 +56,59 @@ struct sync_wait_promise {
   state state_ = state::incomplete;
 };
 
+namespace _sync_wait {
+
 template <typename T, typename StopToken>
-struct sync_wait_receiver {
-  sync_wait_promise<T>& promise_;
-  StopToken stopToken_;
+struct sync_wait_receiver_ {
+    struct type {
+        using sync_wait_receiver = type;
 
-  template <typename... Values>
-      void set_value(Values&&... values) && noexcept {
-    std::lock_guard lock{promise_.mutex_};
-    try {
-      promise_.value_.construct((Values &&) values...);
-      promise_.state_ = sync_wait_promise<T>::state::value;
-    } catch (...) {
-      promise_.exception_.construct(std::current_exception());
-      promise_.state_ = sync_wait_promise<T>::state::error;
-    }
-    promise_.cv_.notify_one();
-  }
+        sync_wait_promise<T>& promise_;
+        StopToken stopToken_;
 
-  void set_error(std::exception_ptr err) && noexcept {
-    std::lock_guard lock{promise_.mutex_};
-    promise_.exception_.construct(std::move(err));
-    promise_.state_ = sync_wait_promise<T>::state::error;
-    promise_.cv_.notify_one();
-  }
+        template <typename... Values>
+        void set_value(Values&&... values) && noexcept {
+            std::lock_guard lock{ promise_.mutex_ };
+            try {
+                promise_.value_.construct((Values&&)values...);
+                promise_.state_ = sync_wait_promise<T>::state::value;
+            }
+            catch (...) {
+                promise_.exception_.construct(std::current_exception());
+                promise_.state_ = sync_wait_promise<T>::state::error;
+            }
+            promise_.cv_.notify_one();
+        }
 
-  template <typename Error>
-      void set_error(Error&& e) && noexcept {
-    std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
-  }
+        void set_error(std::exception_ptr err) && noexcept {
+            std::lock_guard lock{ promise_.mutex_ };
+            promise_.exception_.construct(std::move(err));
+            promise_.state_ = sync_wait_promise<T>::state::error;
+            promise_.cv_.notify_one();
+        }
 
-  void set_done() && noexcept {
-    std::lock_guard lock{promise_.mutex_};
-    promise_.state_ = sync_wait_promise<T>::state::done;
-    promise_.cv_.notify_one();
-  }
+        template <typename Error>
+        void set_error(Error&& e) && noexcept {
+            std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
+        }
 
-  friend const StopToken& tag_invoke(
-      tag_t<get_stop_token>, const sync_wait_receiver& r) noexcept {
-    return r.stopToken_;
-  }
+        void set_done() && noexcept {
+            std::lock_guard lock{ promise_.mutex_ };
+            promise_.state_ = sync_wait_promise<T>::state::done;
+            promise_.cv_.notify_one();
+        }
+
+        friend const StopToken& tag_invoke(
+            tag_t<get_stop_token>, const sync_wait_receiver& r) noexcept {
+            return r.stopToken_;
+        }
+    };
 };
+
+} // namespace _sync_wait
+
+template <typename T, typename StopToken>
+using sync_wait_receiver = typename _sync_wait::sync_wait_receiver_<T, StopToken>::type;
 
 template<typename T>
 struct thread_unsafe_sync_wait_promise {
@@ -118,41 +131,53 @@ struct thread_unsafe_sync_wait_promise {
   state state_ = state::incomplete;
 };
 
+namespace _sync_wait {
+
+    template<typename T, typename StopToken>
+    struct thread_unsafe_sync_wait_receiver_ {
+        struct type {
+            using thread_unsafe_sync_wait_receiver = type;
+
+            thread_unsafe_sync_wait_promise<T>& promise_;
+            StopToken stopToken_;
+
+            template <typename... Values>
+            void set_value(Values&&... values) && noexcept {
+                try {
+                    promise_.value_.construct((Values&&)values...);
+                    promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::value;
+                }
+                catch (...) {
+                    promise_.exception_.construct(std::current_exception());
+                    promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
+                }
+            }
+
+            void set_error(std::exception_ptr err) && noexcept {
+                promise_.exception_.construct(std::move(err));
+                promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
+            }
+
+            template <typename Error>
+            void set_error(Error&& e) && noexcept {
+                std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
+            }
+
+            void set_done() && noexcept {
+                promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::done;
+            }
+
+            friend const StopToken& tag_invoke(
+                tag_t<get_stop_token>, const thread_unsafe_sync_wait_receiver& r) noexcept {
+                return r.stopToken_;
+            }
+        };
+    };
+
+} // namespace _sync_wait
+
 template<typename T, typename StopToken>
-struct thread_unsafe_sync_wait_receiver {
-  thread_unsafe_sync_wait_promise<T>& promise_;
-  StopToken stopToken_;
-
-  template <typename... Values>
-  void set_value(Values&&... values) && noexcept {
-    try {
-      promise_.value_.construct((Values &&) values...);
-      promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::value;
-    } catch (...) {
-      promise_.exception_.construct(std::current_exception());
-      promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
-    }
-  }
-
-  void set_error(std::exception_ptr err) && noexcept {
-    promise_.exception_.construct(std::move(err));
-    promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
-  }
-
-  template <typename Error>
-  void set_error(Error&& e) && noexcept {
-    std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
-  }
-
-  void set_done() && noexcept {
-    promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::done;
-  }
-
-  friend const StopToken& tag_invoke(
-      tag_t<get_stop_token>, const thread_unsafe_sync_wait_receiver& r) noexcept {
-    return r.stopToken_;
-  }
-};
+using thread_unsafe_sync_wait_receiver = typename _sync_wait::thread_unsafe_sync_wait_receiver_<T, StopToken>::type;
 
 } // namespace detail
 
