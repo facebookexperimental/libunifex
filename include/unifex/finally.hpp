@@ -74,7 +74,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver,
         typename... Values>
-    class _value_receiver<SourceSender, CompletionSender, Receiver, Values...>::type {
+    class _value_receiver<SourceSender, CompletionSender, Receiver, Values...>::type final {
       using value_receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -152,11 +152,12 @@ namespace unifex
 
       template <
           typename CPO,
+          typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, value_receiver>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const value_receiver& r,
+          const R& r,
           Args&&... args) noexcept(std::
                                       is_nothrow_invocable_v<
                                           CPO,
@@ -209,7 +210,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver,
         typename Error>
-    class _error_receiver<SourceSender, CompletionSender, Receiver, Error>::type {
+    class _error_receiver<SourceSender, CompletionSender, Receiver, Error>::type final {
       using error_receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -275,11 +276,12 @@ namespace unifex
 
       template <
           typename CPO,
+          typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, error_receiver>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const error_receiver& r,
+          const R& r,
           Args&&... args) noexcept(std::
                                       is_nothrow_invocable_v<
                                           CPO,
@@ -316,7 +318,7 @@ namespace unifex
         typename _done_receiver<SourceSender, CompletionSender, Receiver>::type;
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    class _done_receiver<SourceSender, CompletionSender, Receiver>::type {
+    class _done_receiver<SourceSender, CompletionSender, Receiver>::type final {
       using done_receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -353,11 +355,12 @@ namespace unifex
 
       template <
           typename CPO,
+          typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, done_receiver>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const done_receiver& r,
+          const R& r,
           Args&&... args) noexcept(std::
                                       is_nothrow_invocable_v<
                                           CPO,
@@ -393,7 +396,7 @@ namespace unifex
     using receiver = typename _receiver<SourceSender, CompletionSender, Receiver>::type;
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    class _receiver<SourceSender, CompletionSender, Receiver>::type {
+    class _receiver<SourceSender, CompletionSender, Receiver>::type final {
       using receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
@@ -501,10 +504,11 @@ namespace unifex
 
       template <
           typename CPO,
+          typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, receiver>, int> = 0>
       friend auto
-      tag_invoke(CPO cpo, const receiver& r, Args&&... args) noexcept(
+      tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
@@ -689,21 +693,26 @@ namespace unifex
       // complete with. For now we just check done_receiver as an approximation.
       template <
           typename Receiver,
+          typename CPO,
+          typename S,
           std::enable_if_t<
-              is_connectable_v<
+              std::conjunction_v<
+                std::is_same<CPO, tag_t<connect>>,
+                std::is_same<S, sender>,
+                is_connectable<
                   SourceSender,
                   receiver<
                       SourceSender,
                       CompletionSender,
-                      Receiver>> &&
-              is_connectable_v<
+                      Receiver>>,
+                is_connectable<
                   CompletionSender,
                   done_receiver<
                       SourceSender,
                       CompletionSender,
-                      Receiver>>,
+                      Receiver>>>,
               int> = 0>
-      friend auto tag_invoke(tag_t<connect>, sender&& s, Receiver&& r)
+      friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {
         return operation<SourceSender, CompletionSender, Receiver>{
                 static_cast<SourceSender&&>(s.source_),
