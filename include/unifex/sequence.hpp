@@ -57,7 +57,7 @@ namespace unifex
             std::remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    class _successor_receiver<Predecessor, Successor, Receiver>::type {
+    class _successor_receiver<Predecessor, Successor, Receiver>::type final {
       using successor_receiver = type;
       using operation_type = operation<Predecessor, Successor, Receiver>;
 
@@ -69,10 +69,14 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
     private:
-      template <typename CPO, typename... Args>
+      template <
+          typename CPO,
+          typename R,
+          typename... Args,
+          std::enable_if_t<is_receiver_cpo_v<CPO> && std::is_same_v<R, successor_receiver>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          successor_receiver&& r,
+          R&& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
@@ -83,15 +87,19 @@ namespace unifex
             r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
       }
 
-      template <typename CPO, typename... Args>
+      template <
+          typename CPO,
+          typename R,
+          typename... Args,
+          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, successor_receiver>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const successor_receiver& r,
+          const R& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
                                            const Receiver&,
-                                           Args...>)
+              Args...>)
           -> std::invoke_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_const_receiver(), static_cast<Args&&>(args)...);
@@ -128,7 +136,7 @@ namespace unifex
             std::remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
-    class _predecessor_receiver<Predecessor, Successor, Receiver>::type {
+    class _predecessor_receiver<Predecessor, Successor, Receiver>::type final {
       using predecessor_receiver = type;
       using operation_type = operation<Predecessor, Successor, Receiver>;
 
@@ -195,11 +203,12 @@ namespace unifex
     private:
       template <
           typename CPO,
+          typename R,
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, predecessor_receiver>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const predecessor_receiver& r,
+          const R& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
@@ -456,15 +465,16 @@ namespace unifex
             static_cast<Second&&>(second));
       }
 
-      template <typename First, typename Second, typename... Rest>
-      auto operator()(First&& first, Second&& second, Rest&&... rest) const
+      template <typename First, typename Second, typename Third, typename... Rest>
+      auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
           noexcept(std::is_nothrow_invocable_v<
-              _impl3<is_tag_invocable_v<_fn, First, Second, Rest...>>, First, Second, Rest...>)
+              _impl3<is_tag_invocable_v<_fn, First, Second, Third, Rest...>>, First, Second, Third, Rest...>)
           -> std::invoke_result_t<
-              _impl3<is_tag_invocable_v<_fn, First, Second, Rest...>>, First, Second, Rest...> {
-        return _impl3<is_tag_invocable_v<_fn, First, Second, Rest...>>{}(
+              _impl3<is_tag_invocable_v<_fn, First, Second, Third, Rest...>>, First, Second, Third, Rest...> {
+        return _impl3<is_tag_invocable_v<_fn, First, Second, Third, Rest...>>{}(
             static_cast<First&&>(first),
             static_cast<Second&&>(second),
+            static_cast<Third&&>(third),
             static_cast<Rest&&>(rest)...);
       }
     } sequence{};
