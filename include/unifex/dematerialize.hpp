@@ -78,8 +78,13 @@ namespace _demat {
 
     template <
         typename CPO,
+        typename R,
         typename... Args,
-        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+        std::enable_if_t<
+          std::conjunction_v<
+          std::negation<is_receiver_cpo<CPO>>,
+          std::is_same<R, type>,
+          std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
     friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
         noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
         -> std::invoke_result_t<CPO, const Receiver&, Args...> {
@@ -176,10 +181,12 @@ namespace _demat {
         std::enable_if_t<
             is_connectable_v<Source, receiver<Receiver>>,
             int> = 0>
-    friend auto tag_invoke(tag_t<unifex::connect>, type&& s, Receiver&& r)
+    auto connect(Receiver&& r) &&
+        noexcept(is_nothrow_connectable_v<Source, receiver<Receiver>> &&
+                 std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
         -> operation_t<Source, receiver<Receiver>> {
       return unifex::connect(
-          static_cast<Source&&>(s.source_),
+          static_cast<Source&&>(source_),
           receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
@@ -188,10 +195,12 @@ namespace _demat {
         std::enable_if_t<
             is_connectable_v<Source&, receiver<Receiver>>,
             int> = 0>
-    friend auto tag_invoke(tag_t<unifex::connect>, type& s, Receiver&& r)
+    auto connect(Receiver&& r) &
+        noexcept(is_nothrow_connectable_v<Source&, receiver<Receiver>> &&
+                 std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
         -> operation_t<Source&, receiver<Receiver>> {
       return unifex::connect(
-          s.source_,
+          source_,
           receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
@@ -200,10 +209,12 @@ namespace _demat {
         std::enable_if_t<
             is_connectable_v<const Source&, receiver<Receiver>>,
             int> = 0>
-    friend auto tag_invoke(tag_t<unifex::connect>, const type& s, Receiver&& r)
+    auto connect(Receiver&& r) const &
+        noexcept(is_nothrow_connectable_v<const Source&, receiver<Receiver>> &&
+                 std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
         -> operation_t<const Source&, receiver<Receiver>> {
       return unifex::connect(
-          std::as_const(s.source_),
+          std::as_const(source_),
           receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
@@ -236,7 +247,7 @@ namespace _demat_cpo {
   struct _fn::_impl<false> {
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
-        noexcept(std::is_nothrow_constructible_v<_demat::sender<Sender>, Sender>)
+        noexcept(std::is_nothrow_constructible_v<std::remove_cvref_t<Sender>, Sender>)
         -> _demat::sender<Sender> {
       return _demat::sender<Sender>{(Sender &&) predecessor};
     }
