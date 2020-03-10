@@ -24,15 +24,20 @@
 
 namespace unifex
 {
-  template <typename Stream, typename Scheduler, typename Duration>
-  auto delay(Stream&& stream, Scheduler&& scheduler, Duration&& duration) {
-    return adapt_stream(
-        (Stream &&) stream,
-        [scheduler = (Scheduler &&) scheduler,
-         duration = (Duration &&) duration](auto&& sender) {
-          return finally(
-              static_cast<decltype(sender)>(sender),
-              schedule_after(scheduler, duration));
-        });
-  }
+  namespace _delay {
+    inline constexpr struct _fn {
+      template <typename Stream, typename Scheduler, typename Duration>
+      auto operator()(Stream&& stream, Scheduler&& scheduler, Duration&& duration) const {
+        return adapt_stream(
+            (Stream &&) stream,
+            [scheduler = (Scheduler &&) scheduler,
+            duration = (Duration &&) duration](auto&& sender) {
+              return finally(
+                  static_cast<decltype(sender)>(sender),
+                  schedule_after(scheduler, duration));
+            });
+      }
+    } delay{};
+  } // namespace _delay
+  using _delay::delay;
 }  // namespace unifex

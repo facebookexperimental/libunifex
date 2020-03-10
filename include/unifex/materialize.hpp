@@ -146,9 +146,9 @@ namespace unifex
       }
 
       template <
+          typename Func,
           UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
-          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
-          typename Func>
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver)>
       friend void tag_invoke(
           UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
