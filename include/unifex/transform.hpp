@@ -193,7 +193,8 @@ namespace _tfx_cpo {
     struct _impl {
       template <typename Sender, typename Func>
       auto operator()(Sender&& predecessor, Func&& func) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>) {
+          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
+          -> tag_invoke_result_t<_fn, Sender, Func> {
         return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
       }
     };

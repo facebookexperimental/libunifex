@@ -67,7 +67,7 @@ public:
   {}
 
   void set_value() && noexcept {
-    assert(op_ != nullptr);   
+    assert(op_ != nullptr);
 
     // This signals to retry the operation.
     auto* op = op_;
@@ -98,7 +98,7 @@ public:
     typename R = Receiver,
     std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), Receiver>, int> = 0>
   void set_done() && noexcept {
-    assert(op_ != nullptr);   
+    assert(op_ != nullptr);
 
     auto* op = op_;
     destroy_trigger_op();
@@ -109,7 +109,7 @@ public:
     typename Error,
     std::enable_if_t<std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
   void set_error(Error error) && noexcept {
-    assert(op_ != nullptr);   
+    assert(op_ != nullptr);
 
     auto* op = op_;
 
@@ -138,7 +138,7 @@ private:
                                 const Receiver&>) {
     std::invoke(func, r.get_receiver());
   }
-  
+
   const Receiver& get_receiver() const noexcept {
     assert(op_ != nullptr);
     return op_->receiver_;
@@ -162,7 +162,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template<
     typename... Values,
     std::enable_if_t<std::is_invocable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
@@ -192,7 +192,7 @@ public:
 
     using trigger_sender_t = std::invoke_result_t<Func&, Error>;
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
-    using trigger_op_t = unifex::operation_t<trigger_sender_t, trigger_receiver_t>; 
+    using trigger_op_t = unifex::operation_t<trigger_sender_t, trigger_receiver_t>;
     auto& triggerOpStorage = op->triggerOps_.template get<trigger_op_t>();
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
@@ -219,7 +219,7 @@ private:
       -> std::invoke_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -231,7 +231,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    assert(op_ != nullptr);   
+    assert(op_ != nullptr);
     return op_->receiver_;
   }
 

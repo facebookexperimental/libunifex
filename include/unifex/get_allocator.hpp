@@ -21,23 +21,24 @@
 #include <type_traits>
 
 namespace unifex {
+namespace _get_alloc {
+  inline constexpr struct _fn {
+    template <typename T>
+    constexpr auto operator()(const T&) const noexcept
+        -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,
+                            std::allocator<std::byte>> {
+      return std::allocator<std::byte>{};
+    }
 
-inline constexpr struct get_allocator_cpo {
-private:
-public:
-  template <typename T>
-  constexpr auto operator()(const T&) const noexcept
-      -> std::enable_if_t<!is_tag_invocable_v<get_allocator_cpo, const T&>,
-                          std::allocator<std::byte>> {
-    return std::allocator<std::byte>{};
-  }
+    template <typename T>
+    constexpr auto operator()(const T& object) const noexcept
+        -> tag_invoke_result_t<_fn, const T&> {
+      return tag_invoke(*this, object);
+    }
+  } get_allocator{};
+} // namespace _get_alloc
 
-  template <typename T>
-  constexpr auto operator()(const T& object) const noexcept
-      -> tag_invoke_result_t<get_allocator_cpo, const T&> {
-    return tag_invoke(*this, object);
-  }
-} get_allocator;
+using _get_alloc::get_allocator;
 
 template<typename T>
 using get_allocator_t = decltype(get_allocator(std::declval<T>()));

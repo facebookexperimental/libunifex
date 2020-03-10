@@ -340,7 +340,7 @@ class _sender<Senders...>::type {
 namespace _when_all_cpo {
   inline constexpr struct _fn {
     template <typename... Senders>
-    auto operator()(Senders&&... senders) const 
+    auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {
       return _when_all::sender<Senders...>{(Senders &&) senders...};
     }

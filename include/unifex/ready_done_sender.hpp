@@ -22,24 +22,16 @@
 #include <type_traits>
 
 namespace unifex {
-
-struct ready_done_sender {
-  template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
-  using value_types = Variant<>;
-
-  template <template <typename...> class Variant>
-  using error_types = Variant<>;
-
-  friend constexpr blocking_kind tag_invoke(
-      tag_t<blocking>,
-      const ready_done_sender&) {
-    return blocking_kind::always_inline;
-  }
+namespace _ready_done {
+  template <typename Receiver>
+  struct _op {
+    struct type;
+  };
+  template <typename Receiver>
+  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
-  struct operation {
+  struct _op<Receiver>::type {
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
     void start() noexcept {
@@ -47,10 +39,28 @@ struct ready_done_sender {
     }
   };
 
-  template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-    return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver};
-  }
-};
+  struct sender {
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
+    using value_types = Variant<>;
+
+    template <template <typename...> class Variant>
+    using error_types = Variant<>;
+
+    friend constexpr blocking_kind tag_invoke(
+        tag_t<blocking>,
+        const sender&) {
+      return blocking_kind::always_inline;
+    }
+
+    template <typename Receiver>
+    operation<Receiver> connect(Receiver&& receiver) {
+      return operation<Receiver>{(Receiver &&) receiver};
+    }
+  };
+} // namespace _ready_done
+
+using ready_done_sender = _ready_done::sender;
 
 } // namespace unifex
