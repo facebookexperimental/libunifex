@@ -42,27 +42,28 @@ TEST(WhenAll2, Smoke) {
   bool ranFinalCallback = false;
 
   try {
-    sync_wait(transform(
+    sync_wait(
+      transform(
         when_all(
-            transform(
-                schedule_after(scheduler, 100ms),
-                [&]() -> steady_clock::time_point::duration {
-                  ranPart1Callback = true;
-                  auto time = steady_clock::now() - start;
-                  auto timeMs = duration_cast<milliseconds>(time).count();
-                  std::cout << "part1 finished - [" << timeMs
-                            << "ms] throwing\n";
-                  throw my_error{};
-                }),
-            transform(
-                schedule_after(scheduler, 200ms),
-                [&]() {
-                  ranPart2Callback = true;
-                  auto time = steady_clock::now() - start;
-                  auto timeMs = duration_cast<milliseconds>(time).count();
-                  std::cout << "part2 finished - [" << timeMs << "ms]\n";
-                  return time;
-                })),
+          transform(
+              schedule_after(scheduler, 100ms),
+              [&]() -> steady_clock::time_point::duration {
+                ranPart1Callback = true;
+                auto time = steady_clock::now() - start;
+                auto timeMs = duration_cast<milliseconds>(time).count();
+                std::cout << "part1 finished - [" << timeMs
+                          << "ms] throwing\n";
+                throw my_error{};
+              }),
+          transform(
+              schedule_after(scheduler, 200ms),
+              [&]() {
+                ranPart2Callback = true;
+                auto time = steady_clock::now() - start;
+                auto timeMs = duration_cast<milliseconds>(time).count();
+                std::cout << "part2 finished - [" << timeMs << "ms]\n";
+                return time;
+              })),
         [&](auto&& a, auto&& b) {
           ranFinalCallback = true;
           std::cout << "when_all finished - ["

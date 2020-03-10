@@ -24,6 +24,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/nip.hpp>
 
 #include <atomic>
 #include <cstddef>
@@ -34,16 +35,20 @@
 
 namespace unifex {
 
+template<class NipOperation, size_t Index>
+struct when_all_element_receiver;
+
 namespace detail {
 
 template <
     std::size_t Index,
-    template <std::size_t> class Receiver,
-    typename... Senders>
+    typename NipOperation,
+    template<class > class AddQualifiers,
+    typename... NipSenders>
 struct when_all_operation_tuple;
 
-template <std::size_t Index, template <std::size_t> class Receiver>
-struct when_all_operation_tuple<Index, Receiver> {
+template <std::size_t Index, class NipOperation, template<class > class AddQualifiers>
+struct when_all_operation_tuple<Index, NipOperation, AddQualifiers> {
   template <typename Parent>
   explicit when_all_operation_tuple(Parent&) noexcept {}
 
@@ -52,46 +57,115 @@ struct when_all_operation_tuple<Index, Receiver> {
 
 template <
     std::size_t Index,
-    template <std::size_t> class Receiver,
-    typename First,
-    typename... Rest>
-struct when_all_operation_tuple<Index, Receiver, First, Rest...>
-    : when_all_operation_tuple<Index + 1, Receiver, Rest...> {
+    class NipOperation,
+    template<class > class AddQualifiers,
+    typename NipFirst,
+    typename... NipRest>
+struct when_all_operation_tuple<Index, NipOperation, AddQualifiers, NipFirst, NipRest...>
+    : when_all_operation_tuple<Index + 1, NipOperation, AddQualifiers, NipRest...> {
+  using first_t = AddQualifiers<unnip_t<NipFirst>>;
   template <typename Parent>
   explicit when_all_operation_tuple(
       Parent& parent,
-      First&& first,
-      Rest&&... rest)
-      : when_all_operation_tuple<Index + 1, Receiver, Rest...>{parent,
-                                                               (Rest &&)
+      first_t&& first,
+      AddQualifiers<unnip_t<NipRest>>&&... rest)
+      : when_all_operation_tuple<Index + 1, NipOperation, AddQualifiers, NipRest...>{parent,
+                                                               (AddQualifiers<unnip_t<NipRest>> &&)
                                                                    rest...},
-        op_(connect((First &&) first, Receiver<Index>{parent})) {}
+        op_(connect((first_t &&) first, when_all_element_receiver<NipOperation, Index>{parent})) {}
 
   void start() noexcept {
     unifex::start(op_);
-    when_all_operation_tuple<Index + 1, Receiver, Rest...>::start();
+    when_all_operation_tuple<Index + 1, NipOperation, AddQualifiers, NipRest...>::start();
   }
 
  private:
-  operation_t<First, Receiver<Index>> op_;
+  operation_t<first_t, when_all_element_receiver<NipOperation, Index>> op_;
 };
 
 } // namespace detail
 
-template <typename... Senders>
+
+template <class NipOperation, size_t Index>
+struct when_all_element_receiver {
+  using operation_ref_t = unnip_t<NipOperation>&;
+  using receiver_t = typename unnip_t<NipOperation>::receiver_type;
+
+  operation_ref_t op_;
+
+  template <typename... Values>
+  void set_value(Values&&... values) noexcept {
+    try {
+      std::get<Index>(op_.values_)
+          .emplace(
+              std::in_place_type<std::tuple<Values...>>,
+              (Values &&) values...);
+      op_.element_complete();
+    } catch (...) {
+      this->set_error(std::current_exception());
+    }
+  }
+
+  template <typename Error>
+  void set_error(Error&& error) noexcept {
+    if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
+      op_.error_.emplace(std::in_place_type<Error>, (Error &&) error);
+      op_.stopSource_.request_stop();
+    }
+    op_.element_complete();
+  }
+
+  void set_done() noexcept {
+    if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
+      op_.stopSource_.request_stop();
+    }
+    op_.element_complete();
+  }
+
+  receiver_t& get_receiver() const noexcept { return op_.receiver_; }
+
+  template <
+      typename CPO,
+      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const when_all_element_receiver& r) noexcept(
+      std::is_nothrow_invocable_v<CPO, const receiver_t&>)
+      -> std::invoke_result_t<CPO, const receiver_t&> {
+    return std::move(cpo)(std::as_const(r.get_receiver()));
+  }
+
+  inplace_stop_source& get_stop_source() const noexcept {
+      return op_.stopSource_;
+  }
+
+  friend inplace_stop_token tag_invoke(
+      tag_t<get_stop_token>,
+      const when_all_element_receiver& r) noexcept {
+    return r.get_stop_source().get_token();
+  }
+
+  template <typename Func>
+  friend void tag_invoke(
+      tag_t<visit_continuations>,
+      const when_all_element_receiver& r,
+      Func&& func) {
+    std::invoke(func, r.get_receiver());
+  }
+};
+
+template <typename... NipSenders>
 class when_all_sender {
  public:
-  static_assert(sizeof...(Senders) > 0);
+  static_assert(sizeof...(NipSenders) > 0);
 
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
   using value_types = Variant<Tuple<
-      typename Senders::template value_types<std::variant, std::tuple>...>>;
+      typename unnip_t<NipSenders>::template value_types<std::variant, std::tuple>...>>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename Senders::template error_types<type_list>...,
+      typename unnip_t<NipSenders>::template error_types<type_list>...,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename... Senders2>
@@ -99,8 +173,10 @@ class when_all_sender {
       : senders_((Senders2 &&) senders...) {}
 
  private:
-  template <typename Receiver, typename... Senders2>
+  template <typename NipReceiver, template<class > class AddQualifiers >
   struct operation {
+    using receiver_type = unnip_t<NipReceiver>;
+
     struct cancel_operation {
       operation& op_;
 
@@ -109,73 +185,9 @@ class when_all_sender {
       }
     };
 
-    template <size_t Index>
-    struct element_receiver {
-      operation& op_;
-
-      template <typename... Values>
-      void set_value(Values&&... values) noexcept {
-        try {
-          std::get<Index>(op_.values_)
-              .emplace(
-                  std::in_place_type<std::tuple<Values...>>,
-                  (Values &&) values...);
-          op_.element_complete();
-        } catch (...) {
-          this->set_error(std::current_exception());
-        }
-      }
-
-      template <typename Error>
-      void set_error(Error&& error) noexcept {
-        if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-          op_.error_.emplace(std::in_place_type<Error>, (Error &&) error);
-          op_.stopSource_.request_stop();
-        }
-        op_.element_complete();
-      }
-
-      void set_done() noexcept {
-        if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-          op_.stopSource_.request_stop();
-        }
-        op_.element_complete();
-      }
-
-      Receiver& get_receiver() const { return op_.receiver_; }
-
-      template <
-          typename CPO,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-      friend auto tag_invoke(CPO cpo, const element_receiver& r) noexcept(
-          std::is_nothrow_invocable_v<CPO, const Receiver&>)
-          -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.get_receiver()));
-      }
-
-      inplace_stop_source& get_stop_source() const {
-          return op_.stopSource_;
-      }
-
-      friend inplace_stop_token tag_invoke(
-          tag_t<get_stop_token>,
-          const element_receiver& r) noexcept {
-        return r.get_stop_source().get_token();
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const element_receiver& r,
-          Func&& func) {
-        std::invoke(func, r.get_receiver());
-      }
-    };
-
-    explicit operation(Receiver&& receiver, Senders2&&... senders)
-        : receiver_((Receiver &&) receiver),
-          ops_(*this, (Senders2 &&) senders...) {}
-
+    explicit operation(receiver_type&& receiver, AddQualifiers<unnip_t<NipSenders>>&&... senders)
+        : receiver_((receiver_type &&) receiver),
+          ops_(*this, (AddQualifiers<unnip_t<NipSenders>> &&) senders...) {}
 
     void start() noexcept {
       stopCallback_.construct(
@@ -206,7 +218,7 @@ class when_all_sender {
           unifex::set_done(std::move(receiver_));
         }
       } else {
-        deliver_value(std::index_sequence_for<Senders2...>{});
+        deliver_value(std::index_sequence_for<NipSenders...>{});
       }
     }
 
@@ -221,41 +233,44 @@ class when_all_sender {
       }
     }
 
+    template<class NipOperation, size_t Index>
+    friend class when_all_element_receiver;
+
     std::tuple<std::optional<
-        typename Senders::template value_types<std::variant, std::tuple>>...>
+        typename unnip_t<NipSenders>::template value_types<std::variant, std::tuple>>...>
         values_;
     std::optional<error_types<std::variant>> error_;
-    std::atomic<std::size_t> refCount_{sizeof...(Senders)};
+    std::atomic<std::size_t> refCount_{sizeof...(NipSenders)};
     std::atomic<bool> doneOrError_{false};
     inplace_stop_source stopSource_;
     UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
-        Receiver&>::template callback_type<cancel_operation>>
+        receiver_type&>::template callback_type<cancel_operation>>
         stopCallback_;
-    Receiver receiver_;
-    detail::when_all_operation_tuple<0, element_receiver, Senders2...> ops_;
+    receiver_type receiver_;
+    detail::when_all_operation_tuple<0, nip_t<operation>, AddQualifiers, NipSenders...> ops_;
   };
 
  public:
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>, Senders...> connect(Receiver&& receiver) && {
-    return std::apply([&](Senders&&... senders) {
-      return operation<std::remove_cvref_t<Receiver>, Senders...>{(Receiver &&) receiver,
-                                                      (Senders &&) senders...};
+  operation<nip_t<std::remove_cvref_t<Receiver>>, identity_t> connect(Receiver&& receiver) && {
+    return std::apply([&](unnip_t<NipSenders>&&... senders) {
+      return operation<nip_t<std::remove_cvref_t<Receiver>>, identity_t>{(Receiver &&) receiver,
+                                                      (unnip_t<NipSenders> &&) senders...};
     }, std::move(senders_));
   }
 
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>, Senders&...> connect(Receiver&& receiver) & {
-    return std::apply([&](Senders&... senders) {
-      return operation<std::remove_cvref_t<Receiver>, Senders&...>{(Receiver &&) receiver,
+  operation<nip_t<std::remove_cvref_t<Receiver>>, std::add_lvalue_reference_t> connect(Receiver&& receiver) & {
+    return std::apply([&](unnip_t<NipSenders>&... senders) {
+      return operation<nip_t<std::remove_cvref_t<Receiver>>, std::add_lvalue_reference_t>{(Receiver &&) receiver,
                                                                     senders...};
     }, senders_);
   }
 
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>, const Senders&...> connect(Receiver&& receiver) const & {
-    return std::apply([&](const Senders&... senders) {
-      return operation<std::remove_cvref_t<Receiver>, const Senders&...>{(Receiver &&) receiver,
+  operation<nip_t<std::remove_cvref_t<Receiver>>, add_cvref_t> connect(Receiver&& receiver) const & {
+    return std::apply([&](const unnip_t<NipSenders>&... senders) {
+      return operation<nip_t<std::remove_cvref_t<Receiver>>, add_cvref_t>{(Receiver &&) receiver,
                                                                          senders...};
     }, senders_);
   }
@@ -301,13 +316,13 @@ class when_all_sender {
     }
   }
 
-  std::tuple<Senders...> senders_;
+  std::tuple<unnip_t<NipSenders>...> senders_;
 };
 
 template <typename... Senders>
-when_all_sender<std::remove_cvref_t<Senders>...> when_all(
+when_all_sender<nip_t<std::remove_cvref_t<Senders>>...> when_all(
     Senders&&... senders) {
-  return when_all_sender<std::remove_cvref_t<Senders>...>{(Senders &&)
+  return when_all_sender<nip_t<std::remove_cvref_t<Senders>>...>{(Senders &&)
                                                               senders...};
 }
 

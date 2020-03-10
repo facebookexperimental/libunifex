@@ -25,6 +25,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/nip.hpp>
 
 #include <cassert>
 #include <exception>
@@ -35,13 +36,23 @@ namespace unifex
 {
   namespace detail
   {
-    template <typename Predecessor, typename Successor, typename Receiver>
+
+    template <typename NipPredecessor, typename NipSuccessor, typename NipReceiver>
     class sequence_operation;
 
-    template <typename Predecessor, typename Successor, typename Receiver>
+    template <typename NipPredecessor, typename NipSuccessor, typename NipReceiver>
+    struct sequence_types {
+      using predecessor_t = unnip_t<NipPredecessor>;
+      using successor_t = unnip_t<NipSuccessor>;
+      using receiver_t = unnip_t<NipReceiver>;
+      using operation_t = sequence_operation<NipPredecessor, NipSuccessor, NipReceiver>;
+    };
+
+    template <typename NipTypes>
     class sequence_successor_receiver {
-      using operation_type =
-          sequence_operation<Predecessor, Successor, Receiver>;
+      using types = unnip_t<NipTypes>;
+      using operation_type = typename types::operation_t;
+      using receiver_t = typename types::receiver_t;
 
     public:
       explicit sequence_successor_receiver(operation_type* op) noexcept
@@ -58,9 +69,9 @@ namespace unifex
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
-                                           Receiver,
+                                           receiver_t,
                                            Args...>)
-          -> std::invoke_result_t<CPO, Receiver, Args...> {
+          -> std::invoke_result_t<CPO, receiver_t, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
       }
@@ -72,9 +83,9 @@ namespace unifex
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
-                                           const Receiver&,
+                                           const receiver_t&,
                                            Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> std::invoke_result_t<CPO, const receiver_t&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_const_receiver(), static_cast<Args&&>(args)...);
       }
@@ -87,21 +98,23 @@ namespace unifex
         std::invoke(func, r.get_const_receiver());
       }
 
-      Receiver&& get_receiver_rvalue() noexcept {
-        return static_cast<Receiver&&>(op_->receiver_);
+      receiver_t&& get_receiver_rvalue() noexcept {
+        return static_cast<receiver_t&&>(op_->receiver_);
       }
 
-      const Receiver& get_const_receiver() const noexcept {
+      const receiver_t& get_const_receiver() const noexcept {
         return op_->receiver_;
       }
 
       operation_type* op_;
     };
 
-    template <typename Predecessor, typename Successor, typename Receiver>
+    template <typename NipTypes>
     class sequence_predecessor_receiver {
-      using operation_type =
-          sequence_operation<Predecessor, Successor, Receiver>;
+      using types = unnip_t<NipTypes>;
+      using operation_type = typename types::operation_t;
+      using successor_t = typename types::successor_t;
+      using receiver_t = typename types::receiver_t;
 
     public:
       explicit sequence_predecessor_receiver(operation_type* op) noexcept
@@ -115,15 +128,15 @@ namespace unifex
         // Take a copy of op_ before destroying predOp_ as this may end up
         // destroying *this.
         using successor_receiver =
-            sequence_successor_receiver<Predecessor, Successor, Receiver>;
+            sequence_successor_receiver<NipTypes>;
 
         auto* op = op_;
         op->status_ = operation_type::status::empty;
         op->predOp_.destruct();
-        if constexpr (is_nothrow_connectable_v<Successor, successor_receiver>) {
+        if constexpr (is_nothrow_connectable_v<successor_t, successor_receiver>) {
           op->succOp_.construct_from([&]() noexcept {
             return unifex::connect(
-                static_cast<Successor&&>(op->successor_), successor_receiver{op});
+                static_cast<successor_t&&>(op->successor_), successor_receiver{op});
           });
           op->status_ = operation_type::status::successor_operation_constructed;
           unifex::start(op->succOp_.get());
@@ -131,13 +144,13 @@ namespace unifex
           try {
             op->succOp_.construct_from([&]() {
               return unifex::connect(
-                  static_cast<Successor&&>(op->successor_), successor_receiver{op});
+                  static_cast<successor_t&&>(op->successor_), successor_receiver{op});
             });
             op->status_ = operation_type::status::successor_operation_constructed;
             unifex::start(op->succOp_.get());
           } catch (...) {
             unifex::set_error(
-                static_cast<Receiver&&>(op->receiver_),
+                static_cast<receiver_t&&>(op->receiver_),
                 std::current_exception());
           }
         }
@@ -146,11 +159,11 @@ namespace unifex
       template <
           typename Error,
           std::enable_if_t<
-              std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>,
+              std::is_invocable_v<decltype(unifex::set_error), receiver_t, Error>,
               int> = 0>
       void set_error(Error&& error) && noexcept {
         unifex::set_error(
-            static_cast<Receiver&&>(op_->receiver_),
+            static_cast<receiver_t&&>(op_->receiver_),
             static_cast<Error&&>(error));
       }
 
@@ -158,10 +171,10 @@ namespace unifex
           typename... Args,
           std::enable_if_t<
               std::
-                  is_invocable_v<decltype(unifex::set_done), Receiver, Args...>,
+                  is_invocable_v<decltype(unifex::set_done), receiver_t, Args...>,
               int> = 0>
       void set_done(Args...) && noexcept {
-        unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
+        unifex::set_done(static_cast<receiver_t&&>(op_->receiver_));
       }
 
     private:
@@ -175,9 +188,9 @@ namespace unifex
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
-                                           const Receiver&,
+                                           const receiver_t&,
                                            Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> std::invoke_result_t<CPO, const receiver_t&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_const_receiver(), static_cast<Args&&>(args)...);
       }
@@ -190,28 +203,32 @@ namespace unifex
         std::invoke(func, r.get_const_receiver());
       }
 
-      const Receiver& get_const_receiver() const noexcept {
+      const receiver_t& get_const_receiver() const noexcept {
         return op_->receiver_;
       }
 
       operation_type* op_;
     };
 
-    template <typename Predecessor, typename Successor, typename Receiver>
+    template <typename NipPredecessor, typename NipSuccessor, typename NipReceiver>
     class sequence_operation {
+      using types = sequence_types<NipPredecessor, NipSuccessor, NipReceiver>;
+      using predecessor_t = unnip_t<NipPredecessor>;
+      using successor_t = unnip_t<NipSuccessor>;
+      using receiver_t = unnip_t<NipReceiver>;
     public:
       template <typename Successor2, typename Receiver2>
       explicit sequence_operation(
-          Predecessor&& predecessor,
+          predecessor_t&& predecessor,
           Successor2&& successor,
           Receiver2&& receiver)
         : successor_(static_cast<Successor2&&>(successor))
-        , receiver_(static_cast<Receiver&&>(receiver))
+        , receiver_(static_cast<receiver_t&&>(receiver))
         , status_(status::predecessor_operation_constructed) {
         predOp_.construct_from([&] {
           return unifex::connect(
-              static_cast<Predecessor&&>(predecessor),
-              sequence_predecessor_receiver<Predecessor, Successor, Receiver>{
+              static_cast<predecessor_t&&>(predecessor),
+              sequence_predecessor_receiver<nip_t<types>>{
                   this});
         });
       }
@@ -234,17 +251,11 @@ namespace unifex
       }
 
     private:
-      friend class sequence_predecessor_receiver<
-          Predecessor,
-          Successor,
-          Receiver>;
-      friend class sequence_successor_receiver<
-          Predecessor,
-          Successor,
-          Receiver>;
+      friend class sequence_predecessor_receiver<nip_t<types>>;
+      friend class sequence_successor_receiver<nip_t<types>>;
 
-      Successor successor_;
-      Receiver receiver_;
+      successor_t successor_;
+      receiver_t receiver_;
       enum class status {
         empty,
         predecessor_operation_constructed,
@@ -253,19 +264,21 @@ namespace unifex
       status status_;
       union {
         manual_lifetime<operation_t<
-            Predecessor,
-            sequence_predecessor_receiver<Predecessor, Successor, Receiver>>>
+            predecessor_t,
+            sequence_predecessor_receiver<nip_t<types>>>>
             predOp_;
         manual_lifetime<operation_t<
-            Successor,
-            sequence_successor_receiver<Predecessor, Successor, Receiver>>>
+            successor_t,
+            sequence_successor_receiver<nip_t<types>>>>
             succOp_;
       };
     };
   }  // namespace detail
 
-  template <typename Predecessor, typename Successor>
+  template <typename NipPredecessor, typename NipSuccessor>
   class sequence_sender {
+    using predecessor_t = unnip_t<NipPredecessor>;
+    using successor_t = unnip_t<NipSuccessor>;
   public:
     template <
         template <typename...>
@@ -273,33 +286,33 @@ namespace unifex
         template <typename...>
         class Tuple>
     using value_types =
-        typename Successor::template value_types<Variant, Tuple>;
+        typename successor_t::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types = typename concat_type_lists_unique_t<
-        typename Predecessor::template error_types<type_list>,
-        typename Successor::template error_types<type_list>,
+        typename predecessor_t::template error_types<type_list>,
+        typename successor_t::template error_types<type_list>,
         type_list<std::exception_ptr>>::template apply<Variant>;
 
     template <
         typename Predecessor2,
         typename Successor2,
         std::enable_if_t<
-            std::is_constructible_v<Predecessor, Predecessor2> &&
-                std::is_constructible_v<Successor, Successor2>,
+            std::is_constructible_v<predecessor_t, Predecessor2> &&
+                std::is_constructible_v<successor_t, Successor2>,
             int> = 0>
     explicit sequence_sender(
         Predecessor2&& predecessor,
         Successor2&&
             successor) noexcept(std::
                                     is_nothrow_constructible_v<
-                                        Predecessor,
+                                        predecessor_t,
                                         Predecessor2>&&
                                         std::is_nothrow_constructible_v<
-                                            Successor,
+                                            successor_t,
                                             Successor2>)
-      : predecessor_(static_cast<Predecessor&&>(predecessor))
-      , successor_(static_cast<Successor&&>(successor)) {}
+      : predecessor_(static_cast<predecessor_t&&>(predecessor))
+      , successor_(static_cast<successor_t&&>(successor)) {}
 
     friend blocking_kind
     tag_invoke(tag_t<blocking>, const sequence_sender& sender) {
@@ -324,92 +337,71 @@ namespace unifex
 
     template <
         typename Receiver,
+        typename Types = detail::sequence_types<
+          NipPredecessor,
+          NipSuccessor,
+          nip_t<std::remove_cvref_t<Receiver>>>,
+        typename Operation = typename Types::operation_t,
         std::enable_if_t<
             is_connectable_v<
-                Predecessor,
-                detail::sequence_predecessor_receiver<
-                    Predecessor,
-                    Successor,
-                    std::remove_cvref_t<Receiver>>> &&
+                predecessor_t,
+                detail::sequence_predecessor_receiver<nip_t<Types>>> &&
                 is_connectable_v<
-                    Successor,
-                    detail::sequence_successor_receiver<
-                        Predecessor,
-                        Successor,
-                        Receiver>>,
+                    successor_t,
+                    detail::sequence_successor_receiver<nip_t<Types>>>,
             int> = 0>
-    auto connect(Receiver&& receiver) && -> detail::sequence_operation<
-        Predecessor,
-        Successor,
-        std::remove_cvref_t<Receiver>> {
-      return detail::sequence_operation<
-          Predecessor,
-          Successor,
-          std::remove_cvref_t<Receiver>>{
-          (Predecessor &&) predecessor_,
-          (Successor &&) successor_,
-          (Receiver &&) receiver};
+    auto connect(Receiver&& receiver) && -> Operation {
+      return Operation{
+        (predecessor_t &&) predecessor_,
+        (successor_t &&) successor_,
+        (Receiver &&) receiver};
     }
 
     template <
         typename Receiver,
+        typename Types = detail::sequence_types<
+          nip_t<predecessor_t&>,
+          NipSuccessor,
+          nip_t<std::remove_cvref_t<Receiver>>>,
+        typename Operation = typename Types::operation_t,
         std::enable_if_t<
             is_connectable_v<
-                Predecessor&,
-                detail::sequence_predecessor_receiver<
-                    Predecessor&,
-                    Successor,
-                    std::remove_cvref_t<Receiver>>> &&
+                predecessor_t&,
+                detail::sequence_predecessor_receiver<nip_t<Types>>> &&
                 is_connectable_v<
-                    Successor,
-                    detail::sequence_successor_receiver<
-                        Predecessor&,
-                        Successor,
-                        std::remove_cvref_t<Receiver>>> &&
-                std::is_constructible_v<Successor, Successor&>,
+                    successor_t,
+                    detail::sequence_successor_receiver<nip_t<Types>>> &&
+                std::is_constructible_v<successor_t, successor_t&>,
             int> = 0>
-    auto connect(Receiver&& receiver) & -> detail::sequence_operation<
-        Predecessor&,
-        Successor,
-        std::remove_cvref_t<Receiver>> {
-      return detail::sequence_operation<
-          Predecessor&,
-          Successor,
-          std::remove_cvref_t<Receiver>>{
-          predecessor_, successor_, (Receiver &&) receiver};
+    auto connect(Receiver&& receiver) & -> Operation {
+      return Operation {
+        predecessor_, successor_, (Receiver &&) receiver};
     }
 
     template <
         typename Receiver,
+        typename Types = detail::sequence_types<
+          nip_t<const predecessor_t&>,
+          NipSuccessor,
+          nip_t<std::remove_cvref_t<Receiver>>>,
+        typename Operation = typename Types::operation_t,
         std::enable_if_t<
             is_connectable_v<
-                const Predecessor&,
-                detail::sequence_predecessor_receiver<
-                    Predecessor,
-                    Successor,
-                    Receiver>> &&
+                const predecessor_t&,
+                detail::sequence_predecessor_receiver<nip_t<Types>>> &&
                 is_connectable_v<
-                    Successor,
-                    detail::sequence_successor_receiver<
-                        Predecessor,
-                        Successor,
-                        Receiver>> &&
-                std::is_constructible_v<Successor, const Successor&>,
+                    successor_t,
+                    detail::sequence_successor_receiver<nip_t<Types>>> &&
+                std::is_constructible_v<successor_t, const successor_t&>,
             int> = 0>
-    auto connect(Receiver&& receiver) const& -> detail::sequence_operation<
-        const Predecessor&,
-        Successor,
-        std::remove_cvref_t<Receiver>> {
-      return detail::sequence_operation<
-          const Predecessor&,
-          Successor,
-          std::remove_cvref_t<Receiver>>{
-          predecessor_, successor_, (Receiver &&) receiver};
+    auto connect(Receiver&& receiver) const& -> Operation {
+      return Operation{
+        predecessor_, successor_, (Receiver &&) receiver};
     }
 
   private:
-    UNIFEX_NO_UNIQUE_ADDRESS Predecessor predecessor_;
-    UNIFEX_NO_UNIQUE_ADDRESS Successor successor_;
+    UNIFEX_NO_UNIQUE_ADDRESS predecessor_t predecessor_;
+    UNIFEX_NO_UNIQUE_ADDRESS successor_t successor_;
   };
 
   inline constexpr struct sequence_cpo {
@@ -442,16 +434,16 @@ namespace unifex
     auto operator()(First&& first, Second&& second) const
         noexcept(std::is_nothrow_constructible_v<
                  sequence_sender<
-                     std::remove_cvref_t<First>,
-                     std::remove_cvref_t<Second>>,
+                     nip_t<std::remove_cvref_t<First>>,
+                     nip_t<std::remove_cvref_t<Second>>>,
                  First,
                  Second>)
             -> sequence_sender<
-                std::remove_cvref_t<First>,
-                std::remove_cvref_t<Second>> {
+                nip_t<std::remove_cvref_t<First>>,
+                nip_t<std::remove_cvref_t<Second>>> {
       return sequence_sender<
-          std::remove_cvref_t<First>,
-          std::remove_cvref_t<Second>>{
+          nip_t<std::remove_cvref_t<First>>,
+          nip_t<std::remove_cvref_t<Second>>>{
           static_cast<First&&>(first), static_cast<Second&&>(second)};
     }
 
