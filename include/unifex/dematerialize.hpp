@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -78,14 +79,13 @@ namespace _demat {
 
     template <
         typename CPO,
-        typename R,
+        UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type),
         typename... Args,
         std::enable_if_t<
           std::conjunction_v<
-          std::negation<is_receiver_cpo<CPO>>,
-          std::is_same<R, type>,
-          std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
-    friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
+            std::negation<is_receiver_cpo<CPO>>,
+            std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+    friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r, Args&&... args)
         noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
         -> std::invoke_result_t<CPO, const Receiver&, Args...> {
       return static_cast<CPO&&>(cpo)(

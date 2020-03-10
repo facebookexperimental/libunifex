@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -125,16 +126,15 @@ namespace unifex
 
       template <
           typename CPO,
-          typename R,
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
           typename... Args,
           std::enable_if_t<
             std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, receiver>,
               std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const R& r,
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
@@ -145,10 +145,13 @@ namespace unifex
             std::as_const(r.receiver_), static_cast<Args&&>(args)...);
       }
 
-      template <typename Func>
+      template <
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
+          typename Func>
       friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const receiver& r,
+          UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
           Func&& func) noexcept(std::
                                     is_nothrow_invocable_v<
                                         Func&,
