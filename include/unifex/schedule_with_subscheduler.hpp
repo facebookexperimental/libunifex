@@ -20,44 +20,66 @@
 #include <unifex/transform.hpp>
 
 namespace unifex {
+namespace _subschedule {
+  inline constexpr struct _fn {
+  private:
+    template <typename T>
+    struct _return_value {
+      struct type {
+        T value;
 
-inline constexpr struct schedule_with_subscheduler_cpo {
- private:
-  template <typename T>
-  struct return_value {
-    T value;
+        T operator()() && {
+          return std::move(value);
+        }
 
-    T operator()() && {
-      return std::move(value);
+        T operator()() & {
+          return value;
+        }
+
+        T operator()() const& {
+          return value;
+        }
+      };
+    };
+    template <typename T>
+    using return_value = typename _return_value<std::decay_t<T>>::type;
+
+    template<bool>
+    struct _impl {
+    template <typename Scheduler>
+      auto operator()(Scheduler&& sched) const
+          noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler>)
+          -> tag_invoke_result_t<_fn, Scheduler> {
+        return unifex::tag_invoke(_fn{}, (Scheduler &&) sched);
+      }
+    };
+  public:
+    template <typename Scheduler>
+    auto operator()(Scheduler&& sched) const
+        noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler> {
+      return _impl<is_tag_invocable_v<_fn, Scheduler>>{}(
+          (Scheduler &&) sched);
     }
+  } schedule_with_subscheduler{};
 
-    T operator()() & {
-      return value;
-    }
-
-    T operator()() const& {
-      return value;
-    }
-  };
-
-  template <typename Scheduler>
-  friend auto tag_invoke(schedule_with_subscheduler_cpo, Scheduler&& scheduler)
-      -> decltype(transform(
-          std::declval<std::invoke_result_t<decltype(schedule), Scheduler&>>(),
-          std::declval<return_value<std::decay_t<Scheduler>>>())) {
-    auto&& scheduleOp = schedule(scheduler);
+  template<>
+  struct _fn::_impl<false> {
+    template <typename Scheduler>
+    auto operator()(Scheduler&& sched) const
+        -> decltype(transform(
+            std::declval<std::invoke_result_t<decltype(schedule), Scheduler&>>(),
+            std::declval<return_value<Scheduler>>())) {
+    auto&& scheduleOp = schedule(sched);
     return transform(
         static_cast<decltype(scheduleOp)>(scheduleOp),
-        return_value<std::decay_t<Scheduler>>{(Scheduler &&) scheduler});
-  }
+        return_value<Scheduler>{(Scheduler &&) sched});
+    }
+  };
+} // namespace _subschedule
 
- public:
-  template <typename Scheduler>
-  auto operator()(Scheduler&& s) const
-      noexcept(noexcept(tag_invoke(*this, (Scheduler &&) s)))
-          -> decltype(tag_invoke(*this, (Scheduler &&) s)) {
-    return tag_invoke(*this, (Scheduler &&) s);
-  }
-} schedule_with_subscheduler;
+using _subschedule::schedule_with_subscheduler;
 
 } // namespace unifex
