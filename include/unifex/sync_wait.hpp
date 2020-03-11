@@ -30,14 +30,13 @@
 #include <cassert>
 
 namespace unifex {
-
-namespace detail {
+namespace _sync_wait {
 
 template <typename T>
-struct sync_wait_promise {
-  sync_wait_promise() {}
+struct promise {
+  promise() {}
 
-  ~sync_wait_promise() {
+  ~promise() {
     if (state_ == state::value) {
       value_.destruct();
     } else if (state_ == state::error) {
@@ -56,65 +55,61 @@ struct sync_wait_promise {
   state state_ = state::incomplete;
 };
 
-namespace _sync_wait {
-
 template <typename T, typename StopToken>
-struct sync_wait_receiver_ {
-    struct type {
-        using sync_wait_receiver = type;
+struct _receiver {
+  struct type {
+    using receiver = type;
 
-        sync_wait_promise<T>& promise_;
-        StopToken stopToken_;
+    promise<T>& promise_;
+    StopToken stopToken_;
 
-        template <typename... Values>
-        void set_value(Values&&... values) && noexcept {
-            std::lock_guard lock{ promise_.mutex_ };
-            try {
-                promise_.value_.construct((Values&&)values...);
-                promise_.state_ = sync_wait_promise<T>::state::value;
-            }
-            catch (...) {
-                promise_.exception_.construct(std::current_exception());
-                promise_.state_ = sync_wait_promise<T>::state::error;
-            }
-            promise_.cv_.notify_one();
-        }
+    template <typename... Values>
+    void set_value(Values&&... values) && noexcept {
+      std::lock_guard lock{ promise_.mutex_ };
+      try {
+        promise_.value_.construct((Values&&)values...);
+        promise_.state_ = promise<T>::state::value;
+      }
+      catch (...) {
+        promise_.exception_.construct(std::current_exception());
+        promise_.state_ = promise<T>::state::error;
+      }
+      promise_.cv_.notify_one();
+    }
 
-        void set_error(std::exception_ptr err) && noexcept {
-            std::lock_guard lock{ promise_.mutex_ };
-            promise_.exception_.construct(std::move(err));
-            promise_.state_ = sync_wait_promise<T>::state::error;
-            promise_.cv_.notify_one();
-        }
+    void set_error(std::exception_ptr err) && noexcept {
+      std::lock_guard lock{ promise_.mutex_ };
+      promise_.exception_.construct(std::move(err));
+      promise_.state_ = promise<T>::state::error;
+      promise_.cv_.notify_one();
+    }
 
-        template <typename Error>
-        void set_error(Error&& e) && noexcept {
-            std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
-        }
+    template <typename Error>
+    void set_error(Error&& e) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
+    }
 
-        void set_done() && noexcept {
-            std::lock_guard lock{ promise_.mutex_ };
-            promise_.state_ = sync_wait_promise<T>::state::done;
-            promise_.cv_.notify_one();
-        }
+    void set_done() && noexcept {
+      std::lock_guard lock{ promise_.mutex_ };
+      promise_.state_ = promise<T>::state::done;
+      promise_.cv_.notify_one();
+    }
 
-        friend const StopToken& tag_invoke(
-            tag_t<get_stop_token>, const sync_wait_receiver& r) noexcept {
-            return r.stopToken_;
-        }
-    };
+    friend const StopToken& tag_invoke(
+      tag_t<get_stop_token>, const receiver& r) noexcept {
+      return r.stopToken_;
+    }
+  };
 };
 
-} // namespace _sync_wait
-
 template <typename T, typename StopToken>
-using sync_wait_receiver = typename _sync_wait::sync_wait_receiver_<T, StopToken>::type;
+using receiver = typename _receiver<T, StopToken>::type;
 
 template<typename T>
-struct thread_unsafe_sync_wait_promise {
-  thread_unsafe_sync_wait_promise() noexcept {}
+struct thread_unsafe_promise {
+  thread_unsafe_promise() noexcept {}
 
-  ~thread_unsafe_sync_wait_promise() {
+  ~thread_unsafe_promise() {
     if (state_ == state::value) {
       value_.destruct();
     } else if (state_ == state::error) {
@@ -131,124 +126,131 @@ struct thread_unsafe_sync_wait_promise {
   state state_ = state::incomplete;
 };
 
-namespace _sync_wait {
+template<typename T, typename StopToken>
+struct _thread_unsafe_receiver {
+  struct type {
+    using thread_unsafe_receiver = type;
 
-    template<typename T, typename StopToken>
-    struct thread_unsafe_sync_wait_receiver_ {
-        struct type {
-            using thread_unsafe_sync_wait_receiver = type;
+    thread_unsafe_promise<T>& promise_;
+    StopToken stopToken_;
 
-            thread_unsafe_sync_wait_promise<T>& promise_;
-            StopToken stopToken_;
+    template <typename... Values>
+    void set_value(Values&&... values) && noexcept {
+      try {
+        promise_.value_.construct((Values&&)values...);
+        promise_.state_ = thread_unsafe_promise<T>::state::value;
+      }
+      catch (...) {
+        promise_.exception_.construct(std::current_exception());
+        promise_.state_ = thread_unsafe_promise<T>::state::error;
+      }
+    }
 
-            template <typename... Values>
-            void set_value(Values&&... values) && noexcept {
-                try {
-                    promise_.value_.construct((Values&&)values...);
-                    promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::value;
-                }
-                catch (...) {
-                    promise_.exception_.construct(std::current_exception());
-                    promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
-                }
-            }
+    void set_error(std::exception_ptr err) && noexcept {
+      promise_.exception_.construct(std::move(err));
+      promise_.state_ = thread_unsafe_promise<T>::state::error;
+    }
 
-            void set_error(std::exception_ptr err) && noexcept {
-                promise_.exception_.construct(std::move(err));
-                promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::error;
-            }
+    template <typename Error>
+    void set_error(Error&& e) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
+    }
 
-            template <typename Error>
-            void set_error(Error&& e) && noexcept {
-                std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
-            }
+    void set_done() && noexcept {
+      promise_.state_ = thread_unsafe_promise<T>::state::done;
+    }
 
-            void set_done() && noexcept {
-                promise_.state_ = thread_unsafe_sync_wait_promise<T>::state::done;
-            }
+    friend const StopToken& tag_invoke(
+      tag_t<get_stop_token>, const thread_unsafe_receiver& r) noexcept {
+      return r.stopToken_;
+    }
+  };
+};
 
-            friend const StopToken& tag_invoke(
-                tag_t<get_stop_token>, const thread_unsafe_sync_wait_receiver& r) noexcept {
-                return r.stopToken_;
-            }
-        };
-    };
+template<typename T, typename StopToken>
+using thread_unsafe_receiver = typename _thread_unsafe_receiver<T, StopToken>::type;
 
 } // namespace _sync_wait
 
-template<typename T, typename StopToken>
-using thread_unsafe_sync_wait_receiver = typename _sync_wait::thread_unsafe_sync_wait_receiver_<T, StopToken>::type;
+namespace _sync_wait_cpo {
+  struct _fn {
+    template <
+        typename Sender,
+        typename StopToken = unstoppable_token,
+        typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
+    auto operator()(Sender&& sender, StopToken&& stopToken = {}) const
+        -> std::optional<Result> {
+      auto blockingResult = blocking(sender);
+      if (blockingResult == blocking_kind::always ||
+          blockingResult == blocking_kind::always_inline) {
+        using promise_t = _sync_wait::thread_unsafe_promise<Result>;
+        promise_t promise;
 
-} // namespace detail
+        auto operation = connect(
+          (Sender&&)sender,
+          _sync_wait::thread_unsafe_receiver<Result, StopToken&&>{
+            promise, (StopToken&&)stopToken});
 
-template <
-    typename Sender,
-    typename StopToken = unstoppable_token,
-    typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
-auto sync_wait(Sender&& sender, StopToken&& stopToken = {})
-    -> std::optional<Result> {
-  auto blockingResult = blocking(sender);
-  if (blockingResult == blocking_kind::always ||
-      blockingResult == blocking_kind::always_inline) {
-    using promise_t = detail::thread_unsafe_sync_wait_promise<Result>;
-    promise_t promise;
+        start(operation);
 
-    auto operation = connect(
-      (Sender&&)sender,
-      detail::thread_unsafe_sync_wait_receiver<Result, StopToken&&>{
-        promise, (StopToken&&)stopToken});
+        assert(promise.state_ != promise_t::state::incomplete);
 
-    start(operation);
+        switch (promise.state_) {
+          case promise_t::state::done:
+            return std::nullopt;
+          case promise_t::state::value:
+            return std::move(promise.value_).get();
+          case promise_t::state::error:
+            std::rethrow_exception(promise.exception_.get());
+          default:
+            std::terminate();
+        }
+      } else {
+        using promise_t = _sync_wait::promise<Result>;
+        promise_t promise;
 
-    assert(promise.state_ != promise_t::state::incomplete);
+        // Store state for the operation on the stack.
+        auto operation = connect(
+            ((Sender &&) sender),
+            _sync_wait::receiver<Result, StopToken&&>{
+              promise, (StopToken&&)stopToken});
 
-    switch (promise.state_) {
-      case promise_t::state::done:
-        return std::nullopt;
-      case promise_t::state::value:
-        return std::move(promise.value_).get();
-      case promise_t::state::error:
-        std::rethrow_exception(promise.exception_.get());
-      default:
-        std::terminate();
+        start(operation);
+
+        std::unique_lock lock{promise.mutex_};
+        promise.cv_.wait(
+            lock, [&] { return promise.state_ != promise_t::state::incomplete; });
+
+        switch (promise.state_) {
+          case promise_t::state::done:
+            return std::nullopt;
+          case promise_t::state::value:
+            return std::move(promise.value_).get();
+          case promise_t::state::error:
+            std::rethrow_exception(promise.exception_.get());
+          default:
+            std::terminate();
+        }
+      }
     }
-  } else {
-    using promise_t = detail::sync_wait_promise<Result>;
-    promise_t promise;
+  };
+} // namespace _sync_wait_cpo
 
-    // Store state for the operation on the stack.
-    auto operation = connect(
-        ((Sender &&) sender),
-        detail::sync_wait_receiver<Result, StopToken&&>{
-          promise, (StopToken&&)stopToken});
+inline constexpr _sync_wait_cpo::_fn sync_wait {};
 
-    start(operation);
-
-    std::unique_lock lock{promise.mutex_};
-    promise.cv_.wait(
-        lock, [&] { return promise.state_ != promise_t::state::incomplete; });
-
-    switch (promise.state_) {
-      case promise_t::state::done:
-        return std::nullopt;
-      case promise_t::state::value:
-        return std::move(promise.value_).get();
-      case promise_t::state::error:
-        std::rethrow_exception(promise.exception_.get());
-      default:
-        std::terminate();
+namespace _sync_wait_r_cpo {
+  template <typename Result>
+  struct _fn {
+    template <typename Sender, typename StopToken = unstoppable_token>
+    decltype(auto) operator()(Sender&& sender, StopToken&& stopToken = {}) const {
+      return sync_wait.operator()<
+        Sender, StopToken, non_void_t<wrap_reference_t<decay_rvalue_t<Result>>>>(
+          (Sender&&)sender, (StopToken&&)stopToken);
     }
-  }
-}
+  };
+} // namespace _sync_wait_r_cpo
 
-template <
-  typename Result,
-  typename Sender,
-  typename StopToken = unstoppable_token>
-decltype(auto) sync_wait_r(Sender&& sender, StopToken&& stopToken = {}) {
-  return sync_wait<
-    Sender, StopToken, non_void_t<wrap_reference_t<decay_rvalue_t<Result>>>>(
-      (Sender&&)sender, (StopToken&&)stopToken);
-}
+template <typename Result>
+inline constexpr _sync_wait_r_cpo::_fn<Result> sync_wait_r {};
 
 } // namespace unifex
