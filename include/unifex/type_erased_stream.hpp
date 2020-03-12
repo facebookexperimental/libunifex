@@ -27,9 +27,17 @@
 #include <unifex/get_stop_token.hpp>
 
 namespace unifex {
+namespace _type_erase {
 
 template <typename... Values>
-struct type_erased_stream {
+struct _stream {
+  struct type;
+};
+template <typename... Values>
+using stream = typename _stream<Values...>::type;
+
+template <typename... Values>
+struct _stream<Values...>::type {
   struct next_receiver_base {
     virtual void set_value(Values&&... values) noexcept = 0;
     virtual void set_done() noexcept = 0;
@@ -74,179 +82,193 @@ struct type_erased_stream {
   };
 
   template <typename Receiver>
-  struct concrete_next_receiver : next_receiver_base {
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  struct _next_receiver {
+    struct type final : next_receiver_base {
+      UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    explicit concrete_next_receiver(Receiver&& receiver)
+      explicit type(Receiver&& receiver)
         : receiver_((Receiver &&) receiver) {}
 
-    void set_value(Values&&... values) noexcept override {
-      unifex::set_value(std::move(receiver_), (Values &&) values...);
-    }
+      void set_value(Values&&... values) noexcept override {
+        unifex::set_value(std::move(receiver_), (Values &&) values...);
+      }
 
-    void set_done() noexcept override {
-      unifex::set_done(std::move(receiver_));
-    }
+      void set_done() noexcept override {
+        unifex::set_done(std::move(receiver_));
+      }
 
-    void set_error(std::exception_ptr ex) noexcept override {
-      unifex::set_error(std::move(receiver_), std::move(ex));
-    }
+      void set_error(std::exception_ptr ex) noexcept override {
+        unifex::set_error(std::move(receiver_), std::move(ex));
+      }
 
-   private:
-    continuation_info get_continuation_info() const noexcept override {
-      return continuation_info::from_continuation(receiver_);
-    }
+    private:
+      continuation_info get_continuation_info() const noexcept override {
+        return continuation_info::from_continuation(receiver_);
+      }
+    };
   };
+  template <typename Receiver>
+  using next_receiver = typename _next_receiver<std::remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
-  struct concrete_cleanup_receiver final : cleanup_receiver_base {
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  struct _cleanup_receiver {
+    struct type final : cleanup_receiver_base {
+      UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    explicit concrete_cleanup_receiver(Receiver&& receiver)
+      explicit type(Receiver&& receiver)
         : receiver_((Receiver &&) receiver) {}
 
-    void set_done() noexcept override {
-      unifex::set_done(std::move(receiver_));
-    }
+      void set_done() noexcept override {
+        unifex::set_done(std::move(receiver_));
+      }
 
-    void set_error(std::exception_ptr ex) noexcept override {
-      unifex::set_error(std::move(receiver_), std::move(ex));
-    }
+      void set_error(std::exception_ptr ex) noexcept override {
+        unifex::set_error(std::move(receiver_), std::move(ex));
+      }
 
-   private:
-    continuation_info get_continuation_info() const noexcept override {
-      return continuation_info::from_continuation(receiver_);
-    }
+    private:
+      continuation_info get_continuation_info() const noexcept override {
+        return continuation_info::from_continuation(receiver_);
+      }
+    };
   };
+  template <typename Receiver>
+  using cleanup_receiver =
+      typename _cleanup_receiver<std::remove_cvref_t<Receiver>>::type;
 
   template <typename Stream>
-  struct concrete_stream final : stream_base {
-    UNIFEX_NO_UNIQUE_ADDRESS Stream stream_;
+  struct _stream {
+    struct type final : stream_base {
+      using stream = type;
+      UNIFEX_NO_UNIQUE_ADDRESS Stream stream_;
 
-    // TODO: static_assert that all values() overloads produced
-    // by source Stream are convertible to and same arity as Values...
+      // TODO: static_assert that all values() overloads produced
+      // by source Stream are convertible to and same arity as Values...
 
-    struct next_receiver_wrapper {
-      next_receiver_base& receiver_;
-      concrete_stream& stream_;
-      inplace_stop_token stopToken_;
+      struct next_receiver_wrapper {
+        next_receiver_base& receiver_;
+        stream& stream_;
+        inplace_stop_token stopToken_;
 
-      void set_value(Values&&... values) && noexcept {
-        try {
-          // Take a copy of the values before destroying the next operation
-          // state in case the values are references to objects stored in
-          // the operation object.
-          [&](Values... values) {
+        void set_value(Values&&... values) && noexcept {
+          try {
+            // Take a copy of the values before destroying the next operation
+            // state in case the values are references to objects stored in
+            // the operation object.
+            [&](Values... values) {
+              stream_.next_.destruct();
+              receiver_.set_value((Values &&) values...);
+            }((Values &&) values...);
+          } catch (...) {
             stream_.next_.destruct();
-            receiver_.set_value((Values &&) values...);
-          }((Values &&) values...);
-        } catch (...) {
+            receiver_.set_error(std::current_exception());
+          }
+        }
+
+        void set_done() && noexcept {
           stream_.next_.destruct();
-          receiver_.set_error(std::current_exception());
+          receiver_.set_done();
+        }
+
+        void set_error(std::exception_ptr ex) && noexcept {
+          stream_.next_.destruct();
+          receiver_.set_error(std::move(ex));
+        }
+
+        template <typename Error>
+        void set_error(Error&& error) && noexcept {
+          // Type-erase any errors that come through.
+          std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+        }
+
+        friend const inplace_stop_token& tag_invoke(
+            tag_t<get_stop_token>, const next_receiver_wrapper& r) noexcept {
+          return r.stopToken_;
+        }
+
+        template <typename Func>
+        friend void tag_invoke(
+            tag_t<visit_continuations>,
+            const next_receiver_wrapper& receiver,
+            Func&& func) {
+          visit_continuations(receiver.receiver_, (Func &&) func);
+        }
+      };
+
+      struct cleanup_receiver_wrapper {
+        cleanup_receiver_base& receiver_;
+        stream& stream_;
+
+        void set_done() && noexcept {
+          stream_.cleanup_.destruct();
+          receiver_.set_done();
+        }
+
+        void set_error(std::exception_ptr ex) && noexcept {
+          stream_.cleanup_.destruct();
+          receiver_.set_error(std::move(ex));
+        }
+
+        template <typename Error>
+        void set_error(Error&& error) && noexcept {
+          // Type-erase any errors that come through.
+          std::move(*this).set_error(std::make_exception_ptr((Error&)error));
+        }
+
+        template <typename Func>
+        friend void tag_invoke(
+            tag_t<visit_continuations>,
+            const cleanup_receiver_wrapper& receiver,
+            Func&& func) {
+          visit_continuations(receiver.receiver_, (Func &&) func);
+        }
+      };
+
+      template <typename Stream2>
+      explicit type(Stream2&& strm) : stream_((Stream2 &&) strm) {}
+
+      ~type() {}
+
+      union {
+        manual_lifetime<next_operation_t<Stream, next_receiver_wrapper>>
+            next_;
+        manual_lifetime<cleanup_operation_t<Stream, cleanup_receiver_wrapper>>
+            cleanup_;
+      };
+
+      void start_next(
+          next_receiver_base& receiver,
+          inplace_stop_token stopToken) noexcept override {
+        try {
+          next_
+              .construct_from([&] {
+                return connect(
+                    next(stream_),
+                    next_receiver_wrapper{receiver, *this, std::move(stopToken)});
+              });
+          start(next_.get());
+        } catch (...) {
+          receiver.set_error(std::current_exception());
         }
       }
 
-      void set_done() && noexcept {
-        stream_.next_.destruct();
-        receiver_.set_done();
-      }
-
-      void set_error(std::exception_ptr ex) && noexcept {
-        stream_.next_.destruct();
-        receiver_.set_error(std::move(ex));
-      }
-
-      template <typename Error>
-      void set_error(Error&& error) && noexcept {
-        // Type-erase any errors that come through.
-        std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
-      }
-
-      friend const inplace_stop_token& tag_invoke(
-          tag_t<get_stop_token>, const next_receiver_wrapper& r) noexcept {
-        return r.stopToken_;
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const next_receiver_wrapper& receiver,
-          Func&& func) {
-        visit_continuations(receiver.receiver_, (Func &&) func);
+      void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
+        try {
+          cleanup_
+              .construct_from([&] {
+                return connect(
+                    cleanup(stream_),
+                    cleanup_receiver_wrapper{receiver, *this});
+              });
+          start(cleanup_.get());
+        } catch (...) {
+          receiver.set_error(std::current_exception());
+        }
       }
     };
-
-    struct cleanup_receiver_wrapper {
-      cleanup_receiver_base& receiver_;
-      concrete_stream& stream_;
-
-      void set_done() && noexcept {
-        stream_.cleanup_.destruct();
-        receiver_.set_done();
-      }
-
-      void set_error(std::exception_ptr ex) && noexcept {
-        stream_.cleanup_.destruct();
-        receiver_.set_error(std::move(ex));
-      }
-
-      template <typename Error>
-      void set_error(Error&& error) && noexcept {
-        // Type-erase any errors that come through.
-        std::move(*this).set_error(std::make_exception_ptr((Error&)error));
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const cleanup_receiver_wrapper& receiver,
-          Func&& func) {
-        visit_continuations(receiver.receiver_, (Func &&) func);
-      }
-    };
-
-    template <typename Stream2>
-    explicit concrete_stream(Stream2&& stream) : stream_((Stream2 &&) stream) {}
-
-    ~concrete_stream() {}
-
-    union {
-      manual_lifetime<next_operation_t<Stream, next_receiver_wrapper>>
-          next_;
-      manual_lifetime<cleanup_operation_t<Stream, cleanup_receiver_wrapper>>
-          cleanup_;
-    };
-
-    void start_next(
-        next_receiver_base& receiver,
-        inplace_stop_token stopToken) noexcept override {
-      try {
-        next_
-            .construct_from([&] {
-              return connect(
-                  next(stream_),
-                  next_receiver_wrapper{receiver, *this, std::move(stopToken)});
-            });
-        start(next_.get());
-      } catch (...) {
-        receiver.set_error(std::current_exception());
-      }
-    }
-
-    void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
-      try {
-        cleanup_
-            .construct_from([&] {
-              return connect(
-                  cleanup(stream_),
-                  cleanup_receiver_wrapper{receiver, *this});
-            });
-        start(cleanup_.get());
-      } catch (...) {
-        receiver.set_error(std::current_exception());
-      }
-    }
   };
+  template <typename Stream>
+  using stream = typename _stream<std::remove_cvref_t<Stream>>::type;
 
   struct next_sender {
     stream_base& stream_;
@@ -259,44 +281,47 @@ struct type_erased_stream {
     using error_types = Variant<std::exception_ptr>;
 
     template <typename Receiver>
-    struct operation {
-      struct cancel_callback {
-        inplace_stop_source& stopSource_;
-        void operator()() noexcept {
-          stopSource_.request_stop();
-        }
-      };
+    struct _op {
+      struct type {
+        struct cancel_callback {
+          inplace_stop_source& stopSource_;
+          void operator()() noexcept {
+            stopSource_.request_stop();
+          }
+        };
 
-      stream_base& stream_;
-      inplace_stop_source stopSource_;
-      concrete_next_receiver<Receiver> receiver_;
-      UNIFEX_NO_UNIQUE_ADDRESS
-          typename stop_token_type_t<Receiver&>::
-          template callback_type<cancel_callback>
-        stopCallback_;
+        stream_base& stream_;
+        inplace_stop_source stopSource_;
+        next_receiver<Receiver> receiver_;
+        UNIFEX_NO_UNIQUE_ADDRESS
+            typename stop_token_type_t<Receiver&>::
+            template callback_type<cancel_callback>
+          stopCallback_;
 
-      template <typename Receiver2>
-      explicit operation(stream_base& stream, Receiver2&& receiver)
-          : stream_(stream),
+        template <typename Receiver2>
+        explicit type(stream_base& strm, Receiver2&& receiver)
+          : stream_(strm),
             stopSource_(),
             receiver_((Receiver2 &&) receiver),
             stopCallback_(
               get_stop_token(receiver_.receiver_),
               cancel_callback{stopSource_})
-          {}
+        {}
 
-      void start() noexcept {
-        stream_.start_next(
-          receiver_,
-          get_stop_token(receiver_.receiver_).stop_possible() ?
-          stopSource_.get_token() : inplace_stop_token{});
-      }
+        void start() noexcept {
+          stream_.start_next(
+            receiver_,
+            get_stop_token(receiver_.receiver_).stop_possible() ?
+            stopSource_.get_token() : inplace_stop_token{});
+        }
+      };
     };
+    template <typename Receiver>
+    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-      return operation<std::remove_cvref_t<Receiver>>{
-          stream_, (Receiver &&) receiver};
+    operation<Receiver> connect(Receiver&& receiver) {
+      return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
   };
 
@@ -311,45 +336,58 @@ struct type_erased_stream {
     using error_types = Variant<std::exception_ptr>;
 
     template <typename Receiver>
-    struct operation {
-      stream_base& stream_;
-      concrete_cleanup_receiver<Receiver> receiver_;
+    struct _op {
+      struct type {
+        stream_base& stream_;
+        cleanup_receiver<Receiver> receiver_;
 
-      explicit operation(stream_base& stream, Receiver&& receiver)
-          : stream_(stream), receiver_((Receiver &&) receiver) {}
+        explicit type(stream_base& stream, Receiver&& receiver)
+          : stream_(stream)
+          , receiver_((Receiver &&) receiver) {}
 
-      void start() noexcept {
-        stream_.start_cleanup(receiver_);
-      }
+        void start() noexcept {
+          stream_.start_cleanup(receiver_);
+        }
+      };
     };
+    template <typename Receiver>
+    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-      return operation<std::remove_cvref_t<Receiver>>{stream_,
-                                                      (Receiver &&) receiver};
+    operation<Receiver> connect(Receiver&& receiver) {
+      return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
   };
 
   std::unique_ptr<stream_base> stream_;
 
   template <typename ConcreteStream>
-  explicit type_erased_stream(ConcreteStream&& stream)
-      : stream_(std::make_unique<
-                concrete_stream<std::remove_cvref_t<ConcreteStream>>>(
-            (ConcreteStream &&) stream)) {}
+  explicit type(ConcreteStream&& strm)
+    : stream_(
+        std::make_unique<type::stream<ConcreteStream>>(
+            (ConcreteStream &&) strm)) {}
 
-  friend next_sender tag_invoke(tag_t<next>, type_erased_stream& s) noexcept {
+  friend next_sender tag_invoke(tag_t<next>, type& s) noexcept {
     return next_sender{*s.stream_};
   }
 
-  friend cleanup_sender tag_invoke(tag_t<cleanup>, type_erased_stream& s) noexcept {
+  friend cleanup_sender tag_invoke(tag_t<cleanup>, type& s) noexcept {
     return cleanup_sender{*s.stream_};
   }
 };
+} // namespace _type_erase
 
-template <typename... Ts, typename Stream>
-type_erased_stream<Ts...> type_erase(Stream&& stream) {
-  return type_erased_stream<Ts...>{(Stream &&) stream};
-}
+namespace _type_erase_cpo {
+  template <typename... Ts>
+  struct _fn {
+    template <typename Stream>
+    _type_erase::stream<Ts...> operator()(Stream&& strm) const {
+      return _type_erase::stream<Ts...>{(Stream &&) strm};
+    }
+  };
+} // namespace _type_erase_cpo
+
+template <typename... Ts>
+inline constexpr _type_erase_cpo::_fn<Ts...> type_erase {};
 
 } // namespace unifex
