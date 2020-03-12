@@ -43,7 +43,7 @@ struct type_erased_stream {
         tag_t<visit_continuations>,
         const next_receiver_base& receiver,
         Func&& func) {
-      visit_continuations(get_continuation_info(), (Func &&) func);
+      visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
 
     virtual continuation_info get_continuation_info() const = 0;
@@ -57,9 +57,9 @@ struct type_erased_stream {
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
-        const next_receiver_base& receiver,
+        const cleanup_receiver_base& receiver,
         Func&& func) {
-      visit_continuations(get_continuation_info(), (Func &&) func);
+      visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
 
     virtual continuation_info get_continuation_info() const noexcept = 0;
@@ -93,7 +93,7 @@ struct type_erased_stream {
     }
 
    private:
-    continuation_info get_continuation_info() const noexcept {
+    continuation_info get_continuation_info() const noexcept override {
       return continuation_info::from_continuation(receiver_);
     }
   };
@@ -114,7 +114,7 @@ struct type_erased_stream {
     }
 
    private:
-    continuation_info get_continuation_info() const noexcept {
+    continuation_info get_continuation_info() const noexcept override {
       return continuation_info::from_continuation(receiver_);
     }
   };
@@ -281,7 +281,7 @@ struct type_erased_stream {
             stopSource_(),
             receiver_((Receiver2 &&) receiver),
             stopCallback_(
-              get_stop_callback(receiver_.receiver_),
+              get_stop_token(receiver_.receiver_),
               cancel_callback{stopSource_})
           {}
 
