@@ -21,18 +21,18 @@
 
 #include <type_traits>
 
-namespace unifex
-{
-  inline constexpr struct typed_via_cpo {
+namespace unifex {
+namespace _typed_via {
+  struct _fn {
     template <
         typename Source,
         typename Scheduler,
         std::enable_if_t<
-            is_tag_invocable_v<typed_via_cpo, Source, Scheduler>,
+            is_tag_invocable_v<_fn, Source, Scheduler>,
             int> = 0>
     auto operator()(Source&& source, Scheduler&& scheduler) const
-        noexcept(is_nothrow_tag_invocable_v<typed_via_cpo, Source, Scheduler>)
-            -> tag_invoke_result_t<typed_via_cpo, Source, Scheduler> {
+        noexcept(is_nothrow_tag_invocable_v<_fn, Source, Scheduler>)
+            -> tag_invoke_result_t<_fn, Source, Scheduler> {
       return tag_invoke(
           *this,
           static_cast<Source&&>(source),
@@ -43,7 +43,7 @@ namespace unifex
         typename Source,
         typename Scheduler,
         std::enable_if_t<
-            !is_tag_invocable_v<typed_via_cpo, Source, Scheduler>,
+            !is_tag_invocable_v<_fn, Source, Scheduler>,
             int> = 0>
     auto operator()(Source&& source, Scheduler&& scheduler) const
         noexcept(noexcept(finally(
@@ -56,5 +56,8 @@ namespace unifex
           static_cast<Source&&>(source),
           schedule(static_cast<Scheduler&&>(scheduler)));
     }
-  } typed_via;
-}  // namespace unifex
+  };
+} // namespace _typed_via
+
+inline constexpr _typed_via::_fn typed_via {};
+} // namespace unifex
