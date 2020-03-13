@@ -43,6 +43,7 @@ enum class blocking_kind {
 
 namespace _blocking {
 inline constexpr struct _fn {
+ private:
   template <bool>
   struct _impl {
     template <typename Sender>
@@ -50,7 +51,7 @@ inline constexpr struct _fn {
       return blocking_kind::maybe;
     }
   };
-
+ public:
   template <typename Sender>
   constexpr auto operator()(const Sender& s) const
       noexcept(std::is_nothrow_invocable_v<

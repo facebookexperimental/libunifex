@@ -234,15 +234,14 @@ struct _stream<SourceStream, Values...>::type {
           }
         };
 
+        using ST = stop_token_type_t<Receiver&>;
+
         stream& stream_;
         concrete_receiver concreteReceiver_;
         UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
         UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<
-          typename stop_token_type_t<Receiver&>::
-          template callback_type<cancel_next_callback>>
+          typename ST::template callback_type<cancel_next_callback>>
             stopCallback_;
-
-        using ST = stop_token_type_t<Receiver&>;
 
         template<typename Receiver2>
         explicit type(stream& strm, Receiver2&& receiver)
@@ -445,16 +444,12 @@ public:
 };
 } // namespace _stop_immediately
 
-template<typename SourceStream, typename... Values>
-using stop_immediately_stream =
-    _stop_immediately::stream<SourceStream, Values...>;
-
 namespace _stop_immediately_cpo {
   template<typename... Values>
   struct _fn {
     template <typename SourceStream>
     auto operator()(SourceStream&& source) const {
-      return stop_immediately_stream<SourceStream, Values...>{
+      return _stop_immediately::stream<SourceStream, Values...>{
         (SourceStream &&) source};
     }
   };

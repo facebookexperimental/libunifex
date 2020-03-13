@@ -66,12 +66,12 @@ namespace _static_thread_pool {
 
       private:
         template<typename Receiver>
-        operation<std::decay_t<Receiver>> make_operation_(Receiver&& r) const {
-          return operation<std::decay_t<Receiver>>{pool_, (Receiver &&) r};
+        operation<Receiver> make_operation_(Receiver&& r) const {
+          return operation<Receiver>{pool_, (Receiver &&) r};
         }
 
         template <typename Receiver>
-        friend operation<std::decay_t<Receiver>>
+        friend operation<Receiver>
         tag_invoke(tag_t<connect>, schedule_sender s, Receiver&& r) {
           return s.make_operation_((Receiver &&) r);
         }

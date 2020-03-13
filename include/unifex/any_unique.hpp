@@ -120,7 +120,7 @@ struct indirect_vtable_holder {
   }
 
   const vtable<CPOs...>* operator->() const noexcept {
-    return std::addressof(vtable_);
+    return &vtable_;
   }
 
  private:
@@ -142,7 +142,7 @@ struct inline_vtable_holder {
   }
 
   const vtable<CPOs...>* operator->() const noexcept {
-    return std::addressof(vtable_);
+    return &vtable_;
   }
 
  private:
@@ -186,7 +186,7 @@ struct _with_type_erased_tag_invoke<
   struct type {
    private:
       template <typename T>
-      static void* get_object_address(T&& t) {
+      static void* get_object_address(T&& t) noexcept {
         return static_cast<T&&>(t).get_object_address();
       }
       template <typename T>
@@ -382,7 +382,7 @@ class _make<CPOs...>::type
         allocator_type allocCopy = std::move(impl.alloc);
         impl.~type();
         std::allocator_traits<allocator_type>::deallocate(
-            allocCopy, std::addressof(impl), 1);
+            allocCopy, &impl, 1);
       }
 
       UNIFEX_NO_UNIQUE_ADDRESS Concrete value;

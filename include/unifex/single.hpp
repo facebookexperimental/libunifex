@@ -124,7 +124,7 @@ namespace _single_cpo {
   inline constexpr struct _fn {
     template <typename Sender>
     auto operator()(Sender&& sender) const {
-      return _single::stream<std::remove_cvref_t<Sender>>{(Sender&&)sender};
+      return _single::stream<Sender>{(Sender&&)sender};
     }
   } single{};
 } // namespace _single_cpo
