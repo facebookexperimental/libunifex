@@ -26,7 +26,7 @@
 #include <type_traits>
 
 namespace unifex {
-namespace _inline {
+namespace _inline_sched {
   template <typename Receiver>
   struct _op {
     struct type;
@@ -83,7 +83,7 @@ namespace _inline {
       return {};
     }
   };
-} // namespace _inline
+} // namespace _inline_sched
 
-using inline_scheduler = _inline::scheduler;
+using inline_scheduler = _inline_sched::scheduler;
 } // namespace unifex
