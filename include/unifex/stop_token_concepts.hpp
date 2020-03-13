@@ -27,7 +27,7 @@ inline constexpr bool is_stop_never_possible_v<
     T,
     std::enable_if_t<std::is_same_v<
         std::false_type,
-        std::bool_constant<T{}.stop_possible()>>>> = true;
+        std::bool_constant<(T{}.stop_possible())>>>> = true;
 
 template <typename T>
 using is_stop_never_possible = std::bool_constant<is_stop_never_possible_v<T>>;
