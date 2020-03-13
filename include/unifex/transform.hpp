@@ -104,8 +104,8 @@ struct _receiver<Receiver, Func>::type {
       typename... Args,
       std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, receiver>, int> = 0>
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-      std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-      -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+      is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+      -> callable_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(std::as_const(r.receiver_), static_cast<Args&&>(args)...);
   }
 
@@ -201,9 +201,9 @@ namespace _tfx_cpo {
   public:
     template <typename Sender, typename Func>
     auto operator()(Sender&& predecessor, Func&& func) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func> {
       return _impl<is_tag_invocable_v<_fn, Sender, Func>>{}(
         (Sender&&)predecessor, (Func&&)func);

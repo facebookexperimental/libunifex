@@ -45,25 +45,23 @@ class _receiver_wrapper<CPO, Value, Receiver>::type {
 
   template <typename OtherCPO, typename... Args>
   friend auto tag_invoke(OtherCPO cpo, const type &r, Args &&... args)
-      noexcept(std::is_nothrow_invocable_v<OtherCPO, const Receiver &, Args...>)
-      -> std::invoke_result_t<OtherCPO, const Receiver &, Args...> {
-    return std::invoke(std::move(cpo), std::as_const(r.receiver_),
-                        (Args &&) args...);
+      noexcept(is_nothrow_callable_v<OtherCPO, const Receiver &, Args...>)
+      -> callable_result_t<OtherCPO, const Receiver &, Args...> {
+    return ((OtherCPO &&) cpo)(std::as_const(r.receiver_), (Args &&) args...);
   }
 
   template <typename OtherCPO, typename... Args>
   friend auto tag_invoke(OtherCPO cpo, type &r, Args &&... args)
-      noexcept(std::is_nothrow_invocable_v<OtherCPO, Receiver &, Args...>)
-      -> std::invoke_result_t<OtherCPO, Receiver &, Args...> {
-    return std::invoke(std::move(cpo), r.receiver_, (Args &&) args...);
+      noexcept(is_nothrow_callable_v<OtherCPO, Receiver &, Args...>)
+      -> callable_result_t<OtherCPO, Receiver &, Args...> {
+    return ((OtherCPO &&) cpo)(r.receiver_, (Args &&) args...);
   }
 
   template <typename OtherCPO, typename... Args>
   friend auto tag_invoke(OtherCPO cpo, type &&r, Args &&... args)
-      noexcept(std::is_nothrow_invocable_v<OtherCPO, Receiver, Args...>)
-      -> std::invoke_result_t<OtherCPO, Receiver, Args...> {
-    return std::invoke(std::move(cpo), (Receiver &&) r.receiver_,
-                        (Args &&) args...);
+      noexcept(is_nothrow_callable_v<OtherCPO, Receiver, Args...>)
+      -> callable_result_t<OtherCPO, Receiver, Args...> {
+    return ((OtherCPO &&) cpo)((Receiver &&) r.receiver_, (Args &&) args...);
   }
 
   Receiver receiver_;

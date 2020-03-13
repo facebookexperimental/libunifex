@@ -222,7 +222,7 @@ class io_epoll_context::schedule_sender {
           return;
         }
       }
-      if constexpr (std::is_nothrow_invocable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
+      if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
         unifex::set_value(static_cast<Receiver&&>(op.receiver_));
       } else {
         try {

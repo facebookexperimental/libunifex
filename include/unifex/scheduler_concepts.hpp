@@ -37,9 +37,9 @@ namespace _schedule {
 
     template <typename Scheduler>
     constexpr auto operator()(Scheduler&& s) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler> {
       return _impl<is_tag_invocable_v<_fn, Scheduler>>{}(
           static_cast<Scheduler&&>(s));
@@ -66,7 +66,7 @@ namespace _get_scheduler {
     auto operator()(const Context &context) const noexcept
         -> tag_invoke_result_t<_fn, const Context &> {
       static_assert(is_nothrow_tag_invocable_v<_fn, const Context &>);
-      static_assert(std::is_invocable_v<
+      static_assert(is_callable_v<
                     decltype(schedule),
                     tag_invoke_result_t<_fn, const Context &>>);
       return tag_invoke(*this, context);
@@ -87,8 +87,8 @@ struct _schedule::sender {
   template <
     typename Receiver,
     typename Scheduler =
-      std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
-    typename ScheduleSender = std::invoke_result_t<decltype(schedule), Scheduler&>>
+      std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
+    typename ScheduleSender = callable_result_t<decltype(schedule), Scheduler&>>
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
       -> operation_t<ScheduleSender, Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
@@ -121,9 +121,9 @@ namespace _schedule_after {
 
     template <typename TimeScheduler, typename Duration>
     constexpr auto operator()(TimeScheduler&& s, Duration&& d) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, TimeScheduler, Duration>>, TimeScheduler, Duration>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, TimeScheduler, Duration>>, TimeScheduler, Duration> {
       return _impl<is_tag_invocable_v<_fn, TimeScheduler, Duration>>{}(
           static_cast<TimeScheduler&&>(s),
@@ -165,9 +165,9 @@ namespace _schedule_after {
     template<
       typename Receiver,
       typename Scheduler =
-        std::decay_t<std::invoke_result_t<decltype(get_scheduler), const Receiver&>>,
+        std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
       typename ScheduleAfterSender =
-        std::invoke_result_t<_fn, Scheduler&, const Duration&>>
+        callable_result_t<_fn, Scheduler&, const Duration&>>
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
         -> operation_t<ScheduleAfterSender, Receiver> {
       auto scheduler = get_scheduler(std::as_const(r));
@@ -193,9 +193,9 @@ namespace _schedule_at {
 
     template <typename TimeScheduler, typename TimePoint>
     constexpr auto operator()(TimeScheduler&& s, TimePoint&& tp) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, TimeScheduler, TimePoint>>, TimeScheduler, TimePoint>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, TimeScheduler, TimePoint>>, TimeScheduler, TimePoint> {
       return _impl<is_tag_invocable_v<_fn, TimeScheduler, TimePoint>>{}(
           static_cast<TimeScheduler&&>(s),
@@ -229,9 +229,9 @@ namespace _now {
 
     template <typename TimeScheduler>
     constexpr auto operator()(TimeScheduler&& s) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, TimeScheduler>>, TimeScheduler>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, TimeScheduler>>, TimeScheduler> {
       return _impl<is_tag_invocable_v<_fn, TimeScheduler>>{}(
           static_cast<TimeScheduler&&>(s));

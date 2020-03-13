@@ -158,16 +158,15 @@ namespace unifex
             std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, value_receiver>,
-              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
-          Args&&... args) noexcept(std::
-                                      is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                           CPO,
                                           const Receiver&,
                                           Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_receiver(),
             static_cast<Args&&>(args)...);
@@ -243,7 +242,7 @@ namespace unifex
       template <
           typename OtherError,
           std::enable_if_t<
-              std::is_invocable_v<
+              is_callable_v<
                   decltype(unifex::set_error),
                   Receiver,
                   OtherError>,
@@ -286,16 +285,15 @@ namespace unifex
             std::conjunction_v<
                 std::negation<is_receiver_cpo<CPO>>,
                 std::is_same<R, error_receiver>,
-                std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+                is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
-          Args&&... args) noexcept(std::
-                                      is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                           CPO,
                                           const Receiver&,
                                           Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_receiver(),
             static_cast<Args&&>(args)...);
@@ -345,7 +343,7 @@ namespace unifex
       template <
           typename Error,
           std::enable_if_t<
-              std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>,
+              is_callable_v<decltype(unifex::set_error), Receiver, Error>,
               int> = 0>
       void set_error(Error&& error) && noexcept {
         auto* op = op_;
@@ -369,16 +367,15 @@ namespace unifex
             std::conjunction_v<
              std::negation<is_receiver_cpo<CPO>>,
              std::is_same<R, done_receiver>,
-             std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+             is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
-          Args&&... args) noexcept(std::
-                                      is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                           CPO,
                                           const Receiver&,
                                           Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_receiver(),
             static_cast<Args&&>(args)...);
@@ -421,7 +418,7 @@ namespace unifex
       template <
           typename... Values,
           std::enable_if_t<
-              std::is_invocable_v<
+              is_callable_v<
                   decltype(unifex::set_value),
                   Receiver,
                   std::decay_t<Values>...>,
@@ -522,11 +519,11 @@ namespace unifex
             std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, receiver>,
-              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto
       tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-          std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_receiver(),
             static_cast<Args&&>(args)...);

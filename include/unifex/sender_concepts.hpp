@@ -39,7 +39,7 @@ namespace _start {
    public:
       template <typename Operation>
       auto operator()(Operation& op) const noexcept
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Operation&>>, Operation&> {
       return _impl<is_tag_invocable_v<_fn, Operation&>>{}(op);
     }
@@ -73,7 +73,7 @@ namespace _connect {
    public:
       template <typename Sender, typename Receiver>
       auto operator()(Sender&& s, Receiver&& r) const noexcept
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Sender, Receiver>>,
             Sender, Receiver> {
       return _impl<is_tag_invocable_v<_fn, Sender, Receiver>>{}(
@@ -101,17 +101,17 @@ using operation_t = decltype(connect(
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_connectable_v =
-  std::is_invocable_v<decltype(connect), Sender, Receiver>;
+  is_callable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
-using is_connectable = std::is_invocable<decltype(connect), Sender, Receiver>;
+using is_connectable = is_callable<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =
-  std::is_nothrow_invocable_v<decltype(connect), Sender, Receiver>;
+  is_nothrow_callable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
-using is_nothrow_connectable = std::is_nothrow_invocable<decltype(connect), Sender, Receiver>;
+using is_nothrow_connectable = is_nothrow_callable<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Adaptor>
 using adapt_error_types_t =

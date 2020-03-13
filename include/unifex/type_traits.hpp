@@ -41,13 +41,13 @@ template <template <typename T> class Predicate, typename T>
 using requires_t = std::enable_if_t<Predicate<T>::value, T>;
 
 template <template<typename...> class T, typename X>
-struct instance_of : std::false_type {};
+inline constexpr bool instance_of_v = false;
 
 template <template<typename...> class T, typename... Args>
-struct instance_of<T, T<Args...>> : std::true_type {};
+inline constexpr bool instance_of_v<T, T<Args...>> = true;
 
 template <template<typename...> class T, typename X>
-constexpr bool instance_of_v = instance_of<T, X>::value;
+using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 struct unit {};
 
@@ -65,7 +65,7 @@ using decay_rvalue_t = std::
     conditional_t<std::is_lvalue_reference_v<T>, T, std::remove_cvref_t<T>>;
 
 template <typename... Args>
-struct is_empty_list : std::bool_constant<(sizeof...(Args) == 0)> {};
+using is_empty_list = std::bool_constant<(sizeof...(Args) == 0)>;
 
 template <typename T>
 struct is_nothrow_constructible_from {
@@ -80,6 +80,41 @@ struct decayed_tuple {
 };
 
 template <typename T, typename... Ts>
-constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
+inline constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
+
+template <typename Fn, typename... As>
+using callable_result_t =
+    decltype(static_cast<Fn(*)() noexcept>(nullptr)()(
+             static_cast<As(*)() noexcept>(nullptr)()...));
+
+namespace detail {
+  template <typename Fn, typename... As>
+  inline constexpr bool _is_throw_callable_v =
+      noexcept(static_cast<Fn(*)() noexcept>(nullptr)()(
+               static_cast<As(*)() noexcept>(nullptr)()...));
+
+  template <
+      typename Fn,
+      typename... As,
+      typename = callable_result_t<Fn, As...>>
+  std::true_type _try_call(Fn(*)(As...))
+      noexcept(_is_throw_callable_v<Fn, As...>);
+  std::false_type _try_call(...);
+} // namespace detail
+
+template <typename Fn, typename... As>
+using is_callable =
+    decltype(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+
+template <typename Fn, typename... As>
+inline constexpr bool is_callable_v = is_callable<Fn, As...>::value;
+
+template <typename Fn, typename... As>
+inline constexpr bool is_nothrow_callable_v =
+    noexcept(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+
+template <typename Fn, typename... As>
+using is_nothrow_callable =
+    std::bool_constant<is_nothrow_callable_v<Fn, As...>>;
 
 } // namespace unifex

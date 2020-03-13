@@ -38,10 +38,10 @@ namespace _rec_cpo {
   public:
     template <typename Receiver, typename... Values>
     auto operator()(Receiver&& r, Values&&... values) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_set_value_fn, Receiver, Values...>>,
             Receiver, Values...>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_set_value_fn, Receiver, Values...>>,
             Receiver, Values...> {
       return _impl<is_tag_invocable_v<_set_value_fn, Receiver, Values...>>{}(
@@ -80,7 +80,7 @@ namespace _rec_cpo {
   public:
     template <typename Receiver, typename Error>
     auto operator()(Receiver&& r, Error&& error) const noexcept
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_set_error_fn, Receiver, Error>>,
             Receiver, Error> {
       return _impl<is_tag_invocable_v<_set_error_fn, Receiver, Error>>{}(
@@ -119,7 +119,7 @@ namespace _rec_cpo {
   public:
     template <typename Receiver>
     auto operator()(Receiver&& r) const noexcept
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_set_done_fn, Receiver>>, Receiver> {
       return _impl<is_tag_invocable_v<_set_done_fn, Receiver>>{}(
           (Receiver &&) r);

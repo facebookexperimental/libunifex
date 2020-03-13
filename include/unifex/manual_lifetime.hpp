@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <unifex/type_traits.hpp>
+
 #include <type_traits>
 #include <functional>
 #include <memory>
@@ -36,13 +38,12 @@ class manual_lifetime {
   }
 
   template <typename Func>
-  T& construct_from(Func&& func) noexcept(noexcept(std::invoke((Func &&)
-                                                                   func))) {
+  T& construct_from(Func&& func) noexcept(noexcept(T(((Func &&) func)()))) {
     static_assert(
-        std::is_same_v<std::invoke_result_t<Func>, T>,
+        std::is_same_v<callable_result_t<Func>, T>,
         "Return type of func() must be exactly T to permit copy-elision.");
     return *::new (static_cast<void*>(std::addressof(value_)))
-        T(std::invoke((Func &&) func));
+        T(((Func &&) func)());
   }
 
   void destruct() noexcept(std::is_nothrow_destructible_v<T>) {
@@ -80,10 +81,9 @@ class manual_lifetime<T&> {
   }
 
   template <typename Func>
-  T& construct_from(Func&& func) noexcept(noexcept(std::invoke((Func &&)
-                                                                   func))) {
-    static_assert(std::is_same_v<std::invoke_result_t<Func>, T&>);
-    value_ = std::invoke((Func &&) func);
+  T& construct_from(Func&& func) noexcept(noexcept(((Func &&) func)())) {
+    static_assert(std::is_same_v<callable_result_t<Func>, T&>);
+    value_ = std::addressof(((Func &&) func)());
     return value_;
   }
 
@@ -109,10 +109,9 @@ class manual_lifetime<T&&> {
   }
 
   template <typename Func>
-  T&& construct_from(Func&& func) noexcept(noexcept(std::invoke((Func &&)
-                                                                    func))) {
-    static_assert(std::is_same_v<std::invoke_result_t<Func>, T&&>);
-    value_ = std::invoke((Func &&) func);
+  T&& construct_from(Func&& func) noexcept(noexcept(((Func &&) func)())) {
+    static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
+    value_ = std::addressof(((Func &&) func)());
     return (T &&) value_;
   }
 
@@ -134,10 +133,9 @@ class manual_lifetime<void> {
 
   void construct() noexcept {}
   template <typename Func>
-  void construct_from(Func&& func) noexcept(noexcept(std::invoke((Func &&)
-                                                                     func))) {
-    static_assert(std::is_same_v<std::invoke_result_t<Func>, void>);
-    return std::invoke((Func &&) func);
+  void construct_from(Func&& func) noexcept(noexcept(((Func &&) func)())) {
+    static_assert(std::is_void_v<callable_result_t<Func>>);
+    ((Func &&) func)();
   }
   void destruct() noexcept {}
   void get() const noexcept {}

@@ -97,8 +97,8 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
       typename CPO,
       std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
   friend auto tag_invoke(CPO cpo, const receiver& r) noexcept(
-      std::is_nothrow_invocable_v<CPO, const Receiver&>)
-      -> std::invoke_result_t<CPO, const Receiver&> {
+      is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.receiver_));
   }
 

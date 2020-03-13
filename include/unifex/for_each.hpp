@@ -35,9 +35,9 @@ namespace _for_each {
     public:
       template <typename Stream, typename Func>
       auto operator()(Stream&& stream, Func&& func) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Stream, Func>>, Stream, Func>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Stream, Func>>, Stream, Func> {
       return _impl<is_tag_invocable_v<_fn, Stream, Func>>{}(
         (Stream&&) stream, (Func&&) func);

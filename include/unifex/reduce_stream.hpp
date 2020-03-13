@@ -67,8 +67,8 @@ struct _error_cleanup_receiver<Operation>::type {
       typename CPO,
       std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
   friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
-      std::is_nothrow_invocable_v<CPO, const receiver_type&>)
-      -> std::invoke_result_t<CPO, const receiver_type&> {
+      is_nothrow_callable_v<CPO, const receiver_type&>)
+      -> callable_result_t<CPO, const receiver_type&> {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
@@ -120,8 +120,8 @@ struct _done_cleanup_receiver<Operation>::type {
       typename CPO,
       std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
   friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
-      std::is_nothrow_invocable_v<CPO, const receiver_type&>)
-      -> std::invoke_result_t<CPO, const receiver_type&> {
+      is_nothrow_callable_v<CPO, const receiver_type&>)
+      -> callable_result_t<CPO, const receiver_type&> {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
@@ -158,8 +158,8 @@ struct _next_receiver<Operation>::type {
       typename CPO,
       std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
   friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
-      std::is_nothrow_invocable_v<CPO, const receiver_type&>)
-      -> std::invoke_result_t<CPO, const receiver_type&> {
+      is_nothrow_callable_v<CPO, const receiver_type&>)
+      -> callable_result_t<CPO, const receiver_type&> {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 

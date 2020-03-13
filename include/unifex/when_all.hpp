@@ -154,10 +154,10 @@ struct _element_receiver<Index, Operation>::type final {
         std::conjunction_v<
           std::negation<is_receiver_cpo<CPO>>,
           std::is_same<R, element_receiver>,
-          std::is_invocable<CPO, const receiver_type&, Args...>>, int> = 0>
+          is_callable<CPO, const receiver_type&, Args...>>, int> = 0>
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-      std::is_nothrow_invocable_v<CPO, const receiver_type&, Args...>)
-      -> std::invoke_result_t<CPO, const receiver_type&, Args...> {
+      is_nothrow_callable_v<CPO, const receiver_type&, Args...>)
+      -> callable_result_t<CPO, const receiver_type&, Args...> {
     return std::move(cpo)(std::as_const(r.get_receiver()), (Args&&)args...);
   }
 

@@ -77,16 +77,15 @@ namespace unifex
             std::conjunction_v<
               is_receiver_cpo<CPO>,
               std::is_same<R, successor_receiver>,
-              std::is_invocable<CPO, Receiver, Args...>>, int> = 0>
+              is_callable<CPO, Receiver, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
-          Args&&... args) noexcept(std::
-                                       is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                            CPO,
                                            Receiver,
                                            Args...>)
-          -> std::invoke_result_t<CPO, Receiver, Args...> {
+          -> callable_result_t<CPO, Receiver, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
       }
@@ -99,16 +98,15 @@ namespace unifex
             std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, successor_receiver>,
-              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
-          Args&&... args) noexcept(std::
-                                       is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                            CPO,
                                            const Receiver&,
               Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_const_receiver(), static_cast<Args&&>(args)...);
       }
@@ -190,7 +188,7 @@ namespace unifex
       template <
           typename Error,
           std::enable_if_t<
-              std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>,
+              is_callable_v<decltype(unifex::set_error), Receiver, Error>,
               int> = 0>
       void set_error(Error&& error) && noexcept {
         unifex::set_error(
@@ -201,8 +199,7 @@ namespace unifex
       template <
           typename... Args,
           std::enable_if_t<
-              std::
-                  is_invocable_v<decltype(unifex::set_done), Receiver, Args...>,
+              is_callable_v<decltype(unifex::set_done), Receiver, Args...>,
               int> = 0>
       void set_done(Args...) && noexcept {
         unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
@@ -217,16 +214,15 @@ namespace unifex
             std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, predecessor_receiver>,
-              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
-          Args&&... args) noexcept(std::
-                                       is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                            CPO,
                                            const Receiver&,
                                            Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             r.get_const_receiver(), static_cast<Args&&>(args)...);
       }
@@ -472,9 +468,9 @@ namespace unifex
 
       template <typename First, typename Second>
       auto operator()(First&& first, Second&& second) const
-          noexcept(std::is_nothrow_invocable_v<
+          noexcept(is_nothrow_callable_v<
               _impl2<is_tag_invocable_v<_fn, First, Second>>, First, Second>)
-          -> std::invoke_result_t<
+          -> callable_result_t<
               _impl2<is_tag_invocable_v<_fn, First, Second>>, First, Second> {
         return _impl2<is_tag_invocable_v<_fn, First, Second>>{}(
             static_cast<First&&>(first),
@@ -483,9 +479,9 @@ namespace unifex
 
       template <typename First, typename Second, typename Third, typename... Rest>
       auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
-          noexcept(std::is_nothrow_invocable_v<
+          noexcept(is_nothrow_callable_v<
               _impl3<is_tag_invocable_v<_fn, First, Second, Third, Rest...>>, First, Second, Third, Rest...>)
-          -> std::invoke_result_t<
+          -> callable_result_t<
               _impl3<is_tag_invocable_v<_fn, First, Second, Third, Rest...>>, First, Second, Third, Rest...> {
         return _impl3<is_tag_invocable_v<_fn, First, Second, Third, Rest...>>{}(
             static_cast<First&&>(first),
@@ -514,14 +510,14 @@ namespace unifex
     struct _fn::_impl3<false> {
       template <typename First, typename Second, typename... Rest>
       auto operator()(First&& first, Second&& second, Rest&&... rest) const
-          noexcept(std::is_nothrow_invocable_v<_fn, First, Second> &&
-              std::is_nothrow_invocable_v<
+          noexcept(is_nothrow_callable_v<_fn, First, Second> &&
+              is_nothrow_callable_v<
                   _fn,
-                  std::invoke_result_t<_fn, First, Second>,
+                  callable_result_t<_fn, First, Second>,
                   Rest...>)
-          -> std::invoke_result_t<
+          -> callable_result_t<
               _fn,
-              std::invoke_result_t<_fn, First, Second>,
+              callable_result_t<_fn, First, Second>,
               Rest...> {
         // Fall-back to pair-wise invocation of the sequence() CPO.
         return sequence(

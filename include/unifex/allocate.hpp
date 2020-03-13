@@ -141,7 +141,7 @@ namespace _alloc_cpo {
   public:
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
           _impl<is_tag_invocable_v<_fn, Sender>>, Sender>) {
       return _impl<is_tag_invocable_v<_fn, Sender>>{}((Sender&&) predecessor);
     }

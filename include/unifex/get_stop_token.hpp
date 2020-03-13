@@ -45,7 +45,7 @@ using _get_stop_token::get_stop_token;
 
 template <typename T>
 using get_stop_token_result_t =
-    std::invoke_result_t<decltype(get_stop_token), T>;
+    callable_result_t<decltype(get_stop_token), T>;
 
 template <typename Receiver>
 using stop_token_type_t =
