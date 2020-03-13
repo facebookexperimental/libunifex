@@ -19,36 +19,74 @@
 #include <unifex/sender_concepts.hpp>
 
 namespace unifex {
+namespace _streams {
+  inline constexpr struct _next_fn {
+  private:
+    template<bool>
+    struct _impl {
+      template <typename Stream>
+      auto operator()(Stream& stream) const
+          noexcept(is_nothrow_tag_invocable_v<_next_fn, Stream&>)
+          -> tag_invoke_result_t<_next_fn, Stream&> {
+        return unifex::tag_invoke(_next_fn{}, stream);
+      }
+    };
+  public:
+    template <typename Stream>
+    auto operator()(Stream& stream) const
+        noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_next_fn, Stream&>>, Stream&>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_next_fn, Stream&>>, Stream&> {
+      return _impl<is_tag_invocable_v<_next_fn, Stream&>>{}(stream);
+    }
+  } next{};
 
-inline constexpr struct next_cpo {
-  template <typename Stream>
-  friend auto tag_invoke(next_cpo, Stream& s) noexcept(noexcept(s.next()))
-      -> decltype(s.next()) {
-    return s.next();
-  }
+  template<>
+  struct _next_fn::_impl<false> {
+    template <typename Stream>
+    auto operator()(Stream& stream) const
+        noexcept(noexcept(stream.next()))
+        -> decltype(stream.next()) {
+      return stream.next();
+    }
+  };
 
-  template <typename Stream>
-  constexpr auto operator()(Stream& stream) const
-      noexcept(is_nothrow_tag_invocable_v<next_cpo, Stream&>)
-          -> tag_invoke_result_t<next_cpo, Stream&> {
-    return tag_invoke(*this, stream);
-  }
-} next{};
+  inline constexpr struct _cleanup_fn {
+  private:
+    template<bool>
+    struct _impl {
+      template <typename Stream>
+      auto operator()(Stream& stream) const
+          noexcept(is_nothrow_tag_invocable_v<_cleanup_fn, Stream&>)
+          -> tag_invoke_result_t<_cleanup_fn, Stream&> {
+        return unifex::tag_invoke(_cleanup_fn{}, stream);
+      }
+    };
+  public:
+    template <typename Stream>
+    auto operator()(Stream& stream) const
+        noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>, Stream&>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>, Stream&> {
+      return _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>{}(stream);
+    }
+  } cleanup{};
 
-inline constexpr struct cleanup_cpo {
-  template <typename Stream>
-  friend auto tag_invoke(cleanup_cpo, Stream& s) noexcept(noexcept(s.cleanup()))
-      -> decltype(s.cleanup()) {
-    return s.cleanup();
-  }
+  template<>
+  struct _cleanup_fn::_impl<false> {
+    template <typename Stream>
+    auto operator()(Stream& stream) const
+        noexcept(noexcept(stream.cleanup()))
+        -> decltype(stream.cleanup()) {
+      return stream.cleanup();
+    }
+  };
+} // namespace _streams
 
-  template <typename Stream>
-  constexpr auto operator()(Stream& stream) const
-      noexcept(is_nothrow_tag_invocable_v<cleanup_cpo, Stream&>)
-          -> tag_invoke_result_t<cleanup_cpo, Stream&> {
-    return tag_invoke(*this, stream);
-  }
-} cleanup{};
+using _streams::next;
+using _streams::cleanup;
 
 template <typename Stream>
 using next_sender_t = decltype(next(std::declval<Stream&>()));

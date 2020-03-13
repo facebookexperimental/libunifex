@@ -57,19 +57,21 @@ struct await_result_impl<
 
 } // namespace detail
 
-template <typename Awaitable>
-decltype(auto) get_awaiter(Awaitable&& awaitable) noexcept {
-  if constexpr (detail::has_member_operator_co_await_v<Awaitable>) {
-    return static_cast<Awaitable&&>(awaitable).operator co_await();
-  } else if constexpr (detail::has_free_operator_co_await_v<Awaitable>) {
-    return operator co_await(static_cast<Awaitable&&>(awaitable));
-  } else {
-    return static_cast<Awaitable&&>(awaitable);
+inline constexpr struct _get_awaiter_fn {
+  template <typename Awaitable>
+  constexpr decltype(auto) operator()(Awaitable&& awaitable) const noexcept {
+    if constexpr (detail::has_member_operator_co_await_v<Awaitable>) {
+      return static_cast<Awaitable&&>(awaitable).operator co_await();
+    } else if constexpr (detail::has_free_operator_co_await_v<Awaitable>) {
+      return operator co_await(static_cast<Awaitable&&>(awaitable));
+    } else {
+      return static_cast<Awaitable&&>(awaitable);
+    }
   }
-}
+} get_awaiter {};
 
 template <typename Awaitable>
-using awaiter_type_t = decltype(unifex::get_awaiter(std::declval<Awaitable>()));
+using awaiter_type_t = decltype(get_awaiter(std::declval<Awaitable>()));
 
 template <typename Awaitable>
 using await_result_t =

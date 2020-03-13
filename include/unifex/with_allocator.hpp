@@ -19,11 +19,15 @@
 #include <unifex/with_query_value.hpp>
 
 namespace unifex {
+namespace _with_alloc_cpo {
+  struct _fn {
+    template <typename Sender, typename Allocator>
+    auto operator()(Sender &&sender, Allocator &&allocator) const {
+      return with_query_value((Sender &&) sender, get_allocator,
+                              (Allocator &&) allocator);
+    }
+  };
+} // namespace _with_alloc_cpo
 
-template <typename Sender, typename Allocator>
-auto with_allocator(Sender &&sender, Allocator &&allocator) {
-  return with_query_value((Sender &&) sender, get_allocator,
-                          (Allocator &&) allocator);
-}
-
+inline constexpr _with_alloc_cpo::_fn with_allocator {};
 } // namespace unifex

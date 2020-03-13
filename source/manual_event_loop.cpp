@@ -16,8 +16,9 @@
 #include <unifex/manual_event_loop.hpp>
 
 namespace unifex {
+namespace _manual_event_loop {
 
-void manual_event_loop::run() {
+void context::run() {
   std::unique_lock lock{mutex_};
   while (true) {
     while (head_ == nullptr) {
@@ -35,13 +36,13 @@ void manual_event_loop::run() {
   }
 }
 
-void manual_event_loop::stop() {
+void context::stop() {
   std::unique_lock lock{mutex_};
   stop_ = true;
   cv_.notify_all();
 }
 
-void manual_event_loop::enqueue(task_base* task) {
+void context::enqueue(task_base* task) {
   std::unique_lock lock{mutex_};
   if (head_ == nullptr) {
     head_ = task;
@@ -53,4 +54,5 @@ void manual_event_loop::enqueue(task_base* task) {
   cv_.notify_one();
 }
 
+} // _manual_event_loop
 } // unifex

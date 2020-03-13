@@ -22,30 +22,33 @@
 
 #include <type_traits>
 
-namespace unifex
-{
-  inline constexpr struct on_cpo {
+namespace unifex {
+namespace _on {
+  inline constexpr struct _fn {
     template <
         typename Sender,
         typename Scheduler,
-        std::enable_if_t<is_tag_invocable_v<on_cpo, Sender, Scheduler>, int> =
+        std::enable_if_t<is_tag_invocable_v<_fn, Sender, Scheduler>, int> =
             0>
     auto operator()(Sender&& sender, Scheduler&& scheduler) const
-        noexcept(is_nothrow_tag_invocable_v<on_cpo, Sender, Scheduler>) {
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>) {
       return unifex::tag_invoke(
-          *this, (Sender &&) sender, (Scheduler &&) scheduler);
+          _fn{}, (Sender &&) sender, (Scheduler &&) scheduler);
     }
 
     template <
         typename Sender,
         typename Scheduler,
-        std::enable_if_t<!is_tag_invocable_v<on_cpo, Sender, Scheduler>, int> =
+        std::enable_if_t<!is_tag_invocable_v<_fn, Sender, Scheduler>, int> =
             0>
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
       return sequence(
           schedule(scheduler),
           with_query_value((Sender &&) sender, get_scheduler, scheduler));
     }
-  } on;
+  } on{};
+} // namespace _on
+
+using _on::on;
 
 }  // namespace unifex

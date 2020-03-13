@@ -22,41 +22,77 @@
 #include <type_traits>
 
 namespace unifex {
+namespace _start {
+  inline constexpr struct _fn {
+   private:
+    template <bool>
+    struct _impl {
+      template <typename Operation>
+      auto operator()(Operation& op) const noexcept
+          -> tag_invoke_result_t<_fn, Operation&> {
+        static_assert(
+            is_nothrow_tag_invocable_v<_fn, Operation&>,
+            "start() customisation must be noexcept");
+        return unifex::tag_invoke(_fn{}, op);
+      }
+    };
+   public:
+      template <typename Operation>
+      auto operator()(Operation& op) const noexcept
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_fn, Operation&>>, Operation&> {
+      return _impl<is_tag_invocable_v<_fn, Operation&>>{}(op);
+    }
+  } start{};
 
-inline constexpr struct start_cpo {
-  template <typename Operation>
-  friend auto tag_invoke(start_cpo, Operation& op) noexcept(
-      noexcept(op.start())) -> decltype(op.start()) {
-    return op.start();
-  }
+  template <>
+  struct _fn::_impl<false> {
+    template <typename Operation>
+    auto operator()(Operation& op) const noexcept -> decltype(op.start()) {
+      static_assert(
+          noexcept(op.start()),
+          "start() customisation must be noexcept");
+      return op.start();
+    }
+  };
+} // namespace _start
+using _start::start;
 
-  template <typename Operation>
-  auto operator()(Operation& op) const noexcept
-      -> tag_invoke_result_t<start_cpo, Operation&> {
-    static_assert(
-      std::is_void_v<tag_invoke_result_t<start_cpo, Operation&>>);
-    static_assert(
-        noexcept(tag_invoke(*this, op)),
-        "start() customisation must be noexcept");
-    return tag_invoke(*this, op);
-  }
-} start{};
+namespace _connect {
+  inline constexpr struct _fn {
+   private:
+    template <bool>
+    struct _impl {
+      template <typename Sender, typename Receiver>
+      auto operator()(Sender&& s, Receiver&& r) const
+          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>)
+          -> tag_invoke_result_t<_fn, Sender, Receiver> {
+        return unifex::tag_invoke(_fn{}, (Sender &&) s, (Receiver &&) r);
+      }
+    };
+   public:
+      template <typename Sender, typename Receiver>
+      auto operator()(Sender&& s, Receiver&& r) const noexcept
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_fn, Sender, Receiver>>,
+            Sender, Receiver> {
+      return _impl<is_tag_invocable_v<_fn, Sender, Receiver>>{}(
+          (Sender &&) s,
+          (Receiver &&) r);
+    }
+  } connect{};
 
-inline constexpr struct connect_cpo {
-  template <typename Sender, typename Receiver>
-  friend auto tag_invoke(connect_cpo, Sender&& s, Receiver&& r) noexcept(
-      noexcept(static_cast<Sender&&>(s).connect((Receiver &&) r)))
-      -> decltype(static_cast<Sender&&>(s).connect((Receiver &&) r)) {
-    return static_cast<Sender&&>(s).connect((Receiver &&) r);
-  }
-
-  template <typename Sender, typename Receiver>
-  constexpr auto operator()(Sender&& sender, Receiver&& receiver) const
-      noexcept(is_nothrow_tag_invocable_v<connect_cpo, Sender, Receiver>)
-          -> tag_invoke_result_t<connect_cpo, Sender, Receiver> {
-    return tag_invoke(*this, (Sender &&) sender, (Receiver &&) receiver);
-  }
-} connect{};
+  template <>
+  struct _fn::_impl<false> {
+    template <typename Sender, typename Receiver>
+    auto operator()(Sender&& s, Receiver&& r) const
+        noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r)))
+        -> decltype(((Sender &&) s).connect((Receiver &&) r)) {
+      return ((Sender &&) s).connect((Receiver &&) r);
+    }
+  };
+} // namespace _connect
+using _connect::connect;
 
 template <typename Sender, typename Receiver>
 using operation_t = decltype(connect(
@@ -68,8 +104,14 @@ inline constexpr bool is_connectable_v =
   std::is_invocable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
+using is_connectable = std::is_invocable<decltype(connect), Sender, Receiver>;
+
+template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =
   std::is_nothrow_invocable_v<decltype(connect), Sender, Receiver>;
+
+template <typename Sender, typename Receiver>
+using is_nothrow_connectable = std::is_nothrow_invocable<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Adaptor>
 using adapt_error_types_t =

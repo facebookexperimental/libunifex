@@ -20,27 +20,46 @@
 #include <unifex/type_traits.hpp>
 
 namespace unifex {
+namespace _for_each {
+  inline constexpr struct _fn {
+    private:
+      template<bool>
+      struct _impl {
+        template <typename Stream, typename Func>
+        auto operator()(Stream&& stream, Func&& func) const
+            noexcept(is_nothrow_tag_invocable_v<_fn, Stream, Func>)
+            -> tag_invoke_result_t<_fn, Stream, Func> {
+          return unifex::tag_invoke(_fn{}, (Stream&&) stream, (Func&&) func);
+        }
+      };
+    public:
+      template <typename Stream, typename Func>
+      auto operator()(Stream&& stream, Func&& func) const
+        noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_fn, Stream, Func>>, Stream, Func>)
+        -> std::invoke_result_t<
+            _impl<is_tag_invocable_v<_fn, Stream, Func>>, Stream, Func> {
+      return _impl<is_tag_invocable_v<_fn, Stream, Func>>{}(
+        (Stream&&) stream, (Func&&) func);
+    }
+  } for_each{};
 
-inline constexpr struct for_each_cpo {
-  template <typename Stream, typename Func>
-  friend auto tag_invoke(for_each_cpo, Stream&& stream, Func&& func) {
-    return transform(
-        reduce_stream(
-            (Stream &&) stream,
-            unit{},
-            [func = (Func &&) func](unit s, auto&&... values) mutable {
-              std::invoke(func, (decltype(values))values...);
-              return s;
-            }),
-        [](unit) noexcept {});
-  }
+  template<>
+  struct _fn::_impl<false> {
+    template <typename Stream, typename Func>
+    auto operator()(Stream&& stream, Func&& func) const {
+      return transform(
+          reduce_stream(
+              (Stream &&) stream,
+              unit{},
+              [func = (Func &&) func](unit s, auto&&... values) mutable {
+                std::invoke(func, (decltype(values))values...);
+                return s;
+              }),
+          [](unit) noexcept {});
+    }
+  };
+} // namespace _for_each
 
-  template <typename Stream, typename Func>
-  auto operator()(Stream&& stream, Func&& func) const
-      noexcept(noexcept(tag_invoke(*this, (Stream &&) stream, (Func &&) func)))
-          -> decltype(tag_invoke(*this, (Stream &&) stream, (Func &&) func)) {
-    return tag_invoke(*this, (Stream &&) stream, (Func &&) func);
-  }
-} for_each;
-
+using _for_each::for_each;
 } // namespace unifex

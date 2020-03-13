@@ -24,16 +24,24 @@
 #include <memory>
 #include <type_traits>
 
-namespace unifex
-{
+namespace unifex {
+namespace _alloc {
   template <typename Operation, typename Allocator>
-  class allocated_operation {
+  struct _op {
+    class type;
+  };
+  template <typename Operation, typename Allocator>
+  using operation = typename _op<Operation, Allocator>::type;
+
+  template <typename Operation, typename Allocator>
+  class _op<Operation, Allocator>::type {
+    using operation = type;
     using allocator_t = typename std::allocator_traits<
         Allocator>::template rebind_alloc<Operation>;
 
   public:
     template <typename Sender, typename Receiver>
-    explicit allocated_operation(Sender&& s, Receiver&& r)
+    explicit type(Sender&& s, Receiver&& r)
       : allocator_(get_allocator(r)) {
       using allocator_traits = std::allocator_traits<allocator_t>;
       Operation* op = allocator_traits::allocate(allocator_, 1);
@@ -48,12 +56,12 @@ namespace unifex
       constructorSucceeded = true;
     }
 
-    ~allocated_operation() {
+    ~type() {
       op_->~Operation();
       std::allocator_traits<allocator_t>::deallocate(allocator_, op_, 1);
     }
 
-    friend void tag_invoke(tag_t<start>, allocated_operation& op) noexcept {
+    friend void tag_invoke(tag_t<start>, operation& op) noexcept {
       start(*op.op_);
     }
 
@@ -63,35 +71,41 @@ namespace unifex
   };
 
   template <typename Sender>
-  class allocate_sender {
+  struct _sender {
+    class type;
+  };
+  template <typename Sender>
+  using sender = typename _sender<std::remove_cvref_t<Sender>>::type;
+
+  template <typename Sender>
+  class _sender<Sender>::type {
+    using sender = type;
   public:
     template <
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple>
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
     using value_types = typename Sender::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types = typename Sender::template error_types<Variant>;
 
     template <typename Receiver>
-    friend auto tag_invoke(tag_t<connect>, allocate_sender&& s, Receiver&& r)
-        -> allocated_operation<
+    friend auto tag_invoke(tag_t<connect>, sender&& s, Receiver&& r)
+        -> operation<
             operation_t<Sender, Receiver>,
             std::remove_cvref_t<get_allocator_t<Receiver>>> {
-      return allocated_operation<
+      return operation<
           operation_t<Sender, Receiver>,
           std::remove_cvref_t<get_allocator_t<Receiver>>>{
           (Sender &&) s.sender_, (Receiver &&) r};
     }
 
     template <typename Receiver>
-    friend auto tag_invoke(tag_t<connect>, allocate_sender& s, Receiver&& r)
-        -> allocated_operation<
+    friend auto tag_invoke(tag_t<connect>, sender& s, Receiver&& r)
+        -> operation<
             operation_t<Sender&, Receiver>,
             std::remove_cvref_t<get_allocator_t<Receiver>>> {
-      return allocated_operation<
+      return operation<
           operation_t<Sender&, Receiver>,
           std::remove_cvref_t<get_allocator_t<Receiver>>>{
           s.sender_, (Receiver &&) r};
@@ -99,11 +113,11 @@ namespace unifex
 
     template <typename Receiver>
     friend auto
-    tag_invoke(tag_t<connect>, const allocate_sender& s, Receiver&& r)
-        -> allocated_operation<
+    tag_invoke(tag_t<connect>, const sender& s, Receiver&& r)
+        -> operation<
             operation_t<const Sender&, Receiver>,
             std::remove_cvref_t<get_allocator_t<Receiver>>> {
-      return allocated_operation<
+      return operation<
           operation_t<const Sender&, Receiver>,
           std::remove_cvref_t<get_allocator_t<Receiver>>>{
           std::as_const(s.sender_), (Receiver &&) r};
@@ -111,10 +125,38 @@ namespace unifex
 
     Sender sender_;
   };
+} // namespace _alloc
 
-  template <typename Sender>
-  auto allocate(Sender&& sender) -> allocate_sender<std::decay_t<Sender>> {
-    return allocate_sender<std::decay_t<Sender>>{(Sender &&) sender};
-  }
+namespace _alloc_cpo {
+  inline constexpr struct _fn {
+  private:
+    template<bool>
+    struct _impl {
+      template <typename Sender>
+      auto operator()(Sender&& predecessor) const
+          noexcept(is_nothrow_tag_invocable_v<_fn, Sender>) {
+        return unifex::tag_invoke(_fn{}, (Sender&&) predecessor);
+      }
+    };
+  public:
+    template <typename Sender>
+    auto operator()(Sender&& predecessor) const
+        noexcept(std::is_nothrow_invocable_v<
+          _impl<is_tag_invocable_v<_fn, Sender>>, Sender>) {
+      return _impl<is_tag_invocable_v<_fn, Sender>>{}((Sender&&) predecessor);
+    }
+  } allocate{};
 
-}  // namespace unifex
+  template<>
+  struct _fn::_impl<false> {
+    template <typename Sender>
+    auto operator()(Sender&& predecessor) const
+        noexcept(std::is_nothrow_constructible_v<_alloc::sender<Sender>, Sender>)
+        -> _alloc::sender<Sender> {
+      return _alloc::sender<Sender>{(Sender &&) predecessor};
+    }
+  };
+} // namespace _alloc_cpo
+using _alloc_cpo::allocate;
+
+} // namespace unifex

@@ -25,14 +25,14 @@
 #include <utility>
 
 namespace unifex {
-
-class trampoline_scheduler {
+namespace _trampoline {
+class scheduler {
   std::size_t maxRecursionDepth_;
 
  public:
-  trampoline_scheduler() noexcept : maxRecursionDepth_(16) {}
+  scheduler() noexcept : maxRecursionDepth_(16) {}
 
-  explicit trampoline_scheduler(std::size_t depth) noexcept
+  explicit scheduler(std::size_t depth) noexcept
       : maxRecursionDepth_(depth) {}
 
 private:
@@ -61,50 +61,54 @@ private:
   class schedule_sender;
 
   template <typename Receiver>
-  class operation final : operation_base {
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-    std::size_t maxRecursionDepth_;
+  struct _op {
+    class type final : operation_base {
+      UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+      std::size_t maxRecursionDepth_;
 
-    friend schedule_sender;
+      friend schedule_sender;
 
-    template <typename Receiver2>
-    explicit operation(Receiver2&& receiver, std::size_t maxDepth)
+      template <typename Receiver2>
+      explicit type(Receiver2&& receiver, std::size_t maxDepth)
         : receiver_((Receiver2 &&) receiver), maxRecursionDepth_(maxDepth) {}
 
-    void execute() noexcept final {
-      if (is_stop_never_possible_v<stop_token_type_t<Receiver&>>) {
-        unifex::set_value(static_cast<Receiver&&>(receiver_));
-      } else {
-        if (get_stop_token(receiver_).stop_requested()) {
-          unifex::set_done(static_cast<Receiver&&>(receiver_));
-        } else {
+      void execute() noexcept final {
+        if (is_stop_never_possible_v<stop_token_type_t<Receiver&>>) {
           unifex::set_value(static_cast<Receiver&&>(receiver_));
+        } else {
+          if (get_stop_token(receiver_).stop_requested()) {
+            unifex::set_done(static_cast<Receiver&&>(receiver_));
+          } else {
+            unifex::set_value(static_cast<Receiver&&>(receiver_));
+          }
         }
       }
-    }
-  public:
-    void start() noexcept {
-      auto* currentState = trampoline_state::current_;
-      if (currentState == nullptr) {
-        trampoline_state state;
-        execute();
-        state.drain();
-      } else if (currentState->recursionDepth_ < maxRecursionDepth_) {
-        ++currentState->recursionDepth_;
-        execute();
-      } else {
-        // Exceeded recursion limit.
-        next_ = std::exchange(
-          currentState->head_,
-          static_cast<operation_base*>(this));
+    public:
+      void start() noexcept {
+        auto* currentState = trampoline_state::current_;
+        if (currentState == nullptr) {
+          trampoline_state state;
+          execute();
+          state.drain();
+        } else if (currentState->recursionDepth_ < maxRecursionDepth_) {
+          ++currentState->recursionDepth_;
+          execute();
+        } else {
+          // Exceeded recursion limit.
+          next_ = std::exchange(
+            currentState->head_,
+            static_cast<operation_base*>(this));
+        }
       }
-    }
+    };
   };
+  template<typename Receiver>
+  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
   class schedule_sender {
   public:
     explicit schedule_sender(std::size_t maxDepth) noexcept
-    : maxRecursionDepth_(maxDepth)
+      : maxRecursionDepth_(maxDepth)
     {}
 
     template <
@@ -116,9 +120,8 @@ private:
     using error_types = Variant<>;
 
     template <typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
-      return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver,
-                                                      maxRecursionDepth_};
+    operation<Receiver> connect(Receiver&& receiver) && {
+      return operation<Receiver>{(Receiver &&) receiver, maxRecursionDepth_};
     }
 
   private:
@@ -130,5 +133,8 @@ public:
     return schedule_sender{maxRecursionDepth_};
   }
 };
+} // namespace _trampoline
+
+using trampoline_scheduler = _trampoline::scheduler;
 
 } // namespace unifex

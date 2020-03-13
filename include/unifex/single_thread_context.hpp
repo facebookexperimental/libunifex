@@ -20,15 +20,15 @@
 #include <thread>
 
 namespace unifex {
-
-class single_thread_context {
+namespace _single_thread {
+class context {
   manual_event_loop loop_;
   std::thread thread_;
 
 public:
-  single_thread_context() : loop_(), thread_([this] { loop_.run(); }) {}
+  context() : loop_(), thread_([this] { loop_.run(); }) {}
 
-  ~single_thread_context() {
+  ~context() {
     loop_.stop();
     thread_.join();
   }
@@ -37,5 +37,8 @@ public:
     return loop_.get_scheduler();
   }
 };
+} // namespace _single_thread
+
+using single_thread_context = _single_thread::context;
 
 } // namespace unifex

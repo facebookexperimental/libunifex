@@ -24,59 +24,73 @@
 #include <utility>
 
 namespace unifex {
+namespace _range {
+struct stream;
 
-struct range_stream {
+template <typename Receiver>
+struct _op {
+  struct type;
+};
+template <typename Receiver>
+using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+
+template <typename Receiver>
+struct _op<Receiver>::type {
+  stream& stream_;
+  Receiver receiver_;
+
+  void start() noexcept;
+};
+
+struct next_sender {
+  stream& stream_;
+
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  using value_types = Variant<Tuple<int>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<>;
+
+  friend constexpr blocking_kind tag_invoke(
+      tag_t<blocking>,
+      const stream&) noexcept {
+    return blocking_kind::always_inline;
+  }
+
+  template <typename Receiver>
+  operation<Receiver> connect(Receiver&& receiver) && {
+    return operation<Receiver>{stream_, (Receiver &&) receiver};
+  }
+};
+
+struct stream {
   int next_;
   int max_;
 
-  explicit range_stream(int max) : next_(0), max_(max) {}
-  explicit range_stream(int start, int max) : next_(start), max_(max) {}
+  explicit stream(int max) : next_(0), max_(max) {}
+  explicit stream(int start, int max) : next_(start), max_(max) {}
 
-  struct next_sender {
-    range_stream& stream_;
-
-    template <
-        template <typename...> class Variant,
-        template <typename...> class Tuple>
-    using value_types = Variant<Tuple<int>>;
-
-    template <template <typename...> class Variant>
-    using error_types = Variant<>;
-
-    friend constexpr blocking_kind tag_invoke(
-        tag_t<blocking>,
-        const range_stream&) noexcept {
-      return blocking_kind::always_inline;
-    }
-
-    template <typename Receiver>
-    struct operation {
-      range_stream& stream_;
-      Receiver receiver_;
-
-      void start() noexcept {
-        if (stream_.next_ < stream_.max_) {
-          unifex::set_value(std::move(receiver_), stream_.next_++);
-        } else {
-          unifex::set_done(std::move(receiver_));
-        }
-      }
-    };
-
-    template <typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
-      return operation<std::remove_cvref_t<Receiver>>{stream_,
-                                                      (Receiver &&) receiver};
-    }
-  };
-
-  friend next_sender tag_invoke(tag_t<next>, range_stream& s) noexcept {
+  friend next_sender tag_invoke(tag_t<next>, stream& s) noexcept {
     return next_sender{s};
   }
 
-  friend ready_done_sender tag_invoke(tag_t<cleanup>, range_stream&) noexcept {
+  friend ready_done_sender tag_invoke(tag_t<cleanup>, stream&) noexcept {
     return {};
   }
 };
+
+template <typename Receiver>
+void _op<Receiver>::type::start() noexcept {
+  if (stream_.next_ < stream_.max_) {
+    unifex::set_value(std::move(receiver_), stream_.next_++);
+  } else {
+    unifex::set_done(std::move(receiver_));
+  }
+}
+} // namespace _range
+
+using range_stream = _range::stream;
 
 } // namespace unifex

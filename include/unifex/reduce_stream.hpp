@@ -32,9 +32,260 @@
 #include <utility>
 
 namespace unifex {
+namespace _reduce {
+template<typename Operation>
+struct _error_cleanup_receiver {
+  struct type;
+};
+template<typename Operation>
+using error_cleanup_receiver = typename _error_cleanup_receiver<Operation>::type;
+
+template<typename Operation>
+struct _error_cleanup_receiver<Operation>::type {
+  using error_cleanup_receiver = type;
+  using receiver_type = typename Operation::receiver_type;
+  Operation& op_;
+  std::exception_ptr ex_;
+
+  // No value() in cleanup receiver
+
+  template <typename Error>
+  void set_error(Error error) noexcept {
+    auto& op = op_;
+    op.errorCleanup_.destruct();
+    unifex::set_error(static_cast<receiver_type&&>(op.receiver_), (Error &&) error);
+  }
+
+  void set_done() noexcept {
+    auto& op = op_;
+    auto ex = std::move(ex_);
+    op.errorCleanup_.destruct();
+    unifex::set_error(static_cast<receiver_type&&>(op.receiver_), std::move(ex));
+  }
+
+  template <
+      typename CPO,
+      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
+      std::is_nothrow_invocable_v<CPO, const receiver_type&>)
+      -> std::invoke_result_t<CPO, const receiver_type&> {
+    return std::move(cpo)(std::as_const(r.op_.receiver_));
+  }
+
+  friend unstoppable_token tag_invoke(
+      tag_t<get_stop_token>,
+      const error_cleanup_receiver&) noexcept {
+    return {};
+  }
+
+  template <typename Func>
+  friend void tag_invoke(
+      tag_t<visit_continuations>,
+      const error_cleanup_receiver& r,
+      Func&& func) {
+    std::invoke(func, r.op_.receiver_);
+  }
+};
+
+template<typename Operation>
+struct _done_cleanup_receiver {
+  struct type;
+};
+template<typename Operation>
+using done_cleanup_receiver = typename _done_cleanup_receiver<Operation>::type;
+
+template<typename Operation>
+struct _done_cleanup_receiver<Operation>::type {
+  using done_cleanup_receiver = type;
+  using state_type = typename Operation::state_type;
+  using receiver_type = typename Operation::receiver_type;
+  Operation& op_;
+
+  template <typename Error>
+  void set_error(Error error) && noexcept {
+    auto& op = op_;
+    op.doneCleanup_.destruct();
+    unifex::set_error(static_cast<receiver_type&&>(op.receiver_), (Error &&) error);
+  }
+
+  void set_done() && noexcept {
+    auto& op = op_;
+    op.doneCleanup_.destruct();
+    unifex::set_value(
+        static_cast<receiver_type&&>(op.receiver_),
+        std::forward<state_type>(op.state_));
+  }
+
+  template <
+      typename CPO,
+      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
+      std::is_nothrow_invocable_v<CPO, const receiver_type&>)
+      -> std::invoke_result_t<CPO, const receiver_type&> {
+    return std::move(cpo)(std::as_const(r.op_.receiver_));
+  }
+
+  friend unstoppable_token tag_invoke(
+      tag_t<get_stop_token>,
+      const done_cleanup_receiver&) noexcept {
+    return {};
+  }
+
+  template <typename Func>
+  friend void tag_invoke(
+      tag_t<visit_continuations>,
+      const done_cleanup_receiver& r,
+      Func&& func) {
+    std::invoke(func, r.op_.receiver_);
+  }
+};
+
+template<typename Operation>
+struct _next_receiver {
+  struct type;
+};
+template<typename Operation>
+using next_receiver = typename _next_receiver<Operation>::type;
+
+template<typename Operation>
+struct _next_receiver<Operation>::type {
+  using next_receiver = type;
+  using state_type = typename Operation::state_type;
+  using receiver_type = typename Operation::receiver_type;
+  Operation& op_;
+
+  template <
+      typename CPO,
+      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
+      std::is_nothrow_invocable_v<CPO, const receiver_type&>)
+      -> std::invoke_result_t<CPO, const receiver_type&> {
+    return std::move(cpo)(std::as_const(r.op_.receiver_));
+  }
+
+  template <typename Func>
+  friend void tag_invoke(
+      tag_t<visit_continuations>,
+      const next_receiver& r,
+      Func&& func) {
+    std::invoke(func, r.op_.receiver_);
+  }
+
+  template <typename... Values>
+  void set_value(Values... values) && noexcept {
+    auto& op = op_;
+    op.next_.destruct();
+    try {
+      op.state_ = std::invoke(
+          op.reducer_,
+          std::forward<state_type>(op.state_),
+          (Values &&) values...);
+      op.next_.construct_from([&]() {
+        return unifex::connect(next(op.stream_), _reduce::next_receiver<Operation>{op});
+      });
+      unifex::start(op.next_.get());
+    } catch (...) {
+      op.errorCleanup_.construct_from([&] {
+        return unifex::connect(
+            cleanup(op.stream_),
+            error_cleanup_receiver<Operation>{op, std::current_exception()});
+      });
+      unifex::start(op.errorCleanup_.get());
+    }
+  }
+
+  void set_done() && noexcept {
+    auto& op = op_;
+    op.next_.destruct();
+    op.doneCleanup_.construct_from([&]() {
+      return unifex::connect(
+          cleanup(op.stream_), done_cleanup_receiver<Operation>{op});
+    });
+    unifex::start(op.doneCleanup_.get());
+  }
+
+  void set_error(std::exception_ptr ex) && noexcept {
+    auto& op = op_;
+    op.next_.destruct();
+    op.errorCleanup_.construct_from([&]() {
+      return unifex::connect(
+          cleanup(op.stream_),
+          error_cleanup_receiver<Operation>{op, std::move(ex)});
+    });
+    unifex::start(op.errorCleanup_.get());
+  }
+
+  template <typename Error>
+  void set_error(Error&& e) && noexcept {
+    std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
+  }
+};
+
+template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
+struct _op {
+  struct type;
+};
+template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
+using operation =
+    typename _op<StreamSender, State, ReducerFunc, std::remove_cvref_t<Receiver>>::type;
+
+template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
+struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
+  using operation = type;
+  using state_type = State;
+  using receiver_type = Receiver;
+  UNIFEX_NO_UNIQUE_ADDRESS StreamSender stream_;
+  UNIFEX_NO_UNIQUE_ADDRESS State state_;
+  UNIFEX_NO_UNIQUE_ADDRESS ReducerFunc reducer_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+  union {
+    manual_lifetime<next_operation_t<StreamSender, next_receiver<operation>>> next_;
+    manual_lifetime<cleanup_operation_t<StreamSender, error_cleanup_receiver<operation>>>
+        errorCleanup_;
+    manual_lifetime<cleanup_operation_t<StreamSender, done_cleanup_receiver<operation>>>
+        doneCleanup_;
+  };
+
+  template <typename Receiver2>
+  explicit type(
+      StreamSender&& stream,
+      State&& state,
+      ReducerFunc&& reducer,
+      Receiver2&& receiver)
+    : stream_(std::forward<StreamSender>(stream)),
+      state_(std::forward<State>(state)),
+      reducer_(std::forward<ReducerFunc>(reducer)),
+      receiver_(std::forward<Receiver2>(receiver)) {}
+
+  ~type() {} // Due to the union member, this is load-bearing. DO NOT DELETE.
+
+  void start() noexcept {
+    try {
+      next_.construct_from([&]() {
+        return unifex::connect(next(stream_), next_receiver<operation>{*this});
+      });
+      unifex::start(next_.get());
+    } catch (...) {
+      unifex::set_error(
+          static_cast<Receiver&&>(receiver_), std::current_exception());
+    }
+  }
+};
 
 template <typename StreamSender, typename State, typename ReducerFunc>
-struct reduce_stream_sender {
+struct _sender {
+  struct type;
+};
+template <typename StreamSender, typename State, typename ReducerFunc>
+using sender = typename _sender<
+    std::remove_cvref_t<StreamSender>,
+    std::remove_cvref_t<State>,
+    std::remove_cvref_t<ReducerFunc>>::type;
+
+template <typename StreamSender, typename State, typename ReducerFunc>
+struct _sender<StreamSender, State, ReducerFunc>::type {
+  using sender = type;
   StreamSender stream_;
   State initialState_;
   ReducerFunc reducer_;
@@ -50,218 +301,37 @@ struct reduce_stream_sender {
       typename cleanup_sender_t<StreamSender>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
-  template <typename Receiver>
-  struct operation {
-    struct error_cleanup_receiver {
-      operation& op_;
-      std::exception_ptr ex_;
-
-      // No value() in cleanup receiver
-
-      template <typename Error>
-      void set_error(Error error) noexcept {
-        auto& op = op_;
-        op.errorCleanup_.destruct();
-        unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
-      }
-
-      void set_done() noexcept {
-        auto& op = op_;
-        auto ex = std::move(ex_);
-        op.errorCleanup_.destruct();
-        unifex::set_error(static_cast<Receiver&&>(op.receiver_), std::move(ex));
-      }
-
-      template <
-          typename CPO,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-      friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
-          std::is_nothrow_invocable_v<CPO, const Receiver&>)
-          -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.op_.receiver_));
-      }
-
-      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const error_cleanup_receiver&) noexcept {
-        return {};
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const error_cleanup_receiver& r,
-          Func&& func) {
-        std::invoke(func, r.op_.receiver_);
-      }
-    };
-
-    struct done_cleanup_receiver {
-      operation& op_;
-
-      template <typename Error>
-      void set_error(Error error) && noexcept {
-        auto& op = op_;
-        op.doneCleanup_.destruct();
-        unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
-      }
-
-      void set_done() && noexcept {
-        auto& op = op_;
-        op.doneCleanup_.destruct();
-        unifex::set_value(
-            static_cast<Receiver&&>(op.receiver_),
-            std::forward<State>(op.state_));
-      }
-
-      template <
-          typename CPO,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-      friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
-          std::is_nothrow_invocable_v<CPO, const Receiver&>)
-          -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.op_.receiver_));
-      }
-
-      friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const done_cleanup_receiver&) noexcept {
-        return {};
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const done_cleanup_receiver& r,
-          Func&& func) {
-        std::invoke(func, r.op_.receiver_);
-      }
-    };
-
-    struct next_receiver {
-      operation& op_;
-
-      template <
-          typename CPO,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-      friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
-          std::is_nothrow_invocable_v<CPO, const Receiver&>)
-          -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::move(cpo)(std::as_const(r.op_.receiver_));
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const next_receiver& r,
-          Func&& func) {
-        std::invoke(func, r.op_.receiver_);
-      }
-
-      template <typename... Values>
-      void set_value(Values... values) && noexcept {
-        auto& op = op_;
-        op.next_.destruct();
-        try {
-          op.state_ = std::invoke(
-              op.reducer_,
-              std::forward<State>(op.state_),
-              (Values &&) values...);
-          op.next_.construct_from([&]() {
-            return unifex::connect(next(op.stream_), next_receiver{op});
-          });
-          unifex::start(op.next_.get());
-        } catch (...) {
-          op.errorCleanup_.construct_from([&] {
-            return unifex::connect(
-                cleanup(op.stream_),
-                error_cleanup_receiver{op, std::current_exception()});
-          });
-          unifex::start(op.errorCleanup_.get());
-        }
-      }
-
-      void set_done() && noexcept {
-        auto& op = op_;
-        op.next_.destruct();
-        op.doneCleanup_.construct_from([&]() {
-          return unifex::connect(
-              cleanup(op.stream_), done_cleanup_receiver{op});
-        });
-        unifex::start(op.doneCleanup_.get());
-      }
-
-      void set_error(std::exception_ptr ex) && noexcept {
-        auto& op = op_;
-        op.next_.destruct();
-        op.errorCleanup_.construct_from([&]() {
-          return unifex::connect(
-              cleanup(op.stream_),
-              error_cleanup_receiver{op, std::move(ex)});
-        });
-        unifex::start(op.errorCleanup_.get());
-      }
-
-      template <typename Error>
-      void set_error(Error&& e) && noexcept {
-        std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
-      }
-    };
-
-    UNIFEX_NO_UNIQUE_ADDRESS StreamSender stream_;
-    UNIFEX_NO_UNIQUE_ADDRESS State state_;
-    UNIFEX_NO_UNIQUE_ADDRESS ReducerFunc reducer_;
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-    union {
-      manual_lifetime<next_operation_t<StreamSender, next_receiver>> next_;
-      manual_lifetime<cleanup_operation_t<StreamSender, error_cleanup_receiver>>
-          errorCleanup_;
-      manual_lifetime<cleanup_operation_t<StreamSender, done_cleanup_receiver>>
-          doneCleanup_;
-    };
-
-    template <typename Receiver2>
-    explicit operation(
-        StreamSender&& stream,
-        State&& state,
-        ReducerFunc&& reducer,
-        Receiver2&& receiver)
-        : stream_(std::forward<StreamSender>(stream)),
-          state_(std::forward<State>(state)),
-          reducer_(std::forward<ReducerFunc>(reducer)),
-          receiver_(std::forward<Receiver2>(receiver)) {}
-
-    ~operation() {}
-
-    void start() noexcept {
-      try {
-        next_.construct_from([&]() {
-          return unifex::connect(next(stream_), next_receiver{*this});
-        });
-        unifex::start(next_.get());
-      } catch (...) {
-        unifex::set_error(
-            static_cast<Receiver&&>(receiver_), std::current_exception());
-      }
-    }
-  };
+  template<typename Receiver>
+  using operation = operation<StreamSender, State, ReducerFunc, Receiver>;
 
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
-    return operation<std::remove_cvref_t<Receiver>>{(StreamSender &&) stream_,
-                                                    (State &&) initialState_,
-                                                    (ReducerFunc &&) reducer_,
-                                                    (Receiver &&) receiver};
+  operation<Receiver> connect(Receiver&& receiver) && {
+    return operation<Receiver>{
+        (StreamSender &&) stream_,
+        (State &&) initialState_,
+        (ReducerFunc &&) reducer_,
+        (Receiver &&) receiver};
   }
 };
+} // namespace _reduce
 
-template <typename StreamSender, typename State, typename ReducerFunc>
-auto reduce_stream(
-    StreamSender&& stream,
-    State&& initialState,
-    ReducerFunc&& reducer) {
-  return reduce_stream_sender<
-      std::remove_cvref_t<StreamSender>,
-      std::remove_cvref_t<State>,
-      std::remove_cvref_t<ReducerFunc>>{(StreamSender &&) stream,
-                                        (State &&) initialState,
-                                        (ReducerFunc &&) reducer};
-}
-
+namespace _reduce_cpo {
+  inline constexpr struct _fn {
+    template <typename StreamSender, typename State, typename ReducerFunc>
+    auto operator()(
+        StreamSender&& stream,
+        State&& initialState,
+        ReducerFunc&& reducer) const
+        noexcept(std::is_nothrow_constructible_v<
+            _reduce::sender<StreamSender, State, ReducerFunc>,
+            StreamSender, State, ReducerFunc>)
+        -> _reduce::sender<StreamSender, State, ReducerFunc> {
+      return _reduce::sender<StreamSender, State, ReducerFunc>{
+          (StreamSender &&) stream,
+          (State &&) initialState,
+          (ReducerFunc &&) reducer};
+    }
+  } reduce_stream{};
+} // namespace _reduce_cpo
+using _reduce_cpo::reduce_stream;
 } // namespace unifex

@@ -25,16 +25,61 @@
 #include <type_traits>
 
 namespace unifex {
+namespace _manual_event_loop {
+class context;
 
-class manual_event_loop {
-  struct task_base {
-    task_base* next_ = nullptr;
-    virtual void execute() noexcept = 0;
-  };
+struct task_base {
+  task_base* next_ = nullptr;
+  virtual void execute() noexcept = 0;
+};
 
+template <typename Receiver>
+struct _op {
+  class type;
+};
+template <typename Receiver>
+using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+
+template <typename Receiver>
+class _op<Receiver>::type final : task_base {
+  using stop_token_type = stop_token_type_t<Receiver&>;
+
+ public:
+  template <typename Receiver2>
+  explicit type(Receiver2&& receiver, context* loop)
+    : receiver_((Receiver2 &&) receiver), loop_(loop) {}
+
+  void start() noexcept;
+
+ private:
+  void execute() noexcept override {
+    if constexpr (is_stop_never_possible_v<stop_token_type>) {
+      unifex::set_value(std::move(receiver_));
+    } else {
+      if (get_stop_token(receiver_).stop_requested()) {
+        unifex::set_done(std::move(receiver_));
+      } else {
+        unifex::set_value(std::move(receiver_));
+      }
+    }
+  }
+
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  context* const loop_;
+};
+
+class context {
+  template <class Receiver>
+  friend struct _op;
  public:
   class scheduler {
     class schedule_task {
+      friend constexpr blocking_kind tag_invoke(
+          tag_t<blocking>,
+          const schedule_task&) noexcept {
+        return blocking_kind::never;
+      }
+
      public:
       template <
           template <typename...> class Variant,
@@ -44,65 +89,24 @@ class manual_event_loop {
       template <template <typename...> class Variant>
       using error_types = Variant<>;
 
-    private:
-      friend constexpr blocking_kind tag_invoke(
-          tag_t<blocking>,
-          const schedule_task&) noexcept {
-        return blocking_kind::never;
-      }
-
       template <typename Receiver>
-      class operation final : task_base {
-        using stop_token_type = stop_token_type_t<Receiver&>;
-
-       public:
-        void start() noexcept {
-          loop_->enqueue(this);
-        }
-
-       private:
-        friend schedule_task;
-
-        template <typename Receiver2>
-        explicit operation(Receiver2&& receiver, manual_event_loop* loop)
-            : receiver_((Receiver2 &&) receiver), loop_(loop) {}
-
-        void execute() noexcept override {
-          if constexpr (is_stop_never_possible_v<stop_token_type>) {
-            unifex::set_value(std::move(receiver_));
-          } else {
-            if (get_stop_token(receiver_).stop_requested()) {
-              unifex::set_done(std::move(receiver_));
-            } else {
-              unifex::set_value(std::move(receiver_));
-            }
-          }
-        }
-
-        UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-        manual_event_loop* const loop_;
-      };
-
-    public:
-      template <typename Receiver>
-      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
-        return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver,
-                                                        loop_};
+      operation<Receiver> connect(Receiver&& receiver) && {
+        return operation<Receiver>{(Receiver &&) receiver, loop_};
       }
 
     private:
       friend scheduler;
 
-      explicit schedule_task(manual_event_loop* loop) noexcept
-      : loop_(loop)
+      explicit schedule_task(context* loop) noexcept
+        : loop_(loop)
       {}
 
-      manual_event_loop* const loop_;
+      context* const loop_;
     };
 
-    friend manual_event_loop;
+    friend context;
 
-    explicit scheduler(manual_event_loop* loop) noexcept : loop_(loop) {}
+    explicit scheduler(context* loop) noexcept : loop_(loop) {}
 
    public:
     schedule_task schedule() const noexcept {
@@ -110,7 +114,7 @@ class manual_event_loop {
     }
 
    private:
-    manual_event_loop* loop_;
+    context* loop_;
   };
 
   scheduler get_scheduler() {
@@ -131,4 +135,12 @@ class manual_event_loop {
   bool stop_ = false;
 };
 
+template <typename Receiver>
+inline void _op<Receiver>::type::start() noexcept {
+  loop_->enqueue(this);
+}
+
+} // namespace _manual_event_loop
+
+using manual_event_loop = _manual_event_loop::context;
 } // namespace unifex

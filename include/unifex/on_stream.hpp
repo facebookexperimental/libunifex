@@ -20,14 +20,19 @@
 #include <unifex/scheduler_concepts.hpp>
 
 namespace unifex {
+namespace _on_stream {
+  inline constexpr struct _fn {
+    template <typename StreamSender, typename Scheduler>
+    auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
+      return adapt_stream(
+          (StreamSender &&) stream,
+          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+            return on((decltype(sender))sender, s);
+          });
+    }
+  } on_stream {};
+} // namespace _on_stream
 
-template <typename StreamSender, typename Scheduler>
-auto on_stream(Scheduler&& scheduler, StreamSender&& stream) {
-  return adapt_stream(
-      (StreamSender &&) stream,
-      [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return on((decltype(sender))sender, s);
-      });
-}
+using _on_stream::on_stream;
 
 } // namespace unifex

@@ -493,8 +493,8 @@ class io_uring_context::read_sender {
       : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
 
   template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
+  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) {
+    return operation<std::remove_cvref_t<Receiver>>{*this, (Receiver &&) r};
   }
 
  private:
@@ -609,8 +609,8 @@ class io_uring_context::write_sender {
       : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
 
   template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
+  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) {
+    return operation<std::remove_cvref_t<Receiver>>{*this, (Receiver &&) r};
   }
 
  private:

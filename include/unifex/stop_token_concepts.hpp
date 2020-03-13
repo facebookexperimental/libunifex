@@ -20,16 +20,16 @@
 namespace unifex {
 
 template <typename T, typename = void>
-struct is_stop_never_possible : std::false_type {};
+inline constexpr bool is_stop_never_possible_v = false;
 
 template <typename T>
-struct is_stop_never_possible<
+inline constexpr bool is_stop_never_possible_v<
     T,
     std::enable_if_t<std::is_same_v<
         std::false_type,
-        std::bool_constant<T{}.stop_possible()>>>> : std::true_type {};
+        std::bool_constant<(T{}.stop_possible())>>>> = true;
 
 template <typename T>
-constexpr bool is_stop_never_possible_v = is_stop_never_possible<T>::value;
+using is_stop_never_possible = std::bool_constant<is_stop_never_possible_v<T>>;
 
 } // namespace unifex

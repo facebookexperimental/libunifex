@@ -20,14 +20,19 @@
 #include <unifex/typed_via.hpp>
 
 namespace unifex {
+namespace _typed_via_stream {
+  struct _fn {
+    template <typename StreamSender, typename Scheduler>
+    auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
+      return adapt_stream(
+          (StreamSender &&) stream,
+          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+            return typed_via((decltype(sender))sender, s);
+          });
+    }
+  };
+} // namespace _typed_via_stream
 
-template <typename StreamSender, typename Scheduler>
-auto typed_via_stream(Scheduler&& scheduler, StreamSender&& stream) {
-  return adapt_stream(
-      (StreamSender &&) stream,
-      [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return typed_via((decltype(sender))sender, s);
-      });
-}
+inline constexpr _typed_via_stream::_fn typed_via_stream {};
 
 } // namespace unifex

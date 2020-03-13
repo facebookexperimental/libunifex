@@ -31,12 +31,18 @@
 #include <optional>
 
 namespace unifex {
+namespace _coroutine {
+template <typename Sender, typename Value>
+struct _sender_awaiter {
+  struct type;
+};
+template <typename Sender, typename Value>
+using sender_awaiter = typename _sender_awaiter<Sender, Value>::type;
 
-template<typename Sender, typename Value>
-struct sender_awaiter {
-
+template <typename Sender, typename Value>
+struct _sender_awaiter<Sender, Value>::type {
   struct coroutine_receiver {
-    sender_awaiter& awaiter_;
+    type& awaiter_;
 
     template<typename... Values>
     void set_value(Values&&... values) && noexcept {
@@ -82,13 +88,13 @@ struct sender_awaiter {
     }
   };
 
-  explicit sender_awaiter(Sender&& sender)
-  : op_(connect(
-      static_cast<Sender&&>(sender),
-      coroutine_receiver{*this}))
+  explicit type(Sender&& sender)
+    : op_(connect(
+        static_cast<Sender&&>(sender),
+        coroutine_receiver{*this}))
   {}
 
-  ~sender_awaiter() {
+  ~type() {
     switch (state_) {
       case state::value: value_.destruct(); break;
       case state::error: ex_.destruct(); break;
@@ -147,12 +153,13 @@ private:
   };
   std::optional<continuation_info> info_;
 };
+} // namespace _coroutine
 
 template<
   typename Sender,
   typename Result = single_value_result_t<std::remove_reference_t<Sender>>>
 auto operator co_await(Sender&& sender) {
-  return sender_awaiter<Sender, Result>{(Sender&&)sender};
+  return _coroutine::sender_awaiter<Sender, Result>{(Sender&&)sender};
 }
 
 template<
@@ -162,7 +169,7 @@ template<
         is_empty_list, is_empty_list>::value,
       int> = 0>
 auto operator co_await(Sender&& sender) {
-  return sender_awaiter<Sender, void>{(Sender&&)sender};
+  return _coroutine::sender_awaiter<Sender, void>{(Sender&&)sender};
 }
 
 }
