@@ -41,20 +41,37 @@ enum class blocking_kind {
   always_inline
 };
 
-inline constexpr struct blocking_cpo {
-  template <typename Sender>
-  friend constexpr blocking_kind tag_invoke(
-      blocking_cpo,
-      const Sender&) noexcept {
-    return blocking_kind::maybe;
-  }
-
+namespace _blocking {
+inline constexpr struct _fn {
+ private:
+  template <bool>
+  struct _impl {
+    template <typename Sender>
+    constexpr blocking_kind operator()(const Sender&) noexcept {
+      return blocking_kind::maybe;
+    }
+  };
+ public:
   template <typename Sender>
   constexpr auto operator()(const Sender& s) const
-      noexcept(noexcept(tag_invoke(*this, s)))
-          -> decltype(tag_invoke(*this, s)) {
-    return tag_invoke(*this, s);
+      noexcept(std::is_nothrow_invocable_v<
+          _impl<is_tag_invocable_v<_fn, const Sender&>>, const Sender&>)
+      -> std::invoke_result_t<
+          _impl<is_tag_invocable_v<_fn, const Sender&>>, const Sender&> {
+    return _impl<is_tag_invocable_v<_fn, const Sender&>>{}(s);
   }
-} blocking;
+} blocking{};
+
+template <>
+struct _fn::_impl<true> {
+  template <typename Sender>
+  constexpr auto operator()(const Sender& s)
+      noexcept(is_nothrow_tag_invocable_v<_fn, const Sender&>)
+      -> tag_invoke_result_t<_fn, const Sender&> {
+    return tag_invoke(_fn{}, s);
+  }
+};
+} // namespace _blocking
+using _blocking::blocking;
 
 } // namespace unifex

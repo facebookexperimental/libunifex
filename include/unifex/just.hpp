@@ -25,12 +25,45 @@
 #include <utility>
 
 namespace unifex {
+namespace _just {
+
+template <typename Receiver, typename... Values>
+struct _op {
+  struct type;
+};
+template <typename Receiver, typename... Values>
+using operation = typename _op<std::remove_cvref_t<Receiver>, Values...>::type;
+
+template <typename Receiver, typename... Values>
+struct _op<Receiver, Values...>::type {
+  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+  void start() & noexcept {
+    try {
+      std::apply(
+          [&](Values&&... values) {
+            unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+          },
+          std::move(values_));
+    } catch (...) {
+      unifex::set_error((Receiver &&) receiver_, std::current_exception());
+    }
+  }
+};
 
 template <typename... Values>
-class just_sender {
+struct _sender {
+  class type;
+};
+template <typename... Values>
+using sender = typename _sender<std::decay_t<Values>...>::type;
+
+template <typename... Values>
+class _sender<Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
 
- public:
+  public:
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
@@ -40,44 +73,47 @@ class just_sender {
   using error_types = Variant<std::exception_ptr>;
 
   template <typename... Values2>
-  explicit just_sender(Values2&&... values) noexcept(
-      noexcept((std::is_nothrow_constructible_v<Values, Values2> && ...)))
-      : values_((Values2 &&) values...) {}
+  explicit type(Values2&&... values)
+    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
+    : values_((Values2 &&) values...) {}
 
- private:
   template <typename Receiver>
-  struct operation {
-    UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-
-    void start() noexcept {
-      try {
-        std::apply(
-            [&](Values&&... values) {
-              unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
-            },
-            std::move(values_));
-      } catch (...) {
-        unifex::set_error((Receiver &&) receiver_, std::current_exception());
-      }
-    }
-  };
-
- public:
-  template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
+  auto connect(Receiver&& r) &&
+    noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
+    -> operation<Receiver, Values...> {
     return {std::move(values_), (Receiver &&) r};
   }
 
-  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const just_sender&) noexcept {
+  template <typename Receiver>
+  auto connect(Receiver&& r) &
+    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>)
+    -> operation<Receiver, Values...> {
+    return {values_, (Receiver &&) r};
+  }
+
+  template <typename Receiver>
+  auto connect(Receiver&& r) const &
+    noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
+    -> operation<Receiver, Values...> {
+    return {values_, (Receiver &&) r};
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {
     return blocking_kind::always_inline;
   }
 };
+} // namespace _just
 
-template <typename... Values>
-just_sender<std::decay_t<Values>...> just(Values&&... values) noexcept(
-    (std::is_nothrow_constructible_v<std::decay_t<Values>, Values> && ...)) {
-  return just_sender<std::decay_t<Values>...>{(Values &&) values...};
-}
+namespace _just_cpo {
+  inline constexpr struct just_fn {
+    template<typename... Values>
+    constexpr auto operator()(Values&&... values) const
+      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
+      -> _just::sender<std::decay_t<Values>...> {
+      return _just::sender<Values...>{(Values&&)values...};
+    }
+  } just{};
+} // namespace _just_cpo
+using _just_cpo::just;
 
 } // namespace unifex

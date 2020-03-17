@@ -30,24 +30,25 @@
 #include <utility>
 
 namespace unifex {
+class thread_unsafe_event_loop;
 
-class thread_unsafe_event_loop {
- public:
+namespace _thread_unsafe_event_loop {
   using clock_t = std::chrono::steady_clock;
   using time_point_t = clock_t::time_point;
 
- private:
+  class cancel_callback;
+
   class operation_base {
+    friend cancel_callback;
    protected:
-    operation_base(thread_unsafe_event_loop& loop) noexcept : loop_(loop) {}
+    operation_base(thread_unsafe_event_loop& loop) noexcept
+      : loop_(loop) {}
 
     operation_base(const operation_base&) = delete;
     operation_base(operation_base&&) = delete;
 
    public:
-    void start() noexcept {
-      loop_.enqueue(this);
-    }
+    void start() noexcept;
 
    private:
     friend thread_unsafe_event_loop;
@@ -64,7 +65,8 @@ class thread_unsafe_event_loop {
 
   class cancel_callback {
    public:
-    explicit cancel_callback(operation_base& op) noexcept : op_(&op) {}
+    explicit cancel_callback(operation_base& op) noexcept
+      : op_(&op) {}
 
     void operator()() noexcept;
 
@@ -72,150 +74,171 @@ class thread_unsafe_event_loop {
     operation_base* const op_;
   };
 
- public:
+  class scheduler;
+
+  template <typename Duration>
+  struct _schedule_after_sender {
+    class type;
+  };
+  template <typename Duration>
+  using schedule_after_sender = typename _schedule_after_sender<Duration>::type;
+
+  template <typename Duration, typename Receiver>
+  struct _after_op {
+    class type;
+  };
+  template <typename Duration, typename Receiver>
+  using after_operation = typename _after_op<Duration, std::remove_cvref_t<Receiver>>::type;
+
+  template <typename Duration, typename Receiver>
+  class _after_op<Duration, Receiver>::type final : public operation_base {
+    friend schedule_after_sender<Duration>;
+   public:
+    void start() noexcept {
+      this->dueTime_ = clock_t::now() + duration_;
+      callback_.construct(
+          get_stop_token(receiver_), cancel_callback{*this});
+      operation_base::start();
+    }
+
+   private:
+    template <typename Receiver2>
+    explicit type(
+        Receiver2&& r,
+        Duration d,
+        thread_unsafe_event_loop& loop)
+        : operation_base(loop)
+        , receiver_((Receiver2 &&) r)
+        , duration_(d) {}
+
+    void execute() noexcept override {
+      callback_.destruct();
+      if constexpr (is_stop_never_possible_v<
+                        stop_token_type_t<Receiver&>>) {
+        unifex::set_value(std::move(receiver_));
+      } else {
+        if (get_stop_token(receiver_).stop_requested()) {
+          unifex::set_done(std::move(receiver_));
+        } else {
+          unifex::set_value(std::move(receiver_));
+        }
+      }
+    }
+
+    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+    UNIFEX_NO_UNIQUE_ADDRESS Duration duration_;
+    UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
+        Receiver&>::template callback_type<cancel_callback>>
+        callback_;
+  };
+
+  template <typename Duration>
+  class _schedule_after_sender<Duration>::type {
+    using schedule_after_sender = type;
+   public:
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template <template <typename...> class Variant>
+    using error_types = Variant<>;
+
+    template <typename Receiver>
+    after_operation<Duration, std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
+      return after_operation<Duration, std::remove_cvref_t<Receiver>>{
+          (Receiver &&) r, duration_, loop_};
+    }
+   private:
+    friend scheduler;
+
+    explicit type(
+        thread_unsafe_event_loop& loop,
+        Duration duration) noexcept
+        : loop_(loop), duration_(duration) {}
+
+    thread_unsafe_event_loop& loop_;
+    Duration duration_;
+  };
+
+  struct schedule_at_sender;
+
+  template <typename Receiver>
+  struct _at_op {
+    class type;
+  };
+  template <typename Receiver>
+  using at_operation = typename _at_op<std::remove_cvref_t<Receiver>>::type;
+
+  template <typename Receiver>
+  class _at_op<Receiver>::type final : public operation_base {
+   public:
+    void start() noexcept {
+      callback_.construct(
+          get_stop_token(receiver_), cancel_callback{*this});
+      operation_base::start();
+    }
+
+   private:
+    friend schedule_at_sender;
+
+    template <typename Receiver2>
+    explicit type(
+        Receiver2&& r,
+        time_point_t tp,
+        thread_unsafe_event_loop& loop)
+        : operation_base(loop), receiver_((Receiver2 &&) r) {
+      this->dueTime_ = tp;
+    }
+
+    void execute() noexcept override {
+      callback_.destruct();
+      if constexpr (is_stop_never_possible_v<
+                        stop_token_type_t<Receiver&>>) {
+        unifex::set_value(std::move(receiver_));
+      } else {
+        if (get_stop_token(receiver_).stop_requested()) {
+          unifex::set_done(std::move(receiver_));
+        } else {
+          unifex::set_value(std::move(receiver_));
+        }
+      }
+    }
+
+    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+    UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
+        Receiver&>::template callback_type<cancel_callback>>
+        callback_;
+  };
+
+  struct schedule_at_sender {
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template <template <typename...> class Variant>
+    using error_types = Variant<>;
+
+    template <typename Receiver>
+    at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
+      return at_operation<std::remove_cvref_t<Receiver>>{
+          (Receiver &&) r, dueTime_, loop_};
+    }
+
+   private:
+    friend scheduler;
+
+    explicit schedule_at_sender(
+        thread_unsafe_event_loop& loop,
+        time_point_t dueTime)
+        : loop_(loop), dueTime_(dueTime) {}
+
+    thread_unsafe_event_loop& loop_;
+    time_point_t dueTime_;
+  };
+
   class scheduler {
-    template <typename Duration>
-    class schedule_after_sender {
-     public:
-      template <
-          template <typename...> class Variant,
-          template <typename...> class Tuple>
-      using value_types = Variant<Tuple<>>;
-
-      template <template <typename...> class Variant>
-      using error_types = Variant<>;
-
-     private:
-      template <typename Receiver>
-      class operation final : public operation_base {
-       public:
-        void start() noexcept {
-          this->dueTime_ = clock_t::now() + duration_;
-          callback_.construct(
-              get_stop_token(receiver_), cancel_callback{*this});
-          operation_base::start();
-        }
-
-       private:
-        friend schedule_after_sender;
-
-        template <typename Receiver2>
-        explicit operation(
-            Receiver2&& r,
-            Duration d,
-            thread_unsafe_event_loop& loop)
-            : operation_base(loop), receiver_((Receiver2 &&) r), duration_(d) {}
-
-        void execute() noexcept override {
-          callback_.destruct();
-          if constexpr (is_stop_never_possible_v<
-                            stop_token_type_t<Receiver&>>) {
-            unifex::set_value(std::move(receiver_));
-          } else {
-            if (get_stop_token(receiver_).stop_requested()) {
-              unifex::set_done(std::move(receiver_));
-            } else {
-              unifex::set_value(std::move(receiver_));
-            }
-          }
-        }
-
-        UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-        UNIFEX_NO_UNIQUE_ADDRESS Duration duration_;
-        UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
-            Receiver&>::template callback_type<cancel_callback>>
-            callback_;
-      };
-
-     public:
-      template <typename Receiver>
-      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
-        return operation<std::remove_cvref_t<Receiver>>{
-            (Receiver &&) r, duration_, loop_};
-      }
-
-     private:
-      friend scheduler;
-
-      explicit schedule_after_sender(
-          thread_unsafe_event_loop& loop,
-          Duration duration) noexcept
-          : loop_(loop), duration_(duration) {}
-
-      thread_unsafe_event_loop& loop_;
-      Duration duration_;
-    };
-
-    struct schedule_at_sender {
-      template <
-          template <typename...> class Variant,
-          template <typename...> class Tuple>
-      using value_types = Variant<Tuple<>>;
-
-      template <template <typename...> class Variant>
-      using error_types = Variant<>;
-
-     private:
-      template <typename Receiver>
-      class operation final : public operation_base {
-       public:
-        void start() noexcept {
-          callback_.construct(
-              get_stop_token(receiver_), cancel_callback{*this});
-          operation_base::start();
-        }
-
-       private:
-        friend schedule_at_sender;
-
-        template <typename Receiver2>
-        explicit operation(
-            Receiver2&& r,
-            time_point_t tp,
-            thread_unsafe_event_loop& loop)
-            : operation_base(loop), receiver_((Receiver2 &&) r) {
-          this->dueTime_ = tp;
-        }
-
-        void execute() noexcept override {
-          callback_.destruct();
-          if constexpr (is_stop_never_possible_v<
-                            stop_token_type_t<Receiver&>>) {
-            unifex::set_value(std::move(receiver_));
-          } else {
-            if (get_stop_token(receiver_).stop_requested()) {
-              unifex::set_done(std::move(receiver_));
-            } else {
-              unifex::set_value(std::move(receiver_));
-            }
-          }
-        }
-
-        UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-        UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
-            Receiver&>::template callback_type<cancel_callback>>
-            callback_;
-      };
-
-     public:
-      template <typename Receiver>
-      operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
-        return operation<std::remove_cvref_t<Receiver>>{
-            (Receiver &&) r, dueTime_, loop_};
-      }
-
-     private:
-      friend scheduler;
-
-      explicit schedule_at_sender(
-          thread_unsafe_event_loop& loop,
-          time_point_t dueTime)
-          : loop_(loop), dueTime_(dueTime) {}
-
-      thread_unsafe_event_loop& loop_;
-      time_point_t dueTime_;
-    };
-
    public:
     auto schedule_at(time_point_t dueTime) const noexcept {
       return schedule_at_sender{loop_, dueTime};
@@ -233,26 +256,28 @@ class thread_unsafe_event_loop {
    private:
     friend thread_unsafe_event_loop;
 
-    explicit scheduler(thread_unsafe_event_loop& loop) noexcept : loop_(loop) {}
+    explicit scheduler(thread_unsafe_event_loop& loop) noexcept
+      : loop_(loop) {}
 
     thread_unsafe_event_loop& loop_;
   };
 
-  scheduler get_scheduler() noexcept {
-    return scheduler{*this};
-  }
-
- private:
-  void enqueue(operation_base* op) noexcept;
+  template <typename T, typename StopToken>
+  struct _sync_wait_promise {
+    class type;
+  };
+  template <typename T, typename StopToken>
+  using sync_wait_promise = typename _sync_wait_promise<T, StopToken>::type;
 
   template <typename T, typename StopToken>
-  class sync_wait_promise {
+  class _sync_wait_promise<T, StopToken>::type {
+    using sync_wait_promise = type;
     enum class state { incomplete, done, value, error };
 
     class receiver {
      public:
       template <typename... Values>
-          void set_value(Values&&... values) && noexcept {
+      void set_value(Values&&... values) && noexcept {
         try {
           promise_.value_.construct((Values &&) values...);
           promise_.state_ = state::value;
@@ -285,16 +310,16 @@ class thread_unsafe_event_loop {
       }
 
       explicit receiver(sync_wait_promise& promise) noexcept
-          : promise_(promise) {}
+        : promise_(promise) {}
 
       sync_wait_promise& promise_;
     };
 
    public:
-    explicit sync_wait_promise(StopToken&& stopToken) noexcept
-        : stopToken_((StopToken &&) stopToken) {}
+    explicit type(StopToken&& stopToken) noexcept
+      : stopToken_((StopToken &&) stopToken) {}
 
-    ~sync_wait_promise() {
+    ~type() {
       if (state_ == state::value) {
         value_.destruct();
       } else if (state_ == state::error) {
@@ -329,14 +354,34 @@ class thread_unsafe_event_loop {
     state state_ = state::incomplete;
     StopToken stopToken_;
   };
+} // namespace _thread_unsafe_event_loop
 
+class thread_unsafe_event_loop {
+  using operation_base = _thread_unsafe_event_loop::operation_base;
+  using scheduler = _thread_unsafe_event_loop::scheduler;
+  using cancel_callback = _thread_unsafe_event_loop::cancel_callback;
+
+  friend operation_base;
+  friend cancel_callback;
+
+  void enqueue(operation_base* op) noexcept;
+  void run_until_empty() noexcept;
+
+  operation_base* head_ = nullptr;
  public:
+  using clock_t = _thread_unsafe_event_loop::clock_t;
+  using time_point_t = _thread_unsafe_event_loop::time_point_t;
+
+  scheduler get_scheduler() noexcept {
+    return scheduler{*this};
+  }
+
   template <
       typename Sender,
       typename StopToken = unstoppable_token,
       typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
   std::optional<Result> sync_wait(Sender&& sender, StopToken st = {}) {
-    using promise_t = sync_wait_promise<Result, StopToken&&>;
+    using promise_t = _thread_unsafe_event_loop::sync_wait_promise<Result, StopToken&&>;
     promise_t promise{(StopToken &&) st};
 
     auto op = connect((Sender &&) sender, promise.get_receiver());
@@ -346,11 +391,12 @@ class thread_unsafe_event_loop {
 
     return std::move(promise).get();
   }
-
- private:
-  void run_until_empty() noexcept;
-
-  operation_base* head_ = nullptr;
 };
+
+namespace _thread_unsafe_event_loop {
+  inline void operation_base::start() noexcept {
+    loop_.enqueue(this);
+  }
+}
 
 } // namespace unifex

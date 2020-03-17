@@ -29,7 +29,7 @@ struct overloaded_cpo : CPO {
 
 template <typename CPO>
 struct base_cpo {
-    using type = CPO;
+  using type = CPO;
 };
 
 template <typename CPO, typename Sig>

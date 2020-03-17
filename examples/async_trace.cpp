@@ -95,12 +95,12 @@ int main() {
                 return time;
               }),
 #if !UNIFEX_NO_COROUTINES
-          awaitable_sender {
+          awaitable_sender(
             []() -> task<int> {
               co_await dump_async_trace("coroutine");
               co_return 42;
             }()
-          }
+          )
 #else
           just(42)
 #endif // UNIFEX_NO_COROUTINES
@@ -111,6 +111,8 @@ int main() {
             << duration_cast<milliseconds>(std::get<0>(std::get<0>(a))).count()
             << ", "
             << duration_cast<milliseconds>(std::get<0>(std::get<0>(b))).count()
+            << ", "
+            << std::get<0>(std::get<0>(c))
             << "]\n";
       }));
 

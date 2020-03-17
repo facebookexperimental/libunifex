@@ -35,3 +35,54 @@
 
 #cmakedefine01 UNIFEX_NO_EPOLL
 #cmakedefine01 UNIFEX_NO_LIBURING
+
+// UNIFEX_DECLARE_NON_DEDUCED_TYPE(type)
+// UNIFEX_USE_NON_DEDUCED_TYPE(type)
+//
+// These macros work around a bug in MSVC that causes it to try to specialize
+// all found function templates for which it can successfully deduce template
+// arguments even if there are parameters that do not participate in template
+// parameter deduction for which there is no conversion possible from the argument.
+//
+// This is most likely related to the core issue CWG1391 [*] which MSVC has not
+// yet implemented as of VS 2019.4.
+//
+// These macros are intended to be used in template functions, typically tag_invoke()
+// overloads, as follows.
+//
+// Where you would normally write:
+//
+// class foo_sender {
+//    template<
+//      typename Receiver,
+//      std::enable_if_t<std::is_invocable_v<decltype(set_value), Receiver, foo>, int> = 0>
+//    friend auto tag_invoke(tag_t<connect>, foo_sender&& s, Receiver&& r) -> foo_operation<Receiver> {
+//      return ...;
+//    }
+// };
+//
+// You would instead write
+//
+// class foo_sender {
+//   template<
+//     typename Receiver,
+//     UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<connect>),
+//     UNIFEX_DECLARE_NON_DEDUCED_TYPE(S, foo_sender),
+//     std::enable_if_t<std::is_invocable_v<decltype(set_value), Receiver, foo>, int> = 0?
+//   friend auto tag_invoke(
+//        UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<connect>),
+//        UNIFEX_USE_NON_DEDUCED_TYPE(S, foo_sender)&& s,
+//        Receiver&& r) -> foo_operation<Receiver> {
+//      return ...;
+//    }
+// };
+
+#if defined(_MSC_VER)
+# define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
+  typename NAME, \
+  std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0
+ # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) NAME
+#else
+# define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
+# define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
+#endif

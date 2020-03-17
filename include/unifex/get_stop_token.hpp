@@ -21,24 +21,27 @@
 #include <unifex/unstoppable_token.hpp>
 
 namespace unifex {
-
-inline constexpr struct get_stop_token_cpo {
-  template <typename T>
-  auto operator()([[maybe_unused]] const T& value) const noexcept ->
-      typename std::conditional_t<
-          is_tag_invocable_v<get_stop_token_cpo, const T&>,
-          tag_invoke_result<get_stop_token_cpo, const T&>,
-          identity<unstoppable_token>>::type {
-    if constexpr (is_tag_invocable_v<get_stop_token_cpo, const T&>) {
-      static_assert(
-          is_nothrow_tag_invocable_v<get_stop_token_cpo, const T&>,
-          "get_stop_token() customisations must be declared noexcept");
-      return tag_invoke(get_stop_token_cpo{}, value);
-    } else {
+namespace _get_stop_token {
+  inline constexpr struct _fn {
+    template <typename T>
+    constexpr auto operator()(const T&) const noexcept
+        -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,
+                            unstoppable_token> {
       return unstoppable_token{};
     }
-  }
-} get_stop_token{};
+
+    template <typename T>
+    constexpr auto operator()(const T& object) const noexcept
+        -> tag_invoke_result_t<_fn, const T&> {
+      static_assert(
+          is_nothrow_tag_invocable_v<_fn, const T&>,
+          "get_stop_token() customisations must be declared noexcept");
+      return tag_invoke(_fn{}, object);
+    }
+  } get_stop_token{};
+} // namespace _get_stop_token
+
+using _get_stop_token::get_stop_token;
 
 template <typename T>
 using get_stop_token_result_t =

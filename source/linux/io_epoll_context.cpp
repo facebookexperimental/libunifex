@@ -267,7 +267,7 @@ void io_epoll_context::acquire_completion_queue_items() {
           read(remoteQueueEventFd_.get(), &buffer, sizeof(buffer));
       if (bytesRead < 0) {
         // read() failed
-        int errorCode = errno;
+        [[maybe_unused]] int errorCode = errno;
         LOGX("read on eventfd failed with %i\n", errorCode);
 
         std::terminate();
@@ -290,7 +290,7 @@ void io_epoll_context::acquire_completion_queue_items() {
           read(timerFd_.get(), &buffer, sizeof(buffer));
       if (bytesRead < 0) {
         // read() failed
-        int errorCode = errno;
+        [[maybe_unused]] int errorCode = errno;
         LOGX("read on timerfd failed with %i\n", errorCode);
 
         std::terminate();
@@ -333,7 +333,7 @@ void io_epoll_context::signal_remote_queue() {
   if (bytesWritten < 0) {
     // What to do here? Terminate/abort/ignore?
     // Try to dequeue the item before returning?
-    int errorCode = errno;
+    [[maybe_unused]] int errorCode = errno;
     LOGX("writing to remote queue eventfd failed with %i\n", errorCode);
 
     std::terminate();
@@ -432,7 +432,7 @@ bool io_epoll_context::try_submit_timer_io(const time_point& dueTime) noexcept {
   time.it_value.tv_nsec = dueTime.nanoseconds_part();
   int result = timerfd_settime(timerFd_.get(), TFD_TIMER_ABSTIME, &time, NULL);
   if (result < 0) {
-    int errorCode = errno;
+    [[maybe_unused]] int errorCode = errno;
     LOGX("timerfd_settime failed with %i\n", errorCode);
     return false;
   }

@@ -554,7 +554,7 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
             read(remoteQueueEventFd_.get(), &buffer, sizeof(buffer));
         if (bytesRead < 0) {
           // read() failed
-          int errorCode = errno;
+          [[maybe_unused]] int errorCode = errno;
           LOGX("read on eventfd failed with %i\n", errorCode);
 
           std::terminate();
@@ -806,7 +806,7 @@ io_uring_context::async_write_only_file tag_invoke(
     tag_t<open_file_write_only>,
     io_uring_context::scheduler scheduler,
     const filesystem::path& path) {
-  int result = ::open(path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC);
+  int result = ::open(path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
   if (result < 0) {
     int errorCode = errno;
     throw std::system_error{errorCode, std::system_category()};
@@ -819,7 +819,7 @@ io_uring_context::async_read_write_file tag_invoke(
     tag_t<open_file_read_write>,
     io_uring_context::scheduler scheduler,
     const filesystem::path& path) {
-  int result = ::open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC);
+  int result = ::open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
   if (result < 0) {
     int errorCode = errno;
     throw std::system_error{errorCode, std::system_category()};

@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -25,13 +26,21 @@
 
 namespace unifex
 {
-  namespace detail
+  namespace _mat
   {
     template <typename Receiver>
-    class materialize_receiver {
+    struct _receiver {
+      class type;
+    };
+    template <typename Receiver>
+    using receiver = typename _receiver<std::remove_cvref_t<Receiver>>::type;
+
+    template <typename Receiver>
+    class _receiver<Receiver>::type {
+      using receiver = type;
     public:
       template <typename Receiver2>
-      explicit materialize_receiver(Receiver2&& receiver) noexcept(
+      explicit type(Receiver2&& receiver) noexcept(
           std::is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
@@ -117,11 +126,15 @@ namespace unifex
 
       template <
           typename CPO,
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
           typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+          std::enable_if_t<
+            std::conjunction_v<
+              std::negation<is_receiver_cpo<CPO>>,
+              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const materialize_receiver& r,
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
@@ -132,10 +145,13 @@ namespace unifex
             std::as_const(r.receiver_), static_cast<Args&&>(args)...);
       }
 
-      template <typename Func>
+      template <
+          typename Func,
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver)>
       friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const materialize_receiver& r,
+          UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
           Func&& func) noexcept(std::
                                     is_nothrow_invocable_v<
                                         Func&,
@@ -148,12 +164,10 @@ namespace unifex
     };
 
     template <
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple,
+        template <typename...> class Variant,
+        template <typename...> class Tuple,
         typename... ValueTuples>
-    struct materialize_error_variant {
+    struct error_variant {
       template <typename... Errors>
       using apply = Variant<
           ValueTuples...,
@@ -163,110 +177,119 @@ namespace unifex
 
     template <
         typename Source,
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple>
-    struct materialize_value_types {
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
+    struct value_types {
       template <typename... Values>
       using value_tuple = Tuple<decltype(set_value), Values...>;
 
       template <typename... ValueTuples>
       using value_variant = typename Source::template error_types<
-          materialize_error_variant<Variant, Tuple, ValueTuples...>::
+          error_variant<Variant, Tuple, ValueTuples...>::
               template apply>;
 
       using type =
           typename Source::template value_types<value_variant, value_tuple>;
     };
-  }  // namespace detail
 
-  template <typename Source>
-  class materialize_sender {
-  public:
-    template <
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple>
-    using value_types =
-        typename detail::materialize_value_types<Source, Variant, Tuple>::type;
+    template <typename Source>
+    struct _sender {
+      class type;
+    };
+    template <typename Source>
+    using sender = typename _sender<std::remove_cvref_t<Source>>::type;
 
-    template <template <typename...> class Variant>
-    using error_types = Variant<std::exception_ptr>;
+    template <typename Source>
+    class _sender<Source>::type {
+      using sender = type;
+    public:
+      template <
+          template <typename...>
+          class Variant,
+          template <typename...>
+          class Tuple>
+      using value_types =
+          typename value_types<Source, Variant, Tuple>::type;
 
-    template <
-        typename Source2,
-        std::enable_if_t<std::is_constructible_v<Source, Source2>, int> = 0>
-    explicit materialize_sender(Source2&& source) noexcept(
-        std::is_nothrow_constructible_v<Source, Source2>)
-      : source_(static_cast<Source2&&>(source)) {}
+      template <template <typename...> class Variant>
+      using error_types = Variant<std::exception_ptr>;
 
-    template <typename Receiver>
-    friend auto
-    tag_invoke(tag_t<unifex::connect>, materialize_sender&& s, Receiver&& r) noexcept(
-        is_nothrow_connectable_v<
-            Source,
-            detail::materialize_receiver<std::decay_t<Receiver>>>&&
-            std::is_nothrow_constructible_v<
-                detail::materialize_receiver<std::decay_t<Receiver>>,
-                Receiver>)
-        -> operation_t<
-            Source,
-            detail::materialize_receiver<std::decay_t<Receiver>>> {
-      return unifex::connect(
-          static_cast<Source&&>(s.source_),
-          detail::materialize_receiver<std::decay_t<Receiver>>{
-              static_cast<Receiver&&>(r)});
-    }
+      template <
+          typename Source2,
+          std::enable_if_t<std::is_constructible_v<Source, Source2>, int> = 0>
+      explicit type(Source2&& source) noexcept(
+          std::is_nothrow_constructible_v<Source, Source2>)
+        : source_(static_cast<Source2&&>(source)) {}
 
-    template <typename Receiver>
-    friend auto
-    tag_invoke(tag_t<unifex::connect>, materialize_sender& s, Receiver&& r)
-        -> operation_t<
-            Source&,
-            detail::materialize_receiver<std::decay_t<Receiver>>> {
-      return unifex::connect(
-          s.source_,
-          detail::materialize_receiver<std::decay_t<Receiver>>{
-              static_cast<Receiver&&>(r)});
-    }
+      template <typename Receiver>
+      auto connect(Receiver&& r) && noexcept(
+          is_nothrow_connectable_v<Source, receiver<Receiver>> &&
+              std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
+          -> operation_t<Source, receiver<Receiver>> {
+        return unifex::connect(
+            static_cast<Source&&>(source_),
+            receiver<Receiver>{static_cast<Receiver&&>(r)});
+      }
 
-    template <typename Receiver>
-    friend auto tag_invoke(
-        tag_t<unifex::connect>, const materialize_sender& s, Receiver&& r)
-        -> operation_t<
-            const Source&,
-            detail::materialize_receiver<std::decay_t<Receiver>>> {
-      return unifex::connect(
-          std::as_const(s.source_),
-          detail::materialize_receiver<std::decay_t<Receiver>>{
-              static_cast<Receiver&&>(r)});
-    }
+      template <typename Receiver>
+      auto connect(Receiver&& r) &
+          noexcept(
+              is_nothrow_connectable_v<Source&, receiver<Receiver>>&&
+              std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
+          -> operation_t<Source&, receiver<Receiver>> {
+        return unifex::connect(
+            source_,
+            receiver<Receiver>{
+                static_cast<Receiver&&>(r)});
+      }
 
-  private:
-    Source source_;
-  };
+      template <typename Receiver>
+      auto connect(Receiver&& r) const &
+          noexcept(
+              is_nothrow_connectable_v<const Source&, receiver<Receiver>>&&
+              std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
+          -> operation_t<const Source&, receiver<Receiver>> {
+        return unifex::connect(
+            std::as_const(source_),
+            receiver<Receiver>{static_cast<Receiver&&>(r)});
+      }
 
-  inline constexpr struct materialize_cpo {
-    template <
-        typename Source,
-        std::enable_if_t<is_tag_invocable_v<materialize_cpo, Source>, int> = 0>
-    auto operator()(Source&& source) const
-        noexcept(is_nothrow_tag_invocable_v<materialize_cpo, Source>)
-            -> tag_invoke_result_t<materialize_cpo, Source> {
-      return tag_invoke(*this, static_cast<Source&&>(source));
-    }
+    private:
+      Source source_;
+    };
+  }  // namespace _mat
 
-    template <
-        typename Source,
-        std::enable_if_t<!is_tag_invocable_v<materialize_cpo, Source>, int> = 0>
-    auto operator()(Source&& source) const
-        noexcept(std::is_nothrow_constructible_v<
-                 materialize_sender<std::decay_t<Source>>,
-                 Source>) -> materialize_sender<std::decay_t<Source>> {
-      return materialize_sender<std::decay_t<Source>>{
-          static_cast<Source&&>(source)};
-    }
-  } materialize;
+  namespace _mat_cpo {
+    inline constexpr struct _fn {
+    private:
+      template<bool>
+      struct _impl {
+        template <typename Source>
+        auto operator()(Source&& source) const
+            noexcept(is_nothrow_tag_invocable_v<_fn, Source>) {
+          return unifex::tag_invoke(_fn{}, (Source&&) source);
+        }
+      };
+    public:
+      template <typename Source>
+      auto operator()(Source&& source) const
+          noexcept(std::is_nothrow_invocable_v<
+            _impl<is_tag_invocable_v<_fn, Source>>, Source>) {
+        return _impl<is_tag_invocable_v<_fn, Source>>{}((Source&&) source);
+      }
+    } materialize{};
+
+    template<>
+    struct _fn::_impl<false> {
+      template <typename Source>
+      auto operator()(Source&& source) const
+          noexcept(std::is_nothrow_constructible_v<_mat::sender<Source>, Source>)
+          -> _mat::sender<Source> {
+        return _mat::sender<Source>{(Source&&) source};
+      }
+    };
+  } // namespace _mat_cpo
+
+  using _mat_cpo::materialize;
+
 }  // namespace unifex

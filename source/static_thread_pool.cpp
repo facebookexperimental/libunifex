@@ -15,12 +15,12 @@
  */
 #include <unifex/static_thread_pool.hpp>
 
-namespace unifex
-{
-  static_thread_pool::static_thread_pool()
-    : static_thread_pool(std::thread::hardware_concurrency()) {}
+namespace unifex {
+namespace _static_thread_pool {
+  context::context()
+    : context(std::thread::hardware_concurrency()) {}
 
-  static_thread_pool::static_thread_pool(std::uint32_t threadCount)
+  context::context(std::uint32_t threadCount)
     : threadCount_(threadCount)
     , threadStates_(threadCount)
     , nextThread_(0) {
@@ -38,18 +38,18 @@ namespace unifex
     }
   }
 
-  static_thread_pool::~static_thread_pool() {
+  context::~context() {
     request_stop();
     join();
   }
 
-  void static_thread_pool::request_stop() noexcept {
+  void context::request_stop() noexcept {
     for (auto& state : threadStates_) {
       state.request_stop();
     }
   }
 
-  void static_thread_pool::run(std::uint32_t index) noexcept {
+  void context::run(std::uint32_t index) noexcept {
     while (true) {
       task_base* task = nullptr;
       for (std::uint32_t i = 0; i < threadCount_; ++i) {
@@ -75,14 +75,14 @@ namespace unifex
     }
   }
 
-  void static_thread_pool::join() noexcept {
+  void context::join() noexcept {
     for (auto& t : threads_) {
       t.join();
     }
     threads_.clear();
   }
 
-  void static_thread_pool::enqueue(task_base* task) noexcept {
+  void context::enqueue(task_base* task) noexcept {
     const std::uint32_t threadCount = threads_.size();
     const std::uint32_t startIndex =
         nextThread_.fetch_add(1, std::memory_order_relaxed) % threadCount;
@@ -101,7 +101,7 @@ namespace unifex
     threadStates_[startIndex].push(task);
   }
 
-  static_thread_pool::task_base* static_thread_pool::thread_state::try_pop() {
+  task_base* context::thread_state::try_pop() {
     std::unique_lock lk{mut_, std::try_to_lock};
     if (!lk || queue_.empty()) {
       return nullptr;
@@ -109,7 +109,7 @@ namespace unifex
     return queue_.pop_front();
   }
 
-  static_thread_pool::task_base* static_thread_pool::thread_state::pop() {
+  task_base* context::thread_state::pop() {
     std::unique_lock lk{mut_};
     while (queue_.empty()) {
       if (stopRequested_) {
@@ -120,7 +120,7 @@ namespace unifex
     return queue_.pop_front();
   }
 
-  bool static_thread_pool::thread_state::try_push(task_base* task) {
+  bool context::thread_state::try_push(task_base* task) {
     std::unique_lock lk{mut_, std::try_to_lock};
     if (!lk) {
       return false;
@@ -133,7 +133,7 @@ namespace unifex
     return true;
   }
 
-  void static_thread_pool::thread_state::push(task_base* task) {
+  void context::thread_state::push(task_base* task) {
     std::lock_guard lk{mut_};
     const bool wasEmpty = queue_.empty();
     queue_.push_back(task);
@@ -142,10 +142,11 @@ namespace unifex
     }
   }
 
-  void static_thread_pool::thread_state::request_stop() {
+  void context::thread_state::request_stop() {
     std::lock_guard lk{mut_};
     stopRequested_ = true;
     cv_.notify_one();
   }
 
-}  // namespace unifex
+} // namespace _static_thread_pool
+} // namespace unifex

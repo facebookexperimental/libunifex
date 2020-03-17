@@ -98,7 +98,7 @@ void timed_single_thread_context::run() {
   }
 }
 
-void timed_single_thread_context::cancel_callback::operator()() noexcept {
+void _timed_single_thread_context::cancel_callback::operator()() noexcept {
   std::unique_lock lock{task_->context_->mutex_};
   auto now = clock_t::now();
   if (now < task_->dueTime_) {

@@ -27,8 +27,49 @@
 #include <type_traits>
 
 namespace unifex {
+namespace _never {
 
-struct never_sender {
+template <typename Receiver>
+struct _op {
+  struct type;
+};
+template <typename Receiver>
+using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+
+template <typename Receiver>
+struct _op<Receiver>::type {
+  struct cancel_callback {
+    type& op_;
+    void operator()() noexcept {
+      op_.stopCallback_.destruct();
+      unifex::set_done(static_cast<Receiver&&>(op_.receiver_));
+    }
+  };
+
+  using stop_token_type = stop_token_type_t<Receiver&>;
+
+  static_assert(
+      !is_stop_never_possible_v<stop_token_type>,
+      "never should not be used with a stop-token "
+      "type that can never be stopped.");
+
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  manual_lifetime<
+      typename stop_token_type::
+          template callback_type<cancel_callback>>
+    stopCallback_;
+
+  template <typename Receiver2>
+  type(Receiver2&& receiver) : receiver_((Receiver2 &&) receiver) {}
+
+  void start() noexcept {
+    assert(get_stop_token(receiver_).stop_possible());
+    stopCallback_.construct(
+        get_stop_token(receiver_), cancel_callback{*this});
+  }
+};
+
+struct sender {
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
@@ -38,51 +79,21 @@ struct never_sender {
   using error_types = Variant<>;
 
   template <typename Receiver>
-  struct operation {
-    struct cancel_callback {
-      operation& op_;
-      void operator()() noexcept {
-        op_.stopCallback_.destruct();
-        unifex::set_done(static_cast<Receiver&&>(op_.receiver_));
-      }
-    };
-
-    using stop_token_type = stop_token_type_t<Receiver&>;
-
-    static_assert(
-        !is_stop_never_possible_v<stop_token_type>,
-        "never should not be used with a stop-token "
-        "type that can never be stopped.");
-
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-    manual_lifetime<
-        typename stop_token_type::
-        template callback_type<cancel_callback>>
-      stopCallback_;
-
-    template <typename Receiver2>
-    operation(Receiver2&& receiver) : receiver_((Receiver2 &&) receiver) {}
-
-    void start() noexcept {
-      assert(get_stop_token(receiver_).stop_possible());
-      stopCallback_.construct(
-          get_stop_token(receiver_), cancel_callback{*this});
-    }
-  };
-
-  template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-    return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver};
+  operation<Receiver> connect(Receiver&& receiver) {
+    return operation<Receiver>{(Receiver &&) receiver};
   }
 };
 
-struct never_stream {
-  friend constexpr never_sender tag_invoke(tag_t<next>, never_stream&) noexcept {
+struct stream {
+  friend constexpr sender tag_invoke(tag_t<next>, stream&) noexcept {
     return {};
   }
-  friend constexpr ready_done_sender tag_invoke(tag_t<cleanup>, never_stream&) noexcept {
+  friend constexpr ready_done_sender tag_invoke(tag_t<cleanup>, stream&) noexcept {
     return {};
   }
 };
+} // namespace _never
 
+using never_sender = _never::sender;
+using never_stream = _never::stream;
 } // namespace unifex

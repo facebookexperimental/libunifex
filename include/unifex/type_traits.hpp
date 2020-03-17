@@ -31,7 +31,7 @@ struct single_type {};
 
 template<typename T>
 struct single_type<T> {
-    using type = T;
+  using type = T;
 };
 
 template<typename... Ts>

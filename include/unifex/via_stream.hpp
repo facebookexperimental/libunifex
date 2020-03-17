@@ -21,17 +21,21 @@
 #include <unifex/via.hpp>
 
 namespace unifex {
+namespace _via_stream_cpo {
+  struct _fn {
+    template <typename StreamSender, typename Scheduler>
+    auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
+      return adapt_stream(
+          (StreamSender &&) stream,
+          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+            return via(schedule(s), (decltype(sender))sender);
+          },
+          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+            return typed_via((decltype(sender))sender, s);
+          });
+    }
+  };
+} // namespace _via_stream_cpo
 
-template <typename StreamSender, typename Scheduler>
-auto via_stream(Scheduler&& scheduler, StreamSender&& stream) {
-  return adapt_stream(
-      (StreamSender &&) stream,
-      [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return via(schedule(s), (decltype(sender))sender);
-      },
-      [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-        return typed_via((decltype(sender))sender, s);
-      });
-}
-
+inline constexpr _via_stream_cpo::_fn via_stream {};
 } // namespace unifex

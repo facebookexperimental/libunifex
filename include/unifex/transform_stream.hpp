@@ -21,13 +21,17 @@
 #include <functional>
 
 namespace unifex {
+namespace _tfx_stream {
+  struct _fn {
+    template <typename StreamSender, typename Func>
+    auto operator()(StreamSender&& stream, Func&& func) const {
+      return next_adapt_stream(
+          (StreamSender &&) stream, [func = (Func &&) func](auto&& sender) mutable {
+            return transform((decltype(sender))sender, std::ref(func));
+          });
+    }
+  };
+} // namespace _tfx_stream
 
-template <typename StreamSender, typename Func>
-auto transform_stream(StreamSender&& stream, Func&& func) {
-  return next_adapt_stream(
-      (StreamSender &&) stream, [func = (Func &&) func](auto&& sender) mutable {
-        return transform((decltype(sender))sender, std::ref(func));
-      });
-}
-
+inline constexpr _tfx_stream::_fn transform_stream {};
 } // namespace unifex

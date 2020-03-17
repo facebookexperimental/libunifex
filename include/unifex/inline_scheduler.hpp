@@ -26,55 +26,64 @@
 #include <type_traits>
 
 namespace unifex {
+namespace _inline_sched {
+  template <typename Receiver>
+  struct _op {
+    struct type;
+  };
+  template <typename Receiver>
+  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
-struct inline_scheduler {
-  struct schedule_task {
-    template <
-        template <typename...> class Variant,
-        template <typename...> class Tuple>
-    using value_types = Variant<Tuple<>>;
+  template <typename Receiver>
+  struct _op<Receiver>::type final {
+    using stop_token_type = stop_token_type_t<Receiver&>;
 
-    template <template <typename...> class Variant>
-    using error_types = Variant<>;
+    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    friend constexpr blocking_kind tag_invoke(
-        tag_t<blocking>,
-        const schedule_task&) noexcept {
-      return blocking_kind::always_inline;
-    }
+    template <typename Receiver2>
+    explicit type(Receiver2&& r)
+      : receiver_((Receiver2 &&) r) {}
 
-    template <typename Receiver>
-    struct operation {
-      using stop_token_type = stop_token_type_t<Receiver&>;
-
-      UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-
-      template <typename Receiver2>
-      explicit operation(Receiver2&& r)
-          : receiver_((Receiver2 &&) r) {}
-
-      void start() noexcept {
-        if constexpr (is_stop_never_possible_v<stop_token_type>) {
-          unifex::set_value((Receiver &&) receiver_);
+    void start() noexcept {
+      if constexpr (is_stop_never_possible_v<stop_token_type>) {
+        unifex::set_value((Receiver &&) receiver_);
+      } else {
+        if (get_stop_token(receiver_).stop_requested()) {
+          unifex::set_done((Receiver &&) receiver_);
         } else {
-          if (get_stop_token(receiver_).stop_requested()) {
-            unifex::set_done((Receiver &&) receiver_);
-          } else {
-            unifex::set_value((Receiver &&) receiver_);
-          }
+          unifex::set_value((Receiver &&) receiver_);
         }
       }
-    };
-
-    template <typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-      return operation<std::remove_cvref_t<Receiver>>{(Receiver &&) receiver};
     }
   };
 
-  constexpr schedule_task schedule() const noexcept {
-    return {};
-  }
-};
+  struct scheduler {
+    struct schedule_task {
+      template <
+          template <typename...> class Variant,
+          template <typename...> class Tuple>
+      using value_types = Variant<Tuple<>>;
 
+      template <template <typename...> class Variant>
+      using error_types = Variant<>;
+
+      friend constexpr blocking_kind tag_invoke(
+          tag_t<blocking>,
+          const schedule_task&) noexcept {
+        return blocking_kind::always_inline;
+      }
+
+      template <typename Receiver>
+      operation<Receiver> connect(Receiver&& receiver) {
+        return operation<Receiver>{(Receiver &&) receiver};
+      }
+    };
+
+    constexpr schedule_task schedule() const noexcept {
+      return {};
+    }
+  };
+} // namespace _inline_sched
+
+using inline_scheduler = _inline_sched::scheduler;
 } // namespace unifex

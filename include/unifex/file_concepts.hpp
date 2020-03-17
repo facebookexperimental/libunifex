@@ -20,7 +20,7 @@
 #include <unifex/filesystem.hpp>
 
 namespace unifex {
-
+namespace _filesystem {
 inline constexpr struct async_read_some_at_cpo {
   template <typename AsyncFile, typename BufferSequence>
   auto operator()(
@@ -40,7 +40,7 @@ inline constexpr struct async_read_some_at_cpo {
     return unifex::tag_invoke(
         *this, file, offset, (BufferSequence &&) bufferSequence);
   }
-} async_read_some_at;
+} async_read_some_at{};
 
 inline constexpr struct async_write_some_at_cpo {
   template <typename AsyncFile, typename BufferSequence>
@@ -61,7 +61,7 @@ inline constexpr struct async_write_some_at_cpo {
     return unifex::tag_invoke(
         *this, file, offset, (BufferSequence &&) bufferSequence);
   }
-} async_write_some_at;
+} async_write_some_at{};
 
 inline constexpr struct open_file_read_only_cpo {
   template <typename Executor>
@@ -76,7 +76,7 @@ inline constexpr struct open_file_read_only_cpo {
               const filesystem::path&> {
     return unifex::tag_invoke(*this, (Executor &&) executor, path);
   }
-} open_file_read_only;
+} open_file_read_only{};
 
 inline constexpr struct open_file_write_only_cpo {
   template <typename Executor>
@@ -91,7 +91,7 @@ inline constexpr struct open_file_write_only_cpo {
               const filesystem::path&> {
     return unifex::tag_invoke(*this, (Executor &&) executor, path);
   }
-} open_file_write_only;
+} open_file_write_only{};
 
 inline constexpr struct open_file_read_write_cpo {
   template <typename Executor>
@@ -106,6 +106,12 @@ inline constexpr struct open_file_read_write_cpo {
               const filesystem::path&> {
     return unifex::tag_invoke(*this, (Executor &&) executor, path);
   }
-} open_file_read_write;
+} open_file_read_write{};
+} // namespace _filesystem
 
+using _filesystem::async_read_some_at;
+using _filesystem::async_write_some_at;
+using _filesystem::open_file_read_only;
+using _filesystem::open_file_write_only;
+using _filesystem::open_file_read_write;
 } // namespace unifex

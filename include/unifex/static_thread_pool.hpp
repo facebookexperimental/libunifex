@@ -29,82 +29,59 @@
 #include <mutex>
 #include <condition_variable>
 
-namespace unifex
-{
-  class static_thread_pool {
-    struct task_base {
-      task_base* next;
-      void (*execute)(task_base*) noexcept;
-    };
+namespace unifex {
+namespace _static_thread_pool {
+  struct task_base {
+    task_base* next;
+    void (*execute)(task_base*) noexcept;
+  };
 
+  template <typename Receiver>
+  struct _op {
+    class type;
+  };
+  template <typename Receiver>
+  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+
+  class context {
+    template <typename Receiver>
+    friend struct _op;
   public:
-    static_thread_pool();
-    static_thread_pool(std::uint32_t threadCount);
-    ~static_thread_pool();
+    context();
+    context(std::uint32_t threadCount);
+    ~context();
 
     class scheduler {
+      template <typename Receiver>
+      friend struct _op;
       class schedule_sender {
       public:
         template <
-            template <typename...>
-            class Variant,
-            template <typename...>
-            class Tuple>
+            template <typename...> class Variant,
+            template <typename...> class Tuple>
         using value_types = Variant<Tuple<>>;
 
         template <template <typename...> class Variant>
         using error_types = Variant<>;
 
       private:
-        template <typename Receiver>
-        class operation : task_base {
-          friend schedule_sender;
-
-          static_thread_pool& pool_;
-          Receiver receiver_;
-
-          explicit operation(static_thread_pool& pool, Receiver&& r)
-            : pool_(pool)
-            , receiver_((Receiver &&) r) {
-            this->execute = [](task_base* t) noexcept {
-              auto& op = *static_cast<operation*>(t);
-              if constexpr (!is_stop_never_possible_v<
-                                stop_token_type_t<Receiver>>) {
-                if (get_stop_token(op.receiver_).stop_requested()) {
-                  unifex::set_done((Receiver &&) op.receiver_);
-                  return;
-                }
-              }
-              unifex::set_value((Receiver &&) op.receiver_);
-            };
-          }
-
-          void enqueue_(task_base* op) const {
-            pool_.enqueue(op);
-          }
-
-          friend void tag_invoke(tag_t<start>, operation& op) noexcept {
-            op.enqueue_(&op);
-          }
-        };
-
         template<typename Receiver>
-        operation<std::decay_t<Receiver>> make_operation_(Receiver&& r) const {
-          return operation<std::decay_t<Receiver>>{pool_, (Receiver &&) r};
+        operation<Receiver> make_operation_(Receiver&& r) const {
+          return operation<Receiver>{pool_, (Receiver &&) r};
         }
 
         template <typename Receiver>
-        friend operation<std::decay_t<Receiver>>
+        friend operation<Receiver>
         tag_invoke(tag_t<connect>, schedule_sender s, Receiver&& r) {
           return s.make_operation_((Receiver &&) r);
         }
 
-        friend class static_thread_pool::scheduler;
+        friend class context::scheduler;
 
-        explicit schedule_sender(static_thread_pool& pool) noexcept
+        explicit schedule_sender(context& pool) noexcept
           : pool_(pool) {}
 
-        static_thread_pool& pool_;
+        context& pool_;
       };
 
       schedule_sender make_sender_() const {
@@ -116,10 +93,10 @@ namespace unifex
         return s.make_sender_();
       }
 
-      friend class static_thread_pool;
-      explicit scheduler(static_thread_pool& pool) noexcept : pool_(pool) {}
+      friend class context;
+      explicit scheduler(context& pool) noexcept : pool_(pool) {}
 
-      static_thread_pool& pool_;
+      context& pool_;
     };
 
     scheduler get_scheduler() noexcept { return scheduler{*this}; }
@@ -152,5 +129,41 @@ namespace unifex
     std::vector<thread_state> threadStates_;
     std::atomic<std::uint32_t> nextThread_;
   };
+
+  template <typename Receiver>
+  class _op<Receiver>::type : task_base {
+    friend context::scheduler::schedule_sender;
+
+    context& pool_;
+    Receiver receiver_;
+
+    explicit type(context& pool, Receiver&& r)
+      : pool_(pool)
+      , receiver_((Receiver &&) r) {
+      this->execute = [](task_base* t) noexcept {
+        auto& op = *static_cast<type*>(t);
+        if constexpr (!is_stop_never_possible_v<
+                          stop_token_type_t<Receiver>>) {
+          if (get_stop_token(op.receiver_).stop_requested()) {
+            unifex::set_done((Receiver &&) op.receiver_);
+            return;
+          }
+        }
+        unifex::set_value((Receiver &&) op.receiver_);
+      };
+    }
+
+    void enqueue_(task_base* op) const {
+      pool_.enqueue(op);
+    }
+
+    friend void tag_invoke(tag_t<start>, type& op) noexcept {
+      op.enqueue_(&op);
+    }
+  };
+
+} // _static_thread_pool
+
+using static_thread_pool = _static_thread_pool::context;
 
 }  // namespace unifex

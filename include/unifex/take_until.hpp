@@ -31,11 +31,21 @@
 #include <cassert>
 
 namespace unifex {
+namespace _take_until {
+template<typename SourceStream, typename TriggerStream>
+struct _stream {
+  struct type;
+};
+template<typename SourceStream, typename TriggerStream>
+using stream =
+    typename _stream<
+        std::remove_cvref_t<SourceStream>,
+        std::remove_cvref_t<TriggerStream>>::type;
 
 template<typename SourceStream, typename TriggerStream>
-struct take_until_stream {
+struct _stream<SourceStream, TriggerStream>::type {
  private:
-
+  using take_until_stream = type;
   struct trigger_next_receiver {
     take_until_stream& stream_;
 
@@ -91,88 +101,92 @@ struct take_until_stream {
       typename next_sender_t<SourceStream>::template error_types<Variant>;
 
     template<typename Receiver>
-    struct operation {
-      struct receiver_wrapper {
-        operation& op_;
+    struct _op {
+      struct type {
+        struct receiver_wrapper {
+          type& op_;
 
-        template<typename... Values>
-        void set_value(Values&&... values) && noexcept {
-          op_.stopCallback_.destruct();
-          unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
-        }
+          template<typename... Values>
+          void set_value(Values&&... values) && noexcept {
+            op_.stopCallback_.destruct();
+            unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
+          }
 
-        void set_done() && noexcept {
-          op_.stopCallback_.destruct();
-          op_.stream_.stopSource_.request_stop();
-          unifex::set_done(std::move(op_.receiver_));
-        }
+          void set_done() && noexcept {
+            op_.stopCallback_.destruct();
+            op_.stream_.stopSource_.request_stop();
+            unifex::set_done(std::move(op_.receiver_));
+          }
 
-        template<typename Error>
-        void set_error(Error&& error) && noexcept {
-          op_.stopCallback_.destruct();
-          op_.stream_.stopSource_.request_stop();
-          unifex::set_error(std::move(op_.receiver_), (Error&&)error);
-        }
+          template<typename Error>
+          void set_error(Error&& error) && noexcept {
+            op_.stopCallback_.destruct();
+            op_.stream_.stopSource_.request_stop();
+            unifex::set_error(std::move(op_.receiver_), (Error&&)error);
+          }
 
-        inplace_stop_source& get_stop_source() const {
-          return op_.stream_.stopSource_;
-        }
+          inplace_stop_source& get_stop_source() const {
+            return op_.stream_.stopSource_;
+          }
 
-        friend inplace_stop_token tag_invoke(
-            tag_t<get_stop_token>, const receiver_wrapper& r) noexcept {
-          return r.get_stop_source().get_token();
-        }
+          friend inplace_stop_token tag_invoke(
+              tag_t<get_stop_token>, const receiver_wrapper& r) noexcept {
+            return r.get_stop_source().get_token();
+          }
 
-        template <typename Func>
-        friend void tag_invoke(
-            tag_t<visit_continuations>,
-            const receiver_wrapper& r,
-            Func&& func) {
-          std::invoke(func, r.op_.receiver_);
+          template <typename Func>
+          friend void tag_invoke(
+              tag_t<visit_continuations>,
+              const receiver_wrapper& r,
+              Func&& func) {
+            std::invoke(func, r.op_.receiver_);
+          }
+        };
+
+        take_until_stream& stream_;
+        Receiver receiver_;
+        manual_lifetime<typename stop_token_type_t<Receiver&>::
+                        template callback_type<cancel_callback>>
+          stopCallback_;
+        next_operation_t<SourceStream, receiver_wrapper> innerOp_;
+
+        template<typename Receiver2>
+        explicit type(take_until_stream& stream, Receiver2&& receiver)
+          : stream_(stream)
+          , receiver_((Receiver2&&)receiver)
+          , innerOp_(unifex::connect(
+                next(stream.source_),
+                receiver_wrapper{*this}))
+        {}
+
+        void start() noexcept {
+          if (!stream_.triggerNextStarted_) {
+            stream_.triggerNextStarted_ = true;
+            try {
+              stream_.triggerNextOp_.construct_from([&] {
+                return unifex::connect(
+                  next(stream_.trigger_),
+                  trigger_next_receiver{stream_});
+              });
+              unifex::start(stream_.triggerNextOp_.get());
+            } catch (...) {
+              stream_.trigger_next_done();
+            }
+          }
+
+          stopCallback_.construct(
+            get_stop_token(receiver_),
+            cancel_callback{stream_.stopSource_});
+          unifex::start(innerOp_);
         }
       };
-
-      take_until_stream& stream_;
-      Receiver receiver_;
-      manual_lifetime<typename stop_token_type_t<Receiver&>::
-                      template callback_type<cancel_callback>>
-        stopCallback_;
-      next_operation_t<SourceStream, receiver_wrapper> innerOp_;
-
-      template<typename Receiver2>
-      explicit operation(take_until_stream& stream, Receiver2&& receiver)
-      : stream_(stream)
-      , receiver_((Receiver2&&)receiver)
-      , innerOp_(unifex::connect(
-          next(stream.source_),
-          receiver_wrapper{*this}))
-      {}
-
-      void start() noexcept {
-        if (!stream_.triggerNextStarted_) {
-          stream_.triggerNextStarted_ = true;
-          try {
-            stream_.triggerNextOp_.construct_from([&] {
-              return unifex::connect(
-                next(stream_.trigger_),
-                trigger_next_receiver{stream_});
-            });
-            unifex::start(stream_.triggerNextOp_.get());
-          } catch (...) {
-            stream_.trigger_next_done();
-          }
-        }
-
-        stopCallback_.construct(
-          get_stop_token(receiver_),
-          cancel_callback{stream_.stopSource_});
-        unifex::start(innerOp_);
-      }
     };
+    template<typename Receiver>
+    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
     template<typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) && {
-      return operation<std::remove_cvref_t<Receiver>>{
+    operation<Receiver> connect(Receiver&& receiver) && {
+      return operation<Receiver>{
         stream_,
         (Receiver&&)receiver};
     }
@@ -192,200 +206,202 @@ struct take_until_stream {
       typename cleanup_sender_t<SourceStream>::template error_types<Variant>;
 
     template<typename Receiver>
-    struct operation final : cleanup_operation_base {
-      struct source_receiver {
-        operation& op_;
+    struct _op {
+      struct type final : cleanup_operation_base {
+        struct source_receiver {
+          type& op_;
 
-        void set_done() && noexcept {
-          auto& op = op_;
-          op.sourceOp_.destruct();
-          op.source_cleanup_done();
+          void set_done() && noexcept {
+            auto& op = op_;
+            op.sourceOp_.destruct();
+            op.source_cleanup_done();
+          }
+
+          template<typename Error>
+          void set_error(Error&& error) && noexcept {
+            std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+          }
+
+          void set_error(std::exception_ptr error) && noexcept {
+            auto& op = op_;
+            op.sourceOp_.destruct();
+            op.source_cleanup_error(std::move(error));
+          }
+
+          template <typename Func>
+          friend void tag_invoke(
+              tag_t<visit_continuations>,
+              const source_receiver& r,
+              Func&& func) {
+            std::invoke(func, r.op_.receiver_);
+          }
+        };
+
+        struct trigger_receiver {
+          type& op_;
+
+          void set_done() && noexcept {
+            auto& op = op_;
+            op.sourceOp_.destruct();
+            op.trigger_cleanup_done();
+          }
+
+          template<typename Error>
+          void set_error(Error&& error) && noexcept {
+            std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+          }
+
+          void set_error(std::exception_ptr error) && noexcept {
+            auto& op = op_;
+            op.triggerOp_.destruct();
+            op.trigger_cleanup_error(std::move(error));
+          }
+
+          template <typename Func>
+          friend void tag_invoke(
+              tag_t<visit_continuations>,
+              const trigger_receiver& r,
+              Func&& func) {
+            std::invoke(func, r.op_.receiver_);
+          }
+        };
+
+        take_until_stream& stream_;
+        std::atomic<bool> cleanupCompleted_ = false;
+        std::exception_ptr sourceError_;
+        std::exception_ptr triggerError_;
+        UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+        manual_lifetime<cleanup_operation_t<SourceStream, source_receiver>>
+          sourceOp_;
+        manual_lifetime<cleanup_operation_t<TriggerStream, trigger_receiver>>
+          triggerOp_;
+
+        template<typename Receiver2>
+        explicit type(take_until_stream& stream, Receiver2&& receiver)
+          : stream_(stream)
+          , receiver_((Receiver2&&)receiver)
+        {}
+
+        void start() noexcept {
+          try {
+            sourceOp_.construct_from([&] {
+              return unifex::connect(
+                cleanup(stream_.source_),
+                source_receiver{*this});
+            });
+            unifex::start(sourceOp_.get());
+          } catch (...) {
+            source_cleanup_error(std::current_exception());
+          }
+
+          if (!stream_.cleanupReady_.load(std::memory_order_acquire)) {
+            stream_.cleanupOperation_ = this;
+            stream_.stopSource_.request_stop();
+            if (!stream_.cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
+              // The trigger cleanup is not yet ready to run.
+              // The trigger_next_receiver will start this when it completes.
+              return;
+            }
+          }
+
+          // Otherwise, the trigger cleanup is ready to start.
+          start_trigger_cleanup();
         }
 
-        template<typename Error>
-        void set_error(Error&& error) && noexcept {
-          std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+        void start_trigger_cleanup() noexcept final {
+          try {
+            triggerOp_.construct_from([&] {
+              return unifex::connect(
+                cleanup(stream_.trigger_),
+                trigger_receiver{*this});
+            });
+            unifex::start(triggerOp_.get());
+          } catch (...) {
+            trigger_cleanup_error(std::current_exception());
+            return;
+          }
         }
 
-        void set_error(std::exception_ptr error) && noexcept {
-          auto& op = op_;
-          op.sourceOp_.destruct();
-          op.source_cleanup_error(std::move(error));
+        void source_cleanup_done() noexcept {
+          if (!cleanupCompleted_.load(std::memory_order_acquire)) {
+            if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
+              // We were first to register completion of the cleanup op.
+              // Let the other operation call the final receiver.
+              return;
+            }
+          }
+
+          // The other operation finished first.
+          if (triggerError_) {
+            unifex::set_error(std::move(receiver_), std::move(triggerError_));
+          } else {
+            unifex::set_done(std::move(receiver_));
+          }
         }
 
-        template <typename Func>
-        friend void tag_invoke(
-            tag_t<visit_continuations>,
-            const source_receiver& r,
-            Func&& func) {
-          std::invoke(func, r.op_.receiver_);
+        void source_cleanup_error(std::exception_ptr ex) noexcept {
+          sourceError_ = std::move(ex);
+
+          if (!cleanupCompleted_.load(std::memory_order_acquire)) {
+            if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
+              // trigger cleanup not yet finished.
+              // let the trigger_receiver call the final receiver.
+              return;
+            }
+          }
+
+          // Trigger cleanup finished first
+          // Prefer to propagate the source cleanup error over the trigger
+          // cleanup error if there was one.
+          unifex::set_error(std::move(receiver_), std::move(sourceError_));
+        }
+
+        void trigger_cleanup_done() noexcept {
+          if (!cleanupCompleted_.load(std::memory_order_acquire)) {
+            if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
+              // We were first to register completion of the cleanup op.
+              // Let the other operation call the final receiver.
+              return;
+            }
+          }
+
+          // The other operation finished first.
+          if (sourceError_) {
+            unifex::set_error(std::move(receiver_), std::move(sourceError_));
+          } else {
+            unifex::set_done(std::move(receiver_));
+          }
+        }
+
+        void trigger_cleanup_error(std::exception_ptr ex) noexcept {
+          triggerError_ = std::move(ex);
+
+          if (!cleanupCompleted_.load(std::memory_order_acquire)) {
+            if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
+              // source cleanup not yet finished.
+              // let the source_receiver call the final receiver.
+              return;
+            }
+          }
+
+          // Source cleanup finished first
+          // Prefer to propagate the source cleanup error over the trigger
+          // cleanup error if there was one.
+          if (sourceError_) {
+            unifex::set_error(std::move(receiver_), std::move(sourceError_));
+          } else {
+            unifex::set_error(std::move(receiver_), std::move(triggerError_));
+          }
         }
       };
-
-      struct trigger_receiver {
-        operation& op_;
-
-        void set_done() && noexcept {
-          auto& op = op_;
-          op.sourceOp_.destruct();
-          op.trigger_cleanup_done();
-        }
-
-        template<typename Error>
-        void set_error(Error&& error) && noexcept {
-          std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
-        }
-
-        void set_error(std::exception_ptr error) && noexcept {
-          auto& op = op_;
-          op.triggerOp_.destruct();
-          op.trigger_cleanup_error(std::move(error));
-        }
-
-        template <typename Func>
-        friend void tag_invoke(
-            tag_t<visit_continuations>,
-            const trigger_receiver& r,
-            Func&& func) {
-          std::invoke(func, r.op_.receiver_);
-        }
-      };
-
-      take_until_stream& stream_;
-      std::atomic<bool> cleanupCompleted_ = false;
-      std::exception_ptr sourceError_;
-      std::exception_ptr triggerError_;
-      UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-
-      manual_lifetime<cleanup_operation_t<SourceStream, source_receiver>>
-        sourceOp_;
-      manual_lifetime<cleanup_operation_t<TriggerStream, trigger_receiver>>
-        triggerOp_;
-
-      template<typename Receiver2>
-      explicit operation(take_until_stream& stream, Receiver2&& receiver)
-      : stream_(stream)
-      , receiver_((Receiver2&&)receiver)
-      {}
-
-      void start() noexcept {
-        try {
-          sourceOp_.construct_from([&] {
-            return unifex::connect(
-              cleanup(stream_.source_),
-              source_receiver{*this});
-          });
-          unifex::start(sourceOp_.get());
-        } catch (...) {
-          source_cleanup_error(std::current_exception());
-        }
-
-        if (!stream_.cleanupReady_.load(std::memory_order_acquire)) {
-          stream_.cleanupOperation_ = this;
-          stream_.stopSource_.request_stop();
-          if (!stream_.cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
-            // The trigger cleanup is not yet ready to run.
-            // The trigger_next_receiver will start this when it completes.
-            return;
-          }
-        }
-
-        // Otherwise, the trigger cleanup is ready to start.
-        start_trigger_cleanup();
-      }
-
-      void start_trigger_cleanup() noexcept final {
-        try {
-          triggerOp_.construct_from([&] {
-            return unifex::connect(
-              cleanup(stream_.trigger_),
-              trigger_receiver{*this});
-          });
-          unifex::start(triggerOp_.get());
-        } catch (...) {
-          trigger_cleanup_error(std::current_exception());
-          return;
-        }
-      }
-
-      void source_cleanup_done() noexcept {
-        if (!cleanupCompleted_.load(std::memory_order_acquire)) {
-          if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
-            // We were first to register completion of the cleanup op.
-            // Let the other operation call the final receiver.
-            return;
-          }
-        }
-
-        // The other operation finished first.
-        if (triggerError_) {
-          unifex::set_error(std::move(receiver_), std::move(triggerError_));
-        } else {
-          unifex::set_done(std::move(receiver_));
-        }
-      }
-
-      void source_cleanup_error(std::exception_ptr ex) noexcept {
-        sourceError_ = std::move(ex);
-
-        if (!cleanupCompleted_.load(std::memory_order_acquire)) {
-          if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
-            // trigger cleanup not yet finished.
-            // let the trigger_receiver call the final receiver.
-            return;
-          }
-        }
-
-        // Trigger cleanup finished first
-        // Prefer to propagate the source cleanup error over the trigger
-        // cleanup error if there was one.
-        unifex::set_error(std::move(receiver_), std::move(sourceError_));
-      }
-
-      void trigger_cleanup_done() noexcept {
-        if (!cleanupCompleted_.load(std::memory_order_acquire)) {
-          if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
-            // We were first to register completion of the cleanup op.
-            // Let the other operation call the final receiver.
-            return;
-          }
-        }
-
-        // The other operation finished first.
-        if (sourceError_) {
-          unifex::set_error(std::move(receiver_), std::move(sourceError_));
-        } else {
-          unifex::set_done(std::move(receiver_));
-        }
-      }
-
-      void trigger_cleanup_error(std::exception_ptr ex) noexcept {
-        triggerError_ = std::move(ex);
-
-        if (!cleanupCompleted_.load(std::memory_order_acquire)) {
-          if (!cleanupCompleted_.exchange(true, std::memory_order_acq_rel)) {
-            // source cleanup not yet finished.
-            // let the source_receiver call the final receiver.
-            return;
-          }
-        }
-
-        // Source cleanup finished first
-        // Prefer to propagate the source cleanup error over the trigger
-        // cleanup error if there was one.
-        if (sourceError_) {
-          unifex::set_error(std::move(receiver_), std::move(sourceError_));
-        } else {
-          unifex::set_error(std::move(receiver_), std::move(triggerError_));
-        }
-      }
     };
+    template<typename Receiver>
+    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
     template<typename Receiver>
-    operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-      return operation<std::remove_cvref_t<Receiver>>{
-        stream_,
-        (Receiver&&)receiver};
+    operation<Receiver> connect(Receiver&& receiver) {
+      return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
   };
 
@@ -421,12 +437,12 @@ struct take_until_stream {
 public:
 
   template<typename SourceStream2, typename TriggerStream2>
-  explicit take_until_stream(SourceStream2&& source, TriggerStream2&& trigger)
+  explicit type(SourceStream2&& source, TriggerStream2&& trigger)
   : source_((SourceStream2&&)source)
   , trigger_((TriggerStream2&&)trigger)
   {}
 
-  take_until_stream(take_until_stream&& other)
+  type(type&& other)
   : source_(std::move(other.source_))
   , trigger_(std::move(other.trigger_))
   {}
@@ -439,13 +455,19 @@ public:
     return {s};
   }
 };
+} // namespace _take_until
 
-template<typename SourceStream, typename TriggerStream>
-auto take_until(SourceStream&& source, TriggerStream&& trigger) {
-  return take_until_stream<std::remove_cvref_t<SourceStream>,
-                           std::remove_cvref_t<TriggerStream>>{
-    (SourceStream&&)source,
-    (TriggerStream&&)trigger};
-}
+namespace _take_until_cpo {
+  inline constexpr struct _fn {
+    template<typename SourceStream, typename TriggerStream>
+    auto operator()(SourceStream&& source, TriggerStream&& trigger) const {
+      return _take_until::stream<SourceStream, TriggerStream>{
+        (SourceStream&&)source,
+        (TriggerStream&&)trigger};
+    }
+  } take_until {};
+} // namespace _take_until_cpo
+
+using _take_until_cpo::take_until;
 
 } // namespace unifex

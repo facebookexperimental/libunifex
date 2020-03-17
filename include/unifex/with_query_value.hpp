@@ -21,77 +21,93 @@
 #include <unifex/tag_invoke.hpp>
 
 namespace unifex {
+namespace _with_query_value {
 
-namespace detail {
+template<typename CPO, typename Value, typename Receiver>
+struct _receiver_wrapper {
+  class type;
+};
+template<typename CPO, typename Value, typename Receiver>
+using receiver_wrapper = typename _receiver_wrapper<CPO, Value, Receiver>::type;
 
-template <typename CPO, typename Value, typename Sender, typename Receiver>
-class with_query_value_operation {
-  class receiver_wrapper {
-  public:
-    template <typename Receiver2>
-    explicit receiver_wrapper(Receiver2 &&receiver,
-                              with_query_value_operation *op)
-        : receiver_((Receiver2 &&) receiver), op_(op) {}
+template<typename CPO, typename Value, typename Receiver>
+class _receiver_wrapper<CPO, Value, Receiver>::type {
+ public:
+  template <typename Receiver2>
+  explicit type(Receiver2 &&receiver, const Value& val)
+    : receiver_((Receiver2 &&) receiver)
+    , val_(&val) {}
 
-  private:
-    Value& get_value() const { return op_->value_; }
+ private:
+  friend const Value &tag_invoke(CPO, const type &r) noexcept {
+    return *r.val_;
+  }
 
-    friend const Value &tag_invoke(CPO, const receiver_wrapper &r) noexcept {
-      return r.get_value();
-    }
+  template <typename OtherCPO, typename... Args>
+  friend auto tag_invoke(OtherCPO cpo, const type &r, Args &&... args)
+      noexcept(std::is_nothrow_invocable_v<OtherCPO, const Receiver &, Args...>)
+      -> std::invoke_result_t<OtherCPO, const Receiver &, Args...> {
+    return std::invoke(std::move(cpo), std::as_const(r.receiver_),
+                        (Args &&) args...);
+  }
 
-    template <typename OtherCPO, typename... Args>
-    friend auto tag_invoke(
-        OtherCPO cpo, const receiver_wrapper &r,
-        Args &&... args) noexcept(std::is_nothrow_invocable_v<OtherCPO,
-                                                              const Receiver &,
-                                                              Args...>)
-        -> std::invoke_result_t<OtherCPO, const Receiver &, Args...> {
-      return std::invoke(std::move(cpo), std::as_const(r.receiver_),
-                         (Args &&) args...);
-    }
+  template <typename OtherCPO, typename... Args>
+  friend auto tag_invoke(OtherCPO cpo, type &r, Args &&... args)
+      noexcept(std::is_nothrow_invocable_v<OtherCPO, Receiver &, Args...>)
+      -> std::invoke_result_t<OtherCPO, Receiver &, Args...> {
+    return std::invoke(std::move(cpo), r.receiver_, (Args &&) args...);
+  }
 
-    template <typename OtherCPO, typename... Args>
-    friend auto
-    tag_invoke(OtherCPO cpo, receiver_wrapper &r, Args &&... args) noexcept(
-        std::is_nothrow_invocable_v<OtherCPO, Receiver &, Args...>)
-        -> std::invoke_result_t<OtherCPO, Receiver &, Args...> {
-      return std::invoke(std::move(cpo), r.receiver_, (Args &&) args...);
-    }
+  template <typename OtherCPO, typename... Args>
+  friend auto tag_invoke(OtherCPO cpo, type &&r, Args &&... args)
+      noexcept(std::is_nothrow_invocable_v<OtherCPO, Receiver, Args...>)
+      -> std::invoke_result_t<OtherCPO, Receiver, Args...> {
+    return std::invoke(std::move(cpo), (Receiver &&) r.receiver_,
+                        (Args &&) args...);
+  }
 
-    template <typename OtherCPO, typename... Args>
-    friend auto
-    tag_invoke(OtherCPO cpo, receiver_wrapper &&r, Args &&... args) noexcept(
-        std::is_nothrow_invocable_v<OtherCPO, Receiver, Args...>)
-        -> std::invoke_result_t<OtherCPO, Receiver, Args...> {
-      return std::invoke(std::move(cpo), (Receiver &&) r.receiver_,
-                         (Args &&) args...);
-    }
-
-    Receiver receiver_;
-    with_query_value_operation *op_;
-  };
-
-public:
-  template <typename Receiver2, typename Value2>
-  explicit with_query_value_operation(Sender &&sender, Receiver2 &&receiver,
-                                      Value2 &&value)
-      : value_((Value2 &&) value),
-        innerOp_(
-            connect((Sender &&) sender,
-                         receiver_wrapper{(Receiver2 &&) receiver, this})) {}
-
-  void start() & noexcept { unifex::start(innerOp_); }
-
-private:
-  UNIFEX_NO_UNIQUE_ADDRESS Value value_;
-  /*UNIFEX_NO_UNIQUE_ADDRESS*/ operation_t<Sender, receiver_wrapper> innerOp_;
+  Receiver receiver_;
+  const Value* val_;
 };
 
-} // namespace detail
+template <typename CPO, typename Value, typename Sender, typename Receiver>
+struct _op {
+  class type;
+};
+template <typename CPO, typename Value, typename Sender, typename Receiver>
+using operation = typename _op<CPO, Value, Sender, std::remove_cvref_t<Receiver>>::type;
+
+template <typename CPO, typename Value, typename Sender, typename Receiver>
+class _op<CPO, Value, Sender, Receiver>::type {
+ public:
+  template <typename Receiver2, typename Value2>
+  explicit type(Sender &&sender, Receiver2 &&receiver, Value2 &&value)
+    : value_((Value2 &&) value)
+    , innerOp_(
+          connect((Sender &&) sender,
+                  receiver_wrapper<CPO, Value, Receiver>{
+                      (Receiver2 &&) receiver, value_})) {}
+
+  void start() & noexcept {
+    unifex::start(innerOp_);
+  }
+
+ private:
+  UNIFEX_NO_UNIQUE_ADDRESS Value value_;
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/
+  operation_t<Sender, receiver_wrapper<CPO, Value, Receiver>> innerOp_;
+};
 
 template <typename CPO, typename Value, typename Sender>
-class with_query_value_sender {
+struct _sender {
+  class type;
+};
+template <typename CPO, typename Value, typename Sender>
+using sender =
+    typename _sender<CPO, std::decay_t<Value>, std::remove_cvref_t<Sender>>::type;
+
+template <typename CPO, typename Value, typename Sender>
+class _sender<CPO, Value, Sender>::type {
 public:
   template <template <typename...> class Variant,
             template <typename...> class Tuple>
@@ -101,32 +117,24 @@ public:
   using error_types = typename Sender::template error_types<Variant>;
 
   template <typename Sender2, typename Value2>
-  explicit with_query_value_sender(Sender2 &&sender, Value2 &&value)
-      : sender_((Sender2 &&) sender), value_((Value &&) value) {}
+  explicit type(Sender2 &&sender, Value2 &&value)
+    : sender_((Sender2 &&) sender), value_((Value &&) value) {}
 
   template <typename Receiver>
-  detail::with_query_value_operation<CPO, Value, Sender, std::decay_t<Receiver>>
-  connect(Receiver &&receiver) && {
-    return detail::with_query_value_operation<CPO, Value, Sender,
-                                              std::decay_t<Receiver>>{
+  operation<CPO, Value, Sender, Receiver> connect(Receiver &&receiver) && {
+    return operation<CPO, Value, Sender, Receiver>{
         (Sender &&) sender_, (Receiver &&) receiver, (Value &&) value_};
   }
 
   template <typename Receiver>
-  detail::with_query_value_operation<CPO, Value, Sender &,
-                                     std::decay_t<Receiver>>
-  connect(Receiver &&receiver) & {
-    return detail::with_query_value_operation<CPO, Value, Sender &,
-                                              std::decay_t<Receiver>>{
+  operation<CPO, Value, Sender &, Receiver> connect(Receiver &&receiver) & {
+    return operation<CPO, Value, Sender &, Receiver>{
         sender_, (Receiver &&) receiver, value_};
   }
 
   template <typename Receiver>
-  detail::with_query_value_operation<CPO, Value, const Sender &,
-                                     std::decay_t<Receiver>>
-  connect(Receiver &&receiver) const & {
-    return detail::with_query_value_operation<CPO, Value, const Sender &,
-                                              std::decay_t<Receiver>>{
+  operation<CPO, Value, const Sender &, Receiver> connect(Receiver &&receiver) const & {
+    return operation<CPO, Value, const Sender &, Receiver>{
         sender_, (Receiver &&) receiver, value_};
   }
 
@@ -134,13 +142,22 @@ private:
   Sender sender_;
   Value value_;
 };
+} // namespace _with_query_value
 
-template <typename Sender, typename CPO, typename Value>
-with_query_value_sender<CPO, std::decay_t<Value>, std::decay_t<Sender>>
-with_query_value(Sender &&sender, CPO cpo, Value &&value) {
-  return with_query_value_sender<CPO, std::decay_t<Value>,
-                                 std::decay_t<Sender>>{(Sender &&) sender,
-                                                       (Value &&) value};
-}
+namespace _with_query_value_cpo {
+  inline constexpr struct _fn {
+    template <typename Sender, typename CPO, typename Value>
+    _with_query_value::sender<CPO, Value, Sender>
+    operator()(Sender &&sender, CPO, Value &&value) const {
+      static_assert(
+          std::is_empty_v<CPO>,
+          "with_query_value() does not support stateful CPOs");
+      return _with_query_value::sender<CPO, Value, Sender>{
+          (Sender &&) sender,
+          (Value &&) value};
+    }
+  } with_query_value {};
+} // namespace _with_query_value_cpo
+using _with_query_value_cpo::with_query_value;
 
 } // namespace unifex

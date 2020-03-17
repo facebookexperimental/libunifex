@@ -24,29 +24,30 @@
 
 namespace unifex
 {
-    namespace detail
-    {
-        struct default_execute_receiver {
-            void set_done() && noexcept {}
-            template<typename Error>
-            [[noreturn]] void set_error(Error&&) && noexcept {
-                std::terminate();
-            }
-            void set_value() && noexcept {}
-        };
-    }
+  namespace _execute
+  {
+    struct default_execute_receiver {
+      void set_done() && noexcept {}
+      template<typename Error>
+      [[noreturn]] void set_error(Error&&) && noexcept {
+        std::terminate();
+      }
+      void set_value() && noexcept {}
+    };
 
-    inline constexpr struct execute_cpo {
-        template<typename Scheduler, typename Func>
-        void operator()(Scheduler&& s, Func&& func) const {
-            if constexpr (is_tag_invocable_v<execute_cpo, Scheduler, Func>) {
-                unifex::tag_invoke(*this, (Scheduler&&)s, (Func&&)func);
-            } else {
-                // Default implementation.
-                return submit(
-                    transform(schedule((Scheduler&&)s), (Func&&)func),
-                    detail::default_execute_receiver{});
-            }
+    inline constexpr struct _fn {
+      template<typename Scheduler, typename Func>
+      void operator()(Scheduler&& s, Func&& func) const {
+        if constexpr (is_tag_invocable_v<_fn, Scheduler, Func>) {
+          unifex::tag_invoke(*this, (Scheduler&&)s, (Func&&)func);
+        } else {
+          // Default implementation.
+          return submit(
+            transform(schedule((Scheduler&&)s), (Func&&)func),
+            default_execute_receiver{});
         }
+      }
     } execute{};
-}
+  } // namespace _execute
+  using _execute::execute;
+} // namespace unifex

@@ -21,11 +21,15 @@
 
 namespace unifex {
 
-template <typename Scheduler, typename Predecessor, typename Func>
-auto then_execute(Scheduler&& s, Predecessor&& p, Func&& f) {
-  return transform(
-      typed_via((Predecessor &&) p, (Scheduler&&)s),
-      (Func &&) f);
-}
-
+namespace _then_execute_cpo {
+  struct _fn {
+    template <typename Scheduler, typename Predecessor, typename Func>
+    auto operator()(Scheduler&& s, Predecessor&& p, Func&& f) const {
+      return transform(
+          typed_via((Predecessor &&) p, (Scheduler&&)s),
+          (Func &&) f);
+    }
+  };
+} // namespace _then_execute_cpo
+inline constexpr _then_execute_cpo::_fn then_execute {};
 } // namespace unifex
