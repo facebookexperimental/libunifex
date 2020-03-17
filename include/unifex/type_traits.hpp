@@ -88,17 +88,13 @@ using callable_result_t =
              static_cast<As(*)() noexcept>(nullptr)()...));
 
 namespace detail {
-  template <typename Fn, typename... As>
-  inline constexpr bool _is_throw_callable_v =
-      noexcept(static_cast<Fn(*)() noexcept>(nullptr)()(
-               static_cast<As(*)() noexcept>(nullptr)()...));
-
   template <
       typename Fn,
       typename... As,
       typename = callable_result_t<Fn, As...>>
   std::true_type _try_call(Fn(*)(As...))
-      noexcept(_is_throw_callable_v<Fn, As...>);
+      noexcept(noexcept(static_cast<Fn(*)() noexcept>(nullptr)()(
+                        static_cast<As(*)() noexcept>(nullptr)()...)));
   std::false_type _try_call(...);
 } // namespace detail
 
