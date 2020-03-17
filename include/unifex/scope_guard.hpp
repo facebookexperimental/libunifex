@@ -16,7 +16,6 @@
 #pragma once
 
 #include <type_traits>
-#include <functional>
 
 namespace unifex {
 
@@ -29,8 +28,8 @@ struct scope_guard {
       : func_((Func &&) func) {}
 
   ~scope_guard() {
-    static_assert(noexcept(std::invoke((Func &&) func_)));
-    std::invoke((Func &&) func_);
+    static_assert(noexcept(((Func &&) func_)()));
+    ((Func &&) func_)();
   }
 };
 

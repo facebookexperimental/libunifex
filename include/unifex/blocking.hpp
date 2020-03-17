@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_traits.hpp>
 
 namespace unifex {
 
@@ -54,9 +55,9 @@ inline constexpr struct _fn {
  public:
   template <typename Sender>
   constexpr auto operator()(const Sender& s) const
-      noexcept(std::is_nothrow_invocable_v<
+      noexcept(is_nothrow_callable_v<
           _impl<is_tag_invocable_v<_fn, const Sender&>>, const Sender&>)
-      -> std::invoke_result_t<
+      -> callable_result_t<
           _impl<is_tag_invocable_v<_fn, const Sender&>>, const Sender&> {
     return _impl<is_tag_invocable_v<_fn, const Sender&>>{}(s);
   }

@@ -48,10 +48,10 @@ namespace _demat {
         typename CPO,
         typename... Values,
         std::enable_if_t<
-            is_receiver_cpo_v<CPO> && std::is_invocable_v<CPO, Receiver, Values...>,
+            is_receiver_cpo_v<CPO> && is_callable_v<CPO, Receiver, Values...>,
             int> = 0>
     void set_value(CPO cpo, Values&&... values) && noexcept(
-        std::is_nothrow_invocable_v<CPO, Receiver, Values...>) {
+        is_nothrow_callable_v<CPO, Receiver, Values...>) {
       static_cast<CPO&&>(cpo)(
           static_cast<Receiver&&>(receiver_),
           static_cast<Values&&>(values)...);
@@ -60,7 +60,7 @@ namespace _demat {
     template <
         typename Error,
         std::enable_if_t<
-            std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>,
+            is_callable_v<decltype(unifex::set_error), Receiver, Error>,
             int> = 0>
     void set_error(Error&& error) && noexcept {
       unifex::set_error(
@@ -71,7 +71,7 @@ namespace _demat {
         typename... DummyPack,
         std::enable_if_t<
             sizeof...(DummyPack) == 0 &&
-                std::is_invocable_v<decltype(unifex::set_done), Receiver>,
+                is_callable_v<decltype(unifex::set_done), Receiver>,
             int> = 0>
     void set_done(DummyPack...) && noexcept {
       unifex::set_done(static_cast<Receiver&&>(receiver_));
@@ -84,10 +84,10 @@ namespace _demat {
         std::enable_if_t<
           std::conjunction_v<
             std::negation<is_receiver_cpo<CPO>>,
-            std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+            is_callable<CPO, const Receiver&, Args...>>, int> = 0>
     friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r, Args&&... args)
-        noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-        -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+        noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+        -> callable_result_t<CPO, const Receiver&, Args...> {
       return static_cast<CPO&&>(cpo)(
           std::as_const(r.receiver_), static_cast<Args&&>(args)...);
     }
@@ -237,7 +237,7 @@ namespace _demat_cpo {
    public:
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
           _impl<is_tag_invocable_v<_fn, Sender>>, Sender>) {
       return _impl<is_tag_invocable_v<_fn, Sender>>{}((Sender&&) predecessor);
     }

@@ -56,9 +56,9 @@ namespace _subschedule {
   public:
     template <typename Scheduler>
     auto operator()(Scheduler&& sched) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler> {
       return _impl<is_tag_invocable_v<_fn, Scheduler>>{}(
           (Scheduler &&) sched);
@@ -70,7 +70,7 @@ namespace _subschedule {
     template <typename Scheduler>
     auto operator()(Scheduler&& sched) const
         -> decltype(transform(
-            std::declval<std::invoke_result_t<decltype(schedule), Scheduler&>>(),
+            std::declval<callable_result_t<decltype(schedule), Scheduler&>>(),
             std::declval<return_value<Scheduler>>())) {
     auto&& scheduleOp = schedule(sched);
     return transform(

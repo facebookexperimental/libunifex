@@ -47,14 +47,14 @@ namespace unifex
       template <
           typename... Values,
           std::enable_if_t<
-              std::is_invocable_v<
+              is_callable_v<
                   decltype(unifex::set_value),
                   Receiver,
                   decltype(unifex::set_value),
                   Values...>,
               int> = 0>
       void
-      set_value(Values&&... values) && noexcept(std::is_nothrow_invocable_v<
+      set_value(Values&&... values) && noexcept(is_nothrow_callable_v<
                                                 decltype(unifex::set_value),
                                                 Receiver,
                                                 decltype(unifex::set_value),
@@ -68,14 +68,14 @@ namespace unifex
       template <
           typename Error,
           std::enable_if_t<
-              std::is_invocable_v<
+              is_callable_v<
                   decltype(unifex::set_value),
                   Receiver,
                   decltype(unifex::set_error),
                   Error>,
               int> = 0>
       void set_error(Error&& error) && noexcept {
-        if constexpr (std::is_nothrow_invocable_v<
+        if constexpr (is_nothrow_callable_v<
                           decltype(unifex::set_value),
                           Receiver,
                           decltype(unifex::set_error),
@@ -101,13 +101,13 @@ namespace unifex
           typename... DummyPack,
           std::enable_if_t<
               sizeof...(DummyPack) == 0 &&
-                  std::is_invocable_v<
+                  is_callable_v<
                       decltype(unifex::set_value),
                       Receiver,
                       decltype(unifex::set_done)>,
               int> = 0>
       void set_done(DummyPack...) && noexcept {
-        if constexpr (std::is_nothrow_invocable_v<
+        if constexpr (is_nothrow_callable_v<
                           decltype(unifex::set_value),
                           Receiver,
                           decltype(unifex::set_done)>) {
@@ -131,16 +131,15 @@ namespace unifex
           std::enable_if_t<
             std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
-              std::is_invocable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
-          Args&&... args) noexcept(std::
-                                       is_nothrow_invocable_v<
+          Args&&... args) noexcept(is_nothrow_callable_v<
                                            CPO,
                                            const Receiver&,
                                            Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+          -> callable_result_t<CPO, const Receiver&, Args...> {
         return static_cast<CPO&&>(cpo)(
             std::as_const(r.receiver_), static_cast<Args&&>(args)...);
       }
@@ -152,8 +151,7 @@ namespace unifex
       friend void tag_invoke(
           UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
-          Func&& func) noexcept(std::
-                                    is_nothrow_invocable_v<
+          Func&& func) noexcept(std::is_nothrow_invocable_v<
                                         Func&,
                                         const Receiver&>) {
         std::invoke(func, std::as_const(r.receiver_));
@@ -273,7 +271,7 @@ namespace unifex
     public:
       template <typename Source>
       auto operator()(Source&& source) const
-          noexcept(std::is_nothrow_invocable_v<
+          noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Source>>, Source>) {
         return _impl<is_tag_invocable_v<_fn, Source>>{}((Source&&) source);
       }

@@ -96,7 +96,7 @@ public:
 
   template<
     typename R = Receiver,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), Receiver>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_done), Receiver>, int> = 0>
   void set_done() && noexcept {
     assert(op_ != nullptr);
 
@@ -107,7 +107,7 @@ public:
 
   template<
     typename Error,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
   void set_error(Error error) && noexcept {
     assert(op_ != nullptr);
 
@@ -124,8 +124,8 @@ private:
 
   template<typename CPO, typename... Args>
   friend auto tag_invoke(CPO cpo, const trigger_receiver& r, Args&&... args)
-      noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-      -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+      -> callable_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
   }
 
@@ -165,16 +165,16 @@ public:
 
   template<
     typename... Values,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
   void set_value(Values&&... values)
-      noexcept(std::is_nothrow_invocable_v<decltype(unifex::set_value), Receiver, Values...>) {
+      noexcept(is_nothrow_callable_v<decltype(unifex::set_value), Receiver, Values...>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   template<
     typename R = Receiver,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), R>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_done), R>, int> = 0>
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
@@ -215,8 +215,8 @@ public:
 private:
   template<typename CPO, typename... Args>
   friend auto tag_invoke(CPO cpo, const source_receiver& r, Args&&... args)
-      noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-      -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+      -> callable_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
   }
 
@@ -399,9 +399,9 @@ namespace _retry_when_cpo {
   public:
     template<typename Source, typename Func>
     auto operator()(Source&& source, Func&& func) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func> {
         return _impl<is_tag_invocable_v<_fn, Source, Func>>{}(
           (Source&&)source, (Func&&)func);

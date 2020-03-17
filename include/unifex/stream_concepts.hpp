@@ -34,9 +34,9 @@ namespace _streams {
   public:
     template <typename Stream>
     auto operator()(Stream& stream) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_next_fn, Stream&>>, Stream&>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_next_fn, Stream&>>, Stream&> {
       return _impl<is_tag_invocable_v<_next_fn, Stream&>>{}(stream);
     }
@@ -66,9 +66,9 @@ namespace _streams {
   public:
     template <typename Stream>
     auto operator()(Stream& stream) const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>, Stream&>)
-        -> std::invoke_result_t<
+        -> callable_result_t<
             _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>, Stream&> {
       return _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>{}(stream);
     }

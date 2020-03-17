@@ -63,7 +63,7 @@ struct sender_task {
           return false;
         }
         void await_suspend(coro::coroutine_handle<>) {
-          std::invoke((Func &&) func_);
+          ((Func &&) func_)();
         }
         [[noreturn]] void await_resume() noexcept {
           std::terminate();
@@ -127,8 +127,7 @@ struct _sender<Awaitable>::type {
 
   template <typename Receiver>
   detail::sender_task connect(Receiver&& receiver) && {
-    return std::invoke(
-        [](Awaitable awaitable,
+    return [](Awaitable awaitable,
            std::remove_cvref_t<Receiver> receiver) -> detail::sender_task {
           std::exception_ptr ex;
           try {
@@ -146,14 +145,12 @@ struct _sender<Awaitable>::type {
               // The 'co_yield' expression then invokes this lambda
               // after the coroutine is suspended so that it is safe
               // for the receiver to destroy the coroutine.
-              co_yield std::invoke(
-                  [&](result_type&& result) {
+              co_yield [&](result_type&& result) {
                     return [&] {
                       unifex::set_value(
                           std::move(receiver), (result_type &&) result);
                     };
-                  },
-                  co_await(Awaitable &&) awaitable);
+                  }(co_await (Awaitable &&) awaitable);
             }
           } catch (...) {
             ex = std::current_exception();
@@ -161,9 +158,7 @@ struct _sender<Awaitable>::type {
           co_yield[&] {
             unifex::set_error(std::move(receiver), std::move(ex));
           };
-        },
-        (Awaitable &&) awaitable_,
-        (Receiver &&) receiver);
+        }((Awaitable &&) awaitable_, (Receiver &&) receiver);
   }
 };
 } // namespace _await
