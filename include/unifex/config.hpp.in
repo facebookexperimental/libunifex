@@ -23,7 +23,7 @@
 #cmakedefine UNIFEX_MEMORY_RESOURCE_HEADER <@UNIFEX_MEMORY_RESOURCE_HEADER@>
 #cmakedefine UNIFEX_MEMORY_RESOURCE_NAMESPACE @UNIFEX_MEMORY_RESOURCE_NAMESPACE@
 
-#if __GNUG__ && !__clang__
+#if defined(__has_cpp_attribute) && __has_cpp_attribute(no_unique_address)
 #define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #else
 #define UNIFEX_NO_UNIQUE_ADDRESS
@@ -85,4 +85,18 @@
 #else
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
 # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
+#endif
+
+#include <type_traits>
+// GCC 8 does not support remove_cvref
+#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ < 9 && !defined(__cpp_lib_remove_cvref)
+namespace std
+{
+    template< class T >
+    struct remove_cvref {
+        typedef std::remove_cv_t<std::remove_reference_t<T>> type;
+    };
+    template <typename T>
+    using remove_cvref_t = typename remove_cvref<T>::type;
+}
 #endif
