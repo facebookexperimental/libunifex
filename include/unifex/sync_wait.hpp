@@ -188,7 +188,7 @@ namespace _sync_wait_cpo {
 
         auto operation = connect(
           (Sender&&)sender,
-          _sync_wait::thread_unsafe_receiver<Result, StopToken&&>{
+          _sync_wait::thread_unsafe_receiver<Result, StopToken>{
             promise, (StopToken&&)stopToken});
 
         start(operation);
@@ -212,7 +212,7 @@ namespace _sync_wait_cpo {
         // Store state for the operation on the stack.
         auto operation = connect(
             ((Sender &&) sender),
-            _sync_wait::receiver<Result, StopToken&&>{
+            _sync_wait::receiver<Result, StopToken>{
               promise, (StopToken&&)stopToken});
 
         start(operation);

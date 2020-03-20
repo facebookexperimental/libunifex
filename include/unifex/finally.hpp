@@ -590,16 +590,17 @@ namespace unifex
         manual_lifetime_union<std::exception_ptr, Errors...>;
 
     public:
-      template <typename CompletionSender2, typename Receiver2>
+      type() = default;
+      template <typename SourceSender2, typename CompletionSender2, typename Receiver2>
       explicit type(
-          SourceSender&& sourceSender,
+          SourceSender2&& sourceSender,
           CompletionSender2&& completionSender,
           Receiver2&& r)
         : completionSender_(static_cast<CompletionSender2&&>(completionSender))
         , receiver_(static_cast<Receiver2&&>(r)) {
         sourceOp_.construct_from([&] {
           return unifex::connect(
-              static_cast<SourceSender&&>(sourceSender),
+              static_cast<SourceSender2&&>(sourceSender),
               receiver<SourceSender, CompletionSender, Receiver>{this});
         });
       }
@@ -617,7 +618,7 @@ namespace unifex
       }
 
     private:
-      UNIFEX_NO_UNIQUE_ADDRESS CompletionSender completionSender_;
+      UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<CompletionSender> completionSender_;
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       bool started_ = false;
 
@@ -625,11 +626,11 @@ namespace unifex
       union {
         // Storage for error-types that might be produced by ValueSender.
         UNIFEX_NO_UNIQUE_ADDRESS
-        typename SourceSender::template error_types<error_result_union>
+        typename std::remove_cvref_t<SourceSender>::template error_types<error_result_union>
             error_;
 
         // Storage for value-types that might be produced by ValueSender.
-        UNIFEX_NO_UNIQUE_ADDRESS typename SourceSender::template value_types<
+        UNIFEX_NO_UNIQUE_ADDRESS typename std::remove_cvref_t<SourceSender>::template value_types<
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
             value_;
@@ -639,19 +640,19 @@ namespace unifex
       union {
         // Storage for the source operation state.
         manual_lifetime<operation_t<
-            SourceSender,
+            std::remove_cvref_t<SourceSender>,
             receiver<SourceSender, CompletionSender, Receiver>>>
             sourceOp_;
 
         // Storage for the completion operation for the case where
         // the source operation completed with a value.
-        typename SourceSender::
+        typename std::remove_cvref_t<SourceSender>::
             template value_types<manual_lifetime_union, value_operation>
                 completionValueOp_;
 
         // Storage for the completion operation for the case where the
         // source operation completed with an error.
-        typename SourceSender::template error_types<error_operation_union>
+        typename std::remove_cvref_t<SourceSender>::template error_types<error_operation_union>
             completionErrorOp_;
 
         // Storage for the completion operation for the case where the
@@ -700,10 +701,11 @@ namespace unifex
         : source_(static_cast<SourceSender2&&>(source))
         , completion_(static_cast<CompletionSender2&&>(completion)) {}
 
-      // TODO: Also constrain this method to check that the CompletionSender
+      // TODO: Also constrain these methods to check that the CompletionSender
       // is connectable to any of the instantiations of done/value/error_receiver
       // that could be created for each of the results that SourceSender might
       // complete with. For now we just check done_receiver as an approximation.
+
       template <
           typename Receiver,
           typename CPO,
@@ -711,20 +713,21 @@ namespace unifex
           std::enable_if_t<
               std::conjunction_v<
                 std::is_same<CPO, tag_t<connect>>,
-                std::is_same<S, sender>,
+                std::is_same<std::remove_cvref_t<S>, sender>,
                 is_connectable<
                   SourceSender,
                   receiver<
                       SourceSender,
                       CompletionSender,
-                      Receiver>>,
+                      std::remove_cvref_t<Receiver>>>,
                 is_connectable<
                   CompletionSender,
                   done_receiver<
                       SourceSender,
                       CompletionSender,
-                      Receiver>>>,
-              int> = 0>
+                      std::remove_cvref_t<Receiver>>>,
+                std::true_type>,
+              int(*)[__LINE__]> = nullptr>
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {
         return operation<SourceSender, CompletionSender, Receiver>{
@@ -732,7 +735,6 @@ namespace unifex
                 static_cast<CompletionSender&&>(s.completion_),
                 static_cast<Receiver&&>(r)};
       }
-
     private:
       SourceSender source_;
       CompletionSender completion_;

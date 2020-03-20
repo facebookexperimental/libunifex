@@ -134,7 +134,17 @@ namespace _timed_single_thread_context {
     using error_types = Variant<>;
 
     template <typename Receiver>
-    after_operation<Duration, Receiver> connect(Receiver&& receiver) {
+    after_operation<Duration, Receiver> connect(Receiver&& receiver) && {
+      return after_operation<Duration, Receiver>{
+          *context_, duration_, (Receiver &&) receiver};
+    }
+    template <typename Receiver>
+    after_operation<Duration, Receiver> connect(Receiver&& receiver) & {
+      return after_operation<Duration, Receiver>{
+          *context_, duration_, (Receiver &&) receiver};
+    }
+    template <typename Receiver>
+    after_operation<Duration, Receiver> connect(Receiver&& receiver) const & {
       return after_operation<Duration, Receiver>{
           *context_, duration_, (Receiver &&) receiver};
     }

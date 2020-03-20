@@ -149,6 +149,16 @@ namespace _thread_unsafe_event_loop {
       return after_operation<Duration, std::remove_cvref_t<Receiver>>{
           (Receiver &&) r, duration_, loop_};
     }
+    template <typename Receiver>
+    after_operation<Duration, std::remove_cvref_t<Receiver>> connect(Receiver&& r) & {
+      return after_operation<Duration, std::remove_cvref_t<Receiver>>{
+          (Receiver &&) r, duration_, loop_};
+    }
+    template <typename Receiver>
+    after_operation<Duration, std::remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
+      return after_operation<Duration, std::remove_cvref_t<Receiver>>{
+          (Receiver &&) r, duration_, loop_};
+    }
    private:
     friend scheduler;
 
@@ -222,6 +232,16 @@ namespace _thread_unsafe_event_loop {
 
     template <typename Receiver>
     at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
+      return at_operation<std::remove_cvref_t<Receiver>>{
+          (Receiver &&) r, dueTime_, loop_};
+    }
+    template <typename Receiver>
+    at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) & {
+      return at_operation<std::remove_cvref_t<Receiver>>{
+          (Receiver &&) r, dueTime_, loop_};
+    }
+    template <typename Receiver>
+    at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
       return at_operation<std::remove_cvref_t<Receiver>>{
           (Receiver &&) r, dueTime_, loop_};
     }
@@ -305,7 +325,7 @@ namespace _thread_unsafe_event_loop {
      private:
       friend sync_wait_promise;
 
-      StopToken& get_stop_token() const {
+      StopToken& get_stop_token() const noexcept {
         return promise_.stopToken_;
       }
 

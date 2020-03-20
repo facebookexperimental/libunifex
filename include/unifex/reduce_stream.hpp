@@ -227,7 +227,7 @@ struct _op {
 };
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
 using operation =
-    typename _op<StreamSender, State, ReducerFunc, std::remove_cvref_t<Receiver>>::type;
+    typename _op<std::remove_cvref_t<StreamSender>, std::remove_cvref_t<State>, std::remove_cvref_t<ReducerFunc>, std::remove_cvref_t<Receiver>>::type;
 
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
 struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
@@ -235,27 +235,28 @@ struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
   using state_type = State;
   using receiver_type = Receiver;
   UNIFEX_NO_UNIQUE_ADDRESS StreamSender stream_;
-  UNIFEX_NO_UNIQUE_ADDRESS State state_;
+  UNIFEX_NO_UNIQUE_ADDRESS state_type state_;
   UNIFEX_NO_UNIQUE_ADDRESS ReducerFunc reducer_;
-  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS receiver_type receiver_;
 
+  using next_op = manual_lifetime<next_operation_t<StreamSender, next_receiver<operation>>>;
+  using error_op = manual_lifetime<cleanup_operation_t<StreamSender, error_cleanup_receiver<operation>>>;
+  using done_op = manual_lifetime<cleanup_operation_t<StreamSender, done_cleanup_receiver<operation>>>;
   union {
-    manual_lifetime<next_operation_t<StreamSender, next_receiver<operation>>> next_;
-    manual_lifetime<cleanup_operation_t<StreamSender, error_cleanup_receiver<operation>>>
-        errorCleanup_;
-    manual_lifetime<cleanup_operation_t<StreamSender, done_cleanup_receiver<operation>>>
-        doneCleanup_;
+    next_op next_;
+    error_op errorCleanup_;
+    done_op doneCleanup_;
   };
 
-  template <typename Receiver2>
+  template <typename StreamSender2, typename State2, typename ReducerFunc2, typename Receiver2>
   explicit type(
-      StreamSender&& stream,
-      State&& state,
-      ReducerFunc&& reducer,
+      StreamSender2&& stream,
+      State2&& state,
+      ReducerFunc2&& reducer,
       Receiver2&& receiver)
-    : stream_(std::forward<StreamSender>(stream)),
-      state_(std::forward<State>(state)),
-      reducer_(std::forward<ReducerFunc>(reducer)),
+    : stream_(std::forward<StreamSender2>(stream)),
+      state_(std::forward<State2>(state)),
+      reducer_(std::forward<ReducerFunc2>(reducer)),
       receiver_(std::forward<Receiver2>(receiver)) {}
 
   ~type() {} // Due to the union member, this is load-bearing. DO NOT DELETE.
@@ -310,6 +311,24 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
         (StreamSender &&) stream_,
         (State &&) initialState_,
         (ReducerFunc &&) reducer_,
+        (Receiver &&) receiver};
+  }
+
+  template <typename Receiver>
+  operation<Receiver> connect(Receiver&& receiver) & {
+    return operation<Receiver>{
+        stream_,
+        initialState_,
+        reducer_,
+        (Receiver &&) receiver};
+  }
+
+  template <typename Receiver>
+  operation<Receiver> connect(Receiver&& receiver) const& {
+    return operation<Receiver>{
+        stream_,
+        initialState_,
+        reducer_,
         (Receiver &&) receiver};
   }
 };

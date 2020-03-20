@@ -63,8 +63,8 @@ template <
     typename... Rest>
 struct _operation_tuple<Index, Receiver, First, Rest...>::type
   : operation_tuple<Index + 1, Receiver, Rest...> {
-  template <typename Parent>
-  explicit type(Parent& parent, First&& first, Rest&&... rest)
+  template <typename First2, typename Parent>
+  explicit type(Parent& parent, First2&& first, Rest&&... rest)
     : operation_tuple<Index + 1, Receiver, Rest...>{parent, (Rest &&) rest...},
       op_(connect((First &&) first, Receiver<Index>{parent})) {}
 
@@ -205,9 +205,10 @@ struct _op<Receiver, Senders...>::type {
   template<std::size_t Index, typename Operation>
   friend class _element_receiver;
 
-  explicit type(Receiver&& receiver, Senders&&... senders)
+  template<typename... Senders2>
+  explicit type(Receiver&& receiver, Senders2&&... senders)
     : receiver_((Receiver &&) receiver),
-      ops_(*this, (Senders &&) senders...) {}
+      ops_(*this, (Senders2 &&) senders...) {}
 
   void start() noexcept {
     stopCallback_.construct(
@@ -298,6 +299,20 @@ class _sender<Senders...>::type {
       return operation<Receiver, Senders...>{
           (Receiver &&) receiver, (Senders &&) senders...};
     }, std::move(senders_));
+  }
+  template <typename Receiver>
+  operation<Receiver, Senders&...> connect(Receiver&& receiver) & {
+    return std::apply([&](Senders&... senders) {
+      return operation<Receiver, Senders&...>{
+          (Receiver &&) receiver, senders...};
+    }, senders_);
+  }
+  template <typename Receiver>
+  operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
+    return std::apply([&](const Senders&... senders) {
+      return operation<Receiver, const Senders&...>{
+          (Receiver &&) receiver, senders...};
+    }, senders_);
   }
 
  private:

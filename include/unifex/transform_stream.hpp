@@ -27,7 +27,7 @@ namespace _tfx_stream {
     auto operator()(StreamSender&& stream, Func&& func) const {
       return next_adapt_stream(
           (StreamSender &&) stream, [func = (Func &&) func](auto&& sender) mutable {
-            return transform((decltype(sender))sender, std::ref(func));
+            return transform((decltype(sender))sender, (Func &&)func);
           });
     }
   };
