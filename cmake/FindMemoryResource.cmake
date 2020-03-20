@@ -116,11 +116,6 @@ else()
   set(CMAKE_REQUIRED_FLAGS "-std=c++17")
 endif()
 
-if("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang" AND NOT "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
-    set(_CXX_MEMORY_RESOURCE_STDLIB "-stdlib=libc++")
-    set(_CXX_MEMORY_RESOURCE_STDLIB_LIB "-lc++")
-endif()
-
 # Normalize and check the component list we were given
 set(want_components ${MemoryResource_FIND_COMPONENTS})
 if(MemoryResource_FIND_COMPONENTS STREQUAL "")

@@ -117,11 +117,6 @@ else()
     set(_CXX_COROUTINES_AWAIT "-fcoroutines-ts")
 endif()
 
-if("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang" AND NOT "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC")
-    set(_CXX_COROUTINES_STDLIB "-stdlib=libc++")
-    set(_CXX_COROUTINES_STDLIB_LIB "-lc++")
-endif()
-
 # Normalize and check the component list we were given
 set(want_components ${Coroutines_FIND_COMPONENTS})
 if(Coroutines_FIND_COMPONENTS STREQUAL "")
