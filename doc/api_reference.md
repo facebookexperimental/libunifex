@@ -544,7 +544,7 @@ work to run once the call-stack has unwound back to the first call.
 
 ### `timed_single_thread_context`
 
-A single-threaded execution context that suppors scheduling work at a
+A single-threaded execution context that supports scheduling work at a
 particular time via either `schedule_at()` with a time-point or
 `schedule_after()` with a delay in addition to the regular `schedule()`
 operation which is equivalent to calling `schedule_at()` with the current

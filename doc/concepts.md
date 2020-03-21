@@ -249,7 +249,7 @@ independently of a concrete receiver type.
 
 ## TypedSender Concept
 
-A **TypedSender** extends the iterface of a **Sender** to support two additional
+A **TypedSender** extends the interface of a **Sender** to support two additional
 nested template type-aliases that can be used to query the overloads of
 `set_value()` and `set_error()` that it may call on the **Receiver** passed to it.
 
@@ -467,7 +467,7 @@ A receiver that supports concurrent calls to `set_value()` would
 customise `get_execution_policy()` for its type to return
 `std::execution::par`.
 
-A sender that has multiple threads availble can then call
+A sender that has multiple threads available can then call
 `get_execution_policy(receiver)` and choose how to invoke
 the `set_value()` methods based on this.
 
