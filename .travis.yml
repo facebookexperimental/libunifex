@@ -16,6 +16,7 @@ os:
 env:
 - BUILD_TYPE=Debug
 - BUILD_TYPE=RelWithDebInfo
+- BUILD_TYPE=RelWithDebInfo SANITIZER=thread
 
 addons:
   apt:
@@ -40,6 +41,13 @@ addons:
     - ninja
     update: true
 
+jobs:
+  exclude:
+    - compiler: gcc
+      env: BUILD_TYPE=RelWithDebInfo SANITIZER=thread
+    - os: osx
+      env: BUILD_TYPE=RelWithDebInfo SANITIZER=thread
+
 install:
 # The following Homebrew packages aren't linked by default, and need to be
 # prepended to the path explicitly.
@@ -53,9 +61,16 @@ install:
 # Homebrew's llvm package doesn't ship a versioned clang++ binary, so the values
 # below don't work on macOS. Fortunately, the path change above makes the
 # default values (clang and clang++) resolve to the correct compiler on macOS.
+# Also, add flags for selected sanitizer.
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    if [ "$CXX" = "clang++" ]; then export CXX="clang++-9" CC="clang-9"; fi;
+    if [ "$CXX" = "clang++" ]; then 
+      export CXX="clang++-9" CC="clang-9"; 
+      if [ ! -z "$SANITIZER" ]; then 
+        export SANITIZER_FLAGS="-fno-omit-frame-pointer -fsanitize=undefined -fsanitize=$SANITIZER"; 
+      fi;
+    fi;
   fi
+- echo ${SANITIZER_FLAGS}
 - echo ${CC}
 - echo ${CXX}
 - ${CXX} --version
@@ -66,7 +81,7 @@ before_script:
     source .install-libcxx.sh;
   fi
 - mkdir -p build && cd build
-- cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+- cmake .. -G Ninja -DCMAKE_CXX_FLAGS="$SANITIZER_FLAGS" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
 - cmake --build .
 - cd ..
 
