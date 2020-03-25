@@ -21,6 +21,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <string>
 
 #include <gtest/gtest.h>
 
@@ -83,4 +84,44 @@ TEST(WhenAll2, Smoke) {
   EXPECT_TRUE(ranPart1Callback);
   EXPECT_FALSE(ranPart2Callback);
   EXPECT_FALSE(ranFinalCallback);
+}
+
+struct string_const_ref_sender {
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = Variant<Tuple<const std::string&>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<const std::exception_ptr&>;
+
+  template <typename Receiver>
+  struct operation {
+    std::remove_cvref_t<Receiver> receiver_;
+    void start() & noexcept {
+      std::string s = "hello world";
+      unifex::set_value(std::move(receiver_), std::as_const(s));
+      s = "goodbye old value";
+    }
+  };
+
+  template <typename Receiver>
+  operation<Receiver> connect(Receiver&& r) const& {
+    return operation<Receiver>{(Receiver &&) r};
+  }
+};
+
+TEST(WhenAll2, ResultsAreDecayCopied) {
+  std::optional<std::tuple<
+      std::variant<std::tuple<std::string>>,
+      std::variant<std::tuple<std::string>>>>
+      result = sync_wait(
+          when_all(string_const_ref_sender{}, string_const_ref_sender{}));
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(
+      "hello world", std::get<0>(std::get<0>(std::get<0>(result.value()))));
+  EXPECT_EQ(
+      "hello world", std::get<0>(std::get<0>(std::get<1>(result.value()))));
 }
