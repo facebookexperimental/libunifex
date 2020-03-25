@@ -97,10 +97,21 @@ struct cancel_operation {
   }
 };
 
+template <typename... Errors>
+using unique_decayed_error_types = concat_type_lists_unique_t<
+  type_list<std::decay_t<Errors>>...>;
+
 template <template <typename...> class Variant, typename... Senders>
 using error_types = typename concat_type_lists_unique_t<
-    typename Senders::template error_types<type_list>...,
+    typename Senders::template error_types<unique_decayed_error_types>...,
     type_list<std::exception_ptr>>::template apply<Variant>;
+
+template<typename... Values>
+using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
+
+template <typename Sender>
+using value_variant_for_sender =
+  typename Sender::template value_types<concat_type_lists_unique_t, decayed_value_tuple>::template apply<std::variant>;
 
 template <size_t Index, typename Operation>
 struct _element_receiver {
@@ -120,7 +131,7 @@ struct _element_receiver<Index, Operation>::type final {
     try {
       std::get<Index>(op_.values_)
           .emplace(
-              std::in_place_type<std::tuple<Values...>>,
+              std::in_place_type<std::tuple<std::decay_t<Values>...>>,
               (Values &&) values...);
       op_.element_complete();
     } catch (...) {
@@ -131,7 +142,7 @@ struct _element_receiver<Index, Operation>::type final {
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-      op_.error_.emplace(std::in_place_type<Error>, (Error &&) error);
+      op_.error_.emplace(std::in_place_type<std::decay_t<Error>>, (Error &&) error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
@@ -242,9 +253,7 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<
-      typename Senders::template value_types<std::variant, std::tuple>>...>
-      values_;
+  std::tuple<std::optional<value_variant_for_sender<Senders>>...> values_;
   std::optional<error_types<std::variant, Senders...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
@@ -274,8 +283,7 @@ class _sender<Senders...>::type {
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types = Variant<Tuple<
-      typename Senders::template value_types<std::variant, std::tuple>...>>;
+  using value_types = Variant<Tuple<value_variant_for_sender<Senders>...>>;
 
   template <template <typename...> class Variant>
   using error_types = error_types<Variant, Senders...>;
