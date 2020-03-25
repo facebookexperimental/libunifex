@@ -24,6 +24,7 @@
 #include <atomic>
 #include <cassert>
 #include <iostream>
+#include <cstdio>
 #include <sstream>
 #include <thread>
 
@@ -34,15 +35,15 @@ struct trace_construction_destruction {
         ++instanceCount;
         std::stringstream s;
         s << "thread_local at address " << (void*)this
-          << " constructing on thread " << std::this_thread::get_id() << "\n";
-        std::cout << s.str();
+          << " constructing on thread " << std::this_thread::get_id();
+        std::puts(s.str().c_str());
     }
     ~trace_construction_destruction() {
         --instanceCount;
         std::stringstream s;
         s << "thread_local at address " << (void*)this
-          << " destructing on thread " << std::this_thread::get_id() << "\n";
-        std::cout << s.str();
+          << " destructing on thread " << std::this_thread::get_id();
+        std::puts(s.str().c_str());
     }
 };
 
@@ -57,8 +58,8 @@ int main() {
             unifex::schedule(ctx.get_scheduler()),
             [i] {
                 std::stringstream s;
-                s << "Task " << i << " running on thread " << std::this_thread::get_id() << "\n";
-                std::cout << s.str();
+                s << "Task " << i << " running on thread " << std::this_thread::get_id();
+                std::puts(s.str().c_str());
 
                 thread_local trace_construction_destruction t;
             });
@@ -71,10 +72,10 @@ int main() {
             makeThreadTask(3),
             makeThreadTask(4)));
 
-    std::cout << "shutting down new_thread_context\n";
+    std::puts("shutting down new_thread_context");
   }
 
-  std::cout << "new_thread_contxt finished shutting down\n";
+  std::puts("new_thread_contxt finished shutting down");
 
   // new_thread_context destructor should have waited for all threads to finish
   // destroying thread-locals.
