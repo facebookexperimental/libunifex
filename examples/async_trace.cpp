@@ -34,7 +34,8 @@
 
 #include <chrono>
 #include <iomanip>
-#include <iostream>
+#include <sstream>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -46,15 +47,17 @@ auto dump_async_trace(std::string tag = {}) {
   return transform(
       async_trace_sender{},
       [tag = std::move(tag)](const std::vector<async_trace_entry> &entries) {
-        std::cout << "Async Trace (" << tag << "):\n";
+        std::stringstream s;
+        s << "Async Trace (" << tag << "):\n";
         for (auto &entry : entries) {
-          std::cout << " " << entry.depth << " [-> " << entry.parentIndex
+          s << " " << entry.depth << " [-> " << entry.parentIndex
                     << "]: " << entry.continuation.type().name() << " @ 0x";
-          std::cout.setf(std::ios::hex, std::ios::basefield);
-          std::cout << entry.continuation.address();
-          std::cout.unsetf(std::ios::hex);
-          std::cout << "\n";
+          s.setf(std::ios::hex, std::ios::basefield);
+          s << entry.continuation.address();
+          s.unsetf(std::ios::hex);
+          s << "\n";
         }
+        std::puts(s.str().c_str());
       });
 }
 
@@ -82,7 +85,9 @@ int main() {
               [=]() {
                 auto time = steady_clock::now() - start;
                 auto timeMs = duration_cast<milliseconds>(time).count();
-                std::cout << "part1 finished - [" << timeMs << "]\n";
+                std::stringstream s;
+                s << "part1 finished - [" << timeMs << "]";
+                std::puts(s.str().c_str());
                 return time;
               }),
           transform(
@@ -91,7 +96,9 @@ int main() {
               [=]() {
                 auto time = steady_clock::now() - start;
                 auto timeMs = duration_cast<milliseconds>(time).count();
-                std::cout << "part2 finished - [" << timeMs << "]\n";
+                std::stringstream s;
+                s << "part2 finished - [" << timeMs << "]\n";
+                std::puts(s.str().c_str());
                 return time;
               }),
 #if !UNIFEX_NO_COROUTINES
@@ -106,7 +113,8 @@ int main() {
 #endif // UNIFEX_NO_COROUTINES
           ),
       [](auto &&a, auto &&b, auto &&c) {
-        std::cout
+        std::stringstream s;
+        s
             << "when_all finished - ["
             << duration_cast<milliseconds>(std::get<0>(std::get<0>(a))).count()
             << ", "
@@ -114,9 +122,10 @@ int main() {
             << ", "
             << std::get<0>(std::get<0>(c))
             << "]\n";
+        std::puts(s.str().c_str());
       }));
 
-  std::cout << "all done\n";
+  std::puts("all done");
 
   return 0;
 }
