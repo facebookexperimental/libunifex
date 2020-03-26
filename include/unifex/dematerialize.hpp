@@ -22,6 +22,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <type_traits>
 
@@ -37,9 +38,8 @@ namespace _demat {
   template <typename Receiver>
   class _receiver<Receiver>::type {
    public:
-    template <
-      typename Receiver2,
-      std::enable_if_t<std::is_constructible_v<Receiver, Receiver2>, int> = 0>
+    UNIFEX_TEMPLATE(typename Receiver2)
+      (requires (std::is_constructible_v<Receiver, Receiver2>))
     explicit type(Receiver2&& receiver) noexcept(
         std::is_nothrow_constructible_v<Receiver, Receiver2>)
       : receiver_(static_cast<Receiver2&&>(receiver)) {}

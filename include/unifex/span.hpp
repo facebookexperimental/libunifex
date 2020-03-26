@@ -21,6 +21,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include <unifex/detail/concept_macros.hpp>
+
 namespace unifex {
 
 inline constexpr std::size_t dynamic_extent = -1;
@@ -294,10 +296,8 @@ span<const std::byte> as_bytes(const span<T>& s) noexcept {
                                s.size() * sizeof(T)};
 }
 
-template <
-    typename T,
-    std::size_t Extent,
-    std::enable_if_t<!std::is_const_v<T>, int> = 0>
+UNIFEX_TEMPLATE(typename T, std::size_t Extent)
+    (requires (!std::is_const_v<T>))
 span<std::byte, Extent * sizeof(T)> as_writable_bytes(
     const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);

@@ -23,6 +23,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <functional>
 #include <type_traits>
@@ -93,9 +94,8 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
     unifex::set_done((Receiver &&) receiver_);
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {

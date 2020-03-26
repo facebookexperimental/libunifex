@@ -23,6 +23,7 @@
 #include <unifex/submit.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <tuple>
 #include <utility>
@@ -65,9 +66,8 @@ struct _value_receiver<Receiver, Values...>::type {
     unifex::set_done(std::forward<Receiver>(receiver_));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const value_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -110,9 +110,8 @@ struct _error_receiver<Receiver, Error>::type {
     unifex::set_done(std::forward<Receiver>(receiver_));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const error_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -154,9 +153,8 @@ struct _done_receiver<Receiver>::type {
     unifex::set_done(std::forward<Receiver>(receiver_));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const done_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -223,9 +221,8 @@ struct _predecessor_receiver<Successor, Receiver>::type {
     }
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <type_traits>
 
@@ -26,9 +27,8 @@ class manual_lifetime_union {
  public:
   manual_lifetime_union() = default;
 
-  template <
-      typename T,
-      std::enable_if_t<std::disjunction_v<std::is_same<T, Ts>...>, int> = 0>
+  UNIFEX_TEMPLATE(typename T)
+      (requires (std::disjunction_v<std::is_same<T, Ts>...>))
   manual_lifetime<T>& get() noexcept {
     return *reinterpret_cast<manual_lifetime<T>*>(&storage_);
   }

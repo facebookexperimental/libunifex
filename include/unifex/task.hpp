@@ -18,6 +18,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "C++20 coroutine support is required to use this header"
@@ -60,9 +61,8 @@ struct task {
       state_ = state::exception;
     }
 
-    template <
-        typename Value,
-        std::enable_if_t<std::is_convertible_v<Value, T>, int> = 0>
+    UNIFEX_TEMPLATE(typename Value)
+        (requires (std::is_convertible_v<Value, T>))
     void return_value(Value&& value) noexcept(
         std::is_nothrow_constructible_v<T, Value>) {
       reset_value();

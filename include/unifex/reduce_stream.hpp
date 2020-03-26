@@ -25,6 +25,7 @@
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <exception>
 #include <functional>
@@ -63,9 +64,8 @@ struct _error_cleanup_receiver<Operation>::type {
     unifex::set_error(static_cast<receiver_type&&>(op.receiver_), std::move(ex));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -116,9 +116,8 @@ struct _done_cleanup_receiver<Operation>::type {
         std::forward<state_type>(op.state_));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -154,9 +153,8 @@ struct _next_receiver<Operation>::type {
   using receiver_type = typename Operation::receiver_type;
   Operation& op_;
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {

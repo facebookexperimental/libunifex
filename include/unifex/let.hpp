@@ -23,6 +23,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <exception>
 #include <functional>
@@ -81,9 +82,8 @@ private:
     op_.values_.template get<decayed_tuple<Values...>>().destruct();
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const typename Operation::receiver_type&>)
       -> callable_result_t<CPO, const typename Operation::receiver_type&> {
@@ -161,9 +161,8 @@ struct _predecessor_receiver<Operation>::type {
     unifex::set_error(std::move(op_.receiver_), (Error &&) error);
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {

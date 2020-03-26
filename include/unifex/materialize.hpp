@@ -21,6 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <type_traits>
 
@@ -212,9 +213,8 @@ namespace unifex
       template <template <typename...> class Variant>
       using error_types = Variant<std::exception_ptr>;
 
-      template <
-          typename Source2,
-          std::enable_if_t<std::is_constructible_v<Source, Source2>, int> = 0>
+      UNIFEX_TEMPLATE(typename Source2)
+          (requires (std::is_constructible_v<Source, Source2>))
       explicit type(Source2&& source) noexcept(
           std::is_nothrow_constructible_v<Source, Source2>)
         : source_(static_cast<Source2&&>(source)) {}

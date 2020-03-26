@@ -24,6 +24,7 @@
 #include <unifex/config.hpp>
 #include <unifex/get_allocator.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 namespace unifex {
 namespace _submit {
@@ -76,9 +77,8 @@ class _op<Sender, Receiver>::type {
 
     Receiver& get_receiver() const { return op_->receiver_; }
 
-    template <
-        typename CPO,
-        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+    UNIFEX_TEMPLATE(typename CPO)
+        (requires (!is_receiver_cpo_v<CPO>))
     friend auto tag_invoke(CPO cpo, const wrapped_receiver& r) noexcept(
         is_nothrow_callable_v<CPO, const Receiver&>)
         -> callable_result_t<CPO, const Receiver&> {

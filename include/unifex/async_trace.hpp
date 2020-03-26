@@ -21,6 +21,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/config.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <functional>
 #include <typeindex>
@@ -35,10 +36,8 @@ namespace _visit_continuations {
     tag_invoke(_fn, const Continuation&, Func&&) noexcept {}
 
 #if !UNIFEX_NO_COROUTINES
-    template <
-        typename Promise,
-        typename Func,
-        std::enable_if_t<!std::is_void_v<Promise>, int> = 0>
+    UNIFEX_TEMPLATE(typename Promise, typename Func)
+        (requires (!std::is_void_v<Promise>))
     friend void tag_invoke(
         _fn cpo,
         coro::coroutine_handle<Promise> h,
