@@ -31,11 +31,10 @@ This project is still evolving and should be considered experimental in nature.
 
 # Requirements
 
-A recent compiler that supports C++17 or later.
+A recent compiler that supports C++20 or later.
 
-This library also supports C++20 coroutines. You will need to compile with
-coroutine support enabled if you want to use the coroutine integrations.
-This generally means adding `-std=c++2a` or `-fcoroutines-ts` on Clang.
+This library supports C++20 implementations without coroutines. Working
+support is automatically detected and enabled if available.
 
 ## Linux
 
@@ -44,8 +43,6 @@ that incorporates patches from recent io_uring development.
 
 See http://git.kernel.dk/cgit/linux-block/log/?h=for-5.5/io_uring
 
-The io_uring support depends on liburing: https://github.com/axboe/liburing/
-
 # Building
 
 This project can be built using CMake.
@@ -53,16 +50,40 @@ This project can be built using CMake.
 The examples below assume using the [Ninja](https://ninja-build.org/) build system.
 You can use other build systems supported by CMake.
 
+At the time of writing, libstdc++ does not implement sufficient support
+for C++ 20 coroutines to be usable. One way of using C++ 20 coroutines
+today is to use libc++ instead of libstdc++.
+
 ## Configuring to build with Clang
 
 First generate the build files under the `./build` subdirectory.
 
 From the libunifex project root:
 ```sh
+export CC=gcc-9
+export CXX=g++-9
 cmake -G Ninja -H. -Bbuild \
-      -DCMAKE_CXX_COMPILER=/path/to/clang++ \
-      -DCMAKE_CXX_FLAGS="-std=c++2a" \
-      -DCMAKE_EXE_LINKER_FLAGS="-L/path/to/libc++/lib"
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo
+```
+
+If you wish to use libc++ on Linux for the coroutines implementation,
+you will need to install a very recent libc++, libc++abi and clang. You
+must then create a cmake toolchain file to tell cmake to use an
+alternative STL implementation:
+
+```cmake
+set(CMAKE_C_COMPILER clang-10)
+set(CMAKE_CXX_COMPILER clang++-10)
+set(CMAKE_CXX_FLAGS -stdlib=libc++)
+set(CMAKE_EXE_LINKER_FLAGS -stdlib=libc++)
+```
+
+Then configure as follows:
+
+```sh
+cmake -G Ninja -H. -Bbuild \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+      -DCMAKE_TOOLCHAIN_FILE=linux-libc++.toolchain.file
 ```
 
 ## Building Library + Running Tests

@@ -53,10 +53,35 @@ configure_file(
 target_include_directories(unifex
   PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>
-    "${PROJECT_BINARY_DIR}/include")
+    "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>"
+)
+install(FILES
+  "${PROJECT_BINARY_DIR}/include/unifex/config.hpp"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/unifex"
+)
 
-target_compile_features(unifex PUBLIC cxx_std_20)
+target_compile_features(unifex PUBLIC cxx_std_${latest_cxx_std})
 
 if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)
+endif()
+
+if(COMMAND target_precompile_headers AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../include/unifex.hpp")
+  target_precompile_headers(unifex PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/unifex.hpp>")
+endif()
+
+install(DIRECTORY
+  "${CMAKE_CURRENT_SOURCE_DIR}/../include/unifex/"
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/unifex"
+)
+install(TARGETS unifex
+  EXPORT libunifexExports
+  INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+  LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+)
+if(BUILD_SHARED_LIBS)
+  set_target_properties(unifex PROPERTIES EXPORT_NAME shared)
+else()
+  set_target_properties(unifex PROPERTIES EXPORT_NAME static)
 endif()

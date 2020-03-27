@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
+project(DownloadBuildInstall)
+include(ExternalProject)
+ExternalProject_Add(@DBI_NAME@
+  PREFIX "@DBI_DESTINATION@/repo"
+  GIT_REPOSITORY "@DBI_GIT_REPOSITORY@"
+  GIT_TAG "@DBI_GIT_TAG@"
+  TEST_COMMAND ""
+  CMAKE_ARGS @DBI_CMAKE_ARGS@ "-DCMAKE_INSTALL_PREFIX=@DBI_DESTINATION@"
+  @DBI_EXTERNALPROJECT_ARGS@
+)

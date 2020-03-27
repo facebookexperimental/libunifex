@@ -97,58 +97,67 @@ auto read_file(io_uring_context::scheduler s, const char* path) {
 }
 
 int main() {
-  io_uring_context ctx;
-
-  inplace_stop_source stopSource;
-  std::thread t{[&] { ctx.run(stopSource.get_token()); }};
-  scope_guard stopOnExit = [&]() noexcept {
-    stopSource.request_stop();
-    t.join();
-  };
-
-  auto scheduler = ctx.get_scheduler();
-
   try {
-    {
-      auto start = std::chrono::steady_clock::now();
-      inplace_stop_source timerStopSource;
-      sync_wait(
+    io_uring_context ctx;
+
+    inplace_stop_source stopSource;
+    std::thread t{[&] { ctx.run(stopSource.get_token()); }};
+    scope_guard stopOnExit = [&]() noexcept {
+      stopSource.request_stop();
+      t.join();
+    };
+
+    auto scheduler = ctx.get_scheduler();
+
+    try {
+      {
+        auto start = std::chrono::steady_clock::now();
+        inplace_stop_source timerStopSource;
+        sync_wait(
+            when_all(
+                transform(
+                    schedule_at(scheduler, now(scheduler) + 1s),
+                    []() { std::printf("timer 1 completed (1s)\n"); }),
+                transform(
+                    schedule_at(scheduler, now(scheduler) + 2s),
+                    []() { std::printf("timer 2 completed (2s)\n"); }),
+                transform(
+                    schedule_at(scheduler, now(scheduler) + 1500ms),
+                    [&]() {
+                      std::printf("timer 3 completed (1.5s) cancelling\n");
+                      timerStopSource.request_stop();
+                    })),
+            timerStopSource.get_token());
+        auto end = std::chrono::steady_clock::now();
+
+        std::printf(
+            "completed in %i ms\n",
+            (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+                end - start)
+                .count());
+      }
+
+      sync_wait(sequence(
+          lazy([] { std::printf("writing file\n"); }),
+          write_new_file(scheduler, "test.txt"),
+          lazy([] { std::printf("write completed, waiting 1s\n"); }),
+          transform(
+              schedule_at(scheduler, now(scheduler) + 1s),
+              []() { std::printf("timer 1 completed (1s)\n"); }),
+          lazy([] { std::printf("reading file concurrently\n"); }),
           when_all(
-              transform(
-                  schedule_at(scheduler, now(scheduler) + 1s),
-                  []() { std::printf("timer 1 completed (1s)\n"); }),
-              transform(
-                  schedule_at(scheduler, now(scheduler) + 2s),
-                  []() { std::printf("timer 2 completed (2s)\n"); }),
-              transform(
-                  schedule_at(scheduler, now(scheduler) + 1500ms),
-                  [&]() {
-                    std::printf("timer 3 completed (1.5s) cancelling\n");
-                    timerStopSource.request_stop();
-                  })),
-          timerStopSource.get_token());
-      auto end = std::chrono::steady_clock::now();
-
-      std::printf(
-          "completed in %i ms\n",
-          (int)std::chrono::duration_cast<std::chrono::milliseconds>(
-              end - start)
-              .count());
+              read_file(scheduler, "test.txt"),
+              read_file(scheduler, "test.txt"))));
+    } catch (const std::exception& ex) {
+      std::printf("error: %s\n", ex.what());
+      return 1;
     }
-
-    sync_wait(sequence(
-        lazy([] { std::printf("writing file\n"); }),
-        write_new_file(scheduler, "test.txt"),
-        lazy([] { std::printf("write completed, waiting 1s\n"); }),
-        transform(
-            schedule_at(scheduler, now(scheduler) + 1s),
-            []() { std::printf("timer 1 completed (1s)\n"); }),
-        lazy([] { std::printf("reading file concurrently\n"); }),
-        when_all(
-            read_file(scheduler, "test.txt"),
-            read_file(scheduler, "test.txt"))));
-  } catch (const std::exception& ex) {
-    std::printf("error: %s\n", ex.what());
+  } catch (const std::system_error &ex) {
+    if(ex.code() == std::errc::operation_not_permitted) {
+      std::printf("Received EPERM from i/o uring, skipping i/o uring test\n");
+      return 0;
+    }
+    throw;
   }
 
   return 0;

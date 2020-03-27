@@ -112,9 +112,12 @@ set(CMAKE_REQUIRED_QUIET ${Coroutines_FIND_QUIETLY})
 if(("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC") OR "x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
     set(_CXX_COROUTINES_STD20 "/std:latest")
     set(_CXX_COROUTINES_AWAIT "/await")
-else()
+elseif("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang")
     set(_CXX_COROUTINES_STD20 "-std=c++2a")
     set(_CXX_COROUTINES_AWAIT "-fcoroutines-ts")
+else()
+    set(_CXX_COROUTINES_STD20 "-std=c++20")
+    set(_CXX_COROUTINES_AWAIT "-fcoroutines")
 endif()
 
 # Normalize and check the component list we were given
