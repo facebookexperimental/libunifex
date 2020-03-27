@@ -23,6 +23,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <exception>
 #include <functional>
@@ -98,11 +99,8 @@ struct _receiver<Receiver, Func>::type {
     unifex::set_done((Receiver &&) receiver_);
   }
 
-  template <
-      typename CPO,
-      typename R,
-      typename... Args,
-      std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, receiver>, int> = 0>
+  UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+      (requires (!is_receiver_cpo_v<CPO>) && std::is_same_v<R, receiver>)
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&, Args...>)
       -> callable_result_t<CPO, const Receiver&, Args...> {

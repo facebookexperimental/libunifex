@@ -19,28 +19,23 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/with_query_value.hpp>
 #include <unifex/sequence.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <type_traits>
 
 namespace unifex {
 namespace _on {
   inline constexpr struct _fn {
-    template <
-        typename Sender,
-        typename Scheduler,
-        std::enable_if_t<is_tag_invocable_v<_fn, Sender, Scheduler>, int> =
-            0>
+    template <typename Sender, typename Scheduler>
     auto operator()(Sender&& sender, Scheduler&& scheduler) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>) {
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>) ->
+        tag_invoke_result_t<_fn, Sender, Scheduler> {
       return unifex::tag_invoke(
           _fn{}, (Sender &&) sender, (Scheduler &&) scheduler);
     }
 
-    template <
-        typename Sender,
-        typename Scheduler,
-        std::enable_if_t<!is_tag_invocable_v<_fn, Sender, Scheduler>, int> =
-            0>
+    UNIFEX_TEMPLATE(typename Sender, typename Scheduler)
+        (requires (!is_tag_invocable_v<_fn, Sender, Scheduler>))
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
       return sequence(
           schedule(scheduler),

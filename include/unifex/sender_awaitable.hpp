@@ -20,6 +20,7 @@
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #if UNIFEX_NO_COROUTINES
 #error                                                                         \
@@ -162,12 +163,9 @@ auto operator co_await(Sender&& sender) {
   return _coroutine::sender_awaiter<Sender, Result>{(Sender&&)sender};
 }
 
-template<
-    typename Sender,
-    std::enable_if_t<
-      std::remove_reference_t<Sender>::template value_types<
-        is_empty_list, is_empty_list>::value,
-      int> = 0>
+UNIFEX_TEMPLATE(typename Sender)
+    (requires std::remove_reference_t<Sender>::template value_types<
+        is_empty_list, is_empty_list>::value)
 auto operator co_await(Sender&& sender) {
   return _coroutine::sender_awaiter<Sender, void>{(Sender&&)sender};
 }

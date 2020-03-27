@@ -45,15 +45,12 @@ namespace unifex
           std::is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
-      template <
-          typename... Values,
-          std::enable_if_t<
-              is_callable_v<
-                  decltype(unifex::set_value),
-                  Receiver,
-                  decltype(unifex::set_value),
-                  Values...>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename... Values)
+          (requires is_callable_v<
+              decltype(unifex::set_value),
+              Receiver,
+              decltype(unifex::set_value),
+              Values...>)
       void
       set_value(Values&&... values) && noexcept(is_nothrow_callable_v<
                                                 decltype(unifex::set_value),
@@ -66,15 +63,12 @@ namespace unifex
             static_cast<Values&&>(values)...);
       }
 
-      template <
-          typename Error,
-          std::enable_if_t<
-              is_callable_v<
-                  decltype(unifex::set_value),
-                  Receiver,
-                  decltype(unifex::set_error),
-                  Error>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename Error)
+          (requires is_callable_v<
+              decltype(unifex::set_value),
+              Receiver,
+              decltype(unifex::set_error),
+              Error>)
       void set_error(Error&& error) && noexcept {
         if constexpr (is_nothrow_callable_v<
                           decltype(unifex::set_value),
@@ -98,15 +92,12 @@ namespace unifex
         }
       }
 
-      template <
-          typename... DummyPack,
-          std::enable_if_t<
-              sizeof...(DummyPack) == 0 &&
-                  is_callable_v<
-                      decltype(unifex::set_value),
-                      Receiver,
-                      decltype(unifex::set_done)>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename... DummyPack)
+          (requires sizeof...(DummyPack) == 0 &&
+              is_callable_v<
+                  decltype(unifex::set_value),
+                  Receiver,
+                  decltype(unifex::set_done)>)
       void set_done(DummyPack...) && noexcept {
         if constexpr (is_nothrow_callable_v<
                           decltype(unifex::set_value),
@@ -125,14 +116,13 @@ namespace unifex
         }
       }
 
-      template <
+      UNIFEX_TEMPLATE(
           typename CPO,
           UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+          typename... Args)
+          (requires std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
@@ -214,7 +204,7 @@ namespace unifex
       using error_types = Variant<std::exception_ptr>;
 
       UNIFEX_TEMPLATE(typename Source2)
-          (requires (std::is_constructible_v<Source, Source2>))
+          (requires std::is_constructible_v<Source, Source2>)
       explicit type(Source2&& source) noexcept(
           std::is_nothrow_constructible_v<Source, Source2>)
         : source_(static_cast<Source2&&>(source)) {}

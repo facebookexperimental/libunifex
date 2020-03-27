@@ -13,31 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+#include <unifex/span.hpp>
 
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/detail/concept_macros.hpp>
+#include <gtest/gtest.h>
 
-#include <type_traits>
-
-namespace unifex {
-
-template <typename... Ts>
-class manual_lifetime_union {
- public:
-  manual_lifetime_union() = default;
-
-  UNIFEX_TEMPLATE(typename T)
-      (requires std::disjunction_v<std::is_same<T, Ts>...>)
-  manual_lifetime<T>& get() noexcept {
-    return *reinterpret_cast<manual_lifetime<T>*>(&storage_);
-  }
-
- private:
-  std::aligned_union_t<0, manual_lifetime<Ts>...> storage_;
-};
-
-template <>
-class manual_lifetime_union<> {};
-
-} // namespace unifex
+TEST(SpanTest, FromCArray) {
+  char hello[] = "hello world";
+  unifex::span sp = hello;
+  EXPECT_EQ(sp.size(), sizeof(hello));
+  EXPECT_EQ(sp.begin(), hello);
+  EXPECT_EQ(sp.end(), hello + sizeof(hello));
+}

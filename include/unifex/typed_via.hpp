@@ -24,12 +24,7 @@
 namespace unifex {
 namespace _typed_via {
   struct _fn {
-    template <
-        typename Source,
-        typename Scheduler,
-        std::enable_if_t<
-            is_tag_invocable_v<_fn, Source, Scheduler>,
-            int> = 0>
+    template <typename Source, typename Scheduler>
     auto operator()(Source&& source, Scheduler&& scheduler) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Source, Scheduler>)
             -> tag_invoke_result_t<_fn, Source, Scheduler> {

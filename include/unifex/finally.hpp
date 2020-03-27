@@ -23,6 +23,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <cassert>
 #include <exception>
@@ -150,15 +151,11 @@ namespace unifex
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
 
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, value_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -239,14 +236,11 @@ namespace unifex
             static_cast<Error&&>(errorCopy));
       }
 
-      template <
-          typename OtherError,
-          std::enable_if_t<
-              is_callable_v<
+      UNIFEX_TEMPLATE(typename OtherError)
+          (requires is_callable_v<
                   decltype(unifex::set_error),
                   Receiver,
-                  OtherError>,
-              int> = 0>
+                  OtherError>)
       void set_error(OtherError otherError) && noexcept {
         auto* op = op_;
 
@@ -277,15 +271,11 @@ namespace unifex
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
 
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
                 std::negation<is_receiver_cpo<CPO>>,
                 std::is_same<R, error_receiver>,
-                is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+                is_callable<CPO, const Receiver&, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -340,11 +330,8 @@ namespace unifex
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
 
-      template <
-          typename Error,
-          std::enable_if_t<
-              is_callable_v<decltype(unifex::set_error), Receiver, Error>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename Error)
+          (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
       void set_error(Error&& error) && noexcept {
         auto* op = op_;
         op->completionDoneOp_.destruct();
@@ -359,15 +346,11 @@ namespace unifex
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
 
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
              std::negation<is_receiver_cpo<CPO>>,
              std::is_same<R, done_receiver>,
-             is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+             is_callable<CPO, const Receiver&, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -415,14 +398,11 @@ namespace unifex
       type(type&& other) noexcept
         : op_(std::exchange(other.op_, nullptr)) {}
 
-      template <
-          typename... Values,
-          std::enable_if_t<
-              is_callable_v<
-                  decltype(unifex::set_value),
-                  Receiver,
-                  std::decay_t<Values>...>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename... Values)
+          (requires is_callable_v<
+              decltype(unifex::set_value),
+              Receiver,
+              std::decay_t<Values>...>)
       void set_value(Values&&... values) && noexcept {
         auto* op = op_;
         auto& valueStorage =
@@ -511,15 +491,11 @@ namespace unifex
         }
       }
 
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>)
       friend auto
       tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
           is_nothrow_callable_v<CPO, const Receiver&, Args...>)
@@ -704,27 +680,16 @@ namespace unifex
       // is connectable to any of the instantiations of done/value/error_receiver
       // that could be created for each of the results that SourceSender might
       // complete with. For now we just check done_receiver as an approximation.
-      template <
-          typename Receiver,
-          typename CPO,
-          typename S,
-          std::enable_if_t<
-              std::conjunction_v<
-                std::is_same<CPO, tag_t<connect>>,
-                std::is_same<S, sender>,
-                is_connectable<
-                  SourceSender,
-                  receiver<
-                      SourceSender,
-                      CompletionSender,
-                      Receiver>>,
-                is_connectable<
-                  CompletionSender,
-                  done_receiver<
-                      SourceSender,
-                      CompletionSender,
-                      Receiver>>>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename Receiver, typename CPO, typename S)
+          (requires std::conjunction_v<
+              std::is_same<CPO, tag_t<connect>>,
+              std::is_same<S, sender>,
+              is_connectable<
+                SourceSender,
+                receiver<SourceSender, CompletionSender, Receiver>>,
+              is_connectable<
+                CompletionSender,
+                done_receiver<SourceSender, CompletionSender, Receiver>>>)
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {
         return operation<SourceSender, CompletionSender, Receiver>{

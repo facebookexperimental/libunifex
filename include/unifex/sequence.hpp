@@ -25,6 +25,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <cassert>
 #include <exception>
@@ -69,15 +70,11 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
     private:
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
               is_receiver_cpo<CPO>,
               std::is_same<R, successor_receiver>,
-              is_callable<CPO, Receiver, Args...>>, int> = 0>
+              is_callable<CPO, Receiver, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
@@ -90,15 +87,11 @@ namespace unifex
             r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
       }
 
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, successor_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -185,36 +178,26 @@ namespace unifex
         }
       }
 
-      template <
-          typename Error,
-          std::enable_if_t<
-              is_callable_v<decltype(unifex::set_error), Receiver, Error>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename Error)
+          (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
       void set_error(Error&& error) && noexcept {
         unifex::set_error(
             static_cast<Receiver&&>(op_->receiver_),
             static_cast<Error&&>(error));
       }
 
-      template <
-          typename... Args,
-          std::enable_if_t<
-              is_callable_v<decltype(unifex::set_done), Receiver, Args...>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename... Args)
+          (requires is_callable_v<decltype(unifex::set_done), Receiver, Args...>)
       void set_done(Args...) && noexcept {
         unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
       }
 
     private:
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
+          (requires std::conjunction_v<
               std::negation<is_receiver_cpo<CPO>>,
               std::is_same<R, predecessor_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+              is_callable<CPO, const Receiver&, Args...>>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -333,13 +316,9 @@ namespace unifex
           typename Successor::template error_types<type_list>,
           type_list<std::exception_ptr>>::template apply<Variant>;
 
-      template <
-          typename Predecessor2,
-          typename Successor2,
-          std::enable_if_t<
-              std::is_constructible_v<Predecessor, Predecessor2> &&
-                  std::is_constructible_v<Successor, Successor2>,
-              int> = 0>
+      UNIFEX_TEMPLATE(typename Predecessor2, typename Successor2)
+          (requires std::is_constructible_v<Predecessor, Predecessor2> &&
+              std::is_constructible_v<Successor, Successor2>)
       explicit type(Predecessor2&& predecessor, Successor2&& successor)
           noexcept(std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
               std::is_nothrow_constructible_v<Successor, Successor2>)
@@ -367,18 +346,15 @@ namespace unifex
         }
       }
 
-      template <
-          typename Receiver,
-          std::enable_if_t<
-            std::conjunction_v<
+      UNIFEX_TEMPLATE(typename Receiver)
+          (requires std::conjunction_v<
               is_connectable<
                   Predecessor,
                   predecessor_receiver<Predecessor, Successor, Receiver>>,
               is_connectable<
                   Successor,
                   successor_receiver<Predecessor, Successor, Receiver>>,
-              std::is_move_constructible<Successor>>,
-              int> = 0>
+              std::is_move_constructible<Successor>>)
       auto connect(Receiver&& receiver) &&
           -> operation<Predecessor, Successor,  Receiver> {
         return operation<Predecessor, Successor,  Receiver>{
@@ -387,36 +363,30 @@ namespace unifex
             (Receiver &&) receiver};
       }
 
-      template <
-          typename Receiver,
-          std::enable_if_t<
-             std::conjunction_v<
+      UNIFEX_TEMPLATE(typename Receiver)
+          (requires std::conjunction_v<
                is_connectable<
                   Predecessor&,
                   predecessor_receiver<Predecessor&, Successor, Receiver>>,
                is_connectable<
                   Successor,
                   successor_receiver<Predecessor&, Successor, Receiver>>,
-               std::is_constructible<Successor, Successor&>>,
-              int> = 0>
+               std::is_constructible<Successor, Successor&>>)
       auto connect(Receiver&& receiver) &
           -> operation<Predecessor&, Successor, Receiver> {
         return operation<Predecessor&, Successor, Receiver>{
             predecessor_, successor_, (Receiver &&) receiver};
       }
 
-      template <
-          typename Receiver,
-          std::enable_if_t<
-              std::conjunction_v<
+      UNIFEX_TEMPLATE(typename Receiver)
+          (requires std::conjunction_v<
                 is_connectable<
                   const Predecessor&,
                   predecessor_receiver<const Predecessor&, Successor, Receiver>>,
                 is_connectable<
                   Successor,
                   successor_receiver<const Predecessor&, Successor, Receiver>>,
-                std::is_copy_constructible<Successor>>,
-              int> = 0>
+                std::is_copy_constructible<Successor>>)
       auto connect(Receiver&& receiver) const&
           -> operation<const Predecessor&, Successor, Receiver> {
         return operation<const Predecessor&, Successor, Receiver>{

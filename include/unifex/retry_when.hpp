@@ -24,6 +24,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <utility>
 #include <cassert>
@@ -94,9 +95,8 @@ public:
     }
   }
 
-  template<
-    typename R = Receiver,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_done), Receiver>, int> = 0>
+  UNIFEX_TEMPLATE(typename R = Receiver)
+    (requires is_callable_v<decltype(unifex::set_done), R>)
   void set_done() && noexcept {
     assert(op_ != nullptr);
 
@@ -105,9 +105,8 @@ public:
     unifex::set_done((Receiver&&)op->receiver_);
   }
 
-  template<
-    typename Error,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
+  UNIFEX_TEMPLATE(typename Error)
+    (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
   void set_error(Error error) && noexcept {
     assert(op_ != nullptr);
 
@@ -163,26 +162,23 @@ public:
   : op_(std::exchange(other.op_, {}))
   {}
 
-  template<
-    typename... Values,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
+  UNIFEX_TEMPLATE(typename... Values)
+    (requires is_callable_v<decltype(unifex::set_value), Receiver, Values...>)
   void set_value(Values&&... values)
       noexcept(is_nothrow_callable_v<decltype(unifex::set_value), Receiver, Values...>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
-  template<
-    typename R = Receiver,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_done), R>, int> = 0>
+  UNIFEX_TEMPLATE(typename R = Receiver)
+    (requires is_callable_v<decltype(unifex::set_done), R>)
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  template<
-    typename Error,
-    std::enable_if_t<std::is_invocable_v<Func&, Error>, int> = 0>
+  UNIFEX_TEMPLATE(typename Error)
+    (requires std::is_invocable_v<Func&, Error>)
   void set_error(Error error) noexcept {
     assert(op_ != nullptr);
     auto* op = op_;
@@ -338,13 +334,13 @@ public:
   // Ideally they should also check that func() invoked with each of the errors can be connected
   // with the corresponding trigger_receiver.
 
-  template<
-    typename Receiver,
-    std::enable_if_t<
-        std::is_move_constructible_v<Source> &&
+  UNIFEX_TEMPLATE(typename Receiver)
+    (requires std::is_move_constructible_v<Source> &&
         std::is_move_constructible_v<Func> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+        is_connectable_v<
+            Source&,
+            source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &&
       noexcept(std::is_nothrow_constructible_v<
           operation<Source, Func, Receiver>, Source, Func, Receiver>) {
@@ -352,27 +348,26 @@ public:
         (Source&&)source_, (Func&&)func_, (Receiver&&)r};
   }
 
-  template<
-    typename Receiver,
-    typename Op = operation<Source, Func, Receiver>,
-    std::enable_if_t<
-        std::is_constructible_v<Source, Source&> &&
+  UNIFEX_TEMPLATE(typename Receiver)
+    (requires std::is_constructible_v<Source, Source&> &&
         std::is_constructible_v<Func, Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+        is_connectable_v<
+            Source&,
+            source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &
       noexcept(std::is_nothrow_constructible_v<
           operation<Source, Func, Receiver>, Source&, Func&, Receiver>) {
       return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
   }
 
-  template<
-    typename Receiver,
-    std::enable_if_t<
-        std::is_constructible_v<Source, const Source&> &&
+  UNIFEX_TEMPLATE(typename Receiver)
+    (requires std::is_constructible_v<Source, const Source&> &&
         std::is_constructible_v<Func, const Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
+        is_connectable_v<
+            Source&,
+            source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &
       noexcept(std::is_nothrow_constructible_v<
           operation<Source, Func, Receiver>, const Source&, const Func&, Receiver>) {
@@ -410,13 +405,10 @@ namespace _retry_when_cpo {
 
   template<>
   struct _fn::_impl<false> {
-    template<
-      typename Source,
-      typename Func,
-      std::enable_if_t<
-          !is_tag_invocable_v<_fn, Source, Func> &&
+    UNIFEX_TEMPLATE(typename Source, typename Func)
+      (requires (!is_tag_invocable_v<_fn, Source, Func>) &&
           std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
-          std::is_constructible_v<std::remove_cvref_t<Func>, Func>, int> = 0>
+          std::is_constructible_v<std::remove_cvref_t<Func>, Func>)
     auto operator()(Source&& source, Func&& func) const
         noexcept(std::is_nothrow_constructible_v<
           _retry_when::sender<Source, Func>, Source, Func>)
