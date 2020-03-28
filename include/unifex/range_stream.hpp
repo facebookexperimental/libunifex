@@ -63,12 +63,6 @@ struct next_sender {
   operation<Receiver> connect(Receiver&& receiver) && {
     return operation<Receiver>{stream_, (Receiver &&) receiver};
   }
-  template <typename Receiver>
-  operation<Receiver> connect(Receiver&& receiver) & {
-    return operation<Receiver>{stream_, (Receiver &&) receiver};
-  }
-  template <typename Receiver>
-  void connect(Receiver&& receiver) const& = delete;
 };
 
 struct stream {

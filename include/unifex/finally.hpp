@@ -640,7 +640,7 @@ namespace unifex
       union {
         // Storage for the source operation state.
         manual_lifetime<operation_t<
-            std::remove_cvref_t<SourceSender>,
+            SourceSender,
             receiver<SourceSender, CompletionSender, Receiver>>>
             sourceOp_;
 

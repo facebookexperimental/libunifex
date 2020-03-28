@@ -63,8 +63,8 @@ template <
     typename... Rest>
 struct _operation_tuple<Index, Receiver, First, Rest...>::type
   : operation_tuple<Index + 1, Receiver, Rest...> {
-  template <typename First2, typename Parent>
-  explicit type(Parent& parent, First2&& first, Rest&&... rest)
+  template <typename Parent>
+  explicit type(Parent& parent, First&& first, Rest&&... rest)
     : operation_tuple<Index + 1, Receiver, Rest...>{parent, (Rest &&) rest...},
       op_(connect((First &&) first, Receiver<Index>{parent})) {}
 
@@ -205,10 +205,9 @@ struct _op<Receiver, Senders...>::type {
   template<std::size_t Index, typename Operation>
   friend class _element_receiver;
 
-  template<typename... Senders2>
-  explicit type(Receiver&& receiver, Senders2&&... senders)
+  explicit type(Receiver&& receiver, Senders&&... senders)
     : receiver_((Receiver &&) receiver),
-      ops_(*this, (Senders2 &&) senders...) {}
+      ops_(*this, (Senders &&) senders...) {}
 
   void start() noexcept {
     stopCallback_.construct(

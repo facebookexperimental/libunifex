@@ -296,10 +296,6 @@ struct _stream<SourceStream, Values...>::type {
     operation<Receiver> connect(Receiver&& receiver) && {
       return operation<Receiver>{stream_, (Receiver&&)receiver};
     }
-    template<typename Receiver>
-    void connect(Receiver&& receiver) & =delete;
-    template<typename Receiver>
-    void connect(Receiver&& receiver) const& =delete;
   };
 
   struct cleanup_sender {
@@ -413,14 +409,6 @@ struct _stream<SourceStream, Values...>::type {
     template <typename Receiver>
     using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
 
-    template<typename Receiver>
-    operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{stream_, (Receiver &&) receiver};
-    }
-    template<typename Receiver>
-    operation<Receiver> connect(Receiver&& receiver) & {
-      return operation<Receiver>{stream_, (Receiver &&) receiver};
-    }
     template<typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) const& {
       return operation<Receiver>{stream_, (Receiver &&) receiver};

@@ -246,9 +246,9 @@ namespace unifex
     class _op<Predecessor, Successor, Receiver>::type {
       using operation = type;
     public:
-      template <typename Predecessor2, typename Successor2, typename Receiver2>
+      template <typename Successor2, typename Receiver2>
       explicit type(
-          Predecessor2&& predecessor,
+          Predecessor&& predecessor,
           Successor2&& successor,
           Receiver2&& receiver)
         : successor_(static_cast<Successor2&&>(successor))
@@ -256,7 +256,7 @@ namespace unifex
         , status_(status::predecessor_operation_constructed) {
         predOp_.construct_from([&] {
           return unifex::connect(
-              static_cast<Predecessor2&&>(predecessor),
+              static_cast<Predecessor&&>(predecessor),
               predecessor_receiver<Predecessor, Successor, Receiver>{this});
         });
       }
@@ -288,7 +288,7 @@ namespace unifex
           Successor,
           Receiver>;
 
-      std::remove_cvref_t<Successor> successor_;
+      Successor successor_;
       Receiver receiver_;
       enum class status {
         empty,
@@ -302,7 +302,7 @@ namespace unifex
             predecessor_receiver<Predecessor, Successor, Receiver>>>
             predOp_;
         manual_lifetime<operation_t<
-            std::remove_cvref_t<Successor>,
+            Successor,
             successor_receiver<Predecessor, Successor, Receiver>>>
             succOp_;
       };
@@ -397,7 +397,7 @@ namespace unifex
                is_connectable<
                   Successor,
                   successor_receiver<Predecessor&, Successor, Receiver>>,
-               std::is_copy_constructible<Successor>>,
+               std::is_constructible<Successor, Successor&>>,
               int> = 0>
       auto connect(Receiver&& receiver) &
           -> operation<Predecessor&, Successor, Receiver> {

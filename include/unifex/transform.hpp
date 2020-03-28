@@ -161,7 +161,10 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) &&
-      noexcept(is_nothrow_tag_invocable_v<tag_t<unifex::connect>, Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
+      noexcept(
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+        std::is_nothrow_copy_constructible_v<Func> &&
+        is_nothrow_tag_invocable_v<tag_t<unifex::connect>, Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
       -> operation_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
@@ -171,7 +174,10 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) &
-      noexcept(is_nothrow_tag_invocable_v<tag_t<unifex::connect>, Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
+      noexcept(
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+        std::is_nothrow_copy_constructible_v<Func> &&
+        is_nothrow_tag_invocable_v<tag_t<unifex::connect>, Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
       -> operation_t<Predecessor&, receiver<std::remove_cvref_t<Receiver>>>{
     return unifex::connect(
         pred_,
@@ -180,7 +186,10 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) const &
-      noexcept(is_nothrow_tag_invocable_v<tag_t<unifex::connect>, const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
+      noexcept(
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+        std::is_nothrow_copy_constructible_v<Func> &&
+        is_nothrow_tag_invocable_v<tag_t<unifex::connect>, const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
       -> operation_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         pred_,
