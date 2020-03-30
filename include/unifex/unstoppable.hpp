@@ -168,15 +168,6 @@ public:
   template<
     typename Receiver,
     typename Op = detail::unstoppable_operation<Source, std::remove_cvref_t<Receiver>>>
-  Op connect(Receiver&& r) &
-      noexcept(std::is_nothrow_constructible_v<Op, Source&, Receiver>) 
-    {
-      return Op{source_, (Receiver&&)r};
-  }
-
-  template<
-    typename Receiver,
-    typename Op = detail::unstoppable_operation<Source, std::remove_cvref_t<Receiver>>>
   Op connect(Receiver&& r) const &
       noexcept(std::is_nothrow_constructible_v<Op, const Source&, Receiver>) 
     {
