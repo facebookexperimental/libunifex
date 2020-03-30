@@ -159,18 +159,20 @@ int main() {
               [&]{
                   stopSource.request_stop();
               }),
-            typed_via(
-              repeat(
-                transform(
-                  discard(
-                    async_read_some(rPipe, as_writable_bytes(span{buffer.data() + 0, 1}))),
-                  [&]{
-                    assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
-                    ++reps;
-                  })), 
-              scheduler)
-          )),
-          get_stop_token, stopSource.get_token()));
+              defer(
+                [&](){
+                  return typed_via(
+                    repeat(
+                      transform(
+                        discard(
+                          async_read_some(rPipe, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                        [&]{
+                          assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
+                          ++reps;
+                        })), 
+                    scheduler);
+                }))),
+        get_stop_token, stopSource.get_token()));
   };
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
