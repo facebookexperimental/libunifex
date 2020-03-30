@@ -325,13 +325,6 @@ public:
   }
 
   template <typename Receiver>
-  auto connect(Receiver&& receiver) &
-      -> operation<Predecessor&, SuccessorFactory, Receiver> {
-    return operation<Predecessor&, SuccessorFactory, Receiver>{
-        pred_, func_, (Receiver &&) receiver};
-  }
-
-  template <typename Receiver>
   auto connect(Receiver&& receiver) const &
       -> operation<const Predecessor&, SuccessorFactory, Receiver> {
     return operation<const Predecessor&, SuccessorFactory, Receiver>{

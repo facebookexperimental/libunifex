@@ -390,24 +390,6 @@ namespace unifex
       template <
           typename Receiver,
           std::enable_if_t<
-             std::conjunction_v<
-               is_connectable<
-                  Predecessor&,
-                  predecessor_receiver<Predecessor&, Successor, Receiver>>,
-               is_connectable<
-                  Successor,
-                  successor_receiver<Predecessor&, Successor, Receiver>>,
-               std::is_constructible<Successor, Successor&>>,
-              int> = 0>
-      auto connect(Receiver&& receiver) &
-          -> operation<Predecessor&, Successor, Receiver> {
-        return operation<Predecessor&, Successor, Receiver>{
-            predecessor_, successor_, (Receiver &&) receiver};
-      }
-
-      template <
-          typename Receiver,
-          std::enable_if_t<
               std::conjunction_v<
                 is_connectable<
                   const Predecessor&,

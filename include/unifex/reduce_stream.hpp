@@ -315,15 +315,6 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
   }
 
   template <typename Receiver>
-  operation<Receiver> connect(Receiver&& receiver) & {
-    return operation<Receiver>{
-        stream_,
-        initialState_,
-        reducer_,
-        (Receiver &&) receiver};
-  }
-
-  template <typename Receiver>
   operation<Receiver> connect(Receiver&& receiver) const& {
     return operation<Receiver>{
         stream_,

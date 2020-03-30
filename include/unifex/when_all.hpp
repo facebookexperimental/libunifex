@@ -300,13 +300,6 @@ class _sender<Senders...>::type {
     }, std::move(senders_));
   }
   template <typename Receiver>
-  operation<Receiver, Senders&...> connect(Receiver&& receiver) & {
-    return std::apply([&](Senders&... senders) {
-      return operation<Receiver, Senders&...>{
-          (Receiver &&) receiver, senders...};
-    }, senders_);
-  }
-  template <typename Receiver>
   operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
     return std::apply([&](const Senders&... senders) {
       return operation<Receiver, const Senders&...>{

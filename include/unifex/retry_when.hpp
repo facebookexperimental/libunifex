@@ -354,26 +354,12 @@ public:
 
   template<
     typename Receiver,
-    typename Op = operation<Source, Func, Receiver>,
-    std::enable_if_t<
-        std::is_constructible_v<Source, Source&> &&
-        std::is_constructible_v<Func, Func&> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  operation<Source, Func, Receiver> connect(Receiver&& r) &
-      noexcept(std::is_nothrow_constructible_v<
-          operation<Source, Func, Receiver>, Source&, Func&, Receiver>) {
-      return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
-  }
-
-  template<
-    typename Receiver,
     std::enable_if_t<
         std::is_constructible_v<Source, const Source&> &&
         std::is_constructible_v<Func, const Func&> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
         is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  operation<Source, Func, Receiver> connect(Receiver&& r) &
+  operation<Source, Func, Receiver> connect(Receiver&& r) const&
       noexcept(std::is_nothrow_constructible_v<
           operation<Source, Func, Receiver>, const Source&, const Func&, Receiver>) {
     return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};

@@ -103,14 +103,6 @@ class _sender<Values...>::type {
   }
 
   template <typename Receiver,
-    std::enable_if_t<std::is_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>, int> = 0>
-  auto connect(Receiver&& r) &
-    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>)
-    -> operation<Receiver, Values...> {
-    return {values_, (Receiver &&) r};
-  }
-
-  template <typename Receiver,
     std::enable_if_t<std::is_copy_constructible_v<std::tuple<Values...>>, int> = 0>
   auto connect(Receiver&& r) const &
     noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)

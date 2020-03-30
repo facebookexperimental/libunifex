@@ -203,10 +203,6 @@ namespace _async_trace {
       return operation<Receiver>{(Receiver &&) r};
     }
     template <typename Receiver>
-    operation<Receiver> connect(Receiver&& r) & {
-      return operation<Receiver>{(Receiver &&) r};
-    }
-    template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const& {
       return operation<Receiver>{(Receiver &&) r};
     }

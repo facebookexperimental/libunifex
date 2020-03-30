@@ -714,6 +714,7 @@ namespace unifex
               std::conjunction_v<
                 std::is_same<CPO, tag_t<connect>>,
                 std::is_same<std::remove_cvref_t<S>, sender>,
+                std::negation<std::is_lvalue_reference<S>>,
                 is_connectable<
                   SourceSender,
                   receiver<
