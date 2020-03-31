@@ -20,7 +20,7 @@
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
 #include <unifex/transform.hpp>
-#include <unifex/unstoppable.hpp>
+#include <unifex/transform_done.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/sequence.hpp>
@@ -40,7 +40,7 @@ auto lazy(F&& f) {
   return transform(just(), (F &&) f);
 }
 
-TEST(Unstoppable, Smoke) {
+TEST(TransformDone, Smoke) {
   timed_single_thread_context context;
   inplace_stop_source done;
 
@@ -57,7 +57,11 @@ TEST(Unstoppable, Smoke) {
           done.request_stop();
           EXPECT_TRUE(stop.stop_requested());
         })),
-      sequence(unstoppable(schedule_after(scheduler, 200ms))), lazy([&]{++count;})), 
+      sequence(
+        transform_done(
+          schedule_after(scheduler, 200ms), 
+          []{return just();})), 
+        lazy([&]{++count;})), 
     done.get_token());
 
   EXPECT_TRUE(done.stop_requested());
