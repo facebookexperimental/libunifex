@@ -34,10 +34,10 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
-#include <unifex/repeat.hpp>
+#include <unifex/repeat_effect_until.hpp>
 #include <unifex/typed_via.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/unstoppable.hpp>
+#include <unifex/transform_done.hpp>
 
 #include <iostream>
 #include <chrono>
@@ -62,7 +62,7 @@ auto defer(F&& f) {
 
 template <typename S>
 auto discard(S&& s) {
-  return transform(s, [](auto&&...){});
+  return transform((S&&)s, [](auto&&...){});
 }
 
 //! Seconds to warmup the benchmark
@@ -147,7 +147,7 @@ int main() {
     printf("writes stopped!\n");
   };
   auto pipe_bench = [&, &rPipe = std::get<0>(pipe)](int seconds, auto& stopSource) {
-    return unstoppable(
+    return transform_done(
       with_query_value(
         discard(
           when_all(
@@ -162,7 +162,7 @@ int main() {
               defer(
                 [&](){
                   return typed_via(
-                    repeat(
+                    repeat_effect(
                       transform(
                         discard(
                           async_read_some(rPipe, as_writable_bytes(span{buffer.data() + 0, 1}))),
@@ -172,7 +172,8 @@ int main() {
                         })), 
                     scheduler);
                 }))),
-        get_stop_token, stopSource.get_token()));
+        get_stop_token, stopSource.get_token()),
+      []{return just();});
   };
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
