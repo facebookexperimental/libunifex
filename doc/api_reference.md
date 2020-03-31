@@ -16,6 +16,8 @@
   * `when_all()`
   * `materialize()`
   * `dematerialize()`
+  * `repeat_effect_until()`
+  * `repeat_effect()`
   * `retry_when()`
   * `allocate()`
   * `with_query_value()`
@@ -269,6 +271,61 @@ sender will complete with `set_done(r)`.
 
 Any `set_error()` or `set_done()` signals are passed through unchanged.
 
+### `repeat_effect_until(Sender source, Invocable predicate) -> Sender`
+
+The `repeat_effect_until()` algorithm repeats the source sender for as long as the 
+predicate returns false.
+
+The `source` sender must be lvalue connectable (ie. can be connected and started 
+multiple times).
+
+The `source` sender must be an effect. It must prooduce void.
+
+If the `source` sender completes with `set_error()` or `set_done()` then the
+`repeat_effect_until()` operation completes with that same signal.
+
+If the `source` sender completes with void then the `predicate` function is 
+invoked. The `predicate` function must return `false` to repeat the source and 
+`true` to complete with void.
+
+If the invocation of the `predicate()` throws an exception then the 
+`repeat_effect_until()` operation immediately completes with 
+`set_error(std::current_exception())`.
+
+Example usage: Repeat the operation forever - until the source is cancelled.
+```c++
+unifex::repeat_effect_until(
+  some_operation(),
+  [] {
+    return false;
+  });
+```
+
+This is the default implementation for `repeat_effect()`.
+
+### `repeat_effect(Sender source) -> Sender`
+
+The `repeat_effect()` algorithm repeats the source sender until the source is 
+cancelled.
+
+The `source` sender must be lvalue connectable (ie. can be connected and started 
+multiple times).
+
+The `source` sender must be an effect. It must prooduce void.
+
+If the `source` sender completes with `set_error()` or `set_done()` then the
+`repeat_effect()` operation completes with that same signal.
+
+If the `source` sender completes with void then the source is started again.
+
+Example usage: Repeat the operation forever - until the source is cancelled.
+```c++
+unifex::repeat_effect(some_operation());
+```
+
+The default implementation uses `repeat_effect_until()` with a predicate that 
+always returns false.
+
 ### `retry_when(Sender source, Invocable<Error> handler) -> Sender`
 
 The `retry_when()` algorithm repeatedly retries executing the input sender
@@ -286,7 +343,7 @@ which is then immediately started.
 
 If the invocation of the `handler()` throws an exception or attempting to launch
 the returned sender throws an exception then the `retry_when()` operation immediately
-completes with `set_error(std::current_exception()`.
+completes with `set_error(std::current_exception())`.
 
 If the sender returned by `handler()` completes with `set_value()` then the
 `source` operation is relaunched.
