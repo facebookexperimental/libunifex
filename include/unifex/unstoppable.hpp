@@ -31,22 +31,34 @@
 
 namespace unifex {
 
-namespace detail {
+namespace _unstoppable {
+template<typename Source, typename Receiver>
+struct _op {
+  class type;
+};
+template<typename Source, typename Receiver>
+using operation = typename _op<Source, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Receiver>
-class unstoppable_operation;
+struct _rcvr {
+  class type;
+};
+template<typename Source, typename Receiver>
+using receiver = typename _rcvr<Source, std::remove_cvref_t<Receiver>>::type;
+
+template<typename Source>
+struct _sndr {
+  class type;
+};
 
 template<typename Source, typename Receiver>
-class unstoppable_source_receiver;
-
-template<typename Source, typename Receiver>
-class unstoppable_source_receiver {
-  using operation = unstoppable_operation<Source, Receiver>;
+class _rcvr<Source, Receiver>::type {
+  using operation = operation<Source, Receiver>;
 public:
-  explicit unstoppable_source_receiver(operation* op) noexcept
+  explicit type(operation* op) noexcept
   : op_(op) {}
 
-  unstoppable_source_receiver(unstoppable_source_receiver&& other) noexcept
+  type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
  
@@ -81,7 +93,7 @@ public:
 
 private:
   template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const unstoppable_source_receiver& r, Args&&... args)
+  friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
       noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
       -> std::invoke_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
@@ -90,7 +102,7 @@ private:
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
-      const unstoppable_source_receiver& r,
+      const type& r,
       VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
@@ -106,22 +118,22 @@ private:
 };
 
 template<typename Source, typename Receiver>
-class unstoppable_operation {
-  using source_receiver = detail::unstoppable_source_receiver<Source, Receiver>;
+class _op<Source, Receiver>::type {
+  using source_receiver = receiver<Source, Receiver>;
 
 public:
   template<typename Source2, typename Receiver2>
-  explicit unstoppable_operation(Source2&& source, Receiver2&& receiver)
+  explicit type(Source2&& source, Receiver2&& dest)
       noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                is_nothrow_connectable_v<Source&, source_receiver>)
-  : receiver_((Receiver&&)receiver)
+  : receiver_((Receiver&&)dest)
   {
     sourceOp_.construct_from([&] {
         return unifex::connect((Source&&)source, source_receiver{this});
       });
   }
 
-  ~unstoppable_operation() {
+  ~type() {
     sourceOp_.destruct();
   }
 
@@ -130,18 +142,16 @@ public:
   }
 
 private:
-  friend unstoppable_source_receiver<Source, Receiver>;
+  friend receiver<Source, Receiver>;
 
-  using source_op_t = operation_t<Source&, unstoppable_source_receiver<Source, Receiver>>;
+  using source_op_t = operation_t<Source&, receiver<Source, Receiver>>;
 
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   manual_lifetime<source_op_t> sourceOp_;
 };
 
-} // namespace detail
-
 template<typename Source>
-class unstoppable_sender {
+class _sndr<Source>::type {
 
 public:
   template<template<typename...> class Variant,
@@ -155,14 +165,14 @@ public:
       type_list<std::exception_ptr>>::template apply<Variant>;
 
   template<typename Source2>
-  explicit unstoppable_sender(Source2&& source)
+  explicit type(Source2&& source)
     noexcept(std::is_nothrow_constructible_v<Source, Source2>)
   : source_((Source2&&)source)
   {}
 
   template<
     typename Receiver,
-    typename Op = detail::unstoppable_operation<Source, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source, Receiver>>
   Op connect(Receiver&& r) &&
       noexcept(std::is_nothrow_constructible_v<Op, Source, Receiver>) 
     {
@@ -171,7 +181,7 @@ public:
 
   template<
     typename Receiver,
-    typename Op = detail::unstoppable_operation<Source, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source, Receiver>>
   Op connect(Receiver&& r) const &
       noexcept(std::is_nothrow_constructible_v<Op, const Source&, Receiver>) 
     {
@@ -181,6 +191,11 @@ public:
 private:
   Source source_;
 };
+
+} // namespace _unstoppable
+
+template<class Source>
+using unstoppable_sender = typename _unstoppable::_sndr<std::remove_cvref_t<Source>>::type;
 
 inline constexpr struct unstoppable_cpo {
   template<typename Source>
@@ -197,10 +212,10 @@ inline constexpr struct unstoppable_cpo {
         std::is_constructible_v<std::remove_cvref_t<Source>, Source>, int> = 0>
   auto operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<
-                   unstoppable_sender<std::remove_cvref_t<Source>>,
+                   unstoppable_sender<Source>,
                    Source>)
-      -> unstoppable_sender<std::remove_cvref_t<Source>> {
-    return unstoppable_sender<std::remove_cvref_t<Source>>{
+      -> unstoppable_sender<Source> {
+    return unstoppable_sender<Source>{
         (Source&&)source};
   }
 } unstoppable{};
