@@ -73,7 +73,15 @@ public:
 
     // call predicate and complete with void if it returns true
     if(op->predicate_()) {
-      unifex::set_value(std::move(op->receiver_));
+      if constexpr (std::is_nothrow_invocable_v<tag_t<unifex::set_value>&, Receiver>) {
+        unifex::set_value(std::move(op->receiver_));
+      } else {
+        try {
+          unifex::set_value(std::move(op->receiver_));
+        } catch (...) {
+          unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
+        }
+      }
       return;
     }
 
