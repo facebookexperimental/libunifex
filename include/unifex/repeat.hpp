@@ -30,23 +30,29 @@
 #include <exception>
 
 namespace unifex {
-
-namespace detail {
+namespace _repeat {
+template<typename Source, typename Receiver>
+struct _op {
+  struct type;
+};
+template<typename Source, typename Receiver>
+using operation = typename _op<Source, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Receiver>
-class repeat_operation;
+struct _source_receiver {
+  struct type;
+};
+template<typename Source, typename Receiver>
+using repeat_source_receiver = typename _source_receiver<Source, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Receiver>
-class repeat_source_receiver;
-
-template<typename Source, typename Receiver>
-class repeat_source_receiver {
-  using operation = repeat_operation<Source, Receiver>;
+struct _source_receiver<Source, Receiver>::type {
+  using operation = operation<Source, Receiver>;
 public:
-  explicit repeat_source_receiver(operation* op) noexcept
+  explicit type(operation* op) noexcept
   : op_(op) {}
 
-  repeat_source_receiver(repeat_source_receiver&& other) noexcept
+  type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
  
@@ -61,16 +67,16 @@ public:
       op->isSourceOpConstructed_ = false;
     }
 
-    if constexpr (is_nothrow_connectable_v<Source&, repeat_source_receiver>) {
+    if constexpr (is_nothrow_connectable_v<Source&, type>) {
       auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
-          return unifex::connect(op->source_, repeat_source_receiver{op});
+          return unifex::connect(op->source_, type{op});
         });
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
       try {
         auto& sourceOp = op->sourceOp_.construct_from([&] {
-            return unifex::connect(op->source_, repeat_source_receiver{op});
+            return unifex::connect(op->source_, type{op});
           });
         op->isSourceOpConstructed_ = true;
         unifex::start(sourceOp);
@@ -98,7 +104,7 @@ public:
 
 private:
   template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const repeat_source_receiver& r, Args&&... args)
+  friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
       noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
       -> std::invoke_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
@@ -107,7 +113,7 @@ private:
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
-      const repeat_source_receiver& r,
+      const type& r,
       VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
@@ -123,12 +129,12 @@ private:
 };
 
 template<typename Source, typename Receiver>
-class repeat_operation {
-  using source_receiver = detail::repeat_source_receiver<Source, Receiver>;
+class _op<Source, Receiver>::type {
+  using source_receiver = repeat_source_receiver<Source, Receiver>;
 
 public:
   template<typename Source2, typename Receiver2>
-  explicit repeat_operation(Source2&& source, Receiver2&& receiver)
+  explicit type(Source2&& source, Receiver2&& receiver)
       noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
                std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                is_nothrow_connectable_v<Source&, source_receiver>)
@@ -140,7 +146,7 @@ public:
       });
   }
 
-  ~repeat_operation() {
+  ~type() {
     if (isSourceOpConstructed_) {
       sourceOp_.destruct();
       isSourceOpConstructed_ = false;
@@ -162,28 +168,26 @@ private:
   manual_lifetime<source_op_t> sourceOp_;
 };
 
-} // namespace detail
-
 template<typename Source>
-class repeat_sender {
+class sender {
 
 public:
   template<template<typename...> class Variant,
-           template<typename...> class Tuple>
-  using value_types = typename Source::template value_types<Variant, Tuple>;
+          template<typename...> class Tuple>
+  using value_types = Variant<Tuple<>>;
 
   template<template<typename...> class Variant>
   using error_types = typename Source::template error_types<Variant>;
 
   template<typename Source2>
-  explicit repeat_sender(Source2&& source)
+  explicit sender(Source2&& source)
     noexcept(std::is_nothrow_constructible_v<Source, Source2>)
   : source_((Source2&&)source)
   {}
 
   template<
     typename Receiver,
-    typename Op = detail::repeat_operation<Source, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source, std::remove_cvref_t<Receiver>>>
   Op connect(Receiver&& r) &&
       noexcept(std::is_nothrow_constructible_v<Op, Source, Receiver>) {
     return Op{(Source&&)source_, (Receiver&&)r};
@@ -191,7 +195,7 @@ public:
 
   template<
     typename Receiver,
-    typename Op = detail::repeat_operation<Source, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source, std::remove_cvref_t<Receiver>>>
   Op connect(Receiver&& r) const &
       noexcept(std::is_nothrow_constructible_v<Op, const Source&, Receiver>) {
       return Op{source_, (Receiver&&)r};
@@ -200,6 +204,11 @@ public:
 private:
   Source source_;
 };
+
+} // namespace _ready_done
+
+template<class Source>
+using repeat_sender = _repeat::sender<Source>;
 
 inline constexpr struct repeat_cpo {
   template<typename Source>
