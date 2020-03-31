@@ -22,7 +22,6 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/manual_lifetime_union.hpp>
 #include <unifex/async_trace.hpp>
 
 #include <utility>
@@ -72,9 +71,9 @@ public:
       op->isSourceOpConstructed_ = false;
     }
 
-    // call predicate and complete if it returns true
+    // call predicate and complete with void if it returns true
     if(op->predicate_()) {
-      unifex::set_done(std::move(op->receiver_));
+      unifex::set_value(std::move(op->receiver_));
       return;
     }
 
@@ -114,7 +113,11 @@ public:
   }
 
 private:
-  template<typename CPO, typename... Args>
+  template<
+    typename CPO, 
+    typename... Args, 
+    std::enable_if_t<
+      is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
   friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
       noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
       -> std::invoke_result_t<CPO, const Receiver&, Args...> {
