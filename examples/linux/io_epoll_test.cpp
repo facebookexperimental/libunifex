@@ -62,7 +62,7 @@ auto defer(F&& f) {
 
 template <typename S>
 auto discard(S&& s) {
-  return transform(s, [](auto&&...){});
+  return transform((S&&)s, [](auto&&...){});
 }
 
 //! Seconds to warmup the benchmark
@@ -173,7 +173,8 @@ int main() {
                   })),
               scheduler)
           )),
-          get_stop_token, stopSource.get_token()), []{return just();});
+          get_stop_token, stopSource.get_token()),
+        []{return just();});
   };
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
