@@ -50,7 +50,7 @@ public:
   : op_(std::exchange(other.op_, {}))
   {}
  
-  void set_value() {
+  void set_value() noexcept(std::is_nothrow_invocable_v<tag_t<unifex::set_value>&, Receiver>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_));
   }
@@ -60,7 +60,15 @@ public:
     std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), R>, int> = 0>
   void set_done() noexcept {
     assert(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_));
+    if constexpr (std::is_nothrow_invocable_v<tag_t<unifex::set_value>&, Receiver>) {
+      unifex::set_value(std::move(op_->receiver_));
+    } else {
+      try {
+        unifex::set_value(std::move(op_->receiver_));
+      } catch (...) {
+        unifex::set_error((Receiver&&)op_->receiver_, std::current_exception());
+      }
+    }
   }
 
   template<
@@ -104,22 +112,17 @@ class unstoppable_operation {
 public:
   template<typename Source2, typename Receiver2>
   explicit unstoppable_operation(Source2&& source, Receiver2&& receiver)
-      noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
-               std::is_nothrow_constructible_v<Receiver, Receiver2> &&
+      noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                is_nothrow_connectable_v<Source&, source_receiver>)
-  : source_((Source2&&)source)
-  , receiver_((Receiver&&)receiver)
+  : receiver_((Receiver&&)receiver)
   {
     sourceOp_.construct_from([&] {
-        return unifex::connect(source_, source_receiver{this});
+        return unifex::connect((Source&&)source, source_receiver{this});
       });
   }
 
   ~unstoppable_operation() {
-    if (isSourceOpConstructed_) {
-      sourceOp_.destruct();
-      isSourceOpConstructed_ = false;
-    }
+    sourceOp_.destruct();
   }
 
   void start() & noexcept {
@@ -131,9 +134,7 @@ private:
 
   using source_op_t = operation_t<Source&, unstoppable_source_receiver<Source, Receiver>>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS Source source_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  bool isSourceOpConstructed_ = true;
   manual_lifetime<source_op_t> sourceOp_;
 };
 
@@ -147,8 +148,11 @@ public:
            template<typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
-  template<template<typename...> class Variant>
-  using error_types = typename Source::template error_types<Variant>;
+  template <template <typename...> class Variant>
+  using error_types = typename concat_type_lists_unique_t<
+      typename Source::template error_types<
+          decayed_tuple<type_list>::template apply>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   template<typename Source2>
   explicit unstoppable_sender(Source2&& source)
