@@ -30,29 +30,29 @@
 #include <exception>
 
 namespace unifex {
-namespace _repeat {
-template<typename Source, typename Receiver>
+namespace _repeat_effect_until {
+template<typename Source, typename Predicate, typename Receiver>
 struct _op {
-  struct type;
+  class type;
 };
-template<typename Source, typename Receiver>
-using operation = typename _op<Source, std::remove_cvref_t<Receiver>>::type;
+template<typename Source, typename Predicate, typename Receiver>
+using operation = typename _op<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
 
-template<typename Source, typename Receiver>
+template<typename Source, typename Predicate, typename Receiver>
 struct _rcvr {
-  struct type;
+  class type;
 };
-template<typename Source, typename Receiver>
-using receiver = typename _rcvr<Source, std::remove_cvref_t<Receiver>>::type;
+template<typename Source, typename Predicate, typename Receiver>
+using receiver = typename _rcvr<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
 
-template<typename Source>
+template<typename Source, typename Predicate>
 struct _sndr {
-  struct type;
+  class type;
 };
 
-template<typename Source, typename Receiver>
-struct _rcvr<Source, Receiver>::type {
-  using operation = operation<Source, Receiver>;
+template<typename Source, typename Predicate, typename Receiver>
+class _rcvr<Source, Predicate, Receiver>::type {
+  using operation = operation<Source, Predicate, Receiver>;
 public:
   explicit type(operation* op) noexcept
   : op_(op) {}
@@ -64,12 +64,18 @@ public:
   void set_value() noexcept {
     assert(op_ != nullptr);
 
-    // This signals to repeat the operation.
+    // This signals to repeat_effect_until the operation.
     auto* op = op_;
 
     if (op->isSourceOpConstructed_) {
       op->sourceOp_.destruct();
       op->isSourceOpConstructed_ = false;
+    }
+
+    // call predicate and complete if it returns true
+    if(op->predicate_()) {
+      unifex::set_done(std::move(op->receiver_));
+      return;
     }
 
     if constexpr (is_nothrow_connectable_v<Source&, type>) {
@@ -133,17 +139,19 @@ private:
   operation* op_;
 };
 
-template<typename Source, typename Receiver>
-class _op<Source, Receiver>::type {
-  using receiver = receiver<Source, Receiver>;
+template<typename Source, typename Predicate, typename Receiver>
+class _op<Source, Predicate, Receiver>::type {
+  using receiver = receiver<Source, Predicate, Receiver>;
 
 public:
-  template<typename Source2, typename Receiver2>
-  explicit type(Source2&& source, Receiver2&& dest)
+  template<typename Source2, typename Predicate2, typename Receiver2>
+  explicit type(Source2&& source, Predicate2&& predicate, Receiver2&& dest)
       noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
+               std::is_nothrow_constructible_v<Predicate, Predicate2> &&
                std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                is_nothrow_connectable_v<Source&, receiver>)
   : source_((Source2&&)source)
+  , predicate_((Predicate&&)predicate)
   , receiver_((Receiver&&)dest)
   {
     sourceOp_.construct_from([&] {
@@ -168,13 +176,14 @@ private:
   using source_op_t = operation_t<Source&, receiver>;
 
   UNIFEX_NO_UNIQUE_ADDRESS Source source_;
+  UNIFEX_NO_UNIQUE_ADDRESS Predicate predicate_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   bool isSourceOpConstructed_ = true;
   manual_lifetime<source_op_t> sourceOp_;
 };
 
-template<typename Source>
-class _sndr<Source>::type {
+template<typename Source, typename Predicate>
+class _sndr<Source, Predicate>::type {
 
 public:
   template<template<typename...> class Variant,
@@ -184,58 +193,89 @@ public:
   template<template<typename...> class Variant>
   using error_types = typename Source::template error_types<Variant>;
 
-  template<typename Source2>
-  explicit type(Source2&& source)
-    noexcept(std::is_nothrow_constructible_v<Source, Source2>)
+  template<typename Source2, typename Predicate2>
+  explicit type(Source2&& source, Predicate2&& predicate)
+    noexcept(std::is_nothrow_constructible_v<Source, Source2, Predicate2>)
   : source_((Source2&&)source)
+  , predicate_((Predicate&&)predicate)
   {}
 
   template<
     typename Receiver,
-    typename Op = operation<Source, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source, Predicate, std::remove_cvref_t<Receiver>>>
   Op connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_constructible_v<Op, Source, Receiver>) {
-    return Op{(Source&&)source_, (Receiver&&)r};
+      noexcept(std::is_nothrow_constructible_v<Op, Source, Predicate, Receiver>) {
+    return Op{(Source&&)source_, (Predicate&&)predicate_, (Receiver&&)r};
   }
 
   template<
     typename Receiver,
-    typename Op = operation<Source, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source, Predicate, std::remove_cvref_t<Receiver>>>
   Op connect(Receiver&& r) const &
-      noexcept(std::is_nothrow_constructible_v<Op, const Source&, Receiver>) {
-      return Op{source_, (Receiver&&)r};
+      noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Predicate&, Receiver>) {
+      return Op{source_, predicate_, (Receiver&&)r};
   }
 
 private:
   Source source_;
+  Predicate predicate_;
 };
 
 } // namespace _reapeat
 
-template<class Source>
-using repeat_sender = typename _repeat::_sndr<Source>::type;
+template<class Source, class Predicate>
+using repeat_effect_until_sender = typename _repeat_effect_until::_sndr<std::remove_cvref_t<Source>, std::remove_cvref_t<Predicate>>::type;
 
-inline constexpr struct repeat_cpo {
-  template<typename Source>
+inline constexpr struct repeat_effect_until_cpo {
+  template<typename Source, typename Predicate>
+  auto operator()(Source&& source, Predicate&& predicate) const
+      noexcept(is_nothrow_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate>)
+      -> tag_invoke_result_t<repeat_effect_until_cpo, Source, Predicate> {
+    return tag_invoke(*this, (Source&&)source, (Predicate&&)predicate);
+  }
+
+  template<
+    typename Source,
+    typename Predicate,
+    std::enable_if_t<
+        !is_tag_invocable_v<repeat_effect_until_cpo, Source> &&
+        std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
+        std::is_constructible_v<std::remove_cvref_t<Predicate>, Predicate>, int> = 0>
+  auto operator()(Source&& source, Predicate&& predicate) const
+      noexcept(std::is_nothrow_constructible_v<
+                   repeat_effect_until_sender<Source, Predicate>,
+                   Source, 
+                   Predicate>)
+      -> repeat_effect_until_sender<Source, Predicate> {
+    return repeat_effect_until_sender<Source, Predicate>{
+        (Source&&)source, (Predicate&&)predicate};
+  }
+} repeat_effect_until{};
+
+inline constexpr struct repeat_effect_cpo {
+  struct forever {
+    bool operator()() const { return false; }
+  };
+  template<typename Source, typename Predicate>
   auto operator()(Source&& source) const
-      noexcept(is_nothrow_tag_invocable_v<repeat_cpo, Source>)
-      -> tag_invoke_result_t<repeat_cpo, Source> {
+      noexcept(is_nothrow_tag_invocable_v<repeat_effect_cpo, Source>)
+      -> tag_invoke_result_t<repeat_effect_cpo, Source> {
     return tag_invoke(*this, (Source&&)source);
   }
 
   template<
     typename Source,
     std::enable_if_t<
-        !is_tag_invocable_v<repeat_cpo, Source> &&
+        !is_tag_invocable_v<repeat_effect_cpo, Source> &&
         std::is_constructible_v<std::remove_cvref_t<Source>, Source>, int> = 0>
   auto operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<
-                   repeat_sender<std::remove_cvref_t<Source>>,
+                   repeat_effect_until_sender<Source, forever>,
                    Source>)
-      -> repeat_sender<std::remove_cvref_t<Source>> {
-    return repeat_sender<std::remove_cvref_t<Source>>{
-        (Source&&)source};
+      -> repeat_effect_until_sender<Source, forever> {
+    return repeat_effect_until_sender<Source, forever>{
+        (Source&&)source, forever{}};
   }
-} repeat{};
+} repeat_effect{};
 
 } // namespace unifex

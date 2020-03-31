@@ -20,7 +20,7 @@
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
 #include <unifex/transform.hpp>
-#include <unifex/repeat.hpp>
+#include <unifex/repeat_effect_until.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/sequence.hpp>
@@ -57,7 +57,7 @@ TEST(Repeat, Smoke) {
           done.request_stop();
           EXPECT_TRUE(stop.stop_requested());
         })),
-      repeat(sequence(schedule_after(scheduler, 200ms), lazy([&]{++count;})))), 
+      repeat_effect(sequence(schedule_after(scheduler, 200ms), lazy([&]{++count;})))), 
     done.get_token());
 
   EXPECT_TRUE(done.stop_requested());
