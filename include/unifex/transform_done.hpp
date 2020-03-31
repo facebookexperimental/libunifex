@@ -207,11 +207,10 @@ class _op<Source, Done, Receiver>::type {
   using final_receiver = final_receiver<Source, Done, Receiver>;
 
 public:
-  template<typename Source2, typename Done2, typename Receiver2>
-  explicit type(Source2&& source, Done2&& done, Receiver2&& dest)
-      noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2> &&
-               std::is_nothrow_constructible_v<Done, Done2> &&
-               is_nothrow_connectable_v<Source&, source_receiver>)
+  explicit type(Source&& source, Done done, Receiver dest)
+      noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
+               std::is_nothrow_move_constructible_v<Done> &&
+               is_nothrow_connectable_v<Source, source_receiver>)
   : done_((Done&&)done)
   , receiver_((Receiver&&)dest)
   , startedFinal_(false)
@@ -237,7 +236,7 @@ private:
   friend source_receiver;
   friend final_receiver;
 
-  using source_op_t = operation_t<Source&, source_receiver>;
+  using source_op_t = operation_t<Source, source_receiver>;
 
   using final_sender_t = std::invoke_result_t<Done&>;
 
@@ -288,7 +287,7 @@ public:
 
   template<
     typename Receiver,
-    typename Op = operation<Source, Done, Receiver>>
+    typename Op = operation<const Source&, const Done&, Receiver>>
   Op connect(Receiver&& r) const &
       noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Done&, Receiver>) 
     {
