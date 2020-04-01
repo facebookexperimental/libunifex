@@ -83,21 +83,23 @@ public:
   void set_done() noexcept {
     assert(op_ != nullptr);
     if constexpr (
-      std::is_nothrow_invocable_v<Done&> &&
+      std::is_nothrow_invocable_v<Done> &&
       is_nothrow_connectable_v<decltype(std::declval<Done>()()), final_receiver>) {
+      op_->startedOp_ = 0;
       op_->sourceOp_.destruct();
       op_->finalOp_.construct_from([&] {
         return unifex::connect(op_->done_(), final_receiver{op_});
       });
-      op_->startedFinal_ = true;
+      op_->startedOp_ = 0 - 1;
       unifex::start(op_->finalOp_.get());
     } else {
       try {
+        op_->startedOp_ = 0;
         op_->sourceOp_.destruct();
         op_->finalOp_.construct_from([&] {
           return unifex::connect(op_->done_(), final_receiver{op_});
         });
-        op_->startedFinal_ = true;
+        op_->startedOp_ = 0 - 1;
         unifex::start(op_->finalOp_.get());
       } catch (...) {
         unifex::set_error((Receiver&&)op_->receiver_, std::current_exception());
@@ -209,23 +211,24 @@ class _op<Source, Done, Receiver>::type {
 public:
   explicit type(Source&& source, Done done, Receiver dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
-               std::is_nothrow_move_constructible_v<Done> &&
+               std::is_nothrow_move_constructible_v<std::remove_cvref_t<Done>> &&
                is_nothrow_connectable_v<Source, source_receiver>)
   : done_((Done&&)done)
   , receiver_((Receiver&&)dest)
-  , startedFinal_(false)
   {
     sourceOp_.construct_from([&] {
         return unifex::connect((Source&&)source, source_receiver{this});
       });
+    startedOp_ = 0 + 1;
   }
 
   ~type() {
-    if (startedFinal_) {
+    if (startedOp_ < 0) {
       finalOp_.destruct();
-    } else {
+    } else if (startedOp_ > 0) {
       sourceOp_.destruct();
     }
+    startedOp_ = 0;
   }
 
   void start() & noexcept {
@@ -242,9 +245,9 @@ private:
 
   using final_op_t = operation_t<final_sender_t, final_receiver>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS Done done_;
+  UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<Done> done_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  bool startedFinal_;
+  int startedOp_ = 0;
   union {
     manual_lifetime<source_op_t> sourceOp_;
     manual_lifetime<final_op_t> finalOp_;
@@ -322,7 +325,8 @@ inline constexpr struct transform_done_cpo {
   auto operator()(Source&& source, Done&& done) const
       noexcept(std::is_nothrow_constructible_v<
                    transform_done_sender<Source, Done>,
-                   Source>)
+                   Source, 
+                   Done>)
       -> transform_done_sender<Source, Done> {
     return transform_done_sender<Source, Done>{
         (Source&&)source, (Done&&)done};
