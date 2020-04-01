@@ -40,7 +40,7 @@ auto lazy(F&& f) {
   return transform(just(), (F &&) f);
 }
 
-TEST(Repeat, Smoke) {
+TEST(RepeatEffect, Smoke) {
   timed_single_thread_context context;
   inplace_stop_source done;
 
@@ -57,7 +57,10 @@ TEST(Repeat, Smoke) {
           done.request_stop();
           EXPECT_TRUE(stop.stop_requested());
         })),
-      repeat_effect(sequence(schedule_after(scheduler, 200ms), lazy([&]{++count;})))), 
+      repeat_effect(
+        sequence(
+          schedule_after(scheduler, 200ms), 
+          lazy([&]{++count;})))), 
     done.get_token());
 
   EXPECT_TRUE(done.stop_requested());

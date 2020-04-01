@@ -66,35 +66,36 @@ public:
     // This signals to repeat_effect_until the operation.
     auto* op = op_;
 
-    if (op->isSourceOpConstructed_) {
-      op->sourceOp_.destruct();
-      op->isSourceOpConstructed_ = false;
-    }
+    assert(op->isSourceOpConstructed_);
+    op->isSourceOpConstructed_ = false;
+    op->sourceOp_.destruct();
 
-    // call predicate and complete with void if it returns true
-    if(op->predicate_()) {
-      if constexpr (std::is_nothrow_invocable_v<tag_t<unifex::set_value>&, Receiver>) {
-        unifex::set_value(std::move(op->receiver_));
-      } else {
-        try {
-          unifex::set_value(std::move(op->receiver_));
-        } catch (...) {
-          unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
-        }
+    if constexpr (std::is_nothrow_invocable_v<Predicate>) {
+      // call predicate and complete with void if it returns true
+      if(((Predicate)op->predicate_)()) {
+        return;
       }
-      return;
+    } else {
+      try {
+        // call predicate and complete with void if it returns true
+        if(((Predicate)op->predicate_)()) {
+          return;
+        }
+      } catch (...) {
+        unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
+      }
     }
 
-    if constexpr (is_nothrow_connectable_v<Source&, type>) {
+    if constexpr (is_nothrow_connectable_v<Source, type>) {
       auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
-          return unifex::connect(op->source_, type{op});
+          return unifex::connect((Source)op->source_, type{op});
         });
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
       try {
         auto& sourceOp = op->sourceOp_.construct_from([&] {
-            return unifex::connect(op->source_, type{op});
+            return unifex::connect((Source)op->source_, type{op});
           });
         op->isSourceOpConstructed_ = true;
         unifex::start(sourceOp);
@@ -155,18 +156,17 @@ class _op<Source, Predicate, Receiver>::type {
   using receiver = receiver<Source, Predicate, Receiver>;
 
 public:
-  template<typename Source2, typename Predicate2, typename Receiver2>
-  explicit type(Source2&& source, Predicate2&& predicate, Receiver2&& dest)
-      noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
-               std::is_nothrow_constructible_v<Predicate, Predicate2> &&
-               std::is_nothrow_constructible_v<Receiver, Receiver2> &&
-               is_nothrow_connectable_v<Source&, receiver>)
-  : source_((Source2&&)source)
-  , predicate_((Predicate&&)predicate)
+  explicit type(Source source, Predicate predicate, Receiver dest)
+      noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
+               std::is_copy_constructible_v<std::remove_cvref_t<Predicate>> &&
+               std::is_copy_constructible_v<std::remove_cvref_t<Source>> &&
+               is_nothrow_connectable_v<Source, receiver>)
+  : source_(source)
+  , predicate_(predicate)
   , receiver_((Receiver&&)dest)
   {
     sourceOp_.construct_from([&] {
-        return unifex::connect(source_, receiver{this});
+        return unifex::connect((Source)source_, receiver{this});
       });
   }
 
@@ -184,10 +184,10 @@ public:
 private:
   friend receiver;
 
-  using source_op_t = operation_t<Source&, receiver>;
+  using source_op_t = operation_t<Source, receiver>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS Source source_;
-  UNIFEX_NO_UNIQUE_ADDRESS Predicate predicate_;
+  UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<Source> source_;
+  UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<Predicate> predicate_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   bool isSourceOpConstructed_ = true;
   manual_lifetime<source_op_t> sourceOp_;
@@ -201,29 +201,35 @@ public:
           template<typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
-  template<template<typename...> class Variant>
-  using error_types = typename Source::template error_types<Variant>;
+  template <template <typename...> class Variant>
+  using error_types = typename concat_type_lists_unique_t<
+      typename Source::template error_types<
+          decayed_tuple<type_list>::template apply>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   template<typename Source2, typename Predicate2>
   explicit type(Source2&& source, Predicate2&& predicate)
-    noexcept(std::is_nothrow_constructible_v<Source, Source2, Predicate2>)
+    noexcept(
+      std::is_nothrow_constructible_v<Source, Source2> &&
+      std::is_nothrow_constructible_v<Predicate, Predicate2>)
   : source_((Source2&&)source)
-  , predicate_((Predicate&&)predicate)
+  , predicate_((Predicate2&&)predicate)
   {}
 
   template<
     typename Receiver,
-    typename Op = operation<Source, Predicate, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<Source&, Predicate&, Receiver>>
   Op connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_constructible_v<Op, Source, Predicate, Receiver>) {
-    return Op{(Source&&)source_, (Predicate&&)predicate_, (Receiver&&)r};
+      noexcept(std::is_nothrow_constructible_v<Op, Source&, Predicate&, Receiver>) {
+    return Op{source_, predicate_, (Receiver&&)r};
   }
 
   template<
     typename Receiver,
-    typename Op = operation<Source, Predicate, std::remove_cvref_t<Receiver>>>
+    typename Op = operation<const Source&, const Predicate&, Receiver>>
   Op connect(Receiver&& r) const &
-      noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Predicate&, Receiver>) {
+      noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Predicate&, Receiver>) 
+    {
       return Op{source_, predicate_, (Receiver&&)r};
   }
 
@@ -249,7 +255,7 @@ inline constexpr struct repeat_effect_until_cpo {
     typename Source,
     typename Predicate,
     std::enable_if_t<
-        !is_tag_invocable_v<repeat_effect_until_cpo, Source> &&
+        !is_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate> &&
         std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
         std::is_constructible_v<std::remove_cvref_t<Predicate>, Predicate>, int> = 0>
   auto operator()(Source&& source, Predicate&& predicate) const
