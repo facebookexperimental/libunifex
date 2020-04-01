@@ -65,6 +65,23 @@
 #define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
 #endif
 
+#if defined(__GNUC__) || defined(_MSC_VER)
+#define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
+#endif
+
+#if defined(__clang__) || defined(_MSC_VER) || \
+    (defined(__GNUC__) && __GNUC__ >= 8)
+#define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
+#endif
+
 #if defined(_MSC_VER) && !defined(__clang__)
 #define UNIFEX_WORKAROUND_MSVC_779763 // FATAL_UNREACHABLE calling constexpr function via template parameter
 #define UNIFEX_WORKAROUND_MSVC_780775 // Incorrect substitution in function template return type
@@ -103,15 +120,15 @@
 
 // The final UNIFEX_PP_EXPAND here is to avoid
 // https://stackoverflow.com/questions/5134523/msvc-doesnt-expand-va-args-correctly
-#define UNIFEX_PP_COUNT(...)                                                       \
-    UNIFEX_PP_EXPAND(UNIFEX_PP_COUNT_(__VA_ARGS__,                                    \
+#define UNIFEX_PP_COUNT(...)                                                    \
+    UNIFEX_PP_EXPAND(UNIFEX_PP_COUNT_(__VA_ARGS__,                              \
         50, 49, 48, 47, 46, 45, 44, 43, 42, 41,                                 \
         40, 39, 38, 37, 36, 35, 34, 33, 32, 31,                                 \
         30, 29, 28, 27, 26, 25, 24, 23, 22, 21,                                 \
         20, 19, 18, 17, 16, 15, 14, 13, 12, 11,                                 \
         10, 9, 8, 7, 6, 5, 4, 3, 2, 1,))                                        \
     /**/
-#define UNIFEX_PP_COUNT_(                                                          \
+#define UNIFEX_PP_COUNT_(                                                       \
     _01, _02, _03, _04, _05, _06, _07, _08, _09, _10,                           \
     _11, _12, _13, _14, _15, _16, _17, _18, _19, _20,                           \
     _21, _22, _23, _24, _25, _26, _27, _28, _29, _30,                           \
@@ -281,7 +298,16 @@ constexpr bool true_()
 
 } // namespace _concept
 
-template <typename A, typename B>
-UNIFEX_CONCEPT same_as = UNIFEX_IS_SAME(A, B) && UNIFEX_IS_SAME(B, A);
+#if defined(__clang__) || defined(_MSC_VER)
+template<bool B>
+std::enable_if_t<B> requires_()
+{}
+#else
+template<bool B>
+UNIFEX_INLINE_VAR constexpr std::enable_if_t<B, int> requires_ = 0;
+#endif
+
+template<bool B>
+UNIFEX_CONCEPT _is_true = B;
 
 } // namespace unifex

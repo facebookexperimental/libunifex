@@ -20,7 +20,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/this.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/detail/concept_macros.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <memory>
 #include <utility>
