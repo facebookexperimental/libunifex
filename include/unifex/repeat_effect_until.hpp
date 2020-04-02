@@ -35,14 +35,14 @@ struct _op {
   class type;
 };
 template<typename Source, typename Predicate, typename Receiver>
-using operation = typename _op<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
+using operation_type = typename _op<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Predicate, typename Receiver>
 struct _rcvr {
   class type;
 };
 template<typename Source, typename Predicate, typename Receiver>
-using receiver = typename _rcvr<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
+using receiver_type = typename _rcvr<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Predicate>
 struct _sndr {
@@ -51,7 +51,7 @@ struct _sndr {
 
 template<typename Source, typename Predicate, typename Receiver>
 class _rcvr<Source, Predicate, Receiver>::type {
-  using operation = operation<Source, Predicate, Receiver>;
+  using operation = operation_type<Source, Predicate, Receiver>;
 public:
   explicit type(operation* op) noexcept
   : op_(op) {}
@@ -70,32 +70,24 @@ public:
     op->isSourceOpConstructed_ = false;
     op->sourceOp_.destruct();
 
-    if constexpr (std::is_nothrow_invocable_v<Predicate>) {
+    if constexpr (std::is_nothrow_invocable_v<Predicate&> && is_nothrow_connectable_v<Source&, type>) {
       // call predicate and complete with void if it returns true
-      if(((Predicate)op->predicate_)()) {
+      if(op->predicate_()) {
         return;
       }
-    } else {
-      try {
-        // call predicate and complete with void if it returns true
-        if(((Predicate)op->predicate_)()) {
-          return;
-        }
-      } catch (...) {
-        unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
-      }
-    }
-
-    if constexpr (is_nothrow_connectable_v<Source, type>) {
       auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
-          return unifex::connect((Source)op->source_, type{op});
+          return unifex::connect(op->source_, type{op});
         });
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
       try {
+        // call predicate and complete with void if it returns true
+        if(op->predicate_()) {
+          return;
+        }
         auto& sourceOp = op->sourceOp_.construct_from([&] {
-            return unifex::connect((Source)op->source_, type{op});
+            return unifex::connect(op->source_, type{op});
           });
         op->isSourceOpConstructed_ = true;
         unifex::start(sourceOp);
@@ -153,20 +145,21 @@ private:
 
 template<typename Source, typename Predicate, typename Receiver>
 class _op<Source, Predicate, Receiver>::type {
-  using receiver = receiver<Source, Predicate, Receiver>;
+  using receiver = receiver_type<Source, Predicate, Receiver>;
 
 public:
-  explicit type(Source source, Predicate predicate, Receiver dest)
+  template<typename Source2, typename Predicate2, typename Receiver2>
+  explicit type(Source2&& source, Predicate2&& predicate, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
-               std::is_copy_constructible_v<std::remove_cvref_t<Predicate>> &&
-               std::is_copy_constructible_v<std::remove_cvref_t<Source>> &&
-               is_nothrow_connectable_v<Source, receiver>)
-  : source_(source)
-  , predicate_(predicate)
-  , receiver_((Receiver&&)dest)
+               std::is_constructible_v<Predicate, Predicate2> &&
+               std::is_constructible_v<Source, Source2> &&
+               is_nothrow_connectable_v<Source&, receiver>)
+  : source_((Source2&&)source)
+  , predicate_((Predicate2&&)predicate)
+  , receiver_((Receiver2&&)dest)
   {
     sourceOp_.construct_from([&] {
-        return unifex::connect((Source)source_, receiver{this});
+        return unifex::connect(source_, receiver{this});
       });
   }
 
@@ -184,10 +177,10 @@ public:
 private:
   friend receiver;
 
-  using source_op_t = operation_t<Source, receiver>;
+  using source_op_t = operation_t<Source&, receiver>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<Source> source_;
-  UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<Predicate> predicate_;
+  UNIFEX_NO_UNIQUE_ADDRESS Source source_;
+  UNIFEX_NO_UNIQUE_ADDRESS Predicate predicate_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   bool isSourceOpConstructed_ = true;
   manual_lifetime<source_op_t> sourceOp_;
@@ -218,19 +211,40 @@ public:
 
   template<
     typename Receiver,
-    typename Op = operation<Source&, Predicate&, Receiver>>
-  Op connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_constructible_v<Op, Source&, Predicate&, Receiver>) {
-    return Op{source_, predicate_, (Receiver&&)r};
+    std::enable_if_t<
+        std::is_move_constructible_v<Source> &&
+        std::is_move_constructible_v<Predicate> &&
+        std::is_move_constructible_v<Receiver> &&
+        is_connectable_v<Source&, receiver_type<Source, Predicate, Receiver>>, int> = 0>
+  operation_type<Source, Predicate, Receiver> connect(Receiver&& r) &&
+       noexcept(
+        std::is_nothrow_move_constructible_v<Source> &&
+        std::is_nothrow_move_constructible_v<Predicate> &&
+        std::is_nothrow_move_constructible_v<Receiver>) {
+    return operation_type<Source, Predicate, Receiver>{
+      (Source&&)source_, 
+      (Predicate&&)predicate_, 
+      (Receiver&&)r
+    };
   }
 
   template<
     typename Receiver,
-    typename Op = operation<const Source&, const Predicate&, Receiver>>
-  Op connect(Receiver&& r) const &
-      noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Predicate&, Receiver>) 
-    {
-      return Op{source_, predicate_, (Receiver&&)r};
+    std::enable_if_t<
+        std::is_copy_constructible_v<Source> &&
+        std::is_copy_constructible_v<Predicate> &&
+        std::is_move_constructible_v<Receiver> &&
+        is_connectable_v<Source&, receiver_type<Source, Predicate, Receiver>>, int> = 0>
+  operation_type<Source, Predicate, Receiver> connect(Receiver&& r) const&
+       noexcept(
+        std::is_nothrow_copy_constructible_v<Source> &&
+        std::is_nothrow_copy_constructible_v<Predicate> &&
+        std::is_nothrow_move_constructible_v<Receiver>) {
+    return operation_type<Source, Predicate, Receiver>{
+      source_, 
+      predicate_, 
+      (Receiver&&)r
+    };
   }
 
 private:
@@ -238,7 +252,7 @@ private:
   Predicate predicate_;
 };
 
-} // namespace _reapeat
+} // namespace _repeat_effect_until
 
 template<class Source, class Predicate>
 using repeat_effect_until_sender = typename _repeat_effect_until::_sndr<std::remove_cvref_t<Source>, std::remove_cvref_t<Predicate>>::type;
