@@ -120,10 +120,6 @@ private:
     using error_types = Variant<>;
 
     template <typename Receiver>
-    operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{(Receiver &&) receiver, maxRecursionDepth_};
-    }
-    template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) const& {
       return operation<Receiver>{(Receiver &&) receiver, maxRecursionDepth_};
     }

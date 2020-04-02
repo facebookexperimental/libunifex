@@ -590,7 +590,6 @@ namespace unifex
         manual_lifetime_union<std::exception_ptr, Errors...>;
 
     public:
-      type() = default;
       template <typename SourceSender2, typename CompletionSender2, typename Receiver2>
       explicit type(
           SourceSender2&& sourceSender,
@@ -726,8 +725,7 @@ namespace unifex
                   done_receiver<
                       SourceSender,
                       CompletionSender,
-                      std::remove_cvref_t<Receiver>>>,
-                std::true_type>,
+                      std::remove_cvref_t<Receiver>>>>,
               int(*)[__LINE__]> = nullptr>
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {

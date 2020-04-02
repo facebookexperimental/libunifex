@@ -55,10 +55,6 @@ namespace _ready_done {
     }
 
     template <typename Receiver>
-    operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{(Receiver &&) receiver};
-    }
-    template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) const& {
       return operation<Receiver>{(Receiver &&) receiver};
     }

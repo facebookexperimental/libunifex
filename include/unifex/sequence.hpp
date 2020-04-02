@@ -298,7 +298,7 @@ namespace unifex
       status status_;
       union {
         manual_lifetime<operation_t<
-            std::remove_cvref_t<Predecessor>,
+            Predecessor,
             predecessor_receiver<Predecessor, Successor, Receiver>>>
             predOp_;
         manual_lifetime<operation_t<

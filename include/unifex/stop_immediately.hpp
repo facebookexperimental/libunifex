@@ -416,9 +416,7 @@ struct _stream<SourceStream, Values...>::type {
       return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
     template<typename Receiver>
-    operation<Receiver> connect(Receiver&& receiver) const& {
-      return operation<Receiver>{stream_, (Receiver &&) receiver};
-    }
+    void connect(Receiver&& receiver) const& = delete;
   };
 
   UNIFEX_NO_UNIQUE_ADDRESS SourceStream source_;

@@ -145,11 +145,6 @@ namespace _thread_unsafe_event_loop {
     using error_types = Variant<>;
 
     template <typename Receiver>
-    after_operation<Duration, std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
-      return after_operation<Duration, std::remove_cvref_t<Receiver>>{
-          (Receiver &&) r, duration_, loop_};
-    }
-    template <typename Receiver>
     after_operation<Duration, std::remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
       return after_operation<Duration, std::remove_cvref_t<Receiver>>{
           (Receiver &&) r, duration_, loop_};
@@ -225,11 +220,6 @@ namespace _thread_unsafe_event_loop {
     template <template <typename...> class Variant>
     using error_types = Variant<>;
 
-    template <typename Receiver>
-    at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
-      return at_operation<std::remove_cvref_t<Receiver>>{
-          (Receiver &&) r, dueTime_, loop_};
-    }
     template <typename Receiver>
     at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
       return at_operation<std::remove_cvref_t<Receiver>>{

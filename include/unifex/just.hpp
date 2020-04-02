@@ -72,27 +72,13 @@ class _sender<Values...>::type {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  type() = default;
-  type(const type&) = default;
-  type(type&&) = default;
-
   template <
     typename... Values2,
     std::enable_if_t<
-      (sizeof...(Values2) == sizeof...(Values) &&
-      sizeof...(Values) > 1), int> = 0>
-    explicit type(Values2&&... values)
+      sizeof...(Values2) == sizeof...(Values), int> = 0>
+    explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
-
-  template <
-    typename Value2,
-    std::enable_if_t<
-      (sizeof...(Values) == 1 &&
-      !std::is_same_v<Value2, type>), int> = 0>
-    explicit type(Value2&& value)
-    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Value2>)
-    : values_((Value2 &&) value) {}
 
   template <typename Receiver,
     std::enable_if_t<std::is_move_constructible_v<std::tuple<Values...>>, int> = 0>
@@ -122,7 +108,7 @@ namespace _just_cpo {
     constexpr auto operator()(Values&&... values) const
       noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
       -> _just::sender<std::decay_t<Values>...> {
-      return _just::sender<Values...>{(Values&&)values...};
+      return _just::sender<Values...>{std::in_place, (Values&&)values...};
     }
   } just{};
 } // namespace _just_cpo
