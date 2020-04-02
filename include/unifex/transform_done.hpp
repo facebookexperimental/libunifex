@@ -37,21 +37,21 @@ struct _op {
   class type;
 };
 template<typename Source, typename Done, typename Receiver>
-using operation = typename _op<Source, Done, std::remove_cvref_t<Receiver>>::type;
+using operation_type = typename _op<Source, Done, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Done, typename Receiver>
 struct _rcvr {
   class type;
 };
 template<typename Source, typename Done, typename Receiver>
-using receiver = typename _rcvr<Source, Done, std::remove_cvref_t<Receiver>>::type;
+using receiver_type = typename _rcvr<Source, Done, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Done, typename Receiver>
 struct _frcvr {
   class type;
 };
 template<typename Source, typename Done, typename Receiver>
-using final_receiver = typename _frcvr<Source, Done, std::remove_cvref_t<Receiver>>::type;
+using final_receiver_type = typename _frcvr<Source, Done, std::remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Done>
 struct _sndr {
@@ -60,9 +60,9 @@ struct _sndr {
 
 template<typename Source, typename Done, typename Receiver>
 class _rcvr<Source, Done, Receiver>::type {
-  using operation = operation<Source, Done, Receiver>;
-  using source_receiver = receiver<Source, Done, Receiver>;
-  using final_receiver = final_receiver<Source, Done, Receiver>;
+  using operation = operation_type<Source, Done, Receiver>;
+  using final_receiver = final_receiver_type<Source, Done, Receiver>;
+  using final_sender_t = std::invoke_result_t<Done&>;
 
 public:
   explicit type(operation* op) noexcept
@@ -84,7 +84,7 @@ public:
     assert(op_ != nullptr);
     if constexpr (
       std::is_nothrow_invocable_v<Done> &&
-      is_nothrow_connectable_v<decltype(std::declval<Done>()()), final_receiver>) {
+      is_nothrow_connectable_v<final_sender_t, final_receiver>) {
       op_->startedOp_ = 0;
       op_->sourceOp_.destruct();
       op_->finalOp_.construct_from([&] {
@@ -143,7 +143,7 @@ private:
 
 template<typename Source, typename Done, typename Receiver>
 class _frcvr<Source, Done, Receiver>::type {
-  using operation = operation<Source, Done, Receiver>;
+  using operation = operation_type<Source, Done, Receiver>;
 
 public:
   explicit type(operation* op) noexcept
@@ -205,19 +205,20 @@ private:
 
 template<typename Source, typename Done, typename Receiver>
 class _op<Source, Done, Receiver>::type {
-  using source_receiver = receiver<Source, Done, Receiver>;
-  using final_receiver = final_receiver<Source, Done, Receiver>;
+  using source_receiver = receiver_type<Source, Done, Receiver>;
+  using final_receiver = final_receiver_type<Source, Done, Receiver>;
 
 public:
-  explicit type(Source&& source, Done done, Receiver dest)
+  template<typename Source2, typename Done2, typename Receiver2>
+  explicit type(Source2&& source, Done2&& done, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
-               std::is_nothrow_move_constructible_v<std::remove_cvref_t<Done>> &&
-               is_nothrow_connectable_v<Source, source_receiver>)
-  : done_((Done&&)done)
-  , receiver_((Receiver&&)dest)
+               std::is_nothrow_move_constructible_v<Done> &&
+               is_nothrow_connectable_v<Source2, source_receiver>)
+  : done_((Done2&&)done)
+  , receiver_((Receiver2&&)dest)
   {
     sourceOp_.construct_from([&] {
-        return unifex::connect((Source&&)source, source_receiver{this});
+        return unifex::connect((Source2&&)source, source_receiver{this});
       });
     startedOp_ = 0 + 1;
   }
@@ -245,7 +246,7 @@ private:
 
   using final_op_t = operation_t<final_sender_t, final_receiver>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<Done> done_;
+  UNIFEX_NO_UNIQUE_ADDRESS Done done_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   int startedOp_ = 0;
   union {
@@ -256,6 +257,7 @@ private:
 
 template<typename Source, typename Done>
 class _sndr<Source, Done>::type {
+  using final_sender_t = std::invoke_result_t<Done&>;
 
 public:
   template<template<typename...> class Variant,
@@ -281,20 +283,46 @@ public:
 
   template<
     typename Receiver,
-    typename Op = operation<Source, Done, Receiver>>
-  Op connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_constructible_v<Op, Source, Done, Receiver>) 
-    {
-    return Op{(Source&&)source_, (Done&&)done_, (Receiver&&)r};
+    typename SourceReceiver = receiver_type<Source, Done, Receiver>,
+    typename FinalReceiver = final_receiver_type<Source, Done, Receiver>,
+    std::enable_if_t<
+        std::is_move_constructible_v<Source> &&
+        std::is_move_constructible_v<Done> &&
+        std::is_move_constructible_v<Receiver> &&
+        is_connectable_v<Source&, SourceReceiver> &&
+        is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
+  operation_type<Source, Done, Receiver> connect(Receiver&& r) &&
+       noexcept(
+        std::is_nothrow_move_constructible_v<Source> &&
+        std::is_nothrow_move_constructible_v<Done> &&
+        std::is_nothrow_move_constructible_v<Receiver>) {
+    return operation_type<Source, Done, Receiver>{
+      (Source&&)source_, 
+      (Done&&)done_, 
+      (Receiver&&)r
+    };
   }
 
   template<
     typename Receiver,
-    typename Op = operation<const Source&, const Done&, Receiver>>
-  Op connect(Receiver&& r) const &
-      noexcept(std::is_nothrow_constructible_v<Op, const Source&, const Done&, Receiver>) 
-    {
-      return Op{source_, done_, (Receiver&&)r};
+    typename SourceReceiver = receiver_type<Source, Done, Receiver>,
+    typename FinalReceiver = final_receiver_type<Source, Done, Receiver>,
+    std::enable_if_t<
+        std::is_copy_constructible_v<Source> &&
+        std::is_copy_constructible_v<Done> &&
+        std::is_move_constructible_v<Receiver> &&
+        is_connectable_v<Source&, SourceReceiver> &&
+        is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
+  operation_type<Source, Done, Receiver> connect(Receiver&& r) const&
+       noexcept(
+        std::is_nothrow_copy_constructible_v<Source> &&
+        std::is_nothrow_copy_constructible_v<Done> &&
+        std::is_nothrow_move_constructible_v<Receiver>) {
+    return operation_type<Source, Done, Receiver>{
+      source_, 
+      done_, 
+      (Receiver&&)r
+    };
   }
 
 private:
