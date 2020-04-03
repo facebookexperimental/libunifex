@@ -93,7 +93,7 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename... DummyPack)
-          (requires sizeof...(DummyPack) == 0 &&
+          (requires (sizeof...(DummyPack) == 0) &&
               is_callable_v<
                   decltype(unifex::set_value),
                   Receiver,

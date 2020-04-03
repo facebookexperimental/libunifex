@@ -155,26 +155,13 @@ inline constexpr bool is_receiver_cpo_v = is_one_of_v<
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
 
-#if UNIFEX_CXX_CONCEPTS || defined(UNIFEX_DOXYGEN_INVOKED)
-
-template<class R, class E = exception_ptr>
-concept receiver =
-  move_constructible<remove_cvref_t<R>> &&
-  constructible_from<remove_cvref_t<R>, R> &&
-  requires(remove_cvref_t<R>&& r, E&& e) {
-    { set_done(std::move(r)) } noexcept;
-    { set_error(std::move(r), (E&&) e) } noexcept;
-  };
-
-#else
-
 template <typename R, typename E = std::exception_ptr>
 UNIFEX_CONCEPT_FRAGMENT(
   _receiver,
     requires(std::remove_cvref_t<R>&& r, E&& e) //
     (
-      unifex::requires_<noexcept(set_done(std::move(r)))>,
-      unifex::requires_<noexcept(set_error(std::move(r), (E&&) e))>
+      noexcept(set_done(std::move(r))),
+      noexcept(set_error(std::move(r), (E&&) e))
     ));
 
 template <typename R, typename E = std::exception_ptr>
@@ -183,8 +170,6 @@ UNIFEX_CONCEPT
     move_constructible<std::remove_cvref_t<R>> &&
     constructible_from<std::remove_cvref_t<R>, R> &&
     UNIFEX_FRAGMENT(unifex::_receiver, R, E);
-
-#endif
 
 template <typename T, typename... An>
 UNIFEX_CONCEPT_FRAGMENT(

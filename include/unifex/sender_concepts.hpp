@@ -17,6 +17,7 @@
 
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/receiver_concepts.hpp>
 
 #include <tuple>
 #include <type_traits>
@@ -71,11 +72,12 @@ namespace _connect {
       }
     };
    public:
-      template <typename Sender, typename Receiver>
-      auto operator()(Sender&& s, Receiver&& r) const noexcept
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_fn, Sender, Receiver>>,
-            Sender, Receiver> {
+    UNIFEX_TEMPLATE(typename Sender, typename Receiver)
+      (requires receiver<Receiver>)
+    auto operator()(Sender&& s, Receiver&& r) const noexcept
+      -> callable_result_t<
+          _impl<is_tag_invocable_v<_fn, Sender, Receiver>>,
+          Sender, Receiver> {
       return _impl<is_tag_invocable_v<_fn, Sender, Receiver>>{}(
           (Sender &&) s,
           (Receiver &&) r);

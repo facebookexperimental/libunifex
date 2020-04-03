@@ -62,7 +62,7 @@ namespace _demat {
     }
 
     UNIFEX_TEMPLATE(typename... DummyPack)
-        (requires sizeof...(DummyPack) == 0 &&
+        (requires (sizeof...(DummyPack) == 0) &&
             is_callable_v<decltype(unifex::set_done), Receiver>)
     void set_done(DummyPack...) && noexcept {
       unifex::set_done(static_cast<Receiver&&>(receiver_));

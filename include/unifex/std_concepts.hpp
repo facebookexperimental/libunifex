@@ -83,17 +83,13 @@ UNIFEX_CONCEPT_FRAGMENT(
     _boolean_testable_impl,
         requires(T && t)
         (
-            unifex::requires_<convertible_to<decltype(! (T &&) t), bool>>
+            requires(convertible_to<decltype(! (T &&) t), bool>)
         ));
 template <class T>
 UNIFEX_CONCEPT
     _boolean_testable =
         UNIFEX_FRAGMENT(_boolean_testable_impl, T) &&
         convertible_to<T, bool>;
-
-UNIFEX_TEMPLATE(typename T)
-    (requires _boolean_testable<T>)
-void _is_boolean_testable(T&&);
 
 UNIFEX_DIAGNOSTIC_PUSH
 UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
@@ -103,10 +99,10 @@ UNIFEX_CONCEPT_FRAGMENT(
     _weakly_equality_comparable_with,
         requires(_cref_t<T> t, _cref_t<U> u) //
         (
-            _is_boolean_testable(t == u),
-            _is_boolean_testable(t != u),
-            _is_boolean_testable(u == t),
-            _is_boolean_testable(u != t)
+            requires(_boolean_testable<decltype(t == u)>),
+            requires(_boolean_testable<decltype(t != u)>),
+            requires(_boolean_testable<decltype(u == t)>),
+            requires(_boolean_testable<decltype(u != t)>)
         ));
 template<typename T, typename U>
 UNIFEX_CONCEPT
@@ -134,7 +130,7 @@ UNIFEX_CONCEPT_FRAGMENT(
         requires(T t, U && u) //
         (
             t = (U &&) u,
-            requires_<same_as<T, decltype(t = (U &&) u)>>
+            requires(same_as<T, decltype(t = (U &&) u)>)
         ));
 template<typename T, typename U>
 UNIFEX_CONCEPT
@@ -199,10 +195,10 @@ UNIFEX_CONCEPT_FRAGMENT(
     _totally_ordered,
         requires(detail::_cref_t<T> t, detail::_cref_t<T> u) //
         (
-            _is_boolean_testable(t < u),
-            _is_boolean_testable(t > u),
-            _is_boolean_testable(u <= t),
-            _is_boolean_testable(u >= t)
+            requires(detail::_boolean_testable<decltype(t < u)>),
+            requires(detail::_boolean_testable<decltype(t > u)>),
+            requires(detail::_boolean_testable<decltype(u <= t)>),
+            requires(detail::_boolean_testable<decltype(u >= t)>)
         ));
 template<typename T>
 UNIFEX_CONCEPT
@@ -215,14 +211,14 @@ UNIFEX_CONCEPT_FRAGMENT(
     _totally_ordered_with,
         requires(detail::_cref_t<T> t, detail::_cref_t<U> u) //
         (
-            _is_boolean_testable(t < u),
-            _is_boolean_testable(t > u),
-            _is_boolean_testable(t <= u),
-            _is_boolean_testable(t >= u),
-            _is_boolean_testable(u < t),
-            _is_boolean_testable(u > t),
-            _is_boolean_testable(u <= t),
-            _is_boolean_testable(u >= t)
+            requires(detail::_boolean_testable<decltype(t < u)>),
+            requires(detail::_boolean_testable<decltype(t > u)>),
+            requires(detail::_boolean_testable<decltype(t <= u)>),
+            requires(detail::_boolean_testable<decltype(t >= u)>),
+            requires(detail::_boolean_testable<decltype(u < t)>),
+            requires(detail::_boolean_testable<decltype(u > t)>),
+            requires(detail::_boolean_testable<decltype(u <= t)>),
+            requires(detail::_boolean_testable<decltype(u >= t)>)
         ));
         //&& totally_ordered<
         //     common_reference_t<detail::_cref_t<T>, detail::_cref_t<U>>>

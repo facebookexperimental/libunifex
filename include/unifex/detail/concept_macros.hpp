@@ -15,8 +15,6 @@
  */
 #pragma once
 
-// #include <initializer_list>
-// #include <utility>
 #include <type_traits>
 
 #if !defined(UNIFEX_CXX_CONCEPTS)
@@ -91,6 +89,15 @@
 #define UNIFEX_PP_CAT_(X, ...)  X ## __VA_ARGS__
 #define UNIFEX_PP_CAT(X, ...)   UNIFEX_PP_CAT_(X, __VA_ARGS__)
 
+#define UNIFEX_PP_CAT2_(X, ...)  X ## __VA_ARGS__
+#define UNIFEX_PP_CAT2(X, ...)   UNIFEX_PP_CAT2_(X, __VA_ARGS__)
+
+#define UNIFEX_PP_CAT3_(X, ...)  X ## __VA_ARGS__
+#define UNIFEX_PP_CAT3(X, ...)   UNIFEX_PP_CAT3_(X, __VA_ARGS__)
+
+#define UNIFEX_PP_CAT4_(X, ...)  X ## __VA_ARGS__
+#define UNIFEX_PP_CAT4(X, ...)   UNIFEX_PP_CAT4_(X, __VA_ARGS__)
+
 #define UNIFEX_PP_EVAL_(X, ARGS) X ARGS
 #define UNIFEX_PP_EVAL(X, ...) UNIFEX_PP_EVAL_(X, (__VA_ARGS__))
 
@@ -158,25 +165,25 @@
 #define UNIFEX_PP_FOR_EACH(M, ...) \
     UNIFEX_PP_FOR_EACH_N(UNIFEX_PP_COUNT(__VA_ARGS__), M, __VA_ARGS__)
 #define UNIFEX_PP_FOR_EACH_N(N, M, ...) \
-    UNIFEX_PP_CAT(UNIFEX_PP_FOR_EACH_, N)(M, __VA_ARGS__)
+    UNIFEX_PP_CAT2(UNIFEX_PP_FOR_EACH_, N)(M, __VA_ARGS__)
 #define UNIFEX_PP_FOR_EACH_1(M, _1) \
     M(_1)
 #define UNIFEX_PP_FOR_EACH_2(M, _1, _2) \
-    M(_1), M(_2)
+    M(_1) M(_2)
 #define UNIFEX_PP_FOR_EACH_3(M, _1, _2, _3) \
-    M(_1), M(_2), M(_3)
+    M(_1) M(_2) M(_3)
 #define UNIFEX_PP_FOR_EACH_4(M, _1, _2, _3, _4) \
-    M(_1), M(_2), M(_3), M(_4)
+    M(_1) M(_2) M(_3) M(_4)
 #define UNIFEX_PP_FOR_EACH_5(M, _1, _2, _3, _4, _5) \
-    M(_1), M(_2), M(_3), M(_4), M(_5)
+    M(_1) M(_2) M(_3) M(_4) M(_5)
 #define UNIFEX_PP_FOR_EACH_6(M, _1, _2, _3, _4, _5, _6) \
-    M(_1), M(_2), M(_3), M(_4), M(_5), M(_6)
+    M(_1) M(_2) M(_3) M(_4) M(_5) M(_6)
 #define UNIFEX_PP_FOR_EACH_7(M, _1, _2, _3, _4, _5, _6, _7) \
-    M(_1), M(_2), M(_3), M(_4), M(_5), M(_6), M(_7)
+    M(_1) M(_2) M(_3) M(_4) M(_5) M(_6) M(_7)
 #define UNIFEX_PP_FOR_EACH_8(M, _1, _2, _3, _4, _5, _6, _7, _8) \
-    M(_1), M(_2), M(_3), M(_4), M(_5), M(_6), M(_7), M(_8)
+    M(_1) M(_2) M(_3) M(_4) M(_5) M(_6) M(_7) M(_8)
 
-#define UNIFEX_PP_PROBE_EMPTY_PROBE_CPP_PP_PROBE_EMPTY                             \
+#define UNIFEX_PP_PROBE_EMPTY_PROBE_UNIFEX_PP_PROBE_EMPTY                             \
     UNIFEX_PP_PROBE(~)                                                             \
 
 #define UNIFEX_PP_PROBE_EMPTY()
@@ -188,6 +195,28 @@
             UNIFEX_PP_PROBE_EMPTY __VA_ARGS__ ()))                                 \
     /**/
 
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_M0(REQ) \
+    UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_(REQ)(REQ)
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_M1(REQ) UNIFEX_PP_EXPAND REQ
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_(...) \
+    { UNIFEX_PP_FOR_EACH(UNIFEX_CONCEPT_FRAGMENT_REQS_M, __VA_ARGS__) }
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_(REQ)                          \
+    UNIFEX_PP_CAT3(UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_,                                     \
+        UNIFEX_PP_EVAL(UNIFEX_PP_CHECK, UNIFEX_PP_CAT3(                                   \
+            UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_PROBE_, \
+            REQ)))                   \
+    /**/
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_PROBE_requires UNIFEX_PP_PROBE_N(~, 1)
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_PROBE_noexcept UNIFEX_PP_PROBE_N(~, 2)
+
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_0 UNIFEX_PP_EXPAND
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_1 UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_2 UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT(REQ) \
+    UNIFEX_PP_CAT4(\
+        UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_,\
+        REQ)
+
 #if UNIFEX_CXX_CONCEPTS || defined(UNIFEX_DOXYGEN_INVOKED)
 
     #define UNIFEX_CONCEPT concept
@@ -196,15 +225,18 @@
         concept NAME = UNIFEX_PP_CAT(UNIFEX_CONCEPT_FRAGMENT_REQS_, __VA_ARGS__)
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_requires(...) \
         requires(__VA_ARGS__) UNIFEX_CONCEPT_FRAGMENT_REQS_
-    #define UNIFEX_CONCEPT_FRAGMENT_REQS_(...) { __VA_ARGS__ ; }
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_M(REQ) \
+        UNIFEX_PP_CAT2(UNIFEX_CONCEPT_FRAGMENT_REQS_M, UNIFEX_PP_IS_PAREN(REQ))(REQ);
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_requires(...) \
+        requires __VA_ARGS__
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
+        { __VA_ARGS__ } noexcept
 
     #define UNIFEX_FRAGMENT(NAME, ...) \
         NAME<__VA_ARGS__>
 
 #else
 
-    // Use UNIFEX_CONCEPT_bool instead of UNIFEX_CONCEPT on gcc-8 and earlier to avoid:
-    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=87512
     #define UNIFEX_CONCEPT UNIFEX_INLINE_VAR constexpr bool
 
     #define UNIFEX_CONCEPT_FRAGMENT(NAME, ...) \
@@ -216,17 +248,28 @@
             decltype(&NAME ## UNIFEX_CONCEPT_FRAGMENT_impl_<As...>)); \
         char (&NAME ## UNIFEX_CONCEPT_FRAGMENT_(...))[2] \
         /**/
+    #define M(ARG) ARG,
     #if defined(_MSC_VER) && !defined(__clang__)
         #define UNIFEX_CONCEPT_FRAGMENT_TRUE(...) \
-            ::unifex::_concept::true_<decltype(__VA_ARGS__, void())>()
+            ::unifex::_concept::true_<decltype(\
+                UNIFEX_PP_FOR_EACH(UNIFEX_CONCEPT_FRAGMENT_REQS_M, __VA_ARGS__)\
+                void())>()
     #else
         #define UNIFEX_CONCEPT_FRAGMENT_TRUE(...) \
-            !(decltype(__VA_ARGS__, void(), false){})
+            !(decltype(UNIFEX_PP_FOR_EACH(UNIFEX_CONCEPT_FRAGMENT_REQS_M, __VA_ARGS__)\
+            void(),\
+            false){})
     #endif
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_requires(...) \
         (__VA_ARGS__) -> std::enable_if_t<UNIFEX_CONCEPT_FRAGMENT_REQS_2_
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_2_(...) \
         UNIFEX_CONCEPT_FRAGMENT_TRUE(__VA_ARGS__)
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_M(REQ) \
+        UNIFEX_PP_CAT2(UNIFEX_CONCEPT_FRAGMENT_REQS_M, UNIFEX_PP_IS_PAREN(REQ))(REQ),
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_requires(...) \
+        ::unifex::requires_<__VA_ARGS__>
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
+        ::unifex::requires_<noexcept(__VA_ARGS__)>
 
     #define UNIFEX_FRAGMENT(NAME, ...) \
         (1u==sizeof(NAME ## UNIFEX_CONCEPT_FRAGMENT_(\
