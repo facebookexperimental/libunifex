@@ -713,7 +713,7 @@ namespace unifex
               std::conjunction_v<
                 std::is_same<CPO, tag_t<connect>>,
                 std::is_same<std::remove_cvref_t<S>, sender>,
-                std::negation<std::is_lvalue_reference<S>>,
+                std::negation<std::is_same<S, sender&>>,
                 is_connectable<
                   SourceSender,
                   receiver<
@@ -730,8 +730,8 @@ namespace unifex
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {
         return operation<SourceSender, CompletionSender, Receiver>{
-                static_cast<SourceSender&&>(s.source_),
-                static_cast<CompletionSender&&>(s.completion_),
+                static_cast<S&&>(s).source_,
+                static_cast<S&&>(s).completion_,
                 static_cast<Receiver&&>(r)};
       }
     private:
