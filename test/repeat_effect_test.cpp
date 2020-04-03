@@ -47,7 +47,6 @@ TEST(RepeatEffect, Smoke) {
   auto scheduler = context.get_scheduler();
 
   std::atomic<int> count{0};
-  std::atomic<int> expected{-1};
 
   sync_wait(
     when_all(
@@ -57,14 +56,13 @@ TEST(RepeatEffect, Smoke) {
           EXPECT_FALSE(stop.stop_requested());
           done.request_stop();
           EXPECT_TRUE(stop.stop_requested());
-          expected.store(count.load());
         })),
       repeat_effect(
         sequence(
-          schedule_after(scheduler, 200ms), 
+          schedule_after(scheduler, 50ms), 
           lazy([&]{++count;})))), 
     done.get_token());
 
   EXPECT_TRUE(done.stop_requested());
-  EXPECT_EQ(count.load(), expected.load());
+  EXPECT_GT(count.load(), 1);
 }
