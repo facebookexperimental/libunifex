@@ -253,8 +253,8 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<value_variant_for_sender<Senders>>...> values_;
-  std::optional<error_types<std::variant, Senders...>> error_;
+  std::tuple<std::optional<value_variant_for_sender<std::remove_cvref_t<Senders>>>...> values_;
+  std::optional<error_types<std::variant, std::remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
