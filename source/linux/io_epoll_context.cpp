@@ -189,6 +189,7 @@ void io_epoll_context::schedule_impl(operation_base* op) {
 
 void io_epoll_context::schedule_local(operation_base* op) noexcept {
   LOG("schedule_local");
+  assert(op->execute_);
   localQueue_.push_back(op);
 }
 
@@ -198,6 +199,7 @@ void io_epoll_context::schedule_local(operation_queue ops) noexcept {
 
 void io_epoll_context::schedule_remote(operation_base* op) noexcept {
   LOG("schedule_remote");
+  assert(op->execute_);
   bool ioThreadWasInactive = remoteQueue_.enqueue(op);
   if (ioThreadWasInactive) {
     // We were the first to queue an item and the I/O thread is not
@@ -228,7 +230,9 @@ void io_epoll_context::execute_pending_local() noexcept {
   auto pending = std::move(localQueue_);
   while (!pending.empty()) {
     auto* item = pending.pop_front();
-    item->execute_(item);
+    if (item->execute_) {
+      item->execute_(item);
+    }
     ++count;
   }
 
