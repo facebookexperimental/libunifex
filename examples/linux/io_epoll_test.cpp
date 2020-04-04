@@ -17,9 +17,9 @@
 // writes starting!
 // warmup completed!
 // benchmark completed!
-// completed in 10000 ms, 425069reads, 10000060022ns, 4250718ops
-// stats - 425069reads, 2352ns-per-op, 425ops-per-ms
-// writes completed!
+// completed in 10000 ms, 10000110689ns, 7396446ops
+// stats - 739636reads, 1352ns-per-op, 739ops-per-ms
+// writes stopped!
 
 #include <unifex/config.hpp>
 #if !UNIFEX_NO_EPOLL
@@ -125,27 +125,6 @@ int main() {
   auto offset = 0;
   auto reps = 0;
   const auto databuffer = as_bytes(span{data});
-  std::thread w{[&, &wPipe = std::get<1>(pipe)] () { 
-      try {
-        printf("writes starting!\n");
-        while(!stopWrite.stop_requested()) {
-          sync_wait(
-            async_write_some(wPipe, databuffer), 
-            stopWrite.get_token());
-        }
-        printf("writes exiting!\n");
-      } catch (const std::error_code& ec) {
-        std::printf("async_write_some error: %s\n", ec.message().c_str());
-      } catch (const std::exception& ex) {
-        std::printf("async_write_some exception: %s\n", ex.what());
-      }
-    }};
-  scope_guard waitForWrites = [&]() noexcept {
-    stopWrite.request_stop();
-    printf("writes stopping..!\n");
-    w.join();
-    printf("writes stopped!\n");
-  };
   auto pipe_bench = [&, &rPipe = std::get<0>(pipe)](int seconds, auto& stopSource) {
     return transform_done(
       with_query_value(
@@ -177,40 +156,60 @@ int main() {
   };
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
+  auto& wPipe = std::get<1>(pipe);
   try {
     sync_wait(
-      sequence(
-        pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
-        lazy([&]{
-          // restart reps and keep offset in data
-          offset = reps%sizeof(data);
-          reps = 0;
-          printf("warmup completed!\n");
-          // exclude the warmup time
-          start = std::chrono::high_resolution_clock::now();
-        }),
-        pipe_bench(BENCHMARK_DURATION, stopRead),
-        lazy([&]{
-          end = std::chrono::high_resolution_clock::now();
-          printf("benchmark completed!\n");
-          auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                  end - start)
-                  .count();
-          auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                  end - start)
-                  .count();
-          double reads = 1000000000.0 * reps / ns;
-          std::cout
-              << "completed in "
-              << ms << " ms, "
-              << ns << "ns, " 
-              << reps << "ops\n";
-          std::cout
-              << "stats - "
-              << reads << "reads, " 
-              << ns/reps << "ns-per-op, " 
-              << reps/ms << "ops-per-ms\n";
-        })));
+      when_all(
+        sequence(
+          lazy([&]{
+            printf("writes starting!\n");
+          }),
+          transform_done(
+            repeat_effect(
+              defer(
+                [&](){
+                  return typed_via(
+                    discard(async_write_some(wPipe, databuffer)), 
+                    scheduler);
+                })),
+            []{return just();}),
+          lazy([&]{
+            printf("writes stopped!\n");
+          })),
+        sequence(
+          pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
+          lazy([&]{
+            // restart reps and keep offset in data
+            offset = reps%sizeof(data);
+            reps = 0;
+            printf("warmup completed!\n");
+            // exclude the warmup time
+            start = std::chrono::high_resolution_clock::now();
+          }),
+          pipe_bench(BENCHMARK_DURATION, stopRead),
+          lazy([&]{
+            end = std::chrono::high_resolution_clock::now();
+            printf("benchmark completed!\n");
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    end - start)
+                    .count();
+            auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    end - start)
+                    .count();
+            double reads = 1000000000.0 * reps / ns;
+            std::cout
+                << "completed in "
+                << ms << " ms, "
+                << ns << "ns, " 
+                << reps << "ops\n";
+            std::cout
+                << "stats - "
+                << reads << "reads, " 
+                << ns/reps << "ns-per-op, " 
+                << reps/ms << "ops-per-ms\n";
+            stopWrite.request_stop();
+          }))),
+        stopWrite.get_token());
   } catch (const std::error_code& ec) {
     std::printf("async_read_some error: %s\n", ec.message().c_str());
   } catch (const std::exception& ex) {
