@@ -1,3 +1,6 @@
 [submodule "external/mpark-wg21"]
 	path = external/mpark-wg21
 	url = https://github.com/mpark/wg21.git
+[submodule "external/llfio"]
+	path = external/llfio
+	url = https://github.com/ned14/llfio.git

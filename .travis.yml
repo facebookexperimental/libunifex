@@ -4,7 +4,10 @@
 
 language: cpp
 dist: bionic
-osx_image: xcode10.3
+osx_image: xcode11.3
+sudo: true
+git:
+  submodules: false
 
 compiler:
 - gcc
@@ -24,10 +27,6 @@ addons:
       key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
     - sourceline: 'ppa:ubuntu-toolchain-r/test'
     packages:
-    - clang-9
-    - libc++-8-dev
-    - libc++abi-8-dev
-    - libstdc++-8-dev
     - cmake
     - gcc-9
     - g++-9
@@ -36,38 +35,36 @@ addons:
     packages:
     - cmake
     - gcc@9
-    - llvm@9
+    - llvm@8
     - ninja
     update: true
 
-install:
-# The following Homebrew packages aren't linked by default, and need to be
-# prepended to the path explicitly.
-- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
-    export PATH="$(brew --prefix llvm)/bin:$PATH";
-  fi
-# /usr/bin/gcc points to an older compiler on both Linux and macOS.
-- if [ "$CXX" = "g++" ]; then export CXX="g++-9" CC="gcc-9"; fi
-# /usr/bin/clang points to an older compiler on both Linux and macOS.
-#
-# Homebrew's llvm package doesn't ship a versioned clang++ binary, so the values
-# below don't work on macOS. Fortunately, the path change above makes the
-# default values (clang and clang++) resolve to the correct compiler on macOS.
+before_install:
+- touch toolchain.cmake
 - if [ "$TRAVIS_OS_NAME" = "linux" ]; then
-    if [ "$CXX" = "clang++" ]; then export CXX="clang++-9" CC="clang-9"; fi;
+    if [ "$TRAVIS_COMPILER" = "gcc" ]; then printf "set(CMAKE_C_COMPILER gcc-9)\nset(CMAKE_CXX_COMPILER g++-9)\n" > toolchain.cmake; fi;
+    if [ "$TRAVIS_COMPILER" = "clang" ]; then
+       wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -;
+       sudo echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-10 main" >> /etc/apt/sources.list;
+       sudo apt update;
+       sudo apt install clang-10 libc++-10-dev libc++abi-10-dev libomp-10-dev;
+       printf "set(CMAKE_C_COMPILER clang-10)\nset(CMAKE_CXX_COMPILER clang++-10)\nset(CMAKE_CXX_FLAGS \"-stdlib=libc++ -std=c++20\")\nset(CMAKE_EXE_LINKER_FLAGS -stdlib=libc++)\n" > toolchain.cmake;
+    fi;
   fi
-- echo ${CC}
-- echo ${CXX}
-- ${CXX} --version
+- if [ "$TRAVIS_OS_NAME" = "osx" ]; then
+    if [ "$CXX" = "g++" ]; then
+      printf "set(CMAKE_C_COMPILER /usr/local/bin/gcc-9)\nset(CMAKE_CXX_COMPILER /usr/local/bin/g++-9)\n" > toolchain.cmake;
+    fi;
+    if [ "$CXX" = "clang++" ]; then
+      printf "set(CMAKE_C_COMPILER /usr/local/opt/llvm@8/bin/clang)\nset(CMAKE_CXX_COMPILER /usr/local/opt/llvm@8/bin/clang++)\nset(CMAKE_CXX_FLAGS \"-I/usr/local/opt/llvm@8/include\ -std=c++2a\")\nset(CMAKE_EXE_LINKER_FLAGS -L/usr/local/opt/llvm@8/lib)\n" > toolchain.cmake;
+    fi;
+  fi
 - cmake --version
 
 before_script:
-- if [ "$CXX" = "clang++-9" ]; then
-    source .install-libcxx.sh;
-  fi
 - mkdir -p build && cd build
-- cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
-- cmake --build .
+- cmake .. -G Ninja -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake -DCMAKE_BUILD_TYPE=$BUILD_TYPE || cat CMakeFiles/CMakeError.log
+- ninja
 - cd ..
 
 script:
