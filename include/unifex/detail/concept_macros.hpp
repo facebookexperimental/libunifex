@@ -183,7 +183,7 @@
 #define UNIFEX_PP_FOR_EACH_8(M, _1, _2, _3, _4, _5, _6, _7, _8) \
     M(_1) M(_2) M(_3) M(_4) M(_5) M(_6) M(_7) M(_8)
 
-#define UNIFEX_PP_PROBE_EMPTY_PROBE_UNIFEX_PP_PROBE_EMPTY                             \
+#define UNIFEX_PP_PROBE_EMPTY_PROBE_UNIFEX_PP_PROBE_EMPTY                          \
     UNIFEX_PP_PROBE(~)                                                             \
 
 #define UNIFEX_PP_PROBE_EMPTY()
@@ -208,14 +208,26 @@
     /**/
 #define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_PROBE_requires UNIFEX_PP_PROBE_N(~, 1)
 #define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_PROBE_noexcept UNIFEX_PP_PROBE_N(~, 2)
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_PROBE_typename UNIFEX_PP_PROBE_N(~, 3)
 
 #define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_0 UNIFEX_PP_EXPAND
 #define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_1 UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT
 #define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_2 UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT
+#define UNIFEX_CONCEPT_FRAGMENT_REQS_SELECT_3 UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT
 #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_OR_NOEXCEPT(REQ) \
     UNIFEX_PP_CAT4(\
         UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_,\
         REQ)
+#define UNIFEX_PP_EAT_TYPENAME_PROBE_typename UNIFEX_PP_PROBE(~)
+#define UNIFEX_PP_EAT_TYPENAME_(...) \
+    UNIFEX_PP_CAT3(UNIFEX_PP_EAT_TYPENAME_SELECT_,         \
+        UNIFEX_PP_EVAL(UNIFEX_PP_CHECK, UNIFEX_PP_CAT3(   \
+            UNIFEX_PP_EAT_TYPENAME_PROBE_, \
+            __VA_ARGS__)))(__VA_ARGS__)
+#define UNIFEX_PP_EAT_TYPENAME_SELECT_0(...) __VA_ARGS__
+#define UNIFEX_PP_EAT_TYPENAME_SELECT_1(...) \
+    UNIFEX_PP_CAT3(UNIFEX_PP_EAT_TYPENAME_, __VA_ARGS__)
+#define UNIFEX_PP_EAT_TYPENAME_typename \
 
 #if UNIFEX_CXX_CONCEPTS || defined(UNIFEX_DOXYGEN_INVOKED)
 
@@ -231,6 +243,8 @@
         requires __VA_ARGS__
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
         { __VA_ARGS__ } noexcept
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_typename(...) \
+        typename UNIFEX_PP_EAT_TYPENAME_(__VA_ARGS__)
 
     #define UNIFEX_FRAGMENT(NAME, ...) \
         NAME<__VA_ARGS__>
@@ -270,6 +284,8 @@
         ::unifex::requires_<__VA_ARGS__>
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
         ::unifex::requires_<noexcept(__VA_ARGS__)>
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_typename(...) \
+        static_cast<::unifex::_concept::tag<__VA_ARGS__> *>(nullptr)
 
     #define UNIFEX_FRAGMENT(NAME, ...) \
         (1u==sizeof(NAME ## UNIFEX_CONCEPT_FRAGMENT_(\

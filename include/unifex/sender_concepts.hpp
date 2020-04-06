@@ -19,10 +19,122 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/receiver_concepts.hpp>
 
+#include <exception>
 #include <tuple>
 #include <type_traits>
 
 namespace unifex {
+
+struct sender_base {};
+
+template <typename>
+struct sender_traits;
+
+/// \cond
+namespace detail {
+template <typename, typename>
+struct _as_invocable;
+
+template <typename, typename>
+struct _as_receiver;
+
+template <typename, typename = void>
+inline constexpr bool _is_executor = false;
+
+template<template<template<typename...> class, template<typename...> class> class>
+struct _has_value_types;
+
+template<template<template<typename...> class> class>
+struct _has_error_types;
+
+template <typename S>
+UNIFEX_CONCEPT_FRAGMENT(  //
+  _has_sender_types_impl, //
+    requires() (          //
+      // BUGBUG TODO:
+      // typename (std::bool_constant<S::sends_done>),
+      typename (_has_value_types<S::template value_types>),
+      typename (_has_error_types<S::template error_types>)
+    ));
+template <typename S>
+UNIFEX_CONCEPT        //
+  _has_sender_types = //
+    UNIFEX_FRAGMENT(detail::_has_sender_types_impl, S);
+
+template <typename S>
+UNIFEX_CONCEPT_FRAGMENT(  //
+  _not_has_sender_traits, //
+    requires() (          //
+      typename (typename sender_traits<S>::_unspecialized)
+    ));
+template <typename S>
+UNIFEX_CONCEPT         //
+  _has_sender_traits = //
+    !UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S);
+
+struct _void_sender_traits {
+  template<template<class...> class Tuple, template<class...> class Variant>
+  using value_types = Variant<Tuple<>>;
+
+  template<template<class...> class Variant>
+  using error_types = Variant<std::exception_ptr>;
+
+  static constexpr bool sends_done = true;
+};
+
+template <typename S>
+struct _typed_sender_traits {
+  template<template<class...> class Tuple, template<class...> class Variant>
+  using value_types = typename S::template value_types<Tuple, Variant>;
+
+  template<template<class...> class Variant>
+  using error_types = typename S::template error_types<Variant>;
+
+  static constexpr bool sends_done = S::sends_done;
+};
+
+struct _void_receiver {
+  void set_value() noexcept;
+  void set_error(std::exception_ptr) noexcept;
+  void set_done() noexcept;
+};
+
+struct _no_sender_traits {
+  using _unspecialized = void;
+};
+
+template <typename S>
+constexpr auto _select_sender_traits() noexcept {
+  if constexpr (_has_sender_types<S>) {
+    return _typed_sender_traits<S>{};
+  } else if constexpr (_is_executor<S>) {
+    return _void_sender_traits{};
+  } else if constexpr (derived_from<S, sender_base>) {
+    return sender_base{};
+  } else {
+    return _no_sender_traits{};
+  }
+}
+} // namespace detail
+/// \endcond
+
+template <typename S>
+struct sender_traits : decltype(detail::_select_sender_traits<S>()) {};
+
+template<class S>
+UNIFEX_CONCEPT //
+  sender =     //
+    move_constructible<std::remove_cvref_t<S>> &&
+    detail::_has_sender_traits<std::remove_cvref_t<S>>;
+
+static_assert(!sender<int>);
+
+template<class S>
+UNIFEX_CONCEPT   //
+  typed_sender = //
+    sender<S> && //
+    detail::_has_sender_types<sender_traits<std::remove_cvref_t<S>>>;
+
 namespace _start {
   inline constexpr struct _fn {
    private:
@@ -73,7 +185,7 @@ namespace _connect {
     };
    public:
     UNIFEX_TEMPLATE(typename Sender, typename Receiver)
-      (requires receiver<Receiver>)
+      (requires sender<Sender> && receiver<Receiver>)
     auto operator()(Sender&& s, Receiver&& r) const noexcept
       -> callable_result_t<
           _impl<is_tag_invocable_v<_fn, Sender, Receiver>>,

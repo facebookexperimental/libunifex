@@ -56,14 +56,14 @@ private:
     template <template <typename...> class Variant>
     using error_types = Variant<>;
 
+    lock_sender(const lock_sender &) = delete;
+    lock_sender(lock_sender &&) = default;
+
   private:
     friend async_mutex;
 
     explicit lock_sender(async_mutex &mutex) noexcept
       : mutex_(mutex) {}
-
-    lock_sender(const lock_sender &) = delete;
-    lock_sender(lock_sender &&) = default;
 
     template <typename Receiver>
     struct _op {

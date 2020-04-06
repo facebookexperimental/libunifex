@@ -155,7 +155,7 @@ inline constexpr bool is_receiver_cpo_v = is_one_of_v<
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
 
-template <typename R, typename E = std::exception_ptr>
+template <typename R, typename E>
 UNIFEX_CONCEPT_FRAGMENT(
   _receiver,
     requires(std::remove_cvref_t<R>&& r, E&& e) //
