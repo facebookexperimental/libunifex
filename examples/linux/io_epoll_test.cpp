@@ -115,7 +115,7 @@ int main() {
     std::printf("error: %s\n", ex.what());
   }
 
-  auto pipe = open_pipe(scheduler);
+  auto [rPipe, wPipe] = open_pipe(scheduler);
 
   inplace_stop_source stopWarmup;
   inplace_stop_source stopRead;
@@ -125,7 +125,7 @@ int main() {
   auto offset = 0;
   auto reps = 0;
   const auto databuffer = as_bytes(span{data});
-  auto pipe_bench = [&, &rPipe = std::get<0>(pipe)](int seconds, auto& stopSource) {
+  auto pipe_bench = [&, &rPipeRef = rPipe](int seconds, auto& stopSource) {
     return transform_done(
       with_query_value(
         discard(
@@ -144,7 +144,7 @@ int main() {
                     repeat_effect(
                       transform(
                         discard(
-                          async_read_some(rPipe, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                          async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
                         [&]{
                           assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
                           ++reps;
@@ -156,7 +156,7 @@ int main() {
   };
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
-  auto& wPipe = std::get<1>(pipe);
+  auto& wPipeRef = wPipe;
   try {
     sync_wait(
       when_all(
@@ -169,7 +169,7 @@ int main() {
               defer(
                 [&](){
                   return typed_via(
-                    discard(async_write_some(wPipe, databuffer)), 
+                    discard(async_write_some(wPipeRef, databuffer)), 
                     scheduler);
                 })),
             []{return just();}),
