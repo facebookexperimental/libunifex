@@ -35,14 +35,14 @@ struct _op {
   class type;
 };
 template<typename Source, typename Predicate, typename Receiver>
-using operation_type = typename _op<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
+using operation_type = typename _op<Source, Predicate, Receiver>::type;
 
 template<typename Source, typename Predicate, typename Receiver>
 struct _rcvr {
   class type;
 };
 template<typename Source, typename Predicate, typename Receiver>
-using receiver_type = typename _rcvr<Source, Predicate, std::remove_cvref_t<Receiver>>::type;
+using receiver_type = typename _rcvr<Source, Predicate, Receiver>::type;
 
 template<typename Source, typename Predicate>
 struct _sndr {
@@ -70,9 +70,10 @@ public:
     op->isSourceOpConstructed_ = false;
     op->sourceOp_.destruct();
 
-    if constexpr (std::is_nothrow_invocable_v<Predicate&> && is_nothrow_connectable_v<Source&, type>) {
+    if constexpr (std::is_nothrow_invocable_v<Predicate&> && is_nothrow_connectable_v<Source&, type> && is_nothrow_tag_invocable_v<tag_t<unifex::set_value>, Receiver>) {
       // call predicate and complete with void if it returns true
       if(op->predicate_()) {
+        unifex::set_value(std::move(op->receiver_));
         return;
       }
       auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
@@ -84,6 +85,7 @@ public:
       try {
         // call predicate and complete with void if it returns true
         if(op->predicate_()) {
+          unifex::set_value(std::move(op->receiver_));
           return;
         }
         auto& sourceOp = op->sourceOp_.construct_from([&] {
@@ -92,14 +94,14 @@ public:
         op->isSourceOpConstructed_ = true;
         unifex::start(sourceOp);
       } catch (...) {
-        unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
+        unifex::set_error(std::move(op->receiver_), std::current_exception());
       }
     }
   }
 
   template<
     typename R = Receiver,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), R>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_done), R>, int> = 0>
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
@@ -107,7 +109,7 @@ public:
 
   template<
     typename Error,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
   void set_error(Error&& error) noexcept {
     assert(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
@@ -150,9 +152,9 @@ class _op<Source, Predicate, Receiver>::type {
 public:
   template<typename Source2, typename Predicate2, typename Receiver2>
   explicit type(Source2&& source, Predicate2&& predicate, Receiver2&& dest)
-      noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
-               std::is_constructible_v<Predicate, Predicate2> &&
-               std::is_constructible_v<Source, Source2> &&
+      noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2> &&
+               std::is_nothrow_constructible_v<Predicate, Predicate2> &&
+               std::is_nothrow_constructible_v<Source, Source2> &&
                is_nothrow_connectable_v<Source&, receiver>)
   : source_((Source2&&)source)
   , predicate_((Predicate2&&)predicate)
@@ -196,8 +198,7 @@ public:
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename Source::template error_types<
-          decayed_tuple<type_list>::template apply>,
+      typename Source::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
   template<typename Source2, typename Predicate2>
@@ -212,16 +213,18 @@ public:
   template<
     typename Receiver,
     std::enable_if_t<
-        std::is_move_constructible_v<Source> &&
-        std::is_move_constructible_v<Predicate> &&
-        std::is_move_constructible_v<Receiver> &&
-        is_connectable_v<Source&, receiver_type<Source, Predicate, Receiver>>, int> = 0>
-  operation_type<Source, Predicate, Receiver> connect(Receiver&& r) &&
+      std::conjunction_v<
+        std::is_move_constructible<Source>,
+        std::is_move_constructible_v<Predicate>,
+        std::is_constructible<std::remove_cvref_t<Receiver>, Receiver>,
+        is_connectable<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>>, int> = 0>
+  operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) &&
        noexcept(
         std::is_nothrow_move_constructible_v<Source> &&
         std::is_nothrow_move_constructible_v<Predicate> &&
-        std::is_nothrow_move_constructible_v<Receiver>) {
-    return operation_type<Source, Predicate, Receiver>{
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>) {
+    return operation_type<Source, Predicate, std::remove_cvref_t<Receiver>>{
       (Source&&)source_, 
       (Predicate&&)predicate_, 
       (Receiver&&)r
@@ -231,16 +234,18 @@ public:
   template<
     typename Receiver,
     std::enable_if_t<
-        std::is_copy_constructible_v<Source> &&
-        std::is_copy_constructible_v<Predicate> &&
-        std::is_move_constructible_v<Receiver> &&
-        is_connectable_v<Source&, receiver_type<Source, Predicate, Receiver>>, int> = 0>
-  operation_type<Source, Predicate, Receiver> connect(Receiver&& r) const&
+      std::conjunction_v<
+        std::is_copy_constructible<Source>,
+        std::is_copy_constructible<Predicate>,
+        std::is_constructible<std::remove_cvref_t<Receiver>, Receiver>,
+        is_connectable<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>>, int> = 0>
+  operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) const&
        noexcept(
         std::is_nothrow_copy_constructible_v<Source> &&
         std::is_nothrow_copy_constructible_v<Predicate> &&
-        std::is_nothrow_move_constructible_v<Receiver>) {
-    return operation_type<Source, Predicate, Receiver>{
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>) {
+    return operation_type<Source, Predicate, std::remove_cvref_t<Receiver>>{
       source_, 
       predicate_, 
       (Receiver&&)r
@@ -248,14 +253,14 @@ public:
   }
 
 private:
-  Source source_;
-  Predicate predicate_;
+  UNIFEX_NO_UNIQUE_ADDRESS Source source_;
+  UNIFEX_NO_UNIQUE_ADDRESS Predicate predicate_;
 };
 
 } // namespace _repeat_effect_until
 
 template<class Source, class Predicate>
-using repeat_effect_until_sender = typename _repeat_effect_until::_sndr<std::remove_cvref_t<Source>, std::remove_cvref_t<Predicate>>::type;
+using repeat_effect_until_sender = typename _repeat_effect_until::_sndr<Source, Predicate>::type;
 
 inline constexpr struct repeat_effect_until_cpo {
   template<typename Source, typename Predicate>
@@ -271,14 +276,14 @@ inline constexpr struct repeat_effect_until_cpo {
     std::enable_if_t<
         !is_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate> &&
         std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
-        std::is_constructible_v<std::remove_cvref_t<Predicate>, Predicate>, int> = 0>
+        std::is_constructible_v<std::decay_t<Predicate>, Predicate>, int> = 0>
   auto operator()(Source&& source, Predicate&& predicate) const
       noexcept(std::is_nothrow_constructible_v<
-                   repeat_effect_until_sender<Source, Predicate>,
+                   repeat_effect_until_sender<std::remove_cvref_t<Source>, std::decay_t<Predicate>>,
                    Source, 
                    Predicate>)
-      -> repeat_effect_until_sender<Source, Predicate> {
-    return repeat_effect_until_sender<Source, Predicate>{
+      -> repeat_effect_until_sender<std::remove_cvref_t<Source>, std::decay_t<Predicate>> {
+    return repeat_effect_until_sender<std::remove_cvref_t<Source>, std::decay_t<Predicate>>{
         (Source&&)source, (Predicate&&)predicate};
   }
 } repeat_effect_until{};
@@ -301,10 +306,10 @@ inline constexpr struct repeat_effect_cpo {
         std::is_constructible_v<std::remove_cvref_t<Source>, Source>, int> = 0>
   auto operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<
-                   repeat_effect_until_sender<Source, forever>,
+                   repeat_effect_until_sender<std::remove_cvref_t<Source>, forever>,
                    Source>)
-      -> repeat_effect_until_sender<Source, forever> {
-    return repeat_effect_until_sender<Source, forever>{
+      -> repeat_effect_until_sender<std::remove_cvref_t<Source>, forever> {
+    return repeat_effect_until_sender<std::remove_cvref_t<Source>, forever>{
         (Source&&)source, forever{}};
   }
 } repeat_effect{};

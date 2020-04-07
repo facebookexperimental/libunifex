@@ -279,7 +279,7 @@ predicate returns false.
 The `source` sender must be lvalue connectable (ie. can be connected and started 
 multiple times).
 
-The `source` sender must be an effect. It must prooduce void.
+The `source` sender must be an effect. It must produce void.
 
 If the `source` sender completes with `set_error()` or `set_done()` then the
 `repeat_effect_until()` operation completes with that same signal.
@@ -311,7 +311,7 @@ cancelled.
 The `source` sender must be lvalue connectable (ie. can be connected and started 
 multiple times).
 
-The `source` sender must be an effect. It must prooduce void.
+The `source` sender must be an effect. It must produce void.
 
 If the `source` sender completes with `set_error()` or `set_done()` then the
 `repeat_effect()` operation completes with that same signal.
