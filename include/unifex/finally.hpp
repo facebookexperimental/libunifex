@@ -590,16 +590,16 @@ namespace unifex
         manual_lifetime_union<std::exception_ptr, Errors...>;
 
     public:
-      template <typename SourceSender2, typename CompletionSender2, typename Receiver2>
+      template <typename CompletionSender2, typename Receiver2>
       explicit type(
-          SourceSender2&& sourceSender,
+          SourceSender&& sourceSender,
           CompletionSender2&& completionSender,
           Receiver2&& r)
         : completionSender_(static_cast<CompletionSender2&&>(completionSender))
         , receiver_(static_cast<Receiver2&&>(r)) {
         sourceOp_.construct_from([&] {
           return unifex::connect(
-              static_cast<SourceSender2&&>(sourceSender),
+              static_cast<SourceSender&&>(sourceSender),
               receiver<SourceSender, CompletionSender, Receiver>{this});
         });
       }
@@ -623,12 +623,12 @@ namespace unifex
 
       // Result storage.
       union {
-        // Storage for error-types that might be produced by ValueSender.
+        // Storage for error-types that might be produced by SourceSender.
         UNIFEX_NO_UNIQUE_ADDRESS
         typename std::remove_cvref_t<SourceSender>::template error_types<error_result_union>
             error_;
 
-        // Storage for value-types that might be produced by ValueSender.
+        // Storage for value-types that might be produced by SourceSender.
         UNIFEX_NO_UNIQUE_ADDRESS typename std::remove_cvref_t<SourceSender>::template value_types<
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
@@ -700,33 +700,34 @@ namespace unifex
         : source_(static_cast<SourceSender2&&>(source))
         , completion_(static_cast<CompletionSender2&&>(completion)) {}
 
+    private:
+
       // TODO: Also constrain these methods to check that the CompletionSender
       // is connectable to any of the instantiations of done/value/error_receiver
       // that could be created for each of the results that SourceSender might
       // complete with. For now we just check done_receiver as an approximation.
 
       template <
-          typename Receiver,
-          typename CPO,
-          typename S,
-          std::enable_if_t<
-              std::conjunction_v<
-                std::is_same<CPO, tag_t<connect>>,
-                std::is_same<std::remove_cvref_t<S>, sender>,
-                std::negation<std::is_same<S, sender&>>,
-                is_connectable<
-                  SourceSender,
-                  receiver<
-                      SourceSender,
-                      CompletionSender,
-                      std::remove_cvref_t<Receiver>>>,
-                is_connectable<
-                  CompletionSender,
-                  done_receiver<
-                      SourceSender,
-                      CompletionSender,
-                      std::remove_cvref_t<Receiver>>>>,
-              int(*)[__LINE__]> = nullptr>
+        typename Receiver,
+        typename CPO,
+        typename S,
+        std::enable_if_t<
+          std::conjunction_v<
+            std::is_same<CPO, tag_t<connect>>,
+            std::is_same<S, sender>,
+            is_connectable<
+              SourceSender,
+              receiver<
+                SourceSender,
+                CompletionSender,
+                std::remove_cvref_t<Receiver>>>,
+            is_connectable<
+              CompletionSender,
+              done_receiver<
+                SourceSender,
+                CompletionSender,
+                std::remove_cvref_t<Receiver>>>>,
+            int(*)[__LINE__]> = nullptr>
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {
         return operation<SourceSender, CompletionSender, Receiver>{
@@ -734,7 +735,38 @@ namespace unifex
                 static_cast<S&&>(s).completion_,
                 static_cast<Receiver&&>(r)};
       }
-    private:
+
+      template <
+        typename Receiver,
+        typename CPO,
+        typename S,
+        typename SourceSenderConstRef = const SourceSender&,
+        std::enable_if_t<
+          std::conjunction_v<
+            std::is_same<CPO, tag_t<connect>>,
+            std::is_same<std::remove_cvref_t<S>, sender>,
+            std::negation<std::is_same<S, sender>>,
+            is_connectable<
+              SourceSenderConstRef,
+              receiver<
+                SourceSenderConstRef,
+                CompletionSender,
+                std::remove_cvref_t<Receiver>>>,
+            is_connectable<
+              CompletionSender,
+              done_receiver<
+                SourceSenderConstRef,
+                CompletionSender,
+                std::remove_cvref_t<Receiver>>>>,
+            int(*)[__LINE__]> = nullptr>
+      friend auto tag_invoke(CPO, S&& s, Receiver&& r)
+          -> operation<SourceSenderConstRef, CompletionSender, Receiver> {
+        return operation<SourceSenderConstRef, CompletionSender, Receiver>{
+                static_cast<S&&>(s).source_,
+                static_cast<S&&>(s).completion_,
+                static_cast<Receiver&&>(r)};
+      }
+
       SourceSender source_;
       CompletionSender completion_;
     };
