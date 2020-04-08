@@ -18,6 +18,7 @@
 #include <unifex/detail/concept_macros.hpp>
 #include <unifex/swap.hpp>
 
+#include <functional>
 #include <type_traits>
 
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -311,5 +312,16 @@ UNIFEX_CONCEPT
     regular =
         semiregular<T> &&
         equality_comparable<T>;
+
+template<typename T, typename... As>
+UNIFEX_CONCEPT_FRAGMENT(              //
+    _invocable,                       //
+        requires(T&& t, As&&... as) ( //
+            std::invoke((T&&) t, (As&&) as...)
+        ));
+template<typename T, typename... As>
+UNIFEX_CONCEPT  //
+    invocable = //
+        UNIFEX_FRAGMENT(unifex::_invocable, T, As...);
 
 } // namespace unifex

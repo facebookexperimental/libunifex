@@ -16,37 +16,41 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <type_traits>
 
 namespace unifex {
+
+template <typename... Ts>
+struct type_list;
 
 template <typename T>
 struct identity {
   using type = T;
 };
 
-template<typename... Ts>
+template <typename... Ts>
 struct single_type {};
 
-template<typename T>
+template <typename T>
 struct single_type<T> {
   using type = T;
 };
 
-template<typename... Ts>
+template <typename... Ts>
 using single_type_t = typename single_type<Ts...>::type;
 
 template <template <typename T> class Predicate, typename T>
 using requires_t = std::enable_if_t<Predicate<T>::value, T>;
 
-template <template<typename...> class T, typename X>
+template <template <typename...> class T, typename X>
 inline constexpr bool instance_of_v = false;
 
-template <template<typename...> class T, typename... Args>
+template <template <typename...> class T, typename... Args>
 inline constexpr bool instance_of_v<T, T<Args...>> = true;
 
-template <template<typename...> class T, typename X>
+template <template <typename...> class T, typename X>
 using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 struct unit {};
@@ -80,7 +84,7 @@ struct decayed_tuple {
 };
 
 template <typename T, typename... Ts>
-inline constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
+inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =
@@ -113,4 +117,31 @@ template <typename Fn, typename... As>
 using is_nothrow_callable =
     std::bool_constant<is_nothrow_callable_v<Fn, As...>>;
 
+#if UNIFEX_CXX_CONCEPTS
+template <template <typename...> class T, typename... As>
+inline constexpr bool is_valid_v = false;
+template <template <typename...> class T, typename... As>
+  requires requires { typename T<As...>; }
+inline constexpr bool is_valid_v<T, As...> = true;
+#else
+namespace detail {
+  template <template <typename...> class, typename, typename = void>
+  inline constexpr bool is_valid_v = false;
+  template <template <typename...> class T, typename... As>
+  inline constexpr bool is_valid_v<T, type_list<As...>, std::void_t<T<As...>>> = true;
+} // namespace detail
+template <template <typename...> class T, typename... As>
+inline constexpr bool is_valid_v = detail::is_valid_v<T, type_list<As...>>;
+#endif
+
+template <typename Fn, typename... As>
+UNIFEX_CONCEPT_FRAGMENT( //
+  _callable,
+    requires(Fn&& fn, As&&... as)(
+      ((Fn&&) fn)((As&&) as...)
+    ));
+template <typename Fn, typename... As>
+UNIFEX_CONCEPT //
+  callable = //
+    UNIFEX_FRAGMENT(_callable, Fn, As...);
 } // namespace unifex

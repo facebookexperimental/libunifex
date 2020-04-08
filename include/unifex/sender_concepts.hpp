@@ -32,104 +32,102 @@ struct sender_traits;
 
 /// \cond
 namespace detail {
-template <typename, typename>
-struct _as_invocable;
+  template <typename, typename>
+  struct _as_invocable;
 
-template <typename, typename>
-struct _as_receiver;
+  template <typename, typename>
+  struct _as_receiver;
 
-template <typename, typename = void>
-inline constexpr bool _is_executor = false;
+  template <typename, typename = void>
+  inline constexpr bool _is_executor = false;
 
-template<template<template<typename...> class, template<typename...> class> class>
-struct _has_value_types;
+  template <template <template <typename...> class, template <typename...> class> class>
+  struct _has_value_types;
 
-template<template<template<typename...> class> class>
-struct _has_error_types;
+  template <template <template <typename...> class> class>
+  struct _has_error_types;
 
-template <typename S>
-UNIFEX_CONCEPT_FRAGMENT(  //
-  _has_sender_types_impl, //
-    requires() (          //
-      // BUGBUG TODO:
-      // typename (std::bool_constant<S::sends_done>),
-      typename (_has_value_types<S::template value_types>),
-      typename (_has_error_types<S::template error_types>)
-    ));
-template <typename S>
-UNIFEX_CONCEPT        //
-  _has_sender_types = //
-    UNIFEX_FRAGMENT(detail::_has_sender_types_impl, S);
+  template <typename S>
+  UNIFEX_CONCEPT_FRAGMENT(  //
+    _has_sender_types_impl, //
+      requires() (          //
+        // BUGBUG TODO:
+        // typename (std::bool_constant<S::sends_done>),
+        typename (_has_value_types<S::template value_types>),
+        typename (_has_error_types<S::template error_types>)
+      ));
+  template <typename S>
+  UNIFEX_CONCEPT        //
+    _has_sender_types = //
+      UNIFEX_FRAGMENT(detail::_has_sender_types_impl, S);
 
-template <typename S>
-UNIFEX_CONCEPT_FRAGMENT(  //
-  _not_has_sender_traits, //
-    requires() (          //
-      typename (typename sender_traits<S>::_unspecialized)
-    ));
-template <typename S>
-UNIFEX_CONCEPT         //
-  _has_sender_traits = //
-    !UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S);
+  template <typename S>
+  UNIFEX_CONCEPT_FRAGMENT(  //
+    _not_has_sender_traits, //
+      requires() (          //
+        typename (typename sender_traits<S>::_unspecialized)
+      ));
+  template <typename S>
+  UNIFEX_CONCEPT         //
+    _has_sender_traits = //
+      !UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S);
 
-struct _void_sender_traits {
-  template<template<class...> class Tuple, template<class...> class Variant>
-  using value_types = Variant<Tuple<>>;
+  struct _void_sender_traits {
+    template <template <typename...> class Tuple, template <typename...> class Variant>
+    using value_types = Variant<Tuple<>>;
 
-  template<template<class...> class Variant>
-  using error_types = Variant<std::exception_ptr>;
+    template <template <typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
 
-  static constexpr bool sends_done = true;
-};
+    static constexpr bool sends_done = true;
+  };
 
-template <typename S>
-struct _typed_sender_traits {
-  template<template<class...> class Tuple, template<class...> class Variant>
-  using value_types = typename S::template value_types<Tuple, Variant>;
+  template <typename S>
+  struct _typed_sender_traits {
+    template <template <typename...> class Tuple, template <typename...> class Variant>
+    using value_types = typename S::template value_types<Tuple, Variant>;
 
-  template<template<class...> class Variant>
-  using error_types = typename S::template error_types<Variant>;
+    template <template <typename...> class Variant>
+    using error_types = typename S::template error_types<Variant>;
 
-  static constexpr bool sends_done = S::sends_done;
-};
+    static constexpr bool sends_done = S::sends_done;
+  };
 
-struct _void_receiver {
-  void set_value() noexcept;
-  void set_error(std::exception_ptr) noexcept;
-  void set_done() noexcept;
-};
+  struct _void_receiver {
+    void set_value() noexcept;
+    void set_error(std::exception_ptr) noexcept;
+    void set_done() noexcept;
+  };
 
-struct _no_sender_traits {
-  using _unspecialized = void;
-};
+  struct _no_sender_traits {
+    using _unspecialized = void;
+  };
 
-template <typename S>
-constexpr auto _select_sender_traits() noexcept {
-  if constexpr (_has_sender_types<S>) {
-    return _typed_sender_traits<S>{};
-  } else if constexpr (_is_executor<S>) {
-    return _void_sender_traits{};
-  } else if constexpr (derived_from<S, sender_base>) {
-    return sender_base{};
-  } else {
-    return _no_sender_traits{};
+  template <typename S>
+  constexpr auto _select_sender_traits() noexcept {
+    if constexpr (_has_sender_types<S>) {
+      return _typed_sender_traits<S>{};
+    } else if constexpr (_is_executor<S>) {
+      return _void_sender_traits{};
+    } else if constexpr (derived_from<S, sender_base>) {
+      return sender_base{};
+    } else {
+      return _no_sender_traits{};
+    }
   }
-}
 } // namespace detail
 /// \endcond
 
 template <typename S>
 struct sender_traits : decltype(detail::_select_sender_traits<S>()) {};
 
-template<class S>
+template <typename S>
 UNIFEX_CONCEPT //
   sender =     //
     move_constructible<std::remove_cvref_t<S>> &&
     detail::_has_sender_traits<std::remove_cvref_t<S>>;
 
-static_assert(!sender<int>);
-
-template<class S>
+template <typename S>
 UNIFEX_CONCEPT   //
   typed_sender = //
     sender<S> && //
@@ -171,40 +169,193 @@ namespace _start {
 } // namespace _start
 using _start::start;
 
+namespace _execute2 {
+  void execute();
+
+  struct _fn {
+    struct _impl; // defined below
+    UNIFEX_TEMPLATE(typename E, typename F, typename Impl = _impl)
+      (requires invocable<std::remove_cvref_t<F>&> &&
+          constructible_from<std::remove_cvref_t<F>, F> &&
+          move_constructible<std::remove_cvref_t<F>>) //&&
+          //__valid<Impl, E, F>
+    void operator()(E&& e, F&& f) const { //noexcept(__noexcept<Impl, E, F>) {
+      (void) Impl{}((E&&) e, (F&&) f);
+    }
+  };
+} // namespace _execute2
+
+namespace _execute2_cpo {
+  inline constexpr _execute2::_fn execute2 {};
+}
+using _execute2_cpo::execute2;
+
+using invocable_archetype =
+  struct _invocable_archetype {
+    void operator()() & noexcept;
+  };
+
+template <typename E, typename F>
+UNIFEX_CONCEPT_FRAGMENT( //
+  _executor_of_impl_,    //
+    requires(const E& e, F&& f) (
+      unifex::execute2(e, (F&&) f)
+    ));
+
+template <typename E, typename F>
+UNIFEX_CONCEPT        //
+  _executor_of_impl = //
+    invocable<std::remove_cvref_t<F>&> &&
+    constructible_from<std::remove_cvref_t<F>, F> &&
+    move_constructible<std::remove_cvref_t<F>> &&
+    copy_constructible<E> &&
+    equality_comparable<E> &&
+    std::is_nothrow_copy_constructible_v<E> &&
+    UNIFEX_FRAGMENT(unifex::_executor_of_impl_, E, F);
+
+template <typename E>
+UNIFEX_CONCEPT //
+  executor =   //
+    _executor_of_impl<E, invocable_archetype>;
+
+template <typename E, typename F>
+UNIFEX_CONCEPT  //
+  executor_of = //
+    executor<E> && _executor_of_impl<E, F>;
+
+/// \cond
+namespace detail {
+  template <typename R, typename E>
+  struct _as_invocable {
+    R* r_ ;
+    explicit _as_invocable(R& r) noexcept
+      : r_(std::addressof(r)) {}
+    _as_invocable(_as_invocable&& other) noexcept
+      : r_(std::exchange(other.r_, nullptr)) {}
+    ~_as_invocable() {
+      if(r_)
+        unifex::set_done((R&&) *r_);
+    }
+    void operator()() & noexcept try {
+      unifex::set_value((R&&) *r_);
+      r_ = nullptr;
+    } catch(...) {
+      unifex::set_error((R&&) *r_, std::current_exception());
+      r_ = nullptr;
+    }
+  };
+
+  template <typename E>
+  inline constexpr bool _is_executor<
+    E,
+    std::enable_if_t<_executor_of_impl<E, _as_invocable<_void_receiver, E>>>> = true;
+} // namespace detail
+/// \endcond
+
 namespace _connect {
+  template <typename E, typename R>
+  inline constexpr bool _can_execute =
+    _executor_of_impl<E, detail::_as_invocable<std::remove_cvref_t<R>, E>>;
+  template <typename E, typename F>
+  inline constexpr bool _can_execute<E, detail::_as_receiver<F, E>> =
+    false;
+
+  template <typename Sender, typename Receiver, typename = void>
+  inline constexpr bool _has_member_connect = false;
+  template <typename Sender, typename Receiver>
+  inline constexpr bool _has_member_connect<
+      Sender,
+      Receiver,
+      std::void_t<decltype(
+        (static_cast<Sender&&(*)()>(nullptr)()).connect(
+            static_cast<Receiver&&(*)()>(nullptr)()))>> = true;
+
   inline constexpr struct _fn {
    private:
-    template <bool>
-    struct _impl {
+    template <typename Executor, typename Receiver>
+    struct _as_op {
+      struct type {
+        std::remove_cvref_t<Executor> e_;
+        std::remove_cvref_t<Receiver> r_;
+        void start() noexcept try {
+          using _as_invocable =
+            detail::_as_invocable<std::remove_cvref_t<Receiver>, Executor>;
+          unifex::execute2(std::move(e_), _as_invocable{r_});
+        } catch(...) {
+          unifex::set_error(std::move(r_), std::current_exception());
+        }
+      };
+    };
+    template <typename Executor, typename Receiver>
+    using _as_operation = typename _as_op<Executor, Receiver>::type;
+
+    struct _with_tag_invoke_fn {
       template <typename Sender, typename Receiver>
       auto operator()(Sender&& s, Receiver&& r) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>)
-          -> tag_invoke_result_t<_fn, Sender, Receiver> {
+          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>) ->
+          tag_invoke_result_t<_fn, Sender, Receiver> {
         return unifex::tag_invoke(_fn{}, (Sender &&) s, (Receiver &&) r);
       }
     };
+    struct _with_member_connect_fn {
+      template <typename Sender, typename Receiver>
+      auto operator()(Sender&& s, Receiver&& r) const
+          noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r))) ->
+          decltype(((Sender &&) s).connect((Receiver &&) r)) {
+        return ((Sender &&) s).connect((Receiver &&) r);
+      }
+    };
+    struct _with_execute_fn {
+      template <typename Executor, typename Receiver>
+      auto operator()(Executor&& e, Receiver&& r) const
+        noexcept(std::is_nothrow_constructible_v<
+            _as_operation<Executor, Receiver>, Executor, Receiver>) {
+        return _as_operation<Executor, Receiver>{(Executor &&) e, (Receiver &&) r};
+      }
+    };
+    struct _connect_failed_fn {
+      UNIFEX_TEMPLATE(typename Sender, typename Receiver)
+        // We have already tried all the alternative connect implementations,
+        // and we didn't find any that worked. Put all the failed alternatives
+        // into a requires clause and let the compiler report what failed and
+        // (hopefully) why.
+        (requires receiver<Receiver> &&
+          ((sender<Sender> && is_tag_invocable_v<_fn, Sender, Receiver>) ||
+           (sender<Sender> && _has_member_connect<Sender, Receiver>) ||
+           (receiver_of<Receiver> && _can_execute<Sender, Receiver>)))
+      auto operator()(Sender&&, Receiver&&) const noexcept {
+        struct _op {
+          void start() & noexcept;
+        };
+        return _op{};
+      } 
+    };
+    // Select a connect implementation strategy by first looking for tag_invoke,
+    // then for a .connect() member function, and finally by testing whether or
+    // not we've been passed an executor and a nullary callable.
+    template <typename Sender, typename Receiver>
+    static auto _select_impl() noexcept {
+      if constexpr (sender<Sender> && is_tag_invocable_v<_fn, Sender, Receiver>) {
+        return _with_tag_invoke_fn{};
+      } else if constexpr (sender<Sender> && _has_member_connect<Sender, Receiver>) {
+        return _with_member_connect_fn{};
+      } else if constexpr (receiver_of<Receiver> && _can_execute<Sender, Receiver>) {
+        return _with_execute_fn{};
+      } else {
+        return _connect_failed_fn{};
+      }
+    }
+    template <typename Sender, typename Receiver>
+    using _impl = decltype(_select_impl<Sender, Receiver>());
    public:
     UNIFEX_TEMPLATE(typename Sender, typename Receiver)
-      (requires sender<Sender> && receiver<Receiver>)
-    auto operator()(Sender&& s, Receiver&& r) const noexcept
-      -> callable_result_t<
-          _impl<is_tag_invocable_v<_fn, Sender, Receiver>>,
-          Sender, Receiver> {
-      return _impl<is_tag_invocable_v<_fn, Sender, Receiver>>{}(
-          (Sender &&) s,
-          (Receiver &&) r);
+      (requires receiver<Receiver>)
+    auto operator()(Sender&& s, Receiver&& r) const
+      noexcept(is_nothrow_callable_v<_impl<Sender, Receiver>, Sender, Receiver>) ->
+      decltype(_impl<Sender, Receiver>{}((Sender &&) s, (Receiver &&) r)) {
+      return _impl<Sender, Receiver>{}((Sender &&) s, (Receiver &&) r);
     }
   } connect{};
-
-  template <>
-  struct _fn::_impl<false> {
-    template <typename Sender, typename Receiver>
-    auto operator()(Sender&& s, Receiver&& r) const
-        noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r)))
-        -> decltype(((Sender &&) s).connect((Receiver &&) r)) {
-      return ((Sender &&) s).connect((Receiver &&) r);
-    }
-  };
 } // namespace _connect
 using _connect::connect;
 
