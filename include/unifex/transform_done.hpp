@@ -62,7 +62,7 @@ template<typename Source, typename Done, typename Receiver>
 class _rcvr<Source, Done, Receiver>::type {
   using operation = operation_type<Source, Done, Receiver>;
   using final_receiver = final_receiver_type<Source, Done, Receiver>;
-  using final_sender_t = std::invoke_result_t<Done&>;
+  using final_sender_t = callable_result_t<Done&>;
 
 public:
   explicit type(operation* op) noexcept
@@ -72,54 +72,59 @@ public:
   : op_(std::exchange(other.op_, {}))
   {}
  
-  void set_value() noexcept(std::is_nothrow_invocable_v<tag_t<unifex::set_value>&, Receiver>) {
+  template<typename... Values>
+  void set_value(Values&&... values) noexcept(is_nothrow_callable_v<tag_t<unifex::set_value>&, Receiver, Values...>) {
     assert(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_));
+    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   template<
     typename R = Receiver,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), R>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_done), R>, int> = 0>
   void set_done() noexcept {
     assert(op_ != nullptr);
+    auto op = op_; // preserve pointer value.
     if constexpr (
-      std::is_nothrow_invocable_v<Done> &&
+      is_nothrow_callable_v<Done> &&
       is_nothrow_connectable_v<final_sender_t, final_receiver>) {
-      op_->startedOp_ = 0;
-      op_->sourceOp_.destruct();
-      op_->finalOp_.construct_from([&] {
-        return unifex::connect(op_->done_(), final_receiver{op_});
+      op->startedOp_ = 0;
+      op->sourceOp_.destruct();
+      op->finalOp_.construct_from([&] {
+        return unifex::connect(std::move(op->done_)(), final_receiver{op});
       });
-      op_->startedOp_ = 0 - 1;
-      unifex::start(op_->finalOp_.get());
+      op->startedOp_ = 0 - 1;
+      unifex::start(op->finalOp_.get());
     } else {
       try {
-        op_->startedOp_ = 0;
-        op_->sourceOp_.destruct();
-        op_->finalOp_.construct_from([&] {
-          return unifex::connect(op_->done_(), final_receiver{op_});
+        op->startedOp_ = 0;
+        op->sourceOp_.destruct();
+        op->finalOp_.construct_from([&] {
+          return unifex::connect(std::move(op->done_)(), final_receiver{op});
         });
-        op_->startedOp_ = 0 - 1;
-        unifex::start(op_->finalOp_.get());
+        op->startedOp_ = 0 - 1;
+        unifex::start(op->finalOp_.get());
       } catch (...) {
-        unifex::set_error((Receiver&&)op_->receiver_, std::current_exception());
+        unifex::set_error(std::move(op->receiver_), std::current_exception());
       }
     }
   }
 
   template<
     typename Error,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
   void set_error(Error&& error) noexcept {
     assert(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
   }
 
 private:
-  template<typename CPO, typename... Args>
+  template<
+    typename CPO, 
+    typename... Args,
+    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
   friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
-      noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-      -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+      -> callable_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
   }
   
@@ -127,10 +132,10 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const type& r,
-      VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
+      VisitFunc&& func) noexcept(is_nothrow_callable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
-    std::invoke(func, r.get_receiver());
+    func(r.get_receiver());
   }
 
   const Receiver& get_receiver() const noexcept {
@@ -154,16 +159,16 @@ public:
   {}
  
   template<
-    typename R = Receiver,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_value), R>, int> = 0>
-  void set_value() noexcept(std::is_nothrow_invocable_v<tag_t<unifex::set_value>&, Receiver>) {
+    typename... Values,
+    std::enable_if_t<is_callable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
+  void set_value(Values&&... values) noexcept(is_nothrow_callable_v<tag_t<unifex::set_value>&, Receiver, Values...>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_));
   }
 
   template<
     typename R = Receiver,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_done), R>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_done), R>, int> = 0>
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
@@ -171,7 +176,7 @@ public:
 
   template<
     typename Error,
-    std::enable_if_t<std::is_invocable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
+    std::enable_if_t<is_callable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
   void set_error(Error&& error) noexcept {
     assert(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
@@ -180,8 +185,8 @@ public:
 private:
   template<typename CPO, typename... Args>
   friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
-      noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-      -> std::invoke_result_t<CPO, const Receiver&, Args...> {
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
+      -> callable_result_t<CPO, const Receiver&, Args...> {
     return std::move(cpo)(r.get_receiver(), (Args&&)args...);
   }
   
@@ -189,10 +194,10 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const type& r,
-      VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
+      VisitFunc&& func) noexcept(is_nothrow_callable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
-    std::invoke(func, r.get_receiver());
+    func(r.get_receiver());
   }
 
   const Receiver& get_receiver() const noexcept {
@@ -209,16 +214,16 @@ class _op<Source, Done, Receiver>::type {
   using final_receiver = final_receiver_type<Source, Done, Receiver>;
 
 public:
-  template<typename Source2, typename Done2, typename Receiver2>
-  explicit type(Source2&& source, Done2&& done, Receiver2&& dest)
+  template<typename Done2, typename Receiver2>
+  explicit type(Source&& source, Done2&& done, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
                std::is_nothrow_move_constructible_v<Done> &&
-               is_nothrow_connectable_v<Source2, source_receiver>)
+               is_nothrow_connectable_v<Source, source_receiver>)
   : done_((Done2&&)done)
   , receiver_((Receiver2&&)dest)
   {
     sourceOp_.construct_from([&] {
-        return unifex::connect((Source2&&)source, source_receiver{this});
+        return unifex::connect((Source&&)source, source_receiver{this});
       });
     startedOp_ = 0 + 1;
   }
@@ -242,7 +247,7 @@ private:
 
   using source_op_t = operation_t<Source, source_receiver>;
 
-  using final_sender_t = std::invoke_result_t<Done&>;
+  using final_sender_t = callable_result_t<Done>;
 
   using final_op_t = operation_t<final_sender_t, final_receiver>;
 
@@ -257,19 +262,20 @@ private:
 
 template<typename Source, typename Done>
 class _sndr<Source, Done>::type {
-  using final_sender_t = std::invoke_result_t<Done&>;
+  using final_sender_t = callable_result_t<Done>;
 
 public:
   template<template<typename...> class Variant,
            template<typename...> class Tuple>
-  using value_types = Variant<Tuple<>>;
+  using value_types = typename concat_type_lists_unique_t<
+        typename Source::template value_types<type_list, Tuple>,
+        typename decltype(std::declval<Done>()())::template value_types<type_list, Tuple>
+      >::template apply<Variant>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename Source::template error_types<
-          decayed_tuple<type_list>::template apply>,
-      typename decltype(std::declval<Done>()())::template error_types<
-          decayed_tuple<type_list>::template apply>,
+      typename Source::template error_types<type_list>,
+      typename decltype(std::declval<Done>()())::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
   template<typename Source2, typename Done2>
@@ -286,16 +292,15 @@ public:
     typename SourceReceiver = receiver_type<Source, Done, Receiver>,
     typename FinalReceiver = final_receiver_type<Source, Done, Receiver>,
     std::enable_if_t<
-        std::is_move_constructible_v<Source> &&
         std::is_move_constructible_v<Done> &&
-        std::is_move_constructible_v<Receiver> &&
-        is_connectable_v<Source&, SourceReceiver> &&
+        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_connectable_v<Source, SourceReceiver> &&
         is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
   operation_type<Source, Done, Receiver> connect(Receiver&& r) &&
        noexcept(
-        std::is_nothrow_move_constructible_v<Source> &&
+        is_nothrow_connectable_v<Source, SourceReceiver> &&
         std::is_nothrow_move_constructible_v<Done> &&
-        std::is_nothrow_move_constructible_v<Receiver>) {
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>) {
     return operation_type<Source, Done, Receiver>{
       (Source&&)source_, 
       (Done&&)done_, 
@@ -305,20 +310,19 @@ public:
 
   template<
     typename Receiver,
-    typename SourceReceiver = receiver_type<Source, Done, Receiver>,
-    typename FinalReceiver = final_receiver_type<Source, Done, Receiver>,
+    typename SourceReceiver = receiver_type<const Source&, Done, Receiver>,
+    typename FinalReceiver = final_receiver_type<const Source&, Done, Receiver>,
     std::enable_if_t<
-        std::is_copy_constructible_v<Source> &&
         std::is_copy_constructible_v<Done> &&
-        std::is_move_constructible_v<Receiver> &&
-        is_connectable_v<Source&, SourceReceiver> &&
+        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_connectable_v<const Source&, SourceReceiver> &&
         is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
-  operation_type<Source, Done, Receiver> connect(Receiver&& r) const&
+  operation_type<const Source&, Done, Receiver> connect(Receiver&& r) const&
        noexcept(
-        std::is_nothrow_copy_constructible_v<Source> &&
+        is_nothrow_connectable_v<const Source&, SourceReceiver> &&
         std::is_nothrow_copy_constructible_v<Done> &&
-        std::is_nothrow_move_constructible_v<Receiver>) {
-    return operation_type<Source, Done, Receiver>{
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>) {
+    return operation_type<const Source&, Done, Receiver>{
       source_, 
       done_, 
       (Receiver&&)r
@@ -349,7 +353,8 @@ inline constexpr struct transform_done_cpo {
     std::enable_if_t<
         !is_tag_invocable_v<transform_done_cpo, Source, Done> &&
         std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
-        std::is_constructible_v<std::remove_cvref_t<Done>, Done>, int> = 0>
+        std::is_constructible_v<std::remove_cvref_t<Done>, Done> &&
+        is_callable_v<std::remove_cvref_t<Done>>, int> = 0>
   auto operator()(Source&& source, Done&& done) const
       noexcept(std::is_nothrow_constructible_v<
                    transform_done_sender<Source, Done>,
