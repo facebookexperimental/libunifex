@@ -241,10 +241,10 @@
         UNIFEX_PP_CAT2(UNIFEX_CONCEPT_FRAGMENT_REQS_M, UNIFEX_PP_IS_PAREN(REQ))(REQ);
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_requires(...) \
         requires __VA_ARGS__
-    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
-        { __VA_ARGS__ } noexcept
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_typename(...) \
         typename UNIFEX_PP_EAT_TYPENAME_(__VA_ARGS__)
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
+        { __VA_ARGS__ } noexcept
 
     #define UNIFEX_FRAGMENT(NAME, ...) \
         NAME<__VA_ARGS__>
@@ -282,10 +282,18 @@
         UNIFEX_PP_CAT2(UNIFEX_CONCEPT_FRAGMENT_REQS_M, UNIFEX_PP_IS_PAREN(REQ))(REQ),
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_requires(...) \
         ::unifex::requires_<__VA_ARGS__>
-    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
-        ::unifex::requires_<noexcept(__VA_ARGS__)>
     #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_typename(...) \
         static_cast<::unifex::_concept::tag<__VA_ARGS__> *>(nullptr)
+#if defined(__GNUC__) && !defined(__clang__)
+    // GCC can't mangle noexcept expressions, so just check that the
+    // expression is well-formed.
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70790
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
+        __VA_ARGS__
+#else
+    #define UNIFEX_CONCEPT_FRAGMENT_REQS_REQUIRES_noexcept(...) \
+        ::unifex::requires_<noexcept(__VA_ARGS__)>
+#endif
 
     #define UNIFEX_FRAGMENT(NAME, ...) \
         (1u==sizeof(NAME ## UNIFEX_CONCEPT_FRAGMENT_(\
