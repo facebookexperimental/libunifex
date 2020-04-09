@@ -84,6 +84,10 @@ struct _receiver {
       promise_.cv_.notify_one();
     }
 
+    void set_error(std::error_code ec) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr(std::system_error{ec, "sync_wait"}));
+    }
+
     template <typename Error>
     void set_error(Error&& e) && noexcept {
       std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
@@ -149,6 +153,10 @@ struct _thread_unsafe_receiver {
     void set_error(std::exception_ptr err) && noexcept {
       promise_.exception_.construct(std::move(err));
       promise_.state_ = thread_unsafe_promise<T>::state::error;
+    }
+
+    void set_error(std::error_code ec) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr(std::system_error{ec, "sync_wait"}));
     }
 
     template <typename Error>

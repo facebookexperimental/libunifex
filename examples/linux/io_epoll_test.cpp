@@ -130,6 +130,7 @@ int main() {
       with_query_value(
         discard(
           when_all(
+            // stop reads after requested time
             transform(
               defer(
                 [&, seconds](){
@@ -138,16 +139,20 @@ int main() {
               [&]{
                   stopSource.request_stop();
               }),
+              // do reads
               defer(
                 [&](){
                   return typed_via(
                     repeat_effect(
-                      transform(
-                        discard(
-                          async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
-                        [&]{
-                          assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
-                          ++reps;
+                      defer(
+                        [&](){
+                          return transform(
+                            discard(
+                              async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                            [&]{
+                              assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
+                              ++reps;
+                            });
                         })), 
                     scheduler);
                 }))),
@@ -160,6 +165,7 @@ int main() {
   try {
     sync_wait(
       when_all(
+        // write the data to one end of the pipe
         sequence(
           lazy([&]{
             printf("writes starting!\n");
@@ -169,14 +175,18 @@ int main() {
               defer(
                 [&](){
                   return typed_via(
-                    discard(async_write_some(wPipeRef, databuffer)), 
+                    discard(
+                      async_write_some(wPipeRef, databuffer)), 
                     scheduler);
                 })),
             []{return just();}),
           lazy([&]{
             printf("writes stopped!\n");
           })),
+        // read the data 1 byte at a time from the other end and measure the reads
         sequence(
+          // read for some time before starting meansurement 
+          // to remove startup effects
           pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
           lazy([&]{
             // restart reps and keep offset in data
@@ -186,6 +196,7 @@ int main() {
             // exclude the warmup time
             start = std::chrono::high_resolution_clock::now();
           }),
+          // do more reads and measure how many reads occur
           pipe_bench(BENCHMARK_DURATION, stopRead),
           lazy([&]{
             end = std::chrono::high_resolution_clock::now();
@@ -210,8 +221,8 @@ int main() {
             stopWrite.request_stop();
           }))),
         stopWrite.get_token());
-  } catch (const std::error_code& ec) {
-    std::printf("async_read_some error: %s\n", ec.message().c_str());
+  } catch (const std::system_error& se) {
+    std::printf("async_read_some system_error: [%s], [%s]\n", se.code().message().c_str(), se.what());
   } catch (const std::exception& ex) {
     std::printf("async_read_some exception: %s\n", ex.what());
   }

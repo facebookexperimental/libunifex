@@ -256,7 +256,7 @@ class io_epoll_context::schedule_sender {
   using error_types = Variant<std::exception_ptr>;
 
   template <typename Receiver>
-  operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) {
+  operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) && {
     return operation<std::remove_reference_t<Receiver>>{context_,
                                                         (Receiver &&) r};
   }
@@ -323,7 +323,15 @@ class io_epoll_context::schedule_at_sender {
         }
       }
 
-      unifex::set_value(std::move(timerOp).receiver_);
+      if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
+        unifex::set_value(std::move(timerOp).receiver_);
+      } else {
+        try {
+          unifex::set_value(std::move(timerOp).receiver_);
+        } catch (...) {
+          unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
+        }
+      }
     }
 
     static void remove_timer_from_queue_and_complete_with_done(
@@ -433,7 +441,7 @@ class io_epoll_context::schedule_at_sender {
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
-  using error_types = Variant<>;
+  using error_types = Variant<std::exception_ptr>;
 
   explicit schedule_at_sender(
       io_epoll_context& context,
@@ -442,16 +450,6 @@ class io_epoll_context::schedule_at_sender {
 
   template <typename Receiver>
   operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) && {
-    return operation<std::remove_cvref_t<Receiver>>{
-        context_, dueTime_, (Receiver &&) r};
-  }
-  template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) & {
-    return operation<std::remove_cvref_t<Receiver>>{
-        context_, dueTime_, (Receiver &&) r};
-  }
-  template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) const & {
     return operation<std::remove_cvref_t<Receiver>>{
         context_, dueTime_, (Receiver &&) r};
   }
@@ -515,7 +513,6 @@ class io_epoll_context::read_sender {
           receiver_((Receiver2 &&) r) {
       buffer_[0].iov_base = sender.buffer_.data();
       buffer_[0].iov_len = sender.buffer_.size();
-
     }
 
     void start() noexcept {
@@ -552,9 +549,16 @@ class io_epoll_context::read_sender {
       } else if (result == -ECANCELED) {
         unifex::set_done(std::move(receiver_));
       } else if (result >= 0) {
-        unifex::set_value(std::move(receiver_), ssize_t(result));
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(receiver_), ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(receiver_), ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(receiver_), std::current_exception());
+          }
+        }
       } else {
-        printf("start_io::readv failed\n");
         unifex::set_error(
             std::move(receiver_),
             std::error_code{-int(result), std::system_category()});
@@ -576,9 +580,16 @@ class io_epoll_context::read_sender {
       if (result == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else if (result >= 0) {
-        unifex::set_value(std::move(self.receiver_), ssize_t(result));
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(self).receiver_, ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(self).receiver_, ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(self).receiver_, std::current_exception());
+          }
+        }
       } else {
-        printf("on_read_complete::readv failed\n");
         unifex::set_error(
             std::move(self.receiver_),
             std::error_code{-int(result), std::system_category()});
@@ -650,7 +661,7 @@ class io_epoll_context::read_sender {
   using value_types = Variant<Tuple<ssize_t>>;
 
   template <template <typename...> class Variant>
-  using error_types = Variant<std::error_code>;
+  using error_types = Variant<std::error_code, std::exception_ptr>;
 
   explicit read_sender(
       io_epoll_context& context,
@@ -660,14 +671,6 @@ class io_epoll_context::read_sender {
 
   template <typename Receiver>
   operation<std::decay_t<Receiver>> connect(Receiver&& r) && {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
-  }
-  template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) & {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
-  }
-  template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) const & {
     return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
   }
 
@@ -730,7 +733,15 @@ class io_epoll_context::write_sender {
       } else if (result == -ECANCELED) {
         unifex::set_done(std::move(receiver_));
       } else if (result >= 0) {
-        unifex::set_value(std::move(receiver_), ssize_t(result));
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(receiver_), ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(receiver_), ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(receiver_), std::current_exception());
+          }
+        }
       } else {
         unifex::set_error(
             std::move(receiver_),
@@ -753,7 +764,15 @@ class io_epoll_context::write_sender {
       if (result == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else if (result >= 0) {
-        unifex::set_value(std::move(self.receiver_), ssize_t(result));
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(self).receiver_, ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(self).receiver_, ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(self).receiver_, std::current_exception());
+          }
+        }
       } else {
         unifex::set_error(
             std::move(self.receiver_),
@@ -826,7 +845,7 @@ class io_epoll_context::write_sender {
   using value_types = Variant<Tuple<ssize_t>>;
 
   template <template <typename...> class Variant>
-  using error_types = Variant<std::error_code>;
+  using error_types = Variant<std::error_code, std::exception_ptr>;
 
   explicit write_sender(
       io_epoll_context& context,
@@ -836,14 +855,6 @@ class io_epoll_context::write_sender {
 
   template <typename Receiver>
   operation<std::decay_t<Receiver>> connect(Receiver&& r) && {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
-  }
-  template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) & {
-    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
-  }
-  template <typename Receiver>
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) const & {
     return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
   }
 
