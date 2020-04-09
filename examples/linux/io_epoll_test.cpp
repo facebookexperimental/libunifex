@@ -132,6 +132,7 @@ int main() {
       with_query_value(
         discard(
           when_all(
+            // stop reads after requested time
             transform(
               defer(
                 [&, seconds](){
@@ -140,19 +141,25 @@ int main() {
               [&]{
                   stopSource.request_stop();
               }),
-            typed_via(
-              repeat_effect(
-                transform(
-                  discard(
-                    async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
-                  [&]{
-                    assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
-                    ++reps;
-                  })),
-              scheduler)
-          )),
-          get_stop_token, stopSource.get_token()),
-        []{return just();});
+              // do reads
+              defer(
+                [&](){
+                  return typed_via(
+                    repeat_effect(
+                      defer(
+                        [&](){
+                          return transform(
+                            discard(
+                              async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                            [&]{
+                              assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
+                              ++reps;
+                            });
+                        })),
+                    scheduler);
+                }))),
+        get_stop_token, stopSource.get_token()),
+      []{return just();});
   };
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
@@ -160,59 +167,65 @@ int main() {
   try {
     sync_wait(
       with_query_value(
-      when_all(
-        sequence(
-          lazy([&]{
-            printf("writes starting!\n");
-          }),
-          transform_done(
-            repeat_effect(
-              defer(
-                [&](){
-                  return typed_via(
-                    discard(async_write_some(wPipeRef, databuffer)),
-                    scheduler);
-                })),
-            []{return just();}),
-          lazy([&]{
-            printf("writes stopped!\n");
-          })),
-        sequence(
-          pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
-          lazy([&]{
-            // restart reps and keep offset in data
-            offset = reps%sizeof(data);
-            reps = 0;
-            printf("warmup completed!\n");
-            // exclude the warmup time
-            start = std::chrono::high_resolution_clock::now();
-          }),
-          pipe_bench(BENCHMARK_DURATION, stopRead),
-          lazy([&]{
-            end = std::chrono::high_resolution_clock::now();
-            printf("benchmark completed!\n");
-            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    end - start)
-                    .count();
-            auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    end - start)
-                    .count();
-            double reads = 1000000000.0 * reps / ns;
-            std::cout
-                << "completed in "
-                << ms << " ms, "
-                << ns << "ns, "
-                << reps << "ops\n";
-            std::cout
-                << "stats - "
-                << reads << "reads, "
-                << ns/reps << "ns-per-op, "
-                << reps/ms << "ops-per-ms\n";
-            stopWrite.request_stop();
-          }))),
-      get_stop_token, stopSource.get_token()));
-  } catch (const std::error_code& ec) {
-    std::printf("async_read_some error: %s\n", ec.message().c_str());
+        when_all(
+          // write the data to one end of the pipe
+          sequence(
+            lazy([&]{
+              printf("writes starting!\n");
+            }),
+            transform_done(
+              repeat_effect(
+                defer(
+                  [&](){
+                    return typed_via(
+                      discard(
+                        async_write_some(wPipeRef, databuffer)),
+                      scheduler);
+                  })),
+              []{return just();}),
+            lazy([&]{
+              printf("writes stopped!\n");
+            })),
+          // read the data 1 byte at a time from the other end and measure the reads
+          sequence(
+            // read for some time before starting meansurement
+            // to remove startup effects
+            pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
+            lazy([&]{
+              // restart reps and keep offset in data
+              offset = reps%sizeof(data);
+              reps = 0;
+              printf("warmup completed!\n");
+              // exclude the warmup time
+              start = std::chrono::high_resolution_clock::now();
+            }),
+            // do more reads and measure how many reads occur
+            pipe_bench(BENCHMARK_DURATION, stopRead),
+            lazy([&]{
+              end = std::chrono::high_resolution_clock::now();
+              printf("benchmark completed!\n");
+              auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                      end - start)
+                      .count();
+              auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                      end - start)
+                      .count();
+              double reads = 1000000000.0 * reps / ns;
+              std::cout
+                  << "completed in "
+                  << ms << " ms, "
+                  << ns << "ns, "
+                  << reps << "ops\n";
+              std::cout
+                  << "stats - "
+                  << reads << "reads, "
+                  << ns/reps << "ns-per-op, "
+                  << reps/ms << "ops-per-ms\n";
+              stopWrite.request_stop();
+            }))),
+        get_stop_token, stopSource.get_token()));
+  } catch (const std::system_error& se) {
+    std::printf("async_read_some system_error: [%s], [%s]\n", se.code().message().c_str(), se.what());
   } catch (const std::exception& ex) {
     std::printf("async_read_some exception: %s\n", ex.what());
   }
