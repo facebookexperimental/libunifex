@@ -190,6 +190,8 @@ void io_epoll_context::schedule_impl(operation_base* op) {
 void io_epoll_context::schedule_local(operation_base* op) noexcept {
   LOG("schedule_local");
   assert(op->execute_);
+  assert(op->enqueued_.load() == 0);
+  ++op->enqueued_;
   localQueue_.push_back(op);
 }
 
@@ -200,6 +202,8 @@ void io_epoll_context::schedule_local(operation_queue ops) noexcept {
 void io_epoll_context::schedule_remote(operation_base* op) noexcept {
   LOG("schedule_remote");
   assert(op->execute_);
+  assert(op->enqueued_.load() == 0);
+  ++op->enqueued_;
   bool ioThreadWasInactive = remoteQueue_.enqueue(op);
   if (ioThreadWasInactive) {
     // We were the first to queue an item and the I/O thread is not
@@ -231,9 +235,12 @@ void io_epoll_context::execute_pending_local() noexcept {
   while (!pending.empty()) {
     auto* item = pending.pop_front();
 
-    if (item->execute_) {
-      item->execute_(item);
-    }
+    assert(item->enqueued_.load() == 1);
+    --item->enqueued_;
+    std::exchange(item->next_, nullptr);
+    auto execute = std::exchange(item->execute_, nullptr);
+
+    execute(item);
     ++count;
   }
 
@@ -307,6 +314,9 @@ void io_epoll_context::acquire_completion_queue_items() {
 
     LOGX("completion event %i\n", completed.events);
     auto& completionState = *reinterpret_cast<completion_base*>(completed.data.ptr);
+
+    assert(completionState.enqueued_.load() == 0);
+    ++completionState.enqueued_;
 
     // Save the result in the completion state.
     // completionState.result_ = cqe.res;
