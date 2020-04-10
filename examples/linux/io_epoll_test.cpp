@@ -17,8 +17,8 @@
 // writes starting!
 // warmup completed!
 // benchmark completed!
-// completed in 10000 ms, 10000110689ns, 7396446ops
-// stats - 739636reads, 1352ns-per-op, 739ops-per-ms
+// completed in 10019 ms, 10019047256ns, 15058560ops
+// stats - 1.50299e+06reads, 665ns-per-op, 1503ops-per-ms
 // writes stopped!
 
 #include <unifex/config.hpp>
@@ -140,22 +140,17 @@ int main() {
                   stopSource.request_stop();
               }),
               // do reads
-              defer(
-                [&](){
-                  return typed_via(
-                    repeat_effect(
-                      defer(
-                        [&](){
-                          return transform(
-                            discard(
-                              async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
-                            [&]{
-                              assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
-                              ++reps;
-                            });
-                        })), 
-                    scheduler);
-                }))),
+              repeat_effect(
+                defer(
+                  [&](){
+                    return transform(
+                      discard(
+                        async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                      [&]{
+                        assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
+                        ++reps;
+                      });
+                  })))),
         get_stop_token, stopSource.get_token()),
       []{return just();});
   };
@@ -174,20 +169,19 @@ int main() {
             repeat_effect(
               defer(
                 [&](){
-                  return typed_via(
-                    discard(
-                      async_write_some(wPipeRef, databuffer)), 
-                    scheduler);
+                  return discard(
+                    async_write_some(wPipeRef, databuffer));
                 })),
             []{return just();}),
           lazy([&]{
             printf("writes stopped!\n");
           })),
-        // read the data 1 byte at a time from the other end and measure the reads
+        // read the data 1 byte at a time from the other end
         sequence(
-          // read for some time before starting meansurement 
-          // to remove startup effects
+          // read for some time before starting measurement 
+          // this is done to reduce startup effects
           pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
+          // reset measurements to exclude warmup
           lazy([&]{
             // restart reps and keep offset in data
             offset = reps%sizeof(data);
@@ -198,6 +192,7 @@ int main() {
           }),
           // do more reads and measure how many reads occur
           pipe_bench(BENCHMARK_DURATION, stopRead),
+          // report results
           lazy([&]{
             end = std::chrono::high_resolution_clock::now();
             printf("benchmark completed!\n");

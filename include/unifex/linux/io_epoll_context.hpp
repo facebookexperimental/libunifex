@@ -67,7 +67,11 @@ class io_epoll_context {
 
  private:
   struct operation_base {
-    operation_base() noexcept {}
+    ~operation_base() {
+      assert(enqueued_.load() == 0);
+    }
+    operation_base() noexcept : enqueued_(0), next_(nullptr), execute_(nullptr)  {}
+    std::atomic<int> enqueued_;
     operation_base* next_;
     void (*execute_)(operation_base*) noexcept;
   };
@@ -499,12 +503,16 @@ inline io_epoll_context::scheduler io_epoll_context::get_scheduler() noexcept {
 
 class io_epoll_context::read_sender {
 
+  struct done_op : operation_base {
+  };
+
   template <typename Receiver>
-  class operation : private completion_base {
+  class operation : private completion_base, private done_op {
     friend io_epoll_context;
 
     static constexpr bool is_stop_ever_possible =
         !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
+
    public:
     template <typename Receiver2>
     explicit operation(const read_sender& sender, Receiver2&& r)
@@ -517,17 +525,16 @@ class io_epoll_context::read_sender {
 
     void start() noexcept {
       if (!context_.is_running_on_io_thread()) {
-        this->execute_ = &operation::on_schedule_complete;
-        context_.schedule_remote(this);
+        static_cast<completion_base*>(this)->execute_ = &operation::on_schedule_complete;
+        context_.schedule_remote(static_cast<completion_base*>(this));
       } else {
         start_io();
       }
     }
-
+    
    private:
     static void on_schedule_complete(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
-      self.execute_ = nullptr;
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
       self.start_io();
     }
 
@@ -535,18 +542,31 @@ class io_epoll_context::read_sender {
       assert(context_.is_running_on_io_thread());
 
       auto result = readv(fd_, buffer_, 1);
+
       if (result == -EAGAIN || result == -EWOULDBLOCK || result == -EPERM) {
         if constexpr (is_stop_ever_possible) {
           stopCallback_.construct(
               get_stop_token(receiver_), cancel_callback{*this});
         }
-
-        this->execute_ = &operation::on_read_complete;
+        assert(static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        static_cast<completion_base*>(this)->execute_ = &operation::on_read_complete;
         epoll_event event;
-        event.data.ptr = this;
+        event.data.ptr = static_cast<completion_base*>(this);
         event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
         (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_ADD, fd_, &event);
-      } else if (result == -ECANCELED) {
+        return;
+      }
+
+      auto oldState = state_.fetch_add(
+          io_epoll_context::read_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
+      if (result == -ECANCELED) {
         unifex::set_done(std::move(receiver_));
       } else if (result >= 0) {
         if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
@@ -566,13 +586,23 @@ class io_epoll_context::read_sender {
     }
 
     static void on_read_complete(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
+
+      assert(static_cast<completion_base&>(self).enqueued_.load() == 0);
 
       self.stopCallback_.destruct();
 
+      auto oldState = self.state_.fetch_add(
+          io_epoll_context::read_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
       epoll_event event = {};
       (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
-      self.execute_ = nullptr;
 
       auto result = readv(self.fd_, self.buffer_, 1);
       assert(result != -EAGAIN);
@@ -597,43 +627,39 @@ class io_epoll_context::read_sender {
     }
 
     static void complete_with_done(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
-      self.execute_ = nullptr;
-      self.request_stop_local();
+      auto& self = *static_cast<operation*>(static_cast<done_op*>(op));
+
+      assert(static_cast<done_op&>(self).enqueued_.load() == 0);
+
+      if (static_cast<completion_base&>(self).enqueued_.load() == 0) {
+        // Avoid instantiating set_done() if we're not going to call it.
+        if constexpr (is_stop_ever_possible) {
+          unifex::set_done(std::move(self.receiver_));
+        } else {
+          // This should never be called if stop is not possible.
+          assert(false);
+        }
+      } else {
+        // reschedule after queued io is cleared
+        static_cast<done_op&>(self).execute_ = &operation::complete_with_done;
+        self.context_.schedule_local(static_cast<done_op*>(&self));
+      }
     }
 
     void request_stop() noexcept {
-      if (context_.is_running_on_io_thread()) {
-        request_stop_local();
-      } else {
-        request_stop_remote();
+      auto oldState = this->state_.fetch_add(
+          io_epoll_context::read_sender::operation<Receiver>::cancel_pending_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::io_mask) == 0) {
+        // IO not yet completed.
+        epoll_event event = {};
+        (void)epoll_ctl(this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
+
+        // We are responsible for scheduling the completion of this io
+        // operation.
+        static_cast<done_op&>(*this).execute_ = &operation::complete_with_done;
+        this->context_.schedule_remote(static_cast<done_op*>(this));
       }
-    }
-
-    void request_stop_local() noexcept {
-      assert(context_.is_running_on_io_thread());
-
-      stopCallback_.destruct();
-
-      epoll_event event = {};
-      (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_DEL, fd_, &event);
-      execute_ = nullptr;
-
-      // Avoid instantiating set_done() if we're not going to call it.
-      if constexpr (is_stop_ever_possible) {
-        unifex::set_done(std::move(receiver_));
-      } else {
-        // This should never be called if stop is not possible.
-        assert(false);
-      }
-    }
-
-    void request_stop_remote() noexcept {
-      epoll_event event = {};
-      (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_DEL, fd_, &event);
-
-      this->execute_ = &operation::complete_with_done;
-      this->context_.schedule_remote(this);
     }
 
     struct cancel_callback {
@@ -651,6 +677,11 @@ class io_epoll_context::read_sender {
     manual_lifetime<typename stop_token_type_t<
       Receiver>::template callback_type<cancel_callback>>
       stopCallback_;
+    static constexpr std::uint32_t io_flag = 0x00010000;
+    static constexpr std::uint32_t io_mask = 0xFFFF0000;
+    static constexpr std::uint32_t cancel_pending_flag = 1;
+    static constexpr std::uint32_t cancel_pending_mask = 0xFFFF;
+    std::atomic<std::uint32_t> state_ = 0;
   };
 
  public:
@@ -682,8 +713,11 @@ class io_epoll_context::read_sender {
 
 class io_epoll_context::write_sender {
 
+  struct done_op : operation_base {
+  };
+
   template <typename Receiver>
-  class operation : private completion_base {
+  class operation : private completion_base, private done_op {
     friend io_epoll_context;
 
     static constexpr bool is_stop_ever_possible =
@@ -700,8 +734,8 @@ class io_epoll_context::write_sender {
 
     void start() noexcept {
       if (!context_.is_running_on_io_thread()) {
-        this->execute_ = &operation::on_schedule_complete;
-        context_.schedule_remote(this);
+        static_cast<completion_base*>(this)->execute_ = &operation::on_schedule_complete;
+        context_.schedule_remote(static_cast<completion_base*>(this));
       } else {
         start_io();
       }
@@ -710,8 +744,7 @@ class io_epoll_context::write_sender {
    private:
 
     static void on_schedule_complete(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
-      self.execute_ = nullptr;
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
       self.start_io();
     }
 
@@ -719,18 +752,32 @@ class io_epoll_context::write_sender {
       assert(context_.is_running_on_io_thread());
 
       auto result = writev(fd_, buffer_, 1);
+
       if (result == -EAGAIN || result == -EWOULDBLOCK || result == -EPERM) {
         if constexpr (is_stop_ever_possible) {
           stopCallback_.construct(
               get_stop_token(receiver_), cancel_callback{*this});
         }
 
-        this->execute_ = &operation::on_write_complete;
+        assert(static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        static_cast<completion_base*>(this)->execute_ = &operation::on_write_complete;
         epoll_event event;
-        event.data.ptr = this;
+        event.data.ptr = static_cast<completion_base*>(this);
         event.events = EPOLLOUT | EPOLLRDHUP | EPOLLHUP;
         (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_ADD, fd_, &event);
-      } else if (result == -ECANCELED) {
+        return;
+      }
+
+      auto oldState = state_.fetch_add(
+          io_epoll_context::write_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
+      if (result == -ECANCELED) {
         unifex::set_done(std::move(receiver_));
       } else if (result >= 0) {
         if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
@@ -750,13 +797,23 @@ class io_epoll_context::write_sender {
     }
 
     static void on_write_complete(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
+
+      assert(static_cast<completion_base&>(self).enqueued_.load() == 0);
 
       self.stopCallback_.destruct();
 
       epoll_event event = {};
       (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
-      self.execute_ = nullptr;
+
+      auto oldState = self.state_.fetch_add(
+          io_epoll_context::write_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
 
       auto result = writev(self.fd_, self.buffer_, 1);
       assert(result != -EAGAIN);
@@ -781,43 +838,39 @@ class io_epoll_context::write_sender {
     }
 
     static void complete_with_done(operation_base* op) noexcept {
-      auto& self = *static_cast<operation*>(op);
-      self.execute_ = nullptr;
-      self.request_stop_local();
+      auto& self = *static_cast<operation*>(static_cast<done_op*>(op));
+
+      assert(static_cast<done_op&>(self).enqueued_.load() == 0);
+
+      if (static_cast<completion_base&>(self).enqueued_.load() == 0) {
+        // Avoid instantiating set_done() if we're not going to call it.
+        if constexpr (is_stop_ever_possible) {
+          unifex::set_done(std::move(self.receiver_));
+        } else {
+          // This should never be called if stop is not possible.
+          assert(false);
+        }
+      } else {
+        // reschedule after queued io is cleared
+        static_cast<done_op&>(self).execute_ = &operation::complete_with_done;
+        self.context_.schedule_local(static_cast<done_op*>(&self));
+      }
     }
 
     void request_stop() noexcept {
-      if (context_.is_running_on_io_thread()) {
-        request_stop_local();
-      } else {
-        request_stop_remote();
+      auto oldState = this->state_.fetch_add(
+          io_epoll_context::write_sender::operation<Receiver>::cancel_pending_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::io_mask) == 0) {
+        // IO not yet completed.
+        epoll_event event = {};
+        (void)epoll_ctl(this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
+
+        // We are responsible for scheduling the completion of this io
+        // operation.
+        static_cast<done_op&>(*this).execute_ = &operation::complete_with_done;
+        this->context_.schedule_remote(static_cast<done_op*>(this));
       }
-    }
-
-    void request_stop_local() noexcept {
-      assert(context_.is_running_on_io_thread());
-
-      stopCallback_.destruct();
-
-      epoll_event event = {};
-      (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_DEL, fd_, &event);
-      execute_ = nullptr;
-
-      // Avoid instantiating set_done() if we're not going to call it.
-      if constexpr (is_stop_ever_possible) {
-        unifex::set_done(std::move(receiver_));
-      } else {
-        // This should never be called if stop is not possible.
-        assert(false);
-      }
-    }
-
-    void request_stop_remote() noexcept {
-      epoll_event event = {};
-      (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_DEL, fd_, &event);
-
-      this->execute_ = &operation::complete_with_done;
-      this->context_.schedule_remote(this);
     }
 
     struct cancel_callback {
@@ -835,6 +888,11 @@ class io_epoll_context::write_sender {
     manual_lifetime<typename stop_token_type_t<
       Receiver>::template callback_type<cancel_callback>>
       stopCallback_;
+    static constexpr std::uint32_t io_flag = 0x00010000;
+    static constexpr std::uint32_t io_mask = 0xFFFF0000;
+    static constexpr std::uint32_t cancel_pending_flag = 1;
+    static constexpr std::uint32_t cancel_pending_mask = 0xFFFF;
+    std::atomic<std::uint32_t> state_ = 0;
   };
 
  public:
