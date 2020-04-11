@@ -296,6 +296,8 @@ struct _stream<SourceStream, Values...>::type {
     operation<Receiver> connect(Receiver&& receiver) && {
       return operation<Receiver>{stream_, (Receiver&&)receiver};
     }
+    template<typename Receiver>
+    void connect(Receiver&& receiver) const& =delete;
   };
 
   struct cleanup_sender {
@@ -413,6 +415,8 @@ struct _stream<SourceStream, Values...>::type {
     operation<Receiver> connect(Receiver&& receiver) && {
       return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
+    template<typename Receiver>
+    void connect(Receiver&& receiver) const& = delete;
   };
 
   UNIFEX_NO_UNIQUE_ADDRESS SourceStream source_;

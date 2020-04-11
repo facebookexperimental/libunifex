@@ -193,20 +193,6 @@ namespace _demat {
     template <
         typename Receiver,
         std::enable_if_t<
-            is_connectable_v<Source&, receiver<Receiver>>,
-            int> = 0>
-    auto connect(Receiver&& r) &
-        noexcept(is_nothrow_connectable_v<Source&, receiver<Receiver>> &&
-                 std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<Source&, receiver<Receiver>> {
-      return unifex::connect(
-          source_,
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
-    }
-
-    template <
-        typename Receiver,
-        std::enable_if_t<
             is_connectable_v<const Source&, receiver<Receiver>>,
             int> = 0>
     auto connect(Receiver&& r) const &

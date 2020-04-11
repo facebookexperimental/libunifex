@@ -199,7 +199,7 @@ namespace _async_trace {
     using error_types = Variant<std::exception_ptr>;
 
     template <typename Receiver>
-    operation<Receiver> connect(Receiver&& r) {
+    operation<Receiver> connect(Receiver&& r) const& {
       return operation<Receiver>{(Receiver &&) r};
     }
 

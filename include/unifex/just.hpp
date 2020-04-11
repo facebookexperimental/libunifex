@@ -72,26 +72,24 @@ class _sender<Values...>::type {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  template <typename... Values2>
-  explicit type(Values2&&... values)
+  template <
+    typename... Values2,
+    std::enable_if_t<
+      sizeof...(Values2) == sizeof...(Values), int> = 0>
+    explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
-  template <typename Receiver>
+  template <typename Receiver,
+    std::enable_if_t<std::is_move_constructible_v<std::tuple<Values...>>, int> = 0>
   auto connect(Receiver&& r) &&
     noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
     -> operation<Receiver, Values...> {
     return {std::move(values_), (Receiver &&) r};
   }
 
-  template <typename Receiver>
-  auto connect(Receiver&& r) &
-    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, std::tuple<Values...>&>)
-    -> operation<Receiver, Values...> {
-    return {values_, (Receiver &&) r};
-  }
-
-  template <typename Receiver>
+  template <typename Receiver,
+    std::enable_if_t<std::is_copy_constructible_v<std::tuple<Values...>>, int> = 0>
   auto connect(Receiver&& r) const &
     noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
     -> operation<Receiver, Values...> {
@@ -110,7 +108,7 @@ namespace _just_cpo {
     constexpr auto operator()(Values&&... values) const
       noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
       -> _just::sender<std::decay_t<Values>...> {
-      return _just::sender<Values...>{(Values&&)values...};
+      return _just::sender<Values...>{std::in_place, (Values&&)values...};
     }
   } just{};
 } // namespace _just_cpo

@@ -253,8 +253,8 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<value_variant_for_sender<Senders>>...> values_;
-  std::optional<error_types<std::variant, Senders...>> error_;
+  std::tuple<std::optional<value_variant_for_sender<std::remove_cvref_t<Senders>>>...> values_;
+  std::optional<error_types<std::variant, std::remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
@@ -298,6 +298,13 @@ class _sender<Senders...>::type {
       return operation<Receiver, Senders...>{
           (Receiver &&) receiver, (Senders &&) senders...};
     }, std::move(senders_));
+  }
+  template <typename Receiver>
+  operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
+    return std::apply([&](const Senders&... senders) {
+      return operation<Receiver, const Senders&...>{
+          (Receiver &&) receiver, senders...};
+    }, senders_);
   }
 
  private:
