@@ -33,19 +33,32 @@
 namespace unifex
 {
 
-namespace detail
+namespace _stop_when
 {
     template<typename Source, typename Trigger, typename Receiver>
-    class stop_when_operation;
+    struct _op {
+        class type;
+    };
+    template<typename Source, typename Trigger, typename Receiver>
+    using stop_when_operation = typename _op<Source, Trigger, Receiver>::type;
 
     template<typename Source, typename Trigger, typename Receiver>
-    class stop_when_source_receiver {
+    struct _srcvr {
+        class type;
+    };
+    
+    template <typename Source, typename Trigger, typename Receiver>
+    using stop_when_source_receiver = typename _srcvr<Source, Trigger, Receiver>::type;
+    
+    template <typename Source, typename Trigger, typename Receiver>
+    class _srcvr<Source, Trigger, Receiver>::type {
         using operation_state = stop_when_operation<Source, Trigger, Receiver>;
+        using stop_when_source_receiver = stop_when_source_receiver<Source, Trigger, Receiver>;
     public:
-        explicit stop_when_source_receiver(operation_state* op) noexcept
+        explicit type(operation_state* op) noexcept
         : op_(op) {}
 
-        stop_when_source_receiver(stop_when_source_receiver&& other) noexcept
+        type(stop_when_source_receiver&& other) noexcept
         : op_(std::exchange(other.op_, nullptr))
         {}
 
@@ -94,13 +107,22 @@ namespace detail
     };
 
     template<typename Source, typename Trigger, typename Receiver>
-    class stop_when_trigger_receiver {
+    struct _trcvr {
+        class type;
+    };
+
+    template<typename Source, typename Trigger, typename Receiver>
+    using stop_when_trigger_receiver = typename _trcvr<Source, Trigger, Receiver>::type;
+
+    template<typename Source, typename Trigger, typename Receiver>
+    class _trcvr<Source, Trigger, Receiver>::type {
         using operation_state = stop_when_operation<Source, Trigger, Receiver>;
+        using stop_when_trigger_receiver = stop_when_trigger_receiver<Source, Trigger, Receiver>;
     public:
-        explicit stop_when_trigger_receiver(operation_state* op) noexcept
+        explicit type(operation_state* op) noexcept
         : op_(op) {}
 
-        stop_when_trigger_receiver(stop_when_trigger_receiver&& other) noexcept
+        type(stop_when_trigger_receiver&& other) noexcept
         : op_(std::exchange(other.op_, nullptr))
         {}
 
@@ -144,12 +166,13 @@ namespace detail
     };
 
     template<typename Source, typename Trigger, typename Receiver>
-    class stop_when_operation {
+    class _op<Source, Trigger, Receiver>::type {
         using source_receiver = stop_when_source_receiver<Source, Trigger, Receiver>;
         using trigger_receiver = stop_when_trigger_receiver<Source, Trigger, Receiver>;
+        using stop_when_operation = stop_when_operation<Source, Trigger, Receiver>;
     public:
         template<typename Receiver2>
-        explicit stop_when_operation(Source&& source, Trigger&& trigger, Receiver2&& receiver)
+        explicit type(Source&& source, Trigger&& trigger, Receiver2&& receiver)
             noexcept(is_nothrow_connectable_v<Source, source_receiver> &&
                      is_nothrow_connectable_v<Trigger, trigger_receiver> &&
                      std::is_nothrow_constructible_v<Receiver, Receiver2>)
@@ -168,8 +191,8 @@ namespace detail
         }
 
     private:
-        friend class stop_when_source_receiver<Source, Trigger, Receiver>;
-        friend class stop_when_trigger_receiver<Source, Trigger, Receiver>;
+        friend class _srcvr<Source, Trigger, Receiver>::type;
+        friend class _trcvr<Source, Trigger, Receiver>::type;
 
         class cancel_callback {
         public:
@@ -236,7 +259,17 @@ namespace detail
     };
 
     template<typename Source, typename Trigger>
-    class stop_when_sender {
+    struct _sndr {
+        class type;
+    };
+
+    template <typename Source, typename Trigger>
+    using stop_when_sender = typename _sndr<Source, Trigger>::type;
+
+    template <typename Source, typename Trigger>
+    class _sndr<Source, Trigger>::type {
+        using stop_when_sender = type;
+
         template<typename... Values>
         using decayed_type_list = type_list<type_list<std::decay_t<Values>...>>;
 
@@ -262,7 +295,7 @@ namespace detail
             type_list<std::exception_ptr>>::template apply<Variant>;
 
         template<typename Source2, typename Trigger2>
-        explicit stop_when_sender(Source2&& source, Trigger2&& trigger)
+        explicit type(Source2&& source, Trigger2&& trigger)
             noexcept(std::is_nothrow_constructible_v<Source, Source2> && std::is_nothrow_constructible_v<Trigger, Trigger2>)
             : source_((Source2&&)source)
             , trigger_((Trigger2&&)trigger)
@@ -285,20 +318,6 @@ namespace detail
         template<
             typename Receiver,
             std::enable_if_t<
-                is_connectable_v<Source&, stop_when_source_receiver<Source&, Trigger&, std::remove_cvref_t<Receiver>>> &&
-                is_connectable_v<Trigger&, stop_when_trigger_receiver<Source&, Trigger&, std::remove_cvref_t<Receiver>>>,
-                int> = 0>
-        auto connect(Receiver&& r) & -> stop_when_operation<Source&, Trigger&, std::remove_cvref_t<Receiver>> {
-            return stop_when_operation<Source&, Trigger&, std::remove_cvref_t<Receiver>>{
-                source_,
-                trigger_,
-                (Receiver&&)r
-            };
-        }
-
-        template<
-            typename Receiver,
-            std::enable_if_t<
                 is_connectable_v<Source&, stop_when_source_receiver<const Source&, const Trigger&, std::remove_cvref_t<Receiver>>> &&
                 is_connectable_v<Trigger&, stop_when_trigger_receiver<const Source&, const Trigger&, std::remove_cvref_t<Receiver>>>,
                 int> = 0>
@@ -314,27 +333,33 @@ namespace detail
         UNIFEX_NO_UNIQUE_ADDRESS Source source_;
         UNIFEX_NO_UNIQUE_ADDRESS Trigger trigger_;
     };
-} // namespace detail
+} // namespace _stop_when
 
-inline constexpr struct stop_when_cpo {
+namespace _stop_when_cpo {
+
+struct _fn {
     template<typename Source, typename Trigger>
     auto operator()(Source&& source, Trigger& trigger) const
-        noexcept(is_nothrow_tag_invocable_v<stop_when_cpo, Source, Trigger>)
-        -> tag_invoke_result_t<stop_when_cpo, Source, Trigger>{
+        noexcept(is_nothrow_tag_invocable_v<_fn, Source, Trigger>)
+        -> tag_invoke_result_t<_fn, Source, Trigger>{
         return unifex::tag_invoke(*this, (Source&&)source, (Trigger&&)trigger);    
     }
 
     template<
         typename Source,
         typename Trigger,
-        std::enable_if_t<!is_tag_invocable_v<stop_when_cpo, Source, Trigger>, int> = 0>
+        std::enable_if_t<!is_tag_invocable_v<_fn, Source, Trigger>, int> = 0>
     auto operator()(Source&& source, Trigger&& trigger) const
-        noexcept(std::is_nothrow_constructible_v<
-            detail::stop_when_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Trigger>>, Source, Trigger>)
-        -> detail::stop_when_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Trigger>> {
-        return detail::stop_when_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Trigger>>(
+        noexcept(std::is_nothrow_constructible_v<std::remove_cvref_t<Source>, Source> &&
+                 std::is_nothrow_constructible_v<std::remove_cvref_t<Trigger>, Trigger>)
+        -> _stop_when::stop_when_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Trigger>> {
+        return _stop_when::stop_when_sender<std::remove_cvref_t<Source>, std::remove_cvref_t<Trigger>>(
             (Source&&)source, (Trigger&&)trigger);
     }
-} stop_when;
+};
+
+} // namespace _stop_when_cpo
+
+inline constexpr _stop_when_cpo::_fn stop_when{};
 
 } // namespace unifex
