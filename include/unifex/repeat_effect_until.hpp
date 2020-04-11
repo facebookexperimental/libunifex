@@ -215,7 +215,7 @@ public:
     std::enable_if_t<
       std::conjunction_v<
         std::is_move_constructible<Source>,
-        std::is_move_constructible_v<Predicate>,
+        std::is_move_constructible<Predicate>,
         std::is_constructible<std::remove_cvref_t<Receiver>, Receiver>,
         is_connectable<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>>, int> = 0>
   operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) &&
