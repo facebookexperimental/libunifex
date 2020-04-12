@@ -159,7 +159,11 @@ public:
     return blocking(sender.pred_);
   }
 
-  template <typename Receiver>
+  template <
+    typename Receiver,
+    std::enable_if_t<
+      std::is_move_constructible_v<Func> &&
+      is_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>, int> = 0>
   auto connect(Receiver&& r) &&
       noexcept(
         std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
@@ -172,7 +176,11 @@ public:
             std::forward<Func>(func_), std::forward<Receiver>(r)});
   }
 
-  template <typename Receiver>
+  template <
+    typename Receiver,
+    std::enable_if_t<
+      std::is_copy_constructible_v<Func> &&
+      is_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>, int> = 0>
   auto connect(Receiver&& r) const &
       noexcept(
         std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
