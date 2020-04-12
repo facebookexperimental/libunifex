@@ -82,38 +82,36 @@ int main() {
 
   sync_wait(
     transform(
-      defer([&]{
-        return when_all(
-          transform(
-            dump_async_trace_on_start(
-              schedule_after(context.get_scheduler(), 100ms), "part1"),
-            [=]() {
-              auto time = steady_clock::now() - start;
-              auto timeMs = duration_cast<milliseconds>(time).count();
-              std::cout << "part1 finished - [" << timeMs << "]\n";
-              return time;
-            }),
-          transform(
-            dump_async_trace_on_completion(
-              schedule_after(context.get_scheduler(), 200ms), "part2"),
-            [=]() {
-              auto time = steady_clock::now() - start;
-              auto timeMs = duration_cast<milliseconds>(time).count();
-              std::cout << "part2 finished - [" << timeMs << "]\n";
-              return time;
-            }),
+      when_all(
+        transform(
+          dump_async_trace_on_start(
+            schedule_after(context.get_scheduler(), 100ms), "part1"),
+          [=]() {
+            auto time = steady_clock::now() - start;
+            auto timeMs = duration_cast<milliseconds>(time).count();
+            std::cout << "part1 finished - [" << timeMs << "]\n";
+            return time;
+          }),
+        transform(
+          dump_async_trace_on_completion(
+            schedule_after(context.get_scheduler(), 200ms), "part2"),
+          [=]() {
+            auto time = steady_clock::now() - start;
+            auto timeMs = duration_cast<milliseconds>(time).count();
+            std::cout << "part2 finished - [" << timeMs << "]\n";
+            return time;
+          }),
 #if !UNIFEX_NO_COROUTINES
-          awaitable_sender(
-            []() -> task<int> {
-              co_await dump_async_trace("coroutine");
-              co_return 42;
-            }()
-          )
+        awaitable_sender(
+          []() -> task<int> {
+            co_await dump_async_trace("coroutine");
+            co_return 42;
+          }()
+        )
 #else
-          just(42)
+        just(42)
 #endif // UNIFEX_NO_COROUTINES
-        );
-      }),
+      ),
       [](auto &&a, auto &&b, auto &&c) {
         std::cout
             << "when_all finished - ["
