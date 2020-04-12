@@ -53,13 +53,11 @@ namespace unifex
     template <typename Source, typename Trigger, typename Receiver>
     class _srcvr<Source, Trigger, Receiver>::type {
       using operation_state = stop_when_operation<Source, Trigger, Receiver>;
-      using stop_when_source_receiver =
-          stop_when_source_receiver<Source, Trigger, Receiver>;
 
     public:
       explicit type(operation_state* op) noexcept : op_(op) {}
 
-      type(stop_when_source_receiver&& other) noexcept
+      type(type&& other) noexcept
         : op_(std::exchange(other.op_, nullptr)) {}
 
       template <typename... Values>
@@ -87,7 +85,7 @@ namespace unifex
     private:
       friend inplace_stop_token tag_invoke(
           tag_t<unifex::get_stop_token>,
-          const stop_when_source_receiver& r) noexcept {
+          const type& r) noexcept {
         return r.get_stop_token();
       }
 
@@ -97,7 +95,7 @@ namespace unifex
           std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const stop_when_source_receiver& r,
+          const type& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
@@ -128,13 +126,11 @@ namespace unifex
     template <typename Source, typename Trigger, typename Receiver>
     class _trcvr<Source, Trigger, Receiver>::type {
       using operation_state = stop_when_operation<Source, Trigger, Receiver>;
-      using stop_when_trigger_receiver =
-          stop_when_trigger_receiver<Source, Trigger, Receiver>;
 
     public:
       explicit type(operation_state* op) noexcept : op_(op) {}
 
-      type(stop_when_trigger_receiver&& other) noexcept
+      type(type&& other) noexcept
         : op_(std::exchange(other.op_, nullptr)) {}
 
       void set_value() && noexcept { op_->notify_trigger_complete(); }
@@ -149,7 +145,7 @@ namespace unifex
     private:
       friend inplace_stop_token tag_invoke(
           tag_t<unifex::get_stop_token>,
-          const stop_when_trigger_receiver& r) noexcept {
+          const type& r) noexcept {
         return r.get_stop_token();
       }
 
@@ -159,7 +155,7 @@ namespace unifex
           std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const stop_when_trigger_receiver& r,
+          const type& r,
           Args&&... args) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
@@ -184,8 +180,6 @@ namespace unifex
           stop_when_source_receiver<Source, Trigger, Receiver>;
       using trigger_receiver =
           stop_when_trigger_receiver<Source, Trigger, Receiver>;
-      using stop_when_operation =
-          stop_when_operation<Source, Trigger, Receiver>;
 
     public:
       template <typename Receiver2>
@@ -218,12 +212,12 @@ namespace unifex
 
       class cancel_callback {
       public:
-        explicit cancel_callback(stop_when_operation* op) noexcept : op_(op) {}
+        explicit cancel_callback(type* op) noexcept : op_(op) {}
 
         void operator()() noexcept { op_->stopSource_.request_stop(); }
 
       private:
-        stop_when_operation* op_;
+        type* op_;
       };
 
       void notify_source_complete() noexcept {
