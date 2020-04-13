@@ -141,16 +141,18 @@ int main() {
               }),
               // do reads
               repeat_effect(
-                defer(
-                  [&](){
-                    return transform(
-                      discard(
-                        async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
-                      [&]{
-                        assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
-                        ++reps;
-                      });
-                  })))),
+                typed_via(
+                  defer(
+                    [&](){
+                      return transform(
+                        discard(
+                          async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                        [&]{
+                          assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
+                          ++reps;
+                        });
+                    }),
+                  scheduler)))),
         get_stop_token, stopSource.get_token()),
       []{return just();});
   };
@@ -167,18 +169,20 @@ int main() {
           }),
           transform_done(
             repeat_effect(
-              defer(
-                [&](){
-                  return discard(
-                    async_write_some(wPipeRef, databuffer));
-                })),
+              typed_via(
+                defer(
+                  [&](){
+                    return discard(
+                      async_write_some(wPipeRef, databuffer));
+                  }),
+                scheduler)),
             []{return just();}),
           lazy([&]{
             printf("writes stopped!\n");
           })),
         // read the data 1 byte at a time from the other end
         sequence(
-          // read for some time before starting measurement 
+          // read for some time before starting measurement
           // this is done to reduce startup effects
           pipe_bench(WARMUP_DURATION, stopWarmup), // warmup
           // reset measurements to exclude warmup
@@ -206,12 +210,12 @@ int main() {
             std::cout
                 << "completed in "
                 << ms << " ms, "
-                << ns << "ns, " 
+                << ns << "ns, "
                 << reps << "ops\n";
             std::cout
                 << "stats - "
-                << reads << "reads, " 
-                << ns/reps << "ns-per-op, " 
+                << reads << "reads, "
+                << ns/reps << "ns-per-op, "
                 << reps/ms << "ops-per-ms\n";
             stopWrite.request_stop();
           }))),
