@@ -42,9 +42,10 @@ namespace _on {
         std::enable_if_t<!is_tag_invocable_v<_fn, Sender, Scheduler>, int> =
             0>
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
-      return sequence(
-          schedule(scheduler),
-          with_query_value((Sender &&) sender, get_scheduler, scheduler));
+      return with_query_value(
+          sequence(schedule(), (Sender&&)sender),
+          get_scheduler,
+          (Scheduler&&)scheduler);
     }
   } on{};
 } // namespace _on

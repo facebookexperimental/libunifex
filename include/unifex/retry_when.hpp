@@ -349,7 +349,8 @@ public:
       noexcept(
         std::is_nothrow_move_constructible_v<Source> &&
         std::is_nothrow_move_constructible_v<Func> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>) {
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>) {
     return operation<Source, Func, Receiver>{
         (Source&&)source_, (Func&&)func_, (Receiver&&)r};
   }
@@ -357,15 +358,16 @@ public:
   template<
     typename Receiver,
     std::enable_if_t<
-        std::is_constructible_v<Source, Source&> &&
-        std::is_constructible_v<Func, Func&> &&
+        std::is_copy_constructible_v<Source> &&
+        std::is_copy_constructible_v<Func> &&
         std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
         is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
   operation<Source, Func, Receiver> connect(Receiver&& r) const&
       noexcept(
         std::is_nothrow_copy_constructible_v<Source> &&
         std::is_nothrow_copy_constructible_v<Func> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>) {
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>) {
     return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
   }
 
