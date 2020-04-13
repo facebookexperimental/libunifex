@@ -335,9 +335,8 @@ public:
   // with the corresponding trigger_receiver.
 
   UNIFEX_TEMPLATE(typename Receiver)
-    (requires move_constructible<Source> &&
-        move_constructible<Func> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+    (requires move_constructible<Func> &&
+        receiver<Receiver> &&
         sender_to<
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
@@ -352,9 +351,9 @@ public:
   }
 
   UNIFEX_TEMPLATE(typename Receiver)
-    (requires constructible_from<Source, const Source&> &&
-        constructible_from<Func, const Func&> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+    (requires copy_constructible<Source> &&
+        copy_constructible<Func> &&
+        receiver<Receiver> &&
         sender_to<
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
@@ -398,8 +397,8 @@ namespace _retry_when_cpo {
   struct _fn::_impl<false> {
     UNIFEX_TEMPLATE(typename Source, typename Func)
       (requires (!is_tag_invocable_v<_fn, Source, Func>) &&
-          std::is_constructible_v<std::remove_cvref_t<Source>, Source> &&
-          std::is_constructible_v<std::remove_cvref_t<Func>, Func>)
+          constructible_from<std::remove_cvref_t<Source>, Source> &&
+          constructible_from<std::remove_cvref_t<Func>, Func>)
     auto operator()(Source&& source, Func&& func) const
         noexcept(std::is_nothrow_constructible_v<
           _retry_when::sender<Source, Func>, Source, Func>)

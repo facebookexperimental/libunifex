@@ -192,7 +192,7 @@ namespace unifex
       using error_types = Variant<std::exception_ptr>;
 
       UNIFEX_TEMPLATE(typename Source2)
-          (requires std::is_constructible_v<Source, Source2>)
+          (requires constructible_from<Source, Source2>)
       explicit type(Source2&& source) noexcept(
           std::is_nothrow_constructible_v<Source, Source2>)
         : source_(static_cast<Source2&&>(source)) {}

@@ -314,8 +314,8 @@ namespace unifex
           type_list<std::exception_ptr>>::template apply<Variant>;
 
       UNIFEX_TEMPLATE(typename Predecessor2, typename Successor2)
-          (requires std::is_constructible_v<Predecessor, Predecessor2> &&
-              std::is_constructible_v<Successor, Successor2>)
+          (requires constructible_from<Predecessor, Predecessor2> &&
+              constructible_from<Successor, Successor2>)
       explicit type(Predecessor2&& predecessor, Successor2&& successor)
           noexcept(std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
               std::is_nothrow_constructible_v<Successor, Successor2>)

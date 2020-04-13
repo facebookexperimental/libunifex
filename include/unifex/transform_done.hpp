@@ -286,7 +286,7 @@ public:
     typename SourceReceiver = receiver_type<Source, Done, Receiver>,
     typename FinalReceiver = final_receiver_type<Source, Done, Receiver>)
     (requires move_constructible<Done> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+        receiver<Receiver> &&
         sender_to<Source, SourceReceiver> &&
         sender_to<final_sender_t, FinalReceiver>)
   operation_type<Source, Done, Receiver> connect(Receiver&& r) &&
@@ -306,7 +306,7 @@ public:
     typename SourceReceiver = receiver_type<const Source&, Done, Receiver>,
     typename FinalReceiver = final_receiver_type<const Source&, Done, Receiver>)
     (requires copy_constructible<Done> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+        receiver<Receiver> &&
         sender_to<const Source&, SourceReceiver> &&
         sender_to<final_sender_t, FinalReceiver>)
   operation_type<const Source&, Done, Receiver> connect(Receiver&& r) const&

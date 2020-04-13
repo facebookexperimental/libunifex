@@ -206,9 +206,8 @@ public:
   {}
 
   UNIFEX_TEMPLATE(typename Receiver)
-    (requires move_constructible<Source> &&
-        move_constructible<Predicate> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+    (requires move_constructible<Predicate> &&
+        receiver<Receiver> &&
         sender_to<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>)
   operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) &&
        noexcept(
@@ -226,7 +225,7 @@ public:
   UNIFEX_TEMPLATE(typename Receiver)
     (requires copy_constructible<Source> &&
         copy_constructible<Predicate> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+        receiver<Receiver> &&
         sender_to<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>)
   operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) const&
        noexcept(
