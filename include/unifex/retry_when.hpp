@@ -144,7 +144,7 @@ private:
   }
 
   void destroy_trigger_op() noexcept {
-    using trigger_op = operation_t<Trigger, trigger_receiver>;
+    using trigger_op = connect_result_t<Trigger, trigger_receiver>;
     op_->triggerOps_.template get<trigger_op>().destruct();
   }
 
@@ -188,7 +188,7 @@ public:
 
     using trigger_sender_t = std::invoke_result_t<Func&, Error>;
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
-    using trigger_op_t = unifex::operation_t<trigger_sender_t, trigger_receiver_t>;
+    using trigger_op_t = unifex::connect_result_t<trigger_sender_t, trigger_receiver_t>;
     auto& triggerOpStorage = op->triggerOps_.template get<trigger_op_t>();
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
@@ -269,7 +269,7 @@ private:
   template<typename Source2, typename Func2, typename Receiver2, typename Trigger>
   friend class _trigger_receiver;
 
-  using source_op_t = operation_t<Source&, source_receiver_t>;
+  using source_op_t = connect_result_t<Source&, source_receiver_t>;
 
   template<typename Error>
   using trigger_sender_t = std::invoke_result_t<Func&, std::remove_cvref_t<Error>>;
@@ -278,7 +278,7 @@ private:
   using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
 
   template<typename Error>
-  using trigger_op_t = operation_t<
+  using trigger_op_t = connect_result_t<
       trigger_sender_t<Error>,
       trigger_receiver_t<Error>>;
 
@@ -335,10 +335,10 @@ public:
   // with the corresponding trigger_receiver.
 
   UNIFEX_TEMPLATE(typename Receiver)
-    (requires std::is_move_constructible_v<Source> &&
-        std::is_move_constructible_v<Func> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<
+    (requires move_constructible<Source> &&
+        move_constructible<Func> &&
+        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+        sender_to<
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &&
@@ -349,10 +349,10 @@ public:
   }
 
   UNIFEX_TEMPLATE(typename Receiver)
-    (requires std::is_constructible_v<Source, Source&> &&
-        std::is_constructible_v<Func, Func&> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<
+    (requires constructible_from<Source, Source&> &&
+        constructible_from<Func, Func&> &&
+        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+        sender_to<
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &
@@ -362,10 +362,10 @@ public:
   }
 
   UNIFEX_TEMPLATE(typename Receiver)
-    (requires std::is_constructible_v<Source, const Source&> &&
-        std::is_constructible_v<Func, const Func&> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<
+    (requires constructible_from<Source, const Source&> &&
+        constructible_from<Func, const Func&> &&
+        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
+        sender_to<
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &

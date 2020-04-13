@@ -120,9 +120,8 @@ namespace unifex
           typename CPO,
           UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
           typename... Args)
-          (requires std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              is_callable<CPO, const Receiver&, Args...>>)
+          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
+              defer::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
@@ -213,7 +212,7 @@ namespace unifex
       auto connect(Receiver&& r) && noexcept(
           is_nothrow_connectable_v<Source, receiver<Receiver>> &&
               std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<Source, receiver<Receiver>> {
+          -> connect_result_t<Source, receiver<Receiver>> {
         return unifex::connect(
             static_cast<Source&&>(source_),
             receiver<Receiver>{static_cast<Receiver&&>(r)});
@@ -224,7 +223,7 @@ namespace unifex
           noexcept(
               is_nothrow_connectable_v<Source&, receiver<Receiver>>&&
               std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<Source&, receiver<Receiver>> {
+          -> connect_result_t<Source&, receiver<Receiver>> {
         return unifex::connect(
             source_,
             receiver<Receiver>{
@@ -236,7 +235,7 @@ namespace unifex
           noexcept(
               is_nothrow_connectable_v<const Source&, receiver<Receiver>>&&
               std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<const Source&, receiver<Receiver>> {
+          -> connect_result_t<const Source&, receiver<Receiver>> {
         return unifex::connect(
             std::as_const(source_),
             receiver<Receiver>{static_cast<Receiver&&>(r)});

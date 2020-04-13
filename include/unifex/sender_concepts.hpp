@@ -148,10 +148,10 @@ namespace _start {
       }
     };
    public:
-      template <typename Operation>
-      auto operator()(Operation& op) const noexcept
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_fn, Operation&>>, Operation&> {
+    template <typename Operation>
+    auto operator()(Operation& op) const noexcept
+      -> callable_result_t<
+          _impl<is_tag_invocable_v<_fn, Operation&>>, Operation&> {
       return _impl<is_tag_invocable_v<_fn, Operation&>>{}(op);
     }
   } start{};
@@ -260,15 +260,20 @@ namespace _connect {
   inline constexpr bool _can_execute<E, detail::_as_receiver<F, E>> =
     false;
 
-  template <typename Sender, typename Receiver, typename = void>
-  inline constexpr bool _has_member_connect = false;
   template <typename Sender, typename Receiver>
-  inline constexpr bool _has_member_connect<
-      Sender,
-      Receiver,
-      std::void_t<decltype(
-        (static_cast<Sender&&(*)()>(nullptr)()).connect(
-            static_cast<Receiver&&(*)()>(nullptr)()))>> = true;
+  using _member_connect_result_t =
+      decltype((static_cast<Sender&&(*)()>(nullptr)()).connect(
+          static_cast<Receiver&&(*)()>(nullptr)()));
+  template <typename Sender, typename Receiver>
+  UNIFEX_CONCEPT_FRAGMENT( //
+    _has_member_connect_,  //
+      requires() (         //
+        typename(_member_connect_result_t<Sender, Receiver>)
+      ));
+  template <typename Sender, typename Receiver>
+  UNIFEX_CONCEPT //
+    _has_member_connect = //
+      UNIFEX_FRAGMENT(_connect::_has_member_connect_, Sender, Receiver);
 
   inline constexpr struct _fn {
    private:
@@ -301,7 +306,7 @@ namespace _connect {
       template <typename Sender, typename Receiver>
       auto operator()(Sender&& s, Receiver&& r) const
           noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r))) ->
-          decltype(((Sender &&) s).connect((Receiver &&) r)) {
+          _member_connect_result_t<Sender, Receiver> {
         return ((Sender &&) s).connect((Receiver &&) r);
       }
     };
@@ -335,7 +340,7 @@ namespace _connect {
     // not we've been passed an executor and a nullary callable.
     template <typename Sender, typename Receiver>
     static auto _select_impl() noexcept {
-      if constexpr (sender<Sender> && is_tag_invocable_v<_fn, Sender, Receiver>) {
+      if constexpr ((bool)sender<Sender> && is_tag_invocable_v<_fn, Sender, Receiver>) {
         return _with_tag_invoke_fn{};
       } else if constexpr (sender<Sender> && _has_member_connect<Sender, Receiver>) {
         return _with_member_connect_fn{};
@@ -359,17 +364,51 @@ namespace _connect {
 } // namespace _connect
 using _connect::connect;
 
+template<class Sender, class Receiver>
+UNIFEX_CONCEPT_FRAGMENT( //
+  _sender_to, //
+    requires (Sender&& s, Receiver&& r) ( //
+      connect((Sender&&) s, (Receiver&&) r)
+    ));
+template<class Sender, class Receiver>
+UNIFEX_CONCEPT //
+  sender_to =
+    sender<Sender> &&
+    receiver<Receiver> &&
+    UNIFEX_FRAGMENT(_sender_to, Sender, Receiver);
+
+namespace defer {
+  template<class Sender>
+  UNIFEX_CONCEPT_DEFER //
+    sender = //
+      UNIFEX_DEFER(unifex::sender, Sender);
+
+  template<class Sender, class Receiver>
+  UNIFEX_CONCEPT_DEFER //
+    sender_to =
+      UNIFEX_DEFER(unifex::sender_to, Sender, Receiver);
+} // namespace defer
+
+template<class Sender, class Receiver>
+using connect_result_t =
+  decltype(connect(
+    static_cast<Sender(*)()>(nullptr)(),
+    static_cast<Receiver(*)()>(nullptr)()));
+
+/// \cond
 template <typename Sender, typename Receiver>
-using operation_t = decltype(connect(
-    std::declval<Sender>(),
-    std::declval<Receiver>()));
+using operation_t [[deprecated("Use connect_result_t instead of operation_t")]] =
+    connect_result_t<Sender, Receiver>;
+/// \endcond
 
 template <typename Sender, typename Receiver>
+[[deprecated("Use sender_to instead of is_connectable_v")]]
 inline constexpr bool is_connectable_v =
   is_callable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
-using is_connectable = is_callable<decltype(connect), Sender, Receiver>;
+using is_connectable [[deprecated]] =
+  is_callable<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =

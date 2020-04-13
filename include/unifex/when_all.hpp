@@ -74,7 +74,7 @@ struct _operation_tuple<Index, Receiver, First, Rest...>::type
   }
 
  private:
-  operation_t<First, Receiver<Index>> op_;
+  connect_result_t<First, Receiver<Index>> op_;
 };
 
 template <std::size_t Index, template <std::size_t> class Receiver>
@@ -158,10 +158,9 @@ struct _element_receiver<Index, Operation>::type final {
   receiver_type& get_receiver() const { return op_.receiver_; }
 
   UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-      (requires std::conjunction_v<
-          std::negation<is_receiver_cpo<CPO>>,
-          std::is_same<R, element_receiver>,
-          is_callable<CPO, const receiver_type&, Args...>>)
+      (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
+          defer::same_as<R, element_receiver> &&
+          defer::callable<CPO, const receiver_type&, Args...>)
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&, Args...>)
       -> callable_result_t<CPO, const receiver_type&, Args...> {

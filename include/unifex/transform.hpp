@@ -159,7 +159,7 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) &&
-      -> operation_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
+      -> connect_result_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
         receiver<std::remove_cvref_t<Receiver>>{
@@ -168,7 +168,7 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) &
-      -> operation_t<Predecessor&, receiver<std::remove_cvref_t<Receiver>>>{
+      -> connect_result_t<Predecessor&, receiver<std::remove_cvref_t<Receiver>>>{
     return unifex::connect(
         pred_,
         receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
@@ -176,7 +176,7 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) const &
-      -> operation_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
+      -> connect_result_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         pred_,
         receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});

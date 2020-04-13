@@ -71,10 +71,9 @@ namespace unifex
 
     private:
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires std::conjunction_v<
-              is_receiver_cpo<CPO>,
-              std::is_same<R, successor_receiver>,
-              is_callable<CPO, Receiver, Args...>>)
+          (requires defer::is_true<is_receiver_cpo_v<CPO>> &&
+              defer::same_as<R, successor_receiver> &&
+              defer::callable<CPO, Receiver, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
@@ -88,10 +87,9 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, successor_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>)
+          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
+              defer::same_as<R, successor_receiver> &&
+              defer::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -194,10 +192,9 @@ namespace unifex
 
     private:
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, predecessor_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>)
+          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
+              defer::same_as<R, predecessor_receiver> &&
+              defer::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -280,11 +277,11 @@ namespace unifex
       };
       status status_;
       union {
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             Predecessor,
             predecessor_receiver<Predecessor, Successor, Receiver>>>
             predOp_;
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             Successor,
             successor_receiver<Predecessor, Successor, Receiver>>>
             succOp_;
@@ -347,14 +344,13 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Receiver)
-          (requires std::conjunction_v<
-              is_connectable<
+          (requires defer::sender_to<
                   Predecessor,
-                  predecessor_receiver<Predecessor, Successor, Receiver>>,
-              is_connectable<
+                  predecessor_receiver<Predecessor, Successor, Receiver>> &&
+              defer::sender_to<
                   Successor,
-                  successor_receiver<Predecessor, Successor, Receiver>>,
-              std::is_move_constructible<Successor>>)
+                  successor_receiver<Predecessor, Successor, Receiver>> &&
+              defer::move_constructible<Successor>)
       auto connect(Receiver&& receiver) &&
           -> operation<Predecessor, Successor,  Receiver> {
         return operation<Predecessor, Successor,  Receiver>{
@@ -364,14 +360,13 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Receiver)
-          (requires std::conjunction_v<
-               is_connectable<
+          (requires defer::sender_to<
                   Predecessor&,
-                  predecessor_receiver<Predecessor&, Successor, Receiver>>,
-               is_connectable<
+                  predecessor_receiver<Predecessor&, Successor, Receiver>> &&
+               defer::sender_to<
                   Successor,
-                  successor_receiver<Predecessor&, Successor, Receiver>>,
-               std::is_constructible<Successor, Successor&>>)
+                  successor_receiver<Predecessor&, Successor, Receiver>> &&
+               defer::constructible_from<Successor, Successor&>)
       auto connect(Receiver&& receiver) &
           -> operation<Predecessor&, Successor, Receiver> {
         return operation<Predecessor&, Successor, Receiver>{
@@ -379,14 +374,13 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Receiver)
-          (requires std::conjunction_v<
-                is_connectable<
+          (requires defer::sender_to<
                   const Predecessor&,
-                  predecessor_receiver<const Predecessor&, Successor, Receiver>>,
-                is_connectable<
+                  predecessor_receiver<const Predecessor&, Successor, Receiver>> &&
+                defer::sender_to<
                   Successor,
-                  successor_receiver<const Predecessor&, Successor, Receiver>>,
-                std::is_copy_constructible<Successor>>)
+                  successor_receiver<const Predecessor&, Successor, Receiver>> &&
+                defer::copy_constructible<Successor>)
       auto connect(Receiver&& receiver) const&
           -> operation<const Predecessor&, Successor, Receiver> {
         return operation<const Predecessor&, Successor, Receiver>{

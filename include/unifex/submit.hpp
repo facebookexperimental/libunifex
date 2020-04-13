@@ -107,7 +107,7 @@ public:
 
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  /*UNIFEX_NO_UNIQUE_ADDRESS*/ operation_t<Sender, wrapped_receiver> inner_;
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/ connect_result_t<Sender, wrapped_receiver> inner_;
 };
 } // namespace _submit
 

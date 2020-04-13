@@ -103,19 +103,22 @@ namespace detail {
 } // namespace detail
 
 template <typename Fn, typename... As>
-using is_callable =
-    decltype(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+inline constexpr bool is_callable_v =
+    decltype(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)))::value;
 
 template <typename Fn, typename... As>
-inline constexpr bool is_callable_v = is_callable<Fn, As...>::value;
+struct is_callable
+  : std::bool_constant<is_callable_v<Fn, As...>>
+{};
 
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
     noexcept(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
-using is_nothrow_callable =
-    std::bool_constant<is_nothrow_callable_v<Fn, As...>>;
+struct is_nothrow_callable
+  : std::bool_constant<is_nothrow_callable_v<Fn, As...>>
+{};
 
 #if UNIFEX_CXX_CONCEPTS
 template <template <typename...> class T, typename... As>
@@ -135,13 +138,14 @@ inline constexpr bool is_valid_v = detail::is_valid_v<T, type_list<As...>>;
 #endif
 
 template <typename Fn, typename... As>
-UNIFEX_CONCEPT_FRAGMENT( //
-  _callable,
-    requires(Fn&& fn, As&&... as)(
-      ((Fn&&) fn)((As&&) as...)
-    ));
-template <typename Fn, typename... As>
 UNIFEX_CONCEPT //
   callable = //
-    UNIFEX_FRAGMENT(_callable, Fn, As...);
+    is_callable_v<Fn, As...>;
+
+namespace defer {
+  template <typename Fn, typename... As>
+  UNIFEX_CONCEPT_DEFER //
+    callable = //
+      UNIFEX_DEFER_(unifex::callable, UNIFEX_TYPE(Fn), As...);
+} // namespace defer
 } // namespace unifex

@@ -90,7 +90,7 @@ struct _schedule::sender {
       std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
     typename ScheduleSender = callable_result_t<decltype(schedule), Scheduler&>>
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
-      -> operation_t<ScheduleSender, Receiver> {
+      -> connect_result_t<ScheduleSender, Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
     return connect(schedule(scheduler), (Receiver &&) r);
   }
@@ -169,7 +169,7 @@ namespace _schedule_after {
       typename ScheduleAfterSender =
         callable_result_t<_fn, Scheduler&, const Duration&>>
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
-        -> operation_t<ScheduleAfterSender, Receiver> {
+        -> connect_result_t<ScheduleAfterSender, Receiver> {
       auto scheduler = get_scheduler(std::as_const(r));
       return connect(schedule_after(scheduler, std::as_const(s.duration_)), (Receiver&&) r);
     }

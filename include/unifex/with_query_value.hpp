@@ -93,7 +93,7 @@ class _op<CPO, Value, Sender, Receiver>::type {
  private:
   UNIFEX_NO_UNIQUE_ADDRESS Value value_;
   /*UNIFEX_NO_UNIQUE_ADDRESS*/
-  operation_t<Sender, receiver_wrapper<CPO, Value, Receiver>> innerOp_;
+  connect_result_t<Sender, receiver_wrapper<CPO, Value, Receiver>> innerOp_;
 };
 
 template <typename CPO, typename Value, typename Sender>
