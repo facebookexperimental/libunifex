@@ -6,6 +6,7 @@
   * `get_allocator()`
 * Sender Algorithms
   * `transform()`
+  * `transform_done()`
   * `finally()`
   * `via()`
   * `typed_via()`
@@ -97,6 +98,10 @@ See the [Cancellation](cancellation.md) section for more details on cancellation
 
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
+
+### `transform_done(Sender predecessor, Func func) -> Sender`
+
+Returns a sender that calls `auto finalSender = func()` in `set_done()` and then starts the returned `finalSender`. This allows a call to `set_done` to be delayed, to be tranformed into an error or a value, etc..
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
