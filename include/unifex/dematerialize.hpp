@@ -33,20 +33,20 @@ namespace _demat {
     class type;
   };
   template <typename Receiver>
-  using receiver = typename _receiver<std::remove_cvref_t<Receiver>>::type;
+  using receiver_t = typename _receiver<std::remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
   class _receiver<Receiver>::type {
    public:
     UNIFEX_TEMPLATE(typename Receiver2)
-      (requires std::is_constructible_v<Receiver, Receiver2>)
+      (requires constructible_from<Receiver, Receiver2>)
     explicit type(Receiver2&& receiver) noexcept(
         std::is_nothrow_constructible_v<Receiver, Receiver2>)
       : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
     UNIFEX_TEMPLATE(typename CPO, typename... Values)
         (requires is_receiver_cpo_v<CPO> &&
-            is_callable_v<CPO, Receiver, Values...>)
+            callable<CPO, Receiver, Values...>)
     void set_value(CPO cpo, Values&&... values) && noexcept(
         is_nothrow_callable_v<CPO, Receiver, Values...>) {
       static_cast<CPO&&>(cpo)(
@@ -55,16 +55,15 @@ namespace _demat {
     }
 
     UNIFEX_TEMPLATE(typename Error)
-        (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& error) && noexcept {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), static_cast<Error&&>(error));
     }
 
-    UNIFEX_TEMPLATE(typename... DummyPack)
-        (requires (sizeof...(DummyPack) == 0) &&
-            is_callable_v<decltype(unifex::set_done), Receiver>)
-    void set_done(DummyPack...) && noexcept {
+    UNIFEX_TEMPLATE(typename R = Receiver)
+        (requires receiver<R>)
+    void set_done() && noexcept {
       unifex::set_done(static_cast<Receiver&&>(receiver_));
     }
 
@@ -166,25 +165,25 @@ namespace _demat {
       : source_(static_cast<Source2&&>(source)) {}
 
     UNIFEX_TEMPLATE(typename Receiver)
-        (requires sender_to<Source, receiver<Receiver>>)
+        (requires sender_to<Source, receiver_t<Receiver>>)
     auto connect(Receiver&& r) &&
-        noexcept(is_nothrow_connectable_v<Source, receiver<Receiver>> &&
+        noexcept(is_nothrow_connectable_v<Source, receiver_t<Receiver>> &&
                  std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> connect_result_t<Source, receiver<Receiver>> {
+        -> connect_result_t<Source, receiver_t<Receiver>> {
       return unifex::connect(
           static_cast<Source&&>(source_),
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
+          receiver_t<Receiver>{static_cast<Receiver&&>(r)});
     }
 
     UNIFEX_TEMPLATE(typename Receiver)
-        (requires sender_to<const Source&, receiver<Receiver>>)
+        (requires sender_to<const Source&, receiver_t<Receiver>>)
     auto connect(Receiver&& r) const &
-        noexcept(is_nothrow_connectable_v<const Source&, receiver<Receiver>> &&
+        noexcept(is_nothrow_connectable_v<const Source&, receiver_t<Receiver>> &&
                  std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> connect_result_t<const Source&, receiver<Receiver>> {
+        -> connect_result_t<const Source&, receiver_t<Receiver>> {
       return unifex::connect(
           std::as_const(source_),
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
+          receiver_t<Receiver>{static_cast<Receiver&&>(r)});
     }
 
   private:

@@ -96,7 +96,7 @@ public:
   }
 
   UNIFEX_TEMPLATE(typename R = Receiver)
-    (requires is_callable_v<decltype(unifex::set_done), R>)
+    (requires receiver<R>)
   void set_done() && noexcept {
     assert(op_ != nullptr);
 
@@ -106,7 +106,7 @@ public:
   }
 
   UNIFEX_TEMPLATE(typename Error)
-    (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+    (requires receiver<Receiver, Error>)
   void set_error(Error error) && noexcept {
     assert(op_ != nullptr);
 
@@ -163,7 +163,7 @@ public:
   {}
 
   UNIFEX_TEMPLATE(typename... Values)
-    (requires is_callable_v<decltype(unifex::set_value), Receiver, Values...>)
+    (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values)
       noexcept(is_nothrow_callable_v<decltype(unifex::set_value), Receiver, Values...>) {
     assert(op_ != nullptr);
@@ -171,7 +171,7 @@ public:
   }
 
   UNIFEX_TEMPLATE(typename R = Receiver)
-    (requires is_callable_v<decltype(unifex::set_done), R>)
+    (requires receiver<R>)
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));

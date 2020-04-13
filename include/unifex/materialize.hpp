@@ -46,11 +46,7 @@ namespace unifex
         : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
       UNIFEX_TEMPLATE(typename... Values)
-          (requires is_callable_v<
-              decltype(unifex::set_value),
-              Receiver,
-              decltype(unifex::set_value),
-              Values...>)
+          (requires receiver_of<Receiver, decltype(unifex::set_value), Values...>)
       void
       set_value(Values&&... values) && noexcept(is_nothrow_callable_v<
                                                 decltype(unifex::set_value),
@@ -64,11 +60,7 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Error)
-          (requires is_callable_v<
-              decltype(unifex::set_value),
-              Receiver,
-              decltype(unifex::set_error),
-              Error>)
+          (requires receiver_of<Receiver, decltype(unifex::set_error), Error>)
       void set_error(Error&& error) && noexcept {
         if constexpr (is_nothrow_callable_v<
                           decltype(unifex::set_value),
@@ -94,10 +86,7 @@ namespace unifex
 
       UNIFEX_TEMPLATE(typename... DummyPack)
           (requires (sizeof...(DummyPack) == 0) &&
-              is_callable_v<
-                  decltype(unifex::set_value),
-                  Receiver,
-                  decltype(unifex::set_done)>)
+              receiver_of<Receiver, decltype(unifex::set_done)>)
       void set_done(DummyPack...) && noexcept {
         if constexpr (is_nothrow_callable_v<
                           decltype(unifex::set_value),

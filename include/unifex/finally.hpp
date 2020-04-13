@@ -236,10 +236,7 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename OtherError)
-          (requires is_callable_v<
-                  decltype(unifex::set_error),
-                  Receiver,
-                  OtherError>)
+          (requires receiver<Receiver, OtherError>)
       void set_error(OtherError otherError) && noexcept {
         auto* op = op_;
 
@@ -329,7 +326,7 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Error)
-          (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+          (requires receiver<Receiver, Error>)
       void set_error(Error&& error) && noexcept {
         auto* op = op_;
         op->completionDoneOp_.destruct();
@@ -396,10 +393,7 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
       UNIFEX_TEMPLATE(typename... Values)
-          (requires is_callable_v<
-              decltype(unifex::set_value),
-              Receiver,
-              std::decay_t<Values>...>)
+          (requires receiver_of<Receiver, std::decay_t<Values>...>)
       void set_value(Values&&... values) && noexcept {
         auto* op = op_;
         auto& valueStorage =
