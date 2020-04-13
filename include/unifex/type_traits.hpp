@@ -142,10 +142,10 @@ UNIFEX_CONCEPT //
   callable = //
     is_callable_v<Fn, As...>;
 
-namespace defer {
+namespace lazy {
   template <typename Fn, typename... As>
   UNIFEX_CONCEPT_DEFER //
     callable = //
       UNIFEX_DEFER_(unifex::callable, UNIFEX_TYPE(Fn), As...);
-} // namespace defer
+} // namespace lazy
 } // namespace unifex

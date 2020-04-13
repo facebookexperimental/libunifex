@@ -377,7 +377,7 @@ UNIFEX_CONCEPT //
     receiver<Receiver> &&
     UNIFEX_FRAGMENT(_sender_to, Sender, Receiver);
 
-namespace defer {
+namespace lazy {
   template<class Sender>
   UNIFEX_CONCEPT_DEFER //
     sender = //
@@ -387,7 +387,7 @@ namespace defer {
   UNIFEX_CONCEPT_DEFER //
     sender_to =
       UNIFEX_DEFER(unifex::sender_to, Sender, Receiver);
-} // namespace defer
+} // namespace lazy
 
 template<class Sender, class Receiver>
 using connect_result_t =

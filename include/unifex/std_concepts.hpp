@@ -317,7 +317,7 @@ namespace unifex {
     invocable = //
       std::is_invocable_v<Fn, As...>;
 
-  namespace defer {
+  namespace lazy {
     template<typename A, typename B>
     UNIFEX_CONCEPT_DEFER //
       same_as = //

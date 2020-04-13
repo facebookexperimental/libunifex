@@ -71,9 +71,9 @@ namespace unifex
 
     private:
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires defer::is_true<is_receiver_cpo_v<CPO>> &&
-              defer::same_as<R, successor_receiver> &&
-              defer::callable<CPO, Receiver, Args...>)
+          (requires lazy::is_true<is_receiver_cpo_v<CPO>> &&
+              lazy::same_as<R, successor_receiver> &&
+              lazy::callable<CPO, Receiver, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
@@ -87,9 +87,9 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-              defer::same_as<R, successor_receiver> &&
-              defer::callable<CPO, const Receiver&, Args...>)
+          (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+              lazy::same_as<R, successor_receiver> &&
+              lazy::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -192,9 +192,9 @@ namespace unifex
 
     private:
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-              defer::same_as<R, predecessor_receiver> &&
-              defer::callable<CPO, const Receiver&, Args...>)
+          (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+              lazy::same_as<R, predecessor_receiver> &&
+              lazy::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -344,13 +344,13 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Receiver)
-          (requires defer::sender_to<
+          (requires lazy::sender_to<
                   Predecessor,
                   predecessor_receiver<Predecessor, Successor, Receiver>> &&
-              defer::sender_to<
+              lazy::sender_to<
                   Successor,
                   successor_receiver<Predecessor, Successor, Receiver>> &&
-              defer::move_constructible<Successor>)
+              lazy::move_constructible<Successor>)
       auto connect(Receiver&& receiver) &&
           -> operation<Predecessor, Successor,  Receiver> {
         return operation<Predecessor, Successor,  Receiver>{
@@ -360,27 +360,13 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename Receiver)
-          (requires defer::sender_to<
-                  Predecessor&,
-                  predecessor_receiver<Predecessor&, Successor, Receiver>> &&
-               defer::sender_to<
-                  Successor,
-                  successor_receiver<Predecessor&, Successor, Receiver>> &&
-               defer::constructible_from<Successor, Successor&>)
-      auto connect(Receiver&& receiver) &
-          -> operation<Predecessor&, Successor, Receiver> {
-        return operation<Predecessor&, Successor, Receiver>{
-            predecessor_, successor_, (Receiver &&) receiver};
-      }
-
-      UNIFEX_TEMPLATE(typename Receiver)
-          (requires defer::sender_to<
-                  const Predecessor&,
-                  predecessor_receiver<const Predecessor&, Successor, Receiver>> &&
-                defer::sender_to<
-                  Successor,
-                  successor_receiver<const Predecessor&, Successor, Receiver>> &&
-                defer::copy_constructible<Successor>)
+          (requires lazy::sender_to<
+                const Predecessor&,
+                predecessor_receiver<const Predecessor&, Successor, Receiver>> &&
+              lazy::sender_to<
+                Successor,
+                successor_receiver<const Predecessor&, Successor, Receiver>> &&
+              lazy::copy_constructible<Successor>)
       auto connect(Receiver&& receiver) const&
           -> operation<const Predecessor&, Successor, Receiver> {
         return operation<const Predecessor&, Successor, Receiver>{

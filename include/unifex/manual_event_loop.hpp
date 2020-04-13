@@ -90,7 +90,7 @@ class context {
       using error_types = Variant<>;
 
       template <typename Receiver>
-      operation<Receiver> connect(Receiver&& receiver) && {
+      operation<Receiver> connect(Receiver&& receiver) const& {
         return operation<Receiver>{(Receiver &&) receiver, loop_};
       }
 

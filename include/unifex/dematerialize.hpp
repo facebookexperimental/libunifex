@@ -72,8 +72,8 @@ namespace _demat {
         typename CPO,
         UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type),
         typename... Args)
-        (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-            defer::callable<CPO, const Receiver&, Args...>)
+        (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+            lazy::callable<CPO, const Receiver&, Args...>)
     friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r, Args&&... args)
         noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
         -> callable_result_t<CPO, const Receiver&, Args...> {
@@ -173,17 +173,6 @@ namespace _demat {
         -> connect_result_t<Source, receiver<Receiver>> {
       return unifex::connect(
           static_cast<Source&&>(source_),
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
-    }
-
-    UNIFEX_TEMPLATE(typename Receiver)
-        (requires sender_to<Source&, receiver<Receiver>>)
-    auto connect(Receiver&& r) &
-        noexcept(is_nothrow_connectable_v<Source&, receiver<Receiver>> &&
-                 std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> connect_result_t<Source&, receiver<Receiver>> {
-      return unifex::connect(
-          source_,
           receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 

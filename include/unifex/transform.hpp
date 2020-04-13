@@ -18,6 +18,7 @@
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
@@ -159,6 +160,10 @@ public:
 
   template <typename Receiver>
   auto connect(Receiver&& r) &&
+      noexcept(
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+        std::is_nothrow_move_constructible_v<Func> &&
+        is_nothrow_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
       -> connect_result_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
@@ -167,15 +172,11 @@ public:
   }
 
   template <typename Receiver>
-  auto connect(Receiver&& r) &
-      -> connect_result_t<Predecessor&, receiver<std::remove_cvref_t<Receiver>>>{
-    return unifex::connect(
-        pred_,
-        receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
-  }
-
-  template <typename Receiver>
   auto connect(Receiver&& r) const &
+      noexcept(
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+        std::is_nothrow_copy_constructible_v<Func> &&
+        is_nothrow_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
       -> connect_result_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
         pred_,

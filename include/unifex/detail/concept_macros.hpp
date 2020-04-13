@@ -480,7 +480,7 @@ namespace unifex {
   template<typename B>
   UNIFEX_CONCEPT is_true = (bool) B{};
 
-  namespace defer {
+  namespace lazy {
     template<bool B>
     UNIFEX_CONCEPT_DEFER is_true = //
         UNIFEX_DEFER(unifex::is_true, _concept::_bool<B>);

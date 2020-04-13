@@ -34,12 +34,8 @@ namespace _typed_via {
           static_cast<Scheduler&&>(scheduler));
     }
 
-    template <
-        typename Source,
-        typename Scheduler,
-        std::enable_if_t<
-            !is_tag_invocable_v<_fn, Source, Scheduler>,
-            int> = 0>
+    UNIFEX_TEMPLATE(typename Source, typename Scheduler)
+      (requires (!is_tag_invocable_v<_fn, Source, Scheduler>))
     auto operator()(Source&& source, Scheduler&& scheduler) const
         noexcept(noexcept(finally(
             static_cast<Source&&>(source),

@@ -22,6 +22,9 @@ if(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
   include(gtest)
   include(CTest)
 
+  target_compile_features(gtest PUBLIC cxx_std_20)
+  target_compile_features(gtest_main PUBLIC cxx_std_20)
+
   add_subdirectory(examples)
   if(BUILD_TESTING)
     add_subdirectory(test)

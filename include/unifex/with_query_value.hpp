@@ -125,12 +125,6 @@ public:
   }
 
   template <typename Receiver>
-  operation<CPO, Value, Sender &, Receiver> connect(Receiver &&receiver) & {
-    return operation<CPO, Value, Sender &, Receiver>{
-        sender_, (Receiver &&) receiver, value_};
-  }
-
-  template <typename Receiver>
   operation<CPO, Value, const Sender &, Receiver> connect(Receiver &&receiver) const & {
     return operation<CPO, Value, const Sender &, Receiver>{
         sender_, (Receiver &&) receiver, value_};

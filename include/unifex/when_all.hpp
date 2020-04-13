@@ -158,9 +158,9 @@ struct _element_receiver<Index, Operation>::type final {
   receiver_type& get_receiver() const { return op_.receiver_; }
 
   UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-      (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-          defer::same_as<R, element_receiver> &&
-          defer::callable<CPO, const receiver_type&, Args...>)
+      (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+          lazy::same_as<R, element_receiver> &&
+          lazy::callable<CPO, const receiver_type&, Args...>)
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&, Args...>)
       -> callable_result_t<CPO, const receiver_type&, Args...> {
@@ -248,8 +248,8 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<value_variant_for_sender<Senders>>...> values_;
-  std::optional<error_types<std::variant, Senders...>> error_;
+  std::tuple<std::optional<value_variant_for_sender<std::remove_cvref_t<Senders>>>...> values_;
+  std::optional<error_types<std::variant, std::remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
@@ -293,6 +293,13 @@ class _sender<Senders...>::type {
       return operation<Receiver, Senders...>{
           (Receiver &&) receiver, (Senders &&) senders...};
     }, std::move(senders_));
+  }
+  template <typename Receiver>
+  operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
+    return std::apply([&](const Senders&... senders) {
+      return operation<Receiver, const Senders&...>{
+          (Receiver &&) receiver, senders...};
+    }, senders_);
   }
 
  private:

@@ -342,23 +342,13 @@ public:
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
   operation<Source, Func, Receiver> connect(Receiver&& r) &&
-      noexcept(std::is_nothrow_constructible_v<
-          operation<Source, Func, Receiver>, Source, Func, Receiver>) {
+      noexcept(
+        std::is_nothrow_move_constructible_v<Source> &&
+        std::is_nothrow_move_constructible_v<Func> &&
+        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>) {
     return operation<Source, Func, Receiver>{
         (Source&&)source_, (Func&&)func_, (Receiver&&)r};
-  }
-
-  UNIFEX_TEMPLATE(typename Receiver)
-    (requires constructible_from<Source, Source&> &&
-        constructible_from<Func, Func&> &&
-        constructible_from<std::remove_cvref_t<Receiver>, Receiver> &&
-        sender_to<
-            Source&,
-            source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
-  operation<Source, Func, Receiver> connect(Receiver&& r) &
-      noexcept(std::is_nothrow_constructible_v<
-          operation<Source, Func, Receiver>, Source&, Func&, Receiver>) {
-      return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
   }
 
   UNIFEX_TEMPLATE(typename Receiver)
@@ -368,9 +358,10 @@ public:
         sender_to<
             Source&,
             source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
-  operation<Source, Func, Receiver> connect(Receiver&& r) &
+  operation<Source, Func, Receiver> connect(Receiver&& r) const &
       noexcept(std::is_nothrow_constructible_v<
-          operation<Source, Func, Receiver>, const Source&, const Func&, Receiver>) {
+          operation<Source, Func, Receiver>, const Source&, const Func&, Receiver> &&
+          is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>) {
     return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
   }
 

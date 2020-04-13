@@ -152,9 +152,9 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-              defer::same_as<R, value_receiver> &&
-              defer::callable<CPO, const Receiver&, Args...>)
+          (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+              lazy::same_as<R, value_receiver> &&
+              lazy::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -271,9 +271,9 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-                defer::same_as<R, error_receiver> &&
-                defer::callable<CPO, const Receiver&, Args...>)
+          (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+                lazy::same_as<R, error_receiver> &&
+                lazy::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -345,9 +345,9 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-             defer::same_as<R, done_receiver> &&
-             defer::callable<CPO, const Receiver&, Args...>)
+          (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+             lazy::same_as<R, done_receiver> &&
+             lazy::callable<CPO, const Receiver&, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -489,9 +489,9 @@ namespace unifex
       }
 
       UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-          (requires (!defer::is_true<is_receiver_cpo_v<CPO>>) &&
-              defer::same_as<R, receiver> &&
-              defer::callable<CPO, const Receiver&, Args...>)
+          (requires (!lazy::is_true<is_receiver_cpo_v<CPO>>) &&
+              lazy::same_as<R, receiver> &&
+              lazy::callable<CPO, const Receiver&, Args...>)
       friend auto
       tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
           is_nothrow_callable_v<CPO, const Receiver&, Args...>)
@@ -589,19 +589,19 @@ namespace unifex
       }
 
     private:
-      UNIFEX_NO_UNIQUE_ADDRESS CompletionSender completionSender_;
+      UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<CompletionSender> completionSender_;
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       bool started_ = false;
 
       // Result storage.
       union {
-        // Storage for error-types that might be produced by ValueSender.
+        // Storage for error-types that might be produced by SourceSender.
         UNIFEX_NO_UNIQUE_ADDRESS
-        typename SourceSender::template error_types<error_result_union>
+        typename std::remove_cvref_t<SourceSender>::template error_types<error_result_union>
             error_;
 
-        // Storage for value-types that might be produced by ValueSender.
-        UNIFEX_NO_UNIQUE_ADDRESS typename SourceSender::template value_types<
+        // Storage for value-types that might be produced by SourceSender.
+        UNIFEX_NO_UNIQUE_ADDRESS typename std::remove_cvref_t<SourceSender>::template value_types<
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
             value_;
@@ -617,13 +617,13 @@ namespace unifex
 
         // Storage for the completion operation for the case where
         // the source operation completed with a value.
-        typename SourceSender::
+        typename std::remove_cvref_t<SourceSender>::
             template value_types<manual_lifetime_union, value_operation>
                 completionValueOp_;
 
         // Storage for the completion operation for the case where the
         // source operation completed with an error.
-        typename SourceSender::template error_types<error_operation_union>
+        typename std::remove_cvref_t<SourceSender>::template error_types<error_operation_union>
             completionErrorOp_;
 
         // Storage for the completion operation for the case where the
@@ -672,28 +672,57 @@ namespace unifex
         : source_(static_cast<SourceSender2&&>(source))
         , completion_(static_cast<CompletionSender2&&>(completion)) {}
 
-      // TODO: Also constrain this method to check that the CompletionSender
+    private:
+
+      // TODO: Also constrain these methods to check that the CompletionSender
       // is connectable to any of the instantiations of done/value/error_receiver
       // that could be created for each of the results that SourceSender might
       // complete with. For now we just check done_receiver as an approximation.
       UNIFEX_TEMPLATE(typename Receiver, typename CPO, typename S)
-          (requires defer::same_as<CPO, tag_t<connect>> &&
-              defer::same_as<S, sender> &&
-              defer::sender_to<
+          (requires lazy::same_as<CPO, tag_t<connect>> &&
+              lazy::same_as<S, sender> &&
+              lazy::sender_to<
                 SourceSender,
-                receiver<SourceSender, CompletionSender, Receiver>> &&
-              defer::sender_to<
+                receiver<SourceSender, CompletionSender, std::remove_cvref_t<Receiver>>> &&
+              lazy::sender_to<
                 CompletionSender,
-                done_receiver<SourceSender, CompletionSender, Receiver>>)
+                done_receiver<SourceSender, CompletionSender, std::remove_cvref_t<Receiver>>>)
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<SourceSender, CompletionSender, Receiver> {
         return operation<SourceSender, CompletionSender, Receiver>{
-                static_cast<SourceSender&&>(s.source_),
-                static_cast<CompletionSender&&>(s.completion_),
+                static_cast<S&&>(s).source_,
+                static_cast<S&&>(s).completion_,
                 static_cast<Receiver&&>(r)};
       }
 
-    private:
+      UNIFEX_TEMPLATE(
+        typename Receiver,
+        typename CPO,
+        typename S,
+        typename SourceSenderConstRef = const SourceSender&)
+        (requires lazy::same_as<CPO, tag_t<connect>> &&
+            lazy::same_as<std::remove_cvref_t<S>, sender> &&
+            (!lazy::same_as<S, sender>) &&
+            lazy::sender_to<
+              SourceSenderConstRef,
+              receiver<
+                SourceSenderConstRef,
+                CompletionSender,
+                std::remove_cvref_t<Receiver>>> &&
+            lazy::sender_to<
+              CompletionSender,
+              done_receiver<
+                SourceSenderConstRef,
+                CompletionSender,
+                std::remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(CPO, S&& s, Receiver&& r)
+          -> operation<SourceSenderConstRef, CompletionSender, Receiver> {
+        return operation<SourceSenderConstRef, CompletionSender, Receiver>{
+                static_cast<S&&>(s).source_,
+                static_cast<S&&>(s).completion_,
+                static_cast<Receiver&&>(r)};
+      }
+
       SourceSender source_;
       CompletionSender completion_;
     };
