@@ -87,30 +87,33 @@ using callable_result_t =
     decltype(static_cast<Fn(*)() noexcept>(nullptr)()(
              static_cast<As(*)() noexcept>(nullptr)()...));
 
-namespace detail {
+namespace _is_callable {
+  struct yes_type { char dummy; };
+  struct no_type { char dummy[2]; };
+  static_assert(sizeof(yes_type) != sizeof(no_type));
+
   template <
       typename Fn,
       typename... As,
       typename = callable_result_t<Fn, As...>>
-  std::true_type _try_call(Fn(*)(As...))
+  yes_type _try_call(Fn(*)(As...))
       noexcept(noexcept(static_cast<Fn(*)() noexcept>(nullptr)()(
                         static_cast<As(*)() noexcept>(nullptr)()...)));
-  std::false_type _try_call(...);
-} // namespace detail
+  no_type _try_call(...) noexcept(false);
+} // namespace _is_callable
 
 template <typename Fn, typename... As>
-using is_callable =
-    decltype(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+inline constexpr bool is_callable_v =
+  sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) == sizeof(_is_callable::yes_type);
 
 template <typename Fn, typename... As>
-inline constexpr bool is_callable_v = is_callable<Fn, As...>::value;
+struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
 
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
-    noexcept(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+    noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
-using is_nothrow_callable =
-    std::bool_constant<is_nothrow_callable_v<Fn, As...>>;
+struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
 } // namespace unifex
