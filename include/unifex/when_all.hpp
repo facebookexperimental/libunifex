@@ -262,6 +262,15 @@ struct _op<Receiver, Senders...>::type {
   operation_tuple<0, element_receiver, Senders...> ops_;
 };
 
+template<typename Receiver>
+struct make_op_fn {
+  Receiver&& r_;
+  template <typename... Senders>
+  operation<Receiver, Senders...> operator()(Senders&&... senders) const {
+    return operation<Receiver, Senders...>{(Receiver&&) r_, (Senders&&) senders...};
+  }
+};
+
 template <typename... Senders>
 struct _sender {
   class type;
@@ -287,20 +296,29 @@ class _sender<Senders...>::type {
   explicit type(Senders2&&... senders)
     : senders_((Senders2 &&) senders...) {}
 
-  template <typename Receiver>
-  operation<Receiver, Senders...> connect(Receiver&& receiver) && {
-    return std::apply([&](Senders&&... senders) {
-      return operation<Receiver, Senders...>{
-          (Receiver &&) receiver, (Senders &&) senders...};
-    }, std::move(senders_));
+  UNIFEX_TEMPLATE(typename This, typename Receiver)
+    (requires same_as<std::remove_cvref_t<This>, type>)
+  friend auto tag_invoke(tag_t<connect>, This&& this_, Receiver&& r)
+      -> decltype(std::apply(
+          make_op_fn<Receiver>{(Receiver&&) r}, ((This&&) this_).senders_)) {
+    return std::apply(
+        make_op_fn<Receiver>{(Receiver&&) r}, ((This&&) this_).senders_);
   }
-  template <typename Receiver>
-  operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
-    return std::apply([&](const Senders&... senders) {
-      return operation<Receiver, const Senders&...>{
-          (Receiver &&) receiver, senders...};
-    }, senders_);
-  }
+
+  // template <typename Receiver>
+  // operation<Receiver, Senders...> connect(Receiver&& receiver) && {
+  //   return std::apply([&](Senders&&... senders) {
+  //     return operation<Receiver, Senders...>{
+  //         (Receiver &&) receiver, (Senders &&) senders...};
+  //   }, std::move(senders_));
+  // }
+  // template <typename Receiver>
+  // operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
+  //   return std::apply([&](const Senders&... senders) {
+  //     return operation<Receiver, const Senders&...>{
+  //         (Receiver &&) receiver, senders...};
+  //   }, senders_);
+  // }
 
  private:
 

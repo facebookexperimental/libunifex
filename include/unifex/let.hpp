@@ -316,19 +316,27 @@ public:
           std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
     : pred_((Predecessor2 &&) pred), func_((SuccessorFactory2 &&) func) {}
 
-  template <typename Receiver>
-  auto connect(Receiver&& receiver) &&
-      -> operation<Predecessor, SuccessorFactory, Receiver> {
-    return operation<Predecessor, SuccessorFactory, Receiver>{
-        std::move(pred_), std::move(func_), (Receiver &&) receiver};
+  UNIFEX_TEMPLATE(typename This, typename Receiver)
+    (requires same_as<std::remove_cvref_t<This>, type>)
+  friend auto tag_invoke(tag_t<connect>, This&& this_, Receiver&& receiver)
+      -> operation<decltype((((This&&) this_).pred_)), SuccessorFactory, Receiver> {
+    return operation<decltype((((This&&) this_).pred_)), SuccessorFactory, Receiver>{
+        ((This&&) this_).pred_, ((This&&) this_).func_, (Receiver &&) receiver};
   }
 
-  template <typename Receiver>
-  auto connect(Receiver&& receiver) const &
-      -> operation<const Predecessor&, SuccessorFactory, Receiver> {
-    return operation<const Predecessor&, SuccessorFactory, Receiver>{
-      pred_, func_, (Receiver &&) receiver};
-  }
+  // template <typename Receiver>
+  // auto connect(Receiver&& receiver) &&
+  //     -> operation<Predecessor, SuccessorFactory, Receiver> {
+  //   return operation<Predecessor, SuccessorFactory, Receiver>{
+  //       std::move(pred_), std::move(func_), (Receiver &&) receiver};
+  // }
+
+  // template <typename Receiver>
+  // auto connect(Receiver&& receiver) const &
+  //     -> operation<const Predecessor&, SuccessorFactory, Receiver> {
+  //   return operation<const Predecessor&, SuccessorFactory, Receiver>{
+  //     pred_, func_, (Receiver &&) receiver};
+  // }
 };
 } // namespace _let
 

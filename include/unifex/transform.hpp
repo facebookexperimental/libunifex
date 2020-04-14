@@ -158,30 +158,46 @@ public:
     return blocking(sender.pred_);
   }
 
-  template <typename Receiver>
-  auto connect(Receiver&& r) &&
-      noexcept(
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
-        std::is_nothrow_move_constructible_v<Func> &&
-        is_nothrow_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
-      -> connect_result_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
-    return unifex::connect(
-        std::forward<Predecessor>(pred_),
+  UNIFEX_TEMPLATE(typename This, typename Receiver)
+    (requires same_as<std::remove_cvref_t<This>, type>)
+  friend auto tag_invoke(tag_t<connect>, This&& this_, Receiver&& r)
+      noexcept(noexcept(unifex::connect(
+        ((This&&) this_).pred_,
         receiver<std::remove_cvref_t<Receiver>>{
-            std::forward<Func>(func_), std::forward<Receiver>(r)});
-  }
-
-  template <typename Receiver>
-  auto connect(Receiver&& r) const &
-      noexcept(
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
-        std::is_nothrow_copy_constructible_v<Func> &&
-        is_nothrow_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
-      -> connect_result_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
+            ((This&&) this_).func_, (Receiver&&) r})))
+      -> decltype(unifex::connect(
+        ((This&&) this_).pred_,
+        receiver<std::remove_cvref_t<Receiver>>{
+            ((This&&) this_).func_, (Receiver&&) r})) {
     return unifex::connect(
-        pred_,
-        receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
+        ((This&&) this_).pred_,
+        receiver<std::remove_cvref_t<Receiver>>{
+            ((This&&) this_).func_, (Receiver&&) r});
   }
+  // template <typename Receiver>
+  // auto connect(Receiver&& r) &&
+  //     noexcept(
+  //       std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+  //       std::is_nothrow_move_constructible_v<Func> &&
+  //       is_nothrow_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
+  //     -> connect_result_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
+  //   return unifex::connect(
+  //       std::forward<Predecessor>(pred_),
+  //       receiver<std::remove_cvref_t<Receiver>>{
+  //           std::forward<Func>(func_), std::forward<Receiver>(r)});
+  // }
+
+  // template <typename Receiver>
+  // auto connect(Receiver&& r) const &
+  //     noexcept(
+  //       std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
+  //       std::is_nothrow_copy_constructible_v<Func> &&
+  //       is_nothrow_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
+  //     -> connect_result_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
+  //   return unifex::connect(
+  //       pred_,
+  //       receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
+  // }
 };
 } // namespace _tfx
 

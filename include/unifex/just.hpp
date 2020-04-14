@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/sender_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/blocking.hpp>
 
@@ -78,21 +79,29 @@ class _sender<Values...>::type {
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
-  UNIFEX_TEMPLATE(typename Receiver)
-    (requires move_constructible<std::tuple<Values...>>)
-  auto connect(Receiver&& r) &&
-    noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
+  UNIFEX_TEMPLATE(typename This, typename Receiver)
+    (requires same_as<std::remove_cvref_t<This>, type>)
+  friend auto tag_invoke(tag_t<connect>, This&& this_, Receiver&& r)
+    noexcept(noexcept(std::tuple<Values...>{((This&&) this_).values_}))
     -> operation<Receiver, Values...> {
-    return {std::move(values_), (Receiver &&) r};
+    return {((This&&) this_).values_, (Receiver&&) r};
   }
 
-  UNIFEX_TEMPLATE(typename Receiver)
-    (requires copy_constructible<std::tuple<Values...>>)
-  auto connect(Receiver&& r) const &
-    noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
-    -> operation<Receiver, Values...> {
-    return {values_, (Receiver &&) r};
-  }
+  // UNIFEX_TEMPLATE(typename Receiver)
+  //   (requires move_constructible<std::tuple<Values...>>)
+  // auto connect(Receiver&& r) &&
+  //   noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
+  //   -> operation<Receiver, Values...> {
+  //   return {std::move(values_), (Receiver &&) r};
+  // }
+
+  // UNIFEX_TEMPLATE(typename Receiver)
+  //   (requires copy_constructible<std::tuple<Values...>>)
+  // auto connect(Receiver&& r) const &
+  //   noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
+  //   -> operation<Receiver, Values...> {
+  //   return {values_, (Receiver &&) r};
+  // }
 
   friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {
     return blocking_kind::always_inline;
