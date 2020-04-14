@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/detail/concept_macros.hpp>
 
 namespace unifex {

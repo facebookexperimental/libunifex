@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <type_traits>
 
@@ -66,7 +67,7 @@ namespace unifex {
   }  // namespace _tag_invoke
 
   namespace _tag_invoke_cpo {
-    inline constexpr _tag_invoke::_fn tag_invoke{};
+    UNIFEX_INLINE_VAR constexpr _tag_invoke::_fn tag_invoke{};
   }
   using namespace _tag_invoke_cpo;
 
@@ -82,7 +83,7 @@ namespace unifex {
   using _tag_invoke::tag_invoke_result_t;
 
   template <typename CPO, typename... Args>
-  inline constexpr bool is_tag_invocable_v =
+  UNIFEX_INLINE_VAR constexpr bool is_tag_invocable_v =
       (sizeof(_tag_invoke::try_tag_invoke<CPO, Args...>(0)) ==
        sizeof(_tag_invoke::yes_type));
 
@@ -95,14 +96,27 @@ namespace unifex {
   {};
 
   template <typename CPO, typename... Args>
-  using is_tag_invocable = std::bool_constant<is_tag_invocable_v<CPO, Args...>>;
+  struct is_tag_invocable
+    : std::bool_constant<is_tag_invocable_v<CPO, Args...>>
+  {};
 
   template <typename CPO, typename... Args>
-  inline constexpr bool is_nothrow_tag_invocable_v =
+  UNIFEX_INLINE_VAR constexpr bool is_nothrow_tag_invocable_v =
       noexcept(_tag_invoke::try_tag_invoke<CPO, Args...>(0));
 
   template <typename CPO, typename... Args>
-  using is_nothrow_tag_invocable =
-      std::bool_constant<is_nothrow_tag_invocable_v<CPO, Args...>>;
+  struct is_nothrow_tag_invocable
+    : std::bool_constant<is_nothrow_tag_invocable_v<CPO, Args...>>
+  {};
 
+  template <typename CPO, typename... Args>
+  UNIFEX_CONCEPT tag_invocable =
+      (sizeof(_tag_invoke::try_tag_invoke<CPO, Args...>(0)) ==
+       sizeof(_tag_invoke::yes_type));
+
+  namespace lazy {
+    template <typename CPO, typename... Args>
+    UNIFEX_CONCEPT_DEFER tag_invocable =
+        UNIFEX_DEFER_(unifex::tag_invocable, UNIFEX_TYPE(CPO), Args...);
+  } // namespace lazy
 }  // namespace unifex

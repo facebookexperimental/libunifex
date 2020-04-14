@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/with_query_value.hpp>
@@ -25,7 +26,7 @@
 
 namespace unifex {
 namespace _on {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Sender, typename Scheduler>
     auto operator()(Sender&& sender, Scheduler&& scheduler) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>) ->
@@ -35,7 +36,7 @@ namespace _on {
     }
 
     UNIFEX_TEMPLATE(typename Sender, typename Scheduler)
-        (requires (!is_tag_invocable_v<_fn, Sender, Scheduler>))
+        (requires (!tag_invocable<_fn, Sender, Scheduler>))
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
       return with_query_value(
           sequence(schedule(), (Sender&&)sender),

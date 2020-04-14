@@ -112,7 +112,7 @@ private:
 } // namespace _submit
 
 namespace _submit_cpo {
-  inline constexpr struct submit_cpo {
+  UNIFEX_INLINE_VAR constexpr struct submit_cpo {
     template<typename Sender, typename Receiver>
     void operator()(Sender&& sender, Receiver&& receiver) const {
       if constexpr (is_tag_invocable_v<submit_cpo, Sender, Receiver>) {

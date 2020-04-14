@@ -45,10 +45,10 @@ template <template <typename T> class Predicate, typename T>
 using requires_t = std::enable_if_t<Predicate<T>::value, T>;
 
 template <template <typename...> class T, typename X>
-inline constexpr bool instance_of_v = false;
+UNIFEX_INLINE_VAR constexpr bool instance_of_v = false;
 
 template <template <typename...> class T, typename... Args>
-inline constexpr bool instance_of_v<T, T<Args...>> = true;
+UNIFEX_INLINE_VAR constexpr bool instance_of_v<T, T<Args...>> = true;
 
 template <template <typename...> class T, typename X>
 using instance_of = std::bool_constant<instance_of_v<T, X>>;
@@ -84,7 +84,7 @@ struct decayed_tuple {
 };
 
 template <typename T, typename... Ts>
-inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
+UNIFEX_INLINE_VAR constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =
@@ -103,7 +103,7 @@ namespace detail {
 } // namespace detail
 
 template <typename Fn, typename... As>
-inline constexpr bool is_callable_v =
+UNIFEX_INLINE_VAR constexpr bool is_callable_v =
     decltype(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)))::value;
 
 template <typename Fn, typename... As>
@@ -112,7 +112,7 @@ struct is_callable
 {};
 
 template <typename Fn, typename... As>
-inline constexpr bool is_nothrow_callable_v =
+UNIFEX_INLINE_VAR constexpr bool is_nothrow_callable_v =
     noexcept(detail::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
@@ -122,19 +122,19 @@ struct is_nothrow_callable
 
 #if UNIFEX_CXX_CONCEPTS
 template <template <typename...> class T, typename... As>
-inline constexpr bool is_valid_v = false;
+UNIFEX_INLINE_VAR constexpr bool is_valid_v = false;
 template <template <typename...> class T, typename... As>
   requires requires { typename T<As...>; }
-inline constexpr bool is_valid_v<T, As...> = true;
+UNIFEX_INLINE_VAR constexpr bool is_valid_v<T, As...> = true;
 #else
 namespace detail {
   template <template <typename...> class, typename, typename = void>
-  inline constexpr bool is_valid_v = false;
+  UNIFEX_INLINE_VAR constexpr bool is_valid_v = false;
   template <template <typename...> class T, typename... As>
-  inline constexpr bool is_valid_v<T, type_list<As...>, std::void_t<T<As...>>> = true;
+  UNIFEX_INLINE_VAR constexpr bool is_valid_v<T, type_list<As...>, std::void_t<T<As...>>> = true;
 } // namespace detail
 template <template <typename...> class T, typename... As>
-inline constexpr bool is_valid_v = detail::is_valid_v<T, type_list<As...>>;
+UNIFEX_INLINE_VAR constexpr bool is_valid_v = detail::is_valid_v<T, type_list<As...>>;
 #endif
 
 template <typename Fn, typename... As>

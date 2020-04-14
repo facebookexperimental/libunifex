@@ -15,13 +15,14 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/transform.hpp>
 
 namespace unifex {
 namespace _subschedule {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
   private:
     template <typename T>
     struct _return_value {

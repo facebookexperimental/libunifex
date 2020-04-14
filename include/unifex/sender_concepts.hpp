@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -39,7 +40,7 @@ namespace detail {
   struct _as_receiver;
 
   template <typename, typename = void>
-  inline constexpr bool _is_executor = false;
+  UNIFEX_INLINE_VAR constexpr bool _is_executor = false;
 
   template <template <template <typename...> class, template <typename...> class> class>
   struct _has_value_types;
@@ -134,7 +135,7 @@ UNIFEX_CONCEPT   //
     detail::_has_sender_types<sender_traits<std::remove_cvref_t<S>>>;
 
 namespace _start {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
    private:
     template <bool>
     struct _impl {
@@ -186,7 +187,7 @@ namespace _execute2 {
 } // namespace _execute2
 
 namespace _execute2_cpo {
-  inline constexpr _execute2::_fn execute2 {};
+  UNIFEX_INLINE_VAR constexpr _execute2::_fn execute2 {};
 }
 using _execute2_cpo::execute2;
 
@@ -246,7 +247,7 @@ namespace detail {
   };
 
   template <typename E>
-  inline constexpr bool _is_executor<
+  UNIFEX_INLINE_VAR constexpr bool _is_executor<
     E,
     std::enable_if_t<_executor_of_impl<E, _as_invocable<_void_receiver, E>>>> = true;
 } // namespace detail
@@ -254,10 +255,10 @@ namespace detail {
 
 namespace _connect {
   template <typename E, typename R>
-  inline constexpr bool _can_execute =
+  UNIFEX_INLINE_VAR constexpr bool _can_execute =
     _executor_of_impl<E, detail::_as_invocable<std::remove_cvref_t<R>, E>>;
   template <typename E, typename F>
-  inline constexpr bool _can_execute<E, detail::_as_receiver<F, E>> =
+  UNIFEX_INLINE_VAR constexpr bool _can_execute<E, detail::_as_receiver<F, E>> =
     false;
 
   template <typename Sender, typename Receiver>
@@ -275,7 +276,7 @@ namespace _connect {
     _has_member_connect = //
       UNIFEX_FRAGMENT(_connect::_has_member_connect_, Sender, Receiver);
 
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
    private:
     template <typename Executor, typename Receiver>
     struct _as_op {
@@ -325,7 +326,7 @@ namespace _connect {
         // into a requires clause and let the compiler report what failed and
         // (hopefully) why.
         (requires receiver<Receiver> &&
-          ((sender<Sender> && is_tag_invocable_v<_fn, Sender, Receiver>) ||
+          ((sender<Sender> && tag_invocable<_fn, Sender, Receiver>) ||
            (sender<Sender> && _has_member_connect<Sender, Receiver>) ||
            (receiver_of<Receiver> && _can_execute<Sender, Receiver>)))
       auto operator()(Sender&&, Receiver&&) const noexcept {
@@ -340,7 +341,7 @@ namespace _connect {
     // not we've been passed an executor and a nullary callable.
     template <typename Sender, typename Receiver>
     static auto _select_impl() noexcept {
-      if constexpr ((bool)sender<Sender> && is_tag_invocable_v<_fn, Sender, Receiver>) {
+      if constexpr ((bool)sender<Sender> && tag_invocable<_fn, Sender, Receiver>) {
         return _with_tag_invoke_fn{};
       } else if constexpr (sender<Sender> && _has_member_connect<Sender, Receiver>) {
         return _with_member_connect_fn{};
@@ -403,7 +404,7 @@ using operation_t [[deprecated("Use connect_result_t instead of operation_t")]] 
 
 template <typename Sender, typename Receiver>
 [[deprecated("Use sender_to instead of is_connectable_v")]]
-inline constexpr bool is_connectable_v =
+UNIFEX_INLINE_VAR constexpr bool is_connectable_v =
   is_callable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
@@ -411,7 +412,7 @@ using is_connectable [[deprecated]] =
   is_callable<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
-inline constexpr bool is_nothrow_connectable_v =
+UNIFEX_INLINE_VAR constexpr bool is_nothrow_connectable_v =
   is_nothrow_callable_v<decltype(connect), Sender, Receiver>;
 
 template <typename Sender, typename Receiver>

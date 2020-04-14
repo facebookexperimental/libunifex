@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/coroutine_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -164,7 +165,7 @@ struct _sender<Awaitable>::type {
 } // namespace _await
 
 namespace _await_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Awaitable>
     auto operator()(Awaitable &&awaitable) const -> _await::sender<Awaitable> {
       return _await::sender<Awaitable>{(Awaitable &&) awaitable};

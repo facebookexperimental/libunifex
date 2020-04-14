@@ -15,6 +15,7 @@
  */
  #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/typed_via.hpp>
@@ -31,5 +32,5 @@ namespace _then_execute_cpo {
     }
   };
 } // namespace _then_execute_cpo
-inline constexpr _then_execute_cpo::_fn then_execute {};
+UNIFEX_INLINE_VAR constexpr _then_execute_cpo::_fn then_execute {};
 } // namespace unifex

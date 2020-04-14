@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/stream_concepts.hpp>
 
 #include <functional>
@@ -71,7 +72,7 @@ struct _adapted<Stream, AdaptFunc, void>::type {
 } // namespace _adapt_stream
 
 namespace _adapt_stream_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Stream, typename AdapterFunc>
     auto operator()(Stream&& stream, AdapterFunc&& adapt) const
         -> _adapt_stream::adapted<Stream, AdapterFunc> {

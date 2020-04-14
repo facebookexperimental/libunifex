@@ -15,12 +15,13 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/sender_concepts.hpp>
 
 namespace unifex {
 namespace _streams {
-  inline constexpr struct _next_fn {
+  UNIFEX_INLINE_VAR constexpr struct _next_fn {
   private:
     template<bool>
     struct _impl {
@@ -52,7 +53,7 @@ namespace _streams {
     }
   };
 
-  inline constexpr struct _cleanup_fn {
+  UNIFEX_INLINE_VAR constexpr struct _cleanup_fn {
   private:
     template<bool>
     struct _impl {

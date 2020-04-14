@@ -15,13 +15,13 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
-
 #include <unifex/filesystem.hpp>
 
 namespace unifex {
 namespace _filesystem {
-inline constexpr struct async_read_some_at_cpo {
+UNIFEX_INLINE_VAR constexpr struct async_read_some_at_cpo {
   template <typename AsyncFile, typename BufferSequence>
   auto operator()(
       AsyncFile& file,
@@ -42,7 +42,7 @@ inline constexpr struct async_read_some_at_cpo {
   }
 } async_read_some_at{};
 
-inline constexpr struct async_write_some_at_cpo {
+UNIFEX_INLINE_VAR constexpr struct async_write_some_at_cpo {
   template <typename AsyncFile, typename BufferSequence>
   auto operator()(
       AsyncFile& file,
@@ -63,7 +63,7 @@ inline constexpr struct async_write_some_at_cpo {
   }
 } async_write_some_at{};
 
-inline constexpr struct open_file_read_only_cpo {
+UNIFEX_INLINE_VAR constexpr struct open_file_read_only_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
       noexcept(is_nothrow_tag_invocable_v<
@@ -78,7 +78,7 @@ inline constexpr struct open_file_read_only_cpo {
   }
 } open_file_read_only{};
 
-inline constexpr struct open_file_write_only_cpo {
+UNIFEX_INLINE_VAR constexpr struct open_file_write_only_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
       noexcept(is_nothrow_tag_invocable_v<
@@ -93,7 +93,7 @@ inline constexpr struct open_file_write_only_cpo {
   }
 } open_file_write_only{};
 
-inline constexpr struct open_file_read_write_cpo {
+UNIFEX_INLINE_VAR constexpr struct open_file_read_write_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
       noexcept(is_nothrow_tag_invocable_v<

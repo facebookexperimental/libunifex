@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/adapt_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/typed_via.hpp>
@@ -37,5 +38,5 @@ namespace _via_stream_cpo {
   };
 } // namespace _via_stream_cpo
 
-inline constexpr _via_stream_cpo::_fn via_stream {};
+UNIFEX_INLINE_VAR constexpr _via_stream_cpo::_fn via_stream {};
 } // namespace unifex

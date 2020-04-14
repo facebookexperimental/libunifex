@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
@@ -22,7 +23,7 @@
 
 namespace unifex {
 namespace _get_stop_token {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename T>
     constexpr auto operator()(const T&) const noexcept
         -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,

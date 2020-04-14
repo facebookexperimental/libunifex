@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/get_allocator.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -137,7 +138,7 @@ private:
 } // namespace _with_query_value
 
 namespace _with_query_value_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Sender, typename CPO, typename Value>
     _with_query_value::sender<CPO, Value, Sender>
     operator()(Sender &&sender, CPO, Value &&value) const {

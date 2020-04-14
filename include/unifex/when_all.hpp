@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
@@ -348,7 +349,7 @@ class _sender<Senders...>::type {
 } // namespace _when_all
 
 namespace _when_all_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename... Senders>
     auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {

@@ -101,7 +101,7 @@ struct _receiver<Receiver, Func>::type {
   }
 
   UNIFEX_TEMPLATE(typename CPO, typename R, typename... Args)
-      (requires (!is_receiver_cpo_v<CPO>) && std::is_same_v<R, receiver>)
+      (requires (!is_receiver_cpo_v<CPO>) && same_as<R, receiver>)
   friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&, Args...>)
       -> callable_result_t<CPO, const Receiver&, Args...> {
@@ -186,7 +186,7 @@ public:
 } // namespace _tfx
 
 namespace _tfx_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
   private:
     template<bool>
     struct _impl {

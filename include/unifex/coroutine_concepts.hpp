@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
@@ -57,7 +58,7 @@ struct await_result_impl<
 
 } // namespace detail
 
-inline constexpr struct _get_awaiter_fn {
+UNIFEX_INLINE_VAR constexpr struct _get_awaiter_fn {
   template <typename Awaitable>
   constexpr decltype(auto) operator()(Awaitable&& awaitable) const noexcept {
     if constexpr (detail::has_member_operator_co_await_v<Awaitable>) {

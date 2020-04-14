@@ -86,3 +86,22 @@
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
 # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
 #endif
+
+#ifndef UNIFEX_CXX_INLINE_VARIABLES
+#ifdef __cpp_inline_variables
+#define UNIFEX_CXX_INLINE_VARIABLES __cpp_inline_variables
+// TODO: remove once clang defines __cpp_inline_variables (or equivalent)
+#elif defined(__clang__) && \
+  (__clang_major__ > 3 || __clang_major__ == 3 && __clang_minor__ == 9) && \
+  __cplusplus > 201402L
+#define UNIFEX_CXX_INLINE_VARIABLES 201606L
+#else
+#define UNIFEX_CXX_INLINE_VARIABLES __cplusplus
+#endif  // __cpp_inline_variables
+#endif  // UNIFEX_CXX_INLINE_VARIABLES
+
+#if UNIFEX_CXX_INLINE_VARIABLES < 201606L
+#define UNIFEX_INLINE_VAR
+#else  // UNIFEX_CXX_INLINE_VARIABLES >= 201606L
+#define UNIFEX_INLINE_VAR inline
+#endif // UNIFEX_CXX_INLINE_VARIABLES

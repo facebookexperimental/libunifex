@@ -250,7 +250,7 @@ private:
 template<class Source, class Predicate>
 using repeat_effect_until_sender = typename _repeat_effect_until::_sndr<Source, Predicate>::type;
 
-inline constexpr struct repeat_effect_until_cpo {
+UNIFEX_INLINE_VAR constexpr struct repeat_effect_until_cpo {
   template<typename Source, typename Predicate>
   auto operator()(Source&& source, Predicate&& predicate) const
       noexcept(is_nothrow_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate>)
@@ -259,7 +259,7 @@ inline constexpr struct repeat_effect_until_cpo {
   }
 
   UNIFEX_TEMPLATE(typename Source, typename Predicate)
-    (requires (!is_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate>) &&
+    (requires (!tag_invocable<repeat_effect_until_cpo, Source, Predicate>) &&
         constructible_from<std::remove_cvref_t<Source>, Source> &&
         constructible_from<std::decay_t<Predicate>, Predicate>)
   auto operator()(Source&& source, Predicate&& predicate) const
@@ -273,7 +273,7 @@ inline constexpr struct repeat_effect_until_cpo {
   }
 } repeat_effect_until{};
 
-inline constexpr struct repeat_effect_cpo {
+UNIFEX_INLINE_VAR constexpr struct repeat_effect_cpo {
   struct forever {
     bool operator()() const { return false; }
   };
@@ -285,7 +285,7 @@ inline constexpr struct repeat_effect_cpo {
   }
 
   UNIFEX_TEMPLATE(typename Source)
-    (requires (!is_tag_invocable_v<repeat_effect_cpo, Source>) &&
+    (requires (!tag_invocable<repeat_effect_cpo, Source>) &&
         constructible_from<std::remove_cvref_t<Source>, Source>)
   auto operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<

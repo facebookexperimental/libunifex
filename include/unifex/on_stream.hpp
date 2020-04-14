@@ -15,13 +15,14 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/adapt_stream.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
 namespace unifex {
 namespace _on_stream {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename StreamSender, typename Scheduler>
     auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
       return adapt_stream(

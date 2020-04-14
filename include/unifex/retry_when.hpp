@@ -371,7 +371,7 @@ private:
 } // namespace _retry_when
 
 namespace _retry_when_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
   private:
     template<bool>
     struct _impl {
@@ -396,7 +396,7 @@ namespace _retry_when_cpo {
   template<>
   struct _fn::_impl<false> {
     UNIFEX_TEMPLATE(typename Source, typename Func)
-      (requires (!is_tag_invocable_v<_fn, Source, Func>) &&
+      (requires (!tag_invocable<_fn, Source, Func>) &&
           constructible_from<std::remove_cvref_t<Source>, Source> &&
           constructible_from<std::remove_cvref_t<Func>, Func>)
     auto operator()(Source&& source, Func&& func) const

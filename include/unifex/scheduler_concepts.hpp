@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 
@@ -24,7 +25,7 @@
 namespace unifex {
 namespace _schedule {
   struct sender;
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template<bool>
     struct _impl {
       template <typename Scheduler>
@@ -61,7 +62,7 @@ namespace _schedule {
 using _schedule::schedule;
 
 namespace _get_scheduler {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Context>
     auto operator()(const Context &context) const noexcept
         -> tag_invoke_result_t<_fn, const Context &> {
@@ -96,7 +97,7 @@ struct _schedule::sender {
   }
 };
 
-inline constexpr _schedule::sender _schedule::_fn::operator()() const noexcept {
+UNIFEX_INLINE_VAR constexpr _schedule::sender _schedule::_fn::operator()() const noexcept {
   return {};
 }
 
@@ -108,7 +109,7 @@ namespace _schedule_after {
   template<typename Duration>
   using sender = typename _sender<Duration>::type;
 
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template<bool>
     struct _impl {
       template <typename TimeScheduler, typename Duration>
@@ -180,7 +181,7 @@ namespace _schedule_after {
 using _schedule_after::schedule_after;
 
 namespace _schedule_at {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template<bool>
     struct _impl {
       template <typename TimeScheduler, typename TimePoint>
@@ -216,7 +217,7 @@ namespace _schedule_at {
 using _schedule_at::schedule_at;
 
 namespace _now {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template<bool>
     struct _impl {
       template <typename TimeScheduler>

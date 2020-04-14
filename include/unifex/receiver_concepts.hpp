@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
@@ -24,7 +25,7 @@
 
 namespace unifex {
 namespace _rec_cpo {
-  inline constexpr struct _set_value_fn {
+  UNIFEX_INLINE_VAR constexpr struct _set_value_fn {
   private:
     template<bool>
     struct _impl {
@@ -62,7 +63,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_error_fn {
+  UNIFEX_INLINE_VAR constexpr struct _set_error_fn {
   private:
     template<bool>
     struct _impl {
@@ -102,7 +103,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_done_fn {
+  UNIFEX_INLINE_VAR constexpr struct _set_done_fn {
   private:
     template<bool>
     struct _impl {
@@ -146,7 +147,7 @@ using _rec_cpo::set_error;
 using _rec_cpo::set_done;
 
 template <typename T>
-inline constexpr bool is_receiver_cpo_v = is_one_of_v<
+UNIFEX_INLINE_VAR constexpr bool is_receiver_cpo_v = is_one_of_v<
     std::remove_cvref_t<T>,
     _rec_cpo::_set_value_fn,
     _rec_cpo::_set_error_fn,

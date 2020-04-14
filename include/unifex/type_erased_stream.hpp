@@ -388,6 +388,6 @@ namespace _type_erase_cpo {
 } // namespace _type_erase_cpo
 
 template <typename... Ts>
-inline constexpr _type_erase_cpo::_fn<Ts...> type_erase {};
+UNIFEX_INLINE_VAR constexpr _type_erase_cpo::_fn<Ts...> type_erase {};
 
 } // namespace unifex

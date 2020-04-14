@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/unstoppable_token.hpp>
@@ -236,7 +237,7 @@ namespace _sync_wait_cpo {
   };
 } // namespace _sync_wait_cpo
 
-inline constexpr _sync_wait_cpo::_fn sync_wait {};
+UNIFEX_INLINE_VAR constexpr _sync_wait_cpo::_fn sync_wait {};
 
 namespace _sync_wait_r_cpo {
   template <typename Result>
@@ -251,6 +252,6 @@ namespace _sync_wait_r_cpo {
 } // namespace _sync_wait_r_cpo
 
 template <typename Result>
-inline constexpr _sync_wait_r_cpo::_fn<Result> sync_wait_r {};
+UNIFEX_INLINE_VAR constexpr _sync_wait_r_cpo::_fn<Result> sync_wait_r {};
 
 } // namespace unifex

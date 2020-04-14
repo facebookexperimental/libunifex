@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
@@ -724,7 +725,7 @@ namespace unifex
 
   namespace _final_cpo
   {
-    inline constexpr struct _fn {
+    UNIFEX_INLINE_VAR constexpr struct _fn {
       template <typename SourceSender, typename CompletionSender>
       auto operator()(SourceSender&& source, CompletionSender&& completion) const
           noexcept(std::is_nothrow_constructible_v<

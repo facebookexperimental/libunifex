@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
@@ -35,7 +36,7 @@ namespace _typed_via {
     }
 
     UNIFEX_TEMPLATE(typename Source, typename Scheduler)
-      (requires (!is_tag_invocable_v<_fn, Source, Scheduler>))
+      (requires (!tag_invocable<_fn, Source, Scheduler>))
     auto operator()(Source&& source, Scheduler&& scheduler) const
         noexcept(noexcept(finally(
             static_cast<Source&&>(source),
@@ -50,5 +51,5 @@ namespace _typed_via {
   };
 } // namespace _typed_via
 
-inline constexpr _typed_via::_fn typed_via {};
+UNIFEX_INLINE_VAR constexpr _typed_via::_fn typed_via {};
 } // namespace unifex

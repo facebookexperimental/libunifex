@@ -30,7 +30,7 @@
 namespace unifex {
 
 namespace _visit_continuations {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Continuation, typename Func>
     friend void
     tag_invoke(_fn, const Continuation&, Func&&) noexcept {}
@@ -149,7 +149,7 @@ namespace _async_trace {
 using async_trace_entry = _async_trace::entry;
 
 namespace _async_trace_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Continuation>
     std::vector<async_trace_entry> operator()(const Continuation& c) const {
       std::vector<async_trace_entry> results;

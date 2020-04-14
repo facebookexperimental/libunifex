@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
@@ -121,7 +122,7 @@ struct _stream<Sender>::type {
 } // namespace _single
 
 namespace _single_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Sender>
     auto operator()(Sender&& sender) const {
       return _single::stream<Sender>{(Sender&&)sender};

@@ -380,7 +380,7 @@ namespace unifex
   }  // namespace _seq
 
   namespace _seq_cpo {
-    inline constexpr struct _fn {
+    UNIFEX_INLINE_VAR constexpr struct _fn {
     private:
       template<bool>
       struct _impl2 {

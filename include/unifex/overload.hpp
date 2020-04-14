@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
+
 namespace unifex {
 
 namespace detail {
@@ -41,7 +43,7 @@ template <typename CPO>
 using base_cpo_t = typename base_cpo<CPO>::type;
 
 template <typename CPO, typename Sig>
-inline constexpr overloaded_cpo<CPO, Sig> overload_{};
+UNIFEX_INLINE_VAR constexpr overloaded_cpo<CPO, Sig> overload_{};
 
 } // namespace detail
 

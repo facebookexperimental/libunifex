@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
@@ -460,6 +461,6 @@ namespace _stop_immediately_cpo {
 } // namespace _stop_immediately_cpo
 
 template<typename... Values>
-inline constexpr _stop_immediately_cpo::_fn<Values...> stop_immediately{};
+UNIFEX_INLINE_VAR constexpr _stop_immediately_cpo::_fn<Values...> stop_immediately{};
 
 } // namespace unifex

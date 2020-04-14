@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 
@@ -43,7 +44,7 @@ enum class blocking_kind {
 };
 
 namespace _blocking {
-inline constexpr struct _fn {
+UNIFEX_INLINE_VAR constexpr struct _fn {
  private:
   template <bool>
   struct _impl {

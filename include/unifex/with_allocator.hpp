@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/get_allocator.hpp>
 #include <unifex/with_query_value.hpp>
 
@@ -29,5 +30,5 @@ namespace _with_alloc_cpo {
   };
 } // namespace _with_alloc_cpo
 
-inline constexpr _with_alloc_cpo::_fn with_allocator {};
+UNIFEX_INLINE_VAR constexpr _with_alloc_cpo::_fn with_allocator {};
 } // namespace unifex

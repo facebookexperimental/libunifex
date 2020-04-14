@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/next_adapt_stream.hpp>
 #include <unifex/transform.hpp>
 
@@ -33,5 +34,5 @@ namespace _tfx_stream {
   };
 } // namespace _tfx_stream
 
-inline constexpr _tfx_stream::_fn transform_stream {};
+UNIFEX_INLINE_VAR constexpr _tfx_stream::_fn transform_stream {};
 } // namespace unifex

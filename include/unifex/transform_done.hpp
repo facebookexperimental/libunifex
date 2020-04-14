@@ -331,7 +331,7 @@ private:
 template<class Source, class Done>
 using transform_done_sender = typename _transform_done::_sndr<std::remove_cvref_t<Source>, std::remove_cvref_t<Done>>::type;
 
-inline constexpr struct transform_done_cpo {
+UNIFEX_INLINE_VAR constexpr struct transform_done_cpo {
   template<typename Source, typename Done>
   auto operator()(Source&& source, Done&& done) const
       noexcept(is_nothrow_tag_invocable_v<transform_done_cpo, Source, Done>)
@@ -340,7 +340,7 @@ inline constexpr struct transform_done_cpo {
   }
 
   UNIFEX_TEMPLATE(typename Source, typename Done)
-    (requires (!is_tag_invocable_v<transform_done_cpo, Source, Done>) &&
+    (requires (!tag_invocable<transform_done_cpo, Source, Done>) &&
         constructible_from<std::remove_cvref_t<Source>, Source> &&
         constructible_from<std::remove_cvref_t<Done>, Done> &&
         callable<std::remove_cvref_t<Done>>)

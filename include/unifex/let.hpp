@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
@@ -333,7 +334,7 @@ public:
 } // namespace _let
 
 namespace _let_cpo {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     template <typename Predecessor, typename SuccessorFactory>
     auto operator()(Predecessor&& pred, SuccessorFactory&& func) const
         noexcept(std::is_nothrow_constructible_v<

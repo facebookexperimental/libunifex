@@ -17,6 +17,8 @@
 
 #include <type_traits>
 
+#include <unifex/config.hpp>
+
 //#define UNIFEX_CXX_CONCEPTS 0 // BUGBUG
 #if !defined(UNIFEX_CXX_CONCEPTS)
 #ifdef UNIFEX_DOXYGEN_INVOKED
@@ -27,25 +29,6 @@
 #define UNIFEX_CXX_CONCEPTS 0L
 #endif
 #endif
-
-#ifndef UNIFEX_CXX_INLINE_VARIABLES
-#ifdef __cpp_inline_variables // TODO: fix this if SD-6 picks another name
-#define UNIFEX_CXX_INLINE_VARIABLES __cpp_inline_variables
-// TODO: remove once clang defines __cpp_inline_variables (or equivalent)
-#elif defined(__clang__) && \
-  (__clang_major__ > 3 || __clang_major__ == 3 && __clang_minor__ == 9) && \
-  __cplusplus > 201402L
-#define UNIFEX_CXX_INLINE_VARIABLES 201606L
-#else
-#define UNIFEX_CXX_INLINE_VARIABLES __cplusplus
-#endif  // __cpp_inline_variables
-#endif  // UNIFEX_CXX_INLINE_VARIABLES
-
-#if UNIFEX_CXX_INLINE_VARIABLES < 201606L
-#define UNIFEX_INLINE_VAR
-#else  // UNIFEX_CXX_INLINE_VARIABLES >= 201606L
-#define UNIFEX_INLINE_VAR inline
-#endif // UNIFEX_CXX_INLINE_VARIABLES
 
 #if (defined(__cpp_lib_type_trait_variable_templates) && \
   __cpp_lib_type_trait_variable_templates > 0)
@@ -392,7 +375,7 @@ namespace unifex {
     template<typename...>
     struct tag;
     template<class>
-    inline constexpr bool true_() {
+    UNIFEX_INLINE_VAR constexpr bool true_() {
       return true;
     }
 

@@ -15,13 +15,14 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/reduce_stream.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
 
 namespace unifex {
 namespace _for_each {
-  inline constexpr struct _fn {
+  UNIFEX_INLINE_VAR constexpr struct _fn {
     private:
       template<bool>
       struct _impl {

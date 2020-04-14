@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/transform.hpp>
@@ -35,7 +36,7 @@ namespace unifex
       void set_value() && noexcept {}
     };
 
-    inline constexpr struct _fn {
+    UNIFEX_INLINE_VAR constexpr struct _fn {
       template<typename Scheduler, typename Func>
       void operator()(Scheduler&& s, Func&& func) const {
         if constexpr (is_tag_invocable_v<_fn, Scheduler, Func>) {

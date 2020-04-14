@@ -62,7 +62,7 @@ struct task {
     }
 
     UNIFEX_TEMPLATE(typename Value)
-        (requires std::is_convertible_v<Value, T>)
+        (requires convertible_to<Value, T>)
     void return_value(Value&& value) noexcept(
         std::is_nothrow_constructible_v<T, Value>) {
       reset_value();

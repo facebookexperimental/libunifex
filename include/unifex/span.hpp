@@ -21,11 +21,12 @@
 #include <cstdint>
 #include <type_traits>
 
-#include <unifex/detail/concept_macros.hpp>
+#include <unifex/config.hpp>
+#include <unifex/std_concepts.hpp>
 
 namespace unifex {
 
-inline constexpr std::size_t dynamic_extent = -1;
+UNIFEX_INLINE_VAR constexpr std::size_t dynamic_extent = -1;
 
 template <typename T, std::size_t Extent = dynamic_extent>
 struct span {
@@ -64,14 +65,14 @@ struct span {
   }
 
   UNIFEX_TEMPLATE(typename U)
-      (requires (!std::is_const_v<U>) && std::is_same_v<const U, T>)
+      (requires (!std::is_const_v<U>) && same_as<const U, T>)
   explicit constexpr span(const span<U, dynamic_extent>& other) noexcept
       : data_(other.data()) {
     assert(other.size() >= Extent);
   }
 
   UNIFEX_TEMPLATE(std::size_t OtherExtent, typename U)
-      (requires (!std::is_const_v<U>) && std::is_same_v<const U, T>)
+      (requires (!std::is_const_v<U>) && same_as<const U, T>)
   constexpr span(const span<U, OtherExtent>& other) noexcept
       : data_(other.data()) {
     static_assert(
@@ -158,8 +159,8 @@ struct span<T, dynamic_extent> {
       : data_(arr.data()), size_(N) {}
 
   UNIFEX_TEMPLATE(typename U, std::size_t OtherExtent)
-      (requires std::is_same_v<U, T> ||
-          ((!std::is_const_v<U>) && std::is_same_v<const U, T>))
+      (requires same_as<U, T> ||
+          ((!std::is_const_v<U>) && same_as<const U, T>))
   constexpr span(const span<U, OtherExtent>& other) noexcept
       : data_(other.data()), size_(other.size()) {}
 
