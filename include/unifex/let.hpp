@@ -317,20 +317,22 @@ public:
           std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
     : pred_((Predecessor2 &&) pred), func_((SuccessorFactory2 &&) func) {}
 
-  template <typename Receiver>
-  auto connect(Receiver&& receiver) &&
-      -> operation<Predecessor, SuccessorFactory, Receiver> {
-    return operation<Predecessor, SuccessorFactory, Receiver>{
-        std::move(pred_), std::move(func_), (Receiver &&) receiver};
-  }
-
-  template <typename Receiver>
-  auto connect(Receiver&& receiver) const &
-      -> operation<const Predecessor&, SuccessorFactory, Receiver> {
-    return operation<const Predecessor&, SuccessorFactory, Receiver>{
-      pred_, func_, (Receiver &&) receiver};
+  template <
+    typename CPO,
+    typename Sender,
+    typename Receiver,
+    std::enable_if_t<std::conjunction_v<
+      std::is_same<CPO, tag_t<unifex::connect>>,
+      std::is_same<std::remove_cvref_t<Sender>, type>>, int> = 0>
+  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+      -> operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver> {
+    return operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver>{
+        static_cast<Sender&&>(sender).pred_,
+        static_cast<Sender&&>(sender).func_,
+        static_cast<Receiver&&>(receiver)};
   }
 };
+
 } // namespace _let
 
 namespace _let_cpo {

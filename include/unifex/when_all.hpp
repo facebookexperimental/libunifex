@@ -281,6 +281,11 @@ template<typename Receiver, std::size_t... Indices, typename... Senders>
 inline constexpr bool when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> = std::conjunction_v<
   is_connectable<Senders, element_receiver<Indices, Receiver, Senders...>>...>;  
 
+template<typename Receiver, typename... Senders>
+struct when_all_connectable :
+  std::bool_constant<when_all_connectable_v<
+    Receiver, std::index_sequence_for<Senders...>, Senders...>> {};
+
 template <typename... Senders>
 class _sender<Senders...>::type {
   using sender = type;
@@ -300,24 +305,38 @@ class _sender<Senders...>::type {
     : senders_((Senders2 &&) senders...) {}
 
   template <
+    typename CPO,
+    typename Sender,
     typename Receiver,
     std::enable_if_t<
-      when_all_connectable_v<Receiver, std::index_sequence_for<Senders...>, Senders...>, int> = 0>
-  operation<Receiver, Senders...> connect(Receiver&& receiver) && {
+      std::conjunction_v<
+        std::is_same<CPO, tag_t<unifex::connect>>,
+        std::is_same<Sender, type>,
+        when_all_connectable<std::remove_cvref_t<Receiver>, Senders...>>, int> = 0>
+  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+    -> operation<Receiver, Senders...> {
     return std::apply([&](Senders&&... senders) {
       return operation<Receiver, Senders...>{
           (Receiver &&) receiver, (Senders &&) senders...};
-    }, std::move(senders_));
+    }, std::move(sender).senders_);
   }
+
   template <
+    typename CPO,
+    typename Sender,
     typename Receiver,
     std::enable_if_t<
-      when_all_connectable_v<Receiver, std::index_sequence_for<Senders...>, const Senders&...>, int> = 0>
-  operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
+      std::conjunction_v<
+        std::is_same<CPO, tag_t<unifex::connect>>,
+        std::is_same<std::remove_cvref_t<Sender>, type>,
+        std::negation<std::is_same<Sender, type>>,
+        when_all_connectable<std::remove_cvref_t<Receiver>, const Senders&...>>, int> = 0>
+  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+    -> operation<Receiver, const Senders&...> {
     return std::apply([&](const Senders&... senders) {
       return operation<Receiver, const Senders&...>{
           (Receiver &&) receiver, senders...};
-    }, senders_);
+    }, sender.senders_);
   }
 
  private:

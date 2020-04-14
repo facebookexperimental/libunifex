@@ -369,40 +369,37 @@ namespace unifex
 
       template <
           typename Receiver,
+        typename Sender,
           std::enable_if_t<
             std::conjunction_v<
-              is_connectable<
-                  Predecessor,
-                  predecessor_receiver<Predecessor, Successor, Receiver>>,
-              is_connectable<
-                  Successor,
-                  successor_receiver<Predecessor, Successor, Receiver>>,
-              std::is_move_constructible<Successor>>,
-              int> = 0>
-      auto connect(Receiver&& receiver) &&
-          -> operation<Predecessor, Successor,  Receiver> {
+            std::is_same<Sender, type>,
+            std::is_move_constructible<Successor>,
+            is_connectable<Predecessor, predecessor_receiver<Predecessor, Successor, Receiver>>,
+            is_connectable<Successor, successor_receiver<Predecessor, Successor, Receiver>>>, int> = 0>
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
+          -> operation<Predecessor, Successor, Receiver> {
         return operation<Predecessor, Successor,  Receiver>{
-            (Predecessor &&) predecessor_,
-            (Successor &&) successor_,
+            std::move(sender).predecessor_,
+            std::move(sender).successor_,
             (Receiver &&) receiver};
       }
 
       template <
           typename Receiver,
+        typename Sender,
           std::enable_if_t<
               std::conjunction_v<
-                is_connectable<
-                  const Predecessor&,
-                  predecessor_receiver<const Predecessor&, Successor, Receiver>>,
-                is_connectable<
-                  Successor,
-                  successor_receiver<const Predecessor&, Successor, Receiver>>,
-                std::is_copy_constructible<Successor>>,
-              int> = 0>
-      auto connect(Receiver&& receiver) const&
+            std::is_same<std::remove_cvref_t<Sender>, type>,
+            std::negation<std::is_same<Sender, type>>,
+            std::is_copy_constructible<Successor>,
+            is_connectable<const Predecessor&, predecessor_receiver<const Predecessor&, Successor, Receiver>>,
+            is_connectable<Successor, successor_receiver<const Predecessor&, Successor, Receiver>>>, int> = 0>
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
           -> operation<const Predecessor&, Successor, Receiver> {
-        return operation<const Predecessor&, Successor, Receiver>{
-            predecessor_, successor_, (Receiver &&) receiver};
+        return operation<const Predecessor&, Successor,  Receiver>{
+            sender.predecessor_,
+            sender.successor_,
+            (Receiver &&) receiver};
       }
 
     private:

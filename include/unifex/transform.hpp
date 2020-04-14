@@ -160,36 +160,20 @@ public:
   }
 
   template <
+    typename Sender,
     typename Receiver,
-    std::enable_if_t<
-      std::is_move_constructible_v<Func> &&
-      is_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>, int> = 0>
-  auto connect(Receiver&& r) &&
-      noexcept(
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
-        std::is_nothrow_move_constructible_v<Func> &&
-        is_nothrow_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
-      -> operation_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
+    std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
+    noexcept(
+      std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+      std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
+      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver<std::remove_cvref_t<Receiver>>>)
+      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver<std::remove_cvref_t<Receiver>>> {
     return unifex::connect(
-        std::forward<Predecessor>(pred_),
-        receiver<std::remove_cvref_t<Receiver>>{
-            std::forward<Func>(func_), std::forward<Receiver>(r)});
-  }
-
-  template <
-    typename Receiver,
-    std::enable_if_t<
-      std::is_copy_constructible_v<Func> &&
-      is_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>, int> = 0>
-  auto connect(Receiver&& r) const &
-      noexcept(
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
-        std::is_nothrow_copy_constructible_v<Func> &&
-        is_nothrow_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
-      -> operation_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
-    return unifex::connect(
-        pred_,
-        receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
+      static_cast<Sender&&>(s).pred_,
+      receiver<std::remove_cvref_t<Receiver>>{
+        static_cast<Sender&&>(s).func_,
+        static_cast<Receiver&&>(r)});
   }
 };
 } // namespace _tfx
