@@ -6,6 +6,7 @@
   * `get_allocator()`
 * Sender Algorithms
   * `transform()`
+  * `transform_done()`
   * `finally()`
   * `via()`
   * `typed_via()`
@@ -16,7 +17,10 @@
   * `when_all()`
   * `materialize()`
   * `dematerialize()`
+  * `repeat_effect_until()`
+  * `repeat_effect()`
   * `retry_when()`
+  * `stop_when()`
   * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
@@ -95,6 +99,10 @@ See the [Cancellation](cancellation.md) section for more details on cancellation
 
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
+
+### `transform_done(Sender predecessor, Func func) -> Sender`
+
+Returns a sender that calls `auto finalSender = func()` in `set_done()` and then starts the returned `finalSender`. This allows a call to `set_done` to be delayed, to be tranformed into an error or a value, etc..
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
@@ -212,7 +220,7 @@ If you provide a customisation for a pair of senders then this customisation
 will be applied to the first two arguments and then reinvoke `sequence()`
 with the first two arguments replaced with the result of `sequence(first, second)`.
 
-### `sync_wait(Sender sender, StopToken st = {}) -> std::optional<Result>`
+### `sync_wait(Sender sender) -> std::optional<Result>`
 
 Blocks the current thread waiting for the specified sender to complete.
 
@@ -269,6 +277,61 @@ sender will complete with `set_done(r)`.
 
 Any `set_error()` or `set_done()` signals are passed through unchanged.
 
+### `repeat_effect_until(Sender source, Invocable predicate) -> Sender`
+
+The `repeat_effect_until()` algorithm repeats the source sender for as long as the 
+predicate returns false.
+
+The `source` sender must be lvalue connectable (ie. can be connected and started 
+multiple times).
+
+The `source` sender must be an effect. It must produce void.
+
+If the `source` sender completes with `set_error()` or `set_done()` then the
+`repeat_effect_until()` operation completes with that same signal.
+
+If the `source` sender completes with void then the `predicate` function is 
+invoked. The `predicate` function must return `false` to repeat the source and 
+`true` to complete with void.
+
+If the invocation of the `predicate()` throws an exception then the 
+`repeat_effect_until()` operation immediately completes with 
+`set_error(std::current_exception())`.
+
+Example usage: Repeat the operation forever - until the source is cancelled.
+```c++
+unifex::repeat_effect_until(
+  some_operation(),
+  [] {
+    return false;
+  });
+```
+
+This is the default implementation for `repeat_effect()`.
+
+### `repeat_effect(Sender source) -> Sender`
+
+The `repeat_effect()` algorithm repeats the source sender until the source is 
+cancelled.
+
+The `source` sender must be lvalue connectable (ie. can be connected and started 
+multiple times).
+
+The `source` sender must be an effect. It must produce void.
+
+If the `source` sender completes with `set_error()` or `set_done()` then the
+`repeat_effect()` operation completes with that same signal.
+
+If the `source` sender completes with void then the source is started again.
+
+Example usage: Repeat the operation forever - until the source is cancelled.
+```c++
+unifex::repeat_effect(some_operation());
+```
+
+The default implementation uses `repeat_effect_until()` with a predicate that 
+always returns false.
+
 ### `retry_when(Sender source, Invocable<Error> handler) -> Sender`
 
 The `retry_when()` algorithm repeatedly retries executing the input sender
@@ -286,7 +349,7 @@ which is then immediately started.
 
 If the invocation of the `handler()` throws an exception or attempting to launch
 the returned sender throws an exception then the `retry_when()` operation immediately
-completes with `set_error(std::current_exception()`.
+completes with `set_error(std::current_exception())`.
 
 If the sender returned by `handler()` completes with `set_value()` then the
 `source` operation is relaunched.
@@ -305,6 +368,23 @@ unifex::retry_when(
     }
     return unifex::schedule_after(scheduler, count * 50ms);
   });
+```
+
+### `stop_when(Sender source, Sender trigger) -> Sender`
+
+Returns a sender that will start both source and trigger and will cancel the
+other one whenever the first of the two senders completes.
+
+Completes with the result of `source` once both `source` and `trigger` senders
+have completed. The result is produced inline on the execution context of whichever
+sender completed second.
+
+Example usage:
+```c++
+// A simple timeout that cancels an operation after 200ms
+unifex::stop_when(
+  some_operation(),
+  unifex::schedule_after(200ms));
 ```
 
 ### `allocate(Sender sender) -> Sender`

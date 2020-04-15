@@ -13,42 +13,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/delay.hpp>
-#include <unifex/for_each.hpp>
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/range_stream.hpp>
-#include <unifex/scope_guard.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/typed_via_stream.hpp>
-#include <unifex/scheduler_concepts.hpp>
+#include <unifex/just.hpp>
 #include <unifex/transform.hpp>
+#include <unifex/transform_done.hpp>
+#include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
 
 #include <chrono>
-#include <cstdio>
-#include <thread>
+#include <iostream>
+
+#include <gtest/gtest.h>
 
 using namespace unifex;
+using namespace std::chrono;
+using namespace std::chrono_literals;
 
-int main() {
-  using namespace std::chrono;
+template <typename F>
+auto lazy(F&& f) {
+  return transform(just(), (F &&) f);
+}
 
+TEST(TransformDone, Smoke) {
   timed_single_thread_context context;
 
-  auto start = steady_clock::now();
+  auto scheduler = context.get_scheduler();
+
+  int count = 0;
 
   sync_wait(
-      stop_when(
-          for_each(
-              delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
-              [start](int value) {
-                auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
-                std::printf("[%i ms] %i\n", (int)ms.count(), value);
-              }),
-          transform(
-            schedule_after(context.get_scheduler(), 500ms),
-            [] { std::printf("cancelling\n"); })));
+    stop_when(
+      sequence(
+        transform_done(
+          schedule_after(scheduler, 200ms), 
+          []{ return just(); }), 
+        lazy([&]{ ++count; })),
+      schedule_after(scheduler, 100ms)));
 
-  return 0;
+  EXPECT_EQ(count, 1);
 }
