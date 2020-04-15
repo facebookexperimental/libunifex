@@ -47,8 +47,8 @@ TEST(TransformDone, Smoke) {
     stop_when(
       sequence(
         transform_done(
-          schedule_after(scheduler, 200ms), 
-          []{ return just(); }), 
+          schedule_after(scheduler, 200ms),
+          []{ return just(); }),
         lazy([&]{ ++count; })),
       schedule_after(scheduler, 100ms)));
 

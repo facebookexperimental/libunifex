@@ -74,7 +74,7 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("epoll_create failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category()};
+      throw std::system_error{errorCode, std::system_category(), "epoll_create(1)"};
     }
     epollFd_ = safe_file_descriptor{fd};
   }
@@ -84,7 +84,7 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("timerfd_create CLOCK_MONOTONIC failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category()};
+      throw std::system_error{errorCode, std::system_category(), "timerfd_create(CLOCK_MONOTONIC, 0)"};
     }
 
     timerFd_ = safe_file_descriptor{fd};
@@ -98,7 +98,7 @@ io_epoll_context::io_epoll_context() {
     if (result < 0) {
       int errorCode = errno;
       LOGX("epoll_ctl EPOLL_CTL_ADD timerFd_ failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category()};
+      throw std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD timerFd_"};
     }
   }
 
@@ -107,7 +107,7 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("eventfd failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category()};
+      throw std::system_error{errorCode, std::system_category(), "create remoteQueueEventFd_"};
     }
 
     remoteQueueEventFd_ = safe_file_descriptor{fd};
@@ -121,7 +121,7 @@ io_epoll_context::io_epoll_context() {
     if (result < 0) {
       int errorCode = errno;
       LOGX("epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_ failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category()};
+      throw std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_"};
     }
   }
 
@@ -189,6 +189,9 @@ void io_epoll_context::schedule_impl(operation_base* op) {
 
 void io_epoll_context::schedule_local(operation_base* op) noexcept {
   LOG("schedule_local");
+  assert(op->execute_);
+  assert(op->enqueued_.load() == 0);
+  ++op->enqueued_;
   localQueue_.push_back(op);
 }
 
@@ -198,6 +201,9 @@ void io_epoll_context::schedule_local(operation_queue ops) noexcept {
 
 void io_epoll_context::schedule_remote(operation_base* op) noexcept {
   LOG("schedule_remote");
+  assert(op->execute_);
+  assert(op->enqueued_.load() == 0);
+  ++op->enqueued_;
   bool ioThreadWasInactive = remoteQueue_.enqueue(op);
   if (ioThreadWasInactive) {
     // We were the first to queue an item and the I/O thread is not
@@ -228,7 +234,13 @@ void io_epoll_context::execute_pending_local() noexcept {
   auto pending = std::move(localQueue_);
   while (!pending.empty()) {
     auto* item = pending.pop_front();
-    item->execute_(item);
+
+    assert(item->enqueued_.load() == 1);
+    --item->enqueued_;
+    std::exchange(item->next_, nullptr);
+    auto execute = std::exchange(item->execute_, nullptr);
+
+    execute(item);
     ++count;
   }
 
@@ -247,7 +259,7 @@ void io_epoll_context::acquire_completion_queue_items() {
     localQueue_.empty() ? -1 : 0);
   if (result < 0) {
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category()};
+    throw std::system_error{errorCode, std::system_category(), "epoll_wait"};
   }
   std::uint32_t count = result;
 
@@ -300,7 +312,11 @@ void io_epoll_context::acquire_completion_queue_items() {
       continue;
     }
 
+    LOGX("completion event %i\n", completed.events);
     auto& completionState = *reinterpret_cast<completion_base*>(completed.data.ptr);
+
+    assert(completionState.enqueued_.load() == 0);
+    ++completionState.enqueued_;
 
     // Save the result in the completion state.
     // completionState.result_ = cqe.res;
@@ -439,6 +455,19 @@ bool io_epoll_context::try_submit_timer_io(const time_point& dueTime) noexcept {
   return true;
 }
 
+std::pair<io_epoll_context::async_reader, io_epoll_context::async_writer> tag_invoke(
+    tag_t<open_pipe>,
+    io_epoll_context::scheduler scheduler) {
+  int fd[2] = {};
+  int result = ::pipe2(fd, O_NONBLOCK | O_CLOEXEC);
+  if (result < 0) {
+    int errorCode = errno;
+    throw std::system_error{errorCode, std::system_category(), "pipe2"};
+  }
+
+  return {io_epoll_context::async_reader{*scheduler.context_, fd[0]}, io_epoll_context::async_writer{*scheduler.context_, fd[1]}};
+}
+
 } // namespace unifex::linuxos
 
-#endif // __has_include(<sys/epoll.h>)
+#endif // !UNIFEX_NO_EPOLL

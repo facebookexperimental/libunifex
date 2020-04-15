@@ -35,7 +35,7 @@ public:
   inline void notify() noexcept {
     std::lock_guard lk{mut_};
     signalled_ = true;
-    cv_.notify_one(); 
+    cv_.notify_one();
   }
 
   inline void wait() noexcept {
@@ -95,6 +95,10 @@ struct _receiver {
       promise_.exception_.construct(std::move(err));
       promise_.state_ = promise<T>::state::error;
       signal_complete();
+    }
+
+    void set_error(std::error_code ec) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr(std::system_error{ec, "sync_wait"}));
     }
 
     template <typename Error>

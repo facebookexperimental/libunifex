@@ -71,7 +71,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template<typename... Values>
   void set_value(Values&&... values) noexcept(is_nothrow_callable_v<tag_t<unifex::set_value>&, Receiver, Values...>) {
     assert(op_ != nullptr);
@@ -129,7 +129,7 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -141,7 +141,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    assert(op_ != nullptr);   
+    assert(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -159,7 +159,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template<
     typename... Values,
     std::enable_if_t<is_callable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
@@ -194,7 +194,7 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -206,7 +206,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    assert(op_ != nullptr);   
+    assert(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -344,7 +344,7 @@ inline constexpr struct transform_done_cpo {
   auto operator()(Source&& source, Done&& done) const
       noexcept(std::is_nothrow_constructible_v<
                    transform_done_sender<Source, Done>,
-                   Source, 
+                   Source,
                    Done>)
       -> transform_done_sender<Source, Done> {
     return transform_done_sender<Source, Done>{
