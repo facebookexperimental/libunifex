@@ -28,7 +28,7 @@ struct _adapted {
 };
 template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc = void>
 using adapted = typename _adapted<
-    std::remove_cvref_t<Stream>,
+    remove_cvref_t<Stream>,
     std::decay_t<NextAdaptFunc>,
     std::decay_t<CleanupAdaptFunc>>::type;
 

@@ -70,7 +70,7 @@ namespace unifex {
   using namespace _tag_invoke_cpo;
 
   template <auto& CPO>
-  using tag_t = std::remove_cvref_t<decltype(CPO)>;
+  using tag_t = remove_cvref_t<decltype(CPO)>;
 
   // Manually implement the traits here rather than defining them in terms of
   // the corresponding std::invoke_result/is_invocable/is_nothrow_invocable

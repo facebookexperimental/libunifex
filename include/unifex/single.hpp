@@ -32,7 +32,7 @@ struct _next_op {
   struct type;
 };
 template <typename Sender, typename Receiver>
-using next_operation = typename _next_op<Sender, std::remove_cvref_t<Receiver>>::type;
+using next_operation = typename _next_op<Sender, remove_cvref_t<Receiver>>::type;
 
 template <typename Sender, typename Receiver>
 struct _next_op<Sender, Receiver>::type {
@@ -79,7 +79,7 @@ struct _stream {
   struct type;
 };
 template <typename Sender>
-using stream = typename _stream<std::remove_cvref_t<Sender>>::type;
+using stream = typename _stream<remove_cvref_t<Sender>>::type;
 
 template <typename Sender>
 struct _stream<Sender>::type {

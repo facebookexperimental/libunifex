@@ -227,7 +227,7 @@ struct _op {
 };
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
 using operation =
-    typename _op<std::remove_cvref_t<StreamSender>, std::remove_cvref_t<State>, std::remove_cvref_t<ReducerFunc>, std::remove_cvref_t<Receiver>>::type;
+    typename _op<remove_cvref_t<StreamSender>, remove_cvref_t<State>, remove_cvref_t<ReducerFunc>, remove_cvref_t<Receiver>>::type;
 
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
 struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
@@ -280,9 +280,9 @@ struct _sender {
 };
 template <typename StreamSender, typename State, typename ReducerFunc>
 using sender = typename _sender<
-    std::remove_cvref_t<StreamSender>,
-    std::remove_cvref_t<State>,
-    std::remove_cvref_t<ReducerFunc>>::type;
+    remove_cvref_t<StreamSender>,
+    remove_cvref_t<State>,
+    remove_cvref_t<ReducerFunc>>::type;
 
 template <typename StreamSender, typename State, typename ReducerFunc>
 struct _sender<StreamSender, State, ReducerFunc>::type {

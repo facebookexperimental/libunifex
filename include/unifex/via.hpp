@@ -178,7 +178,7 @@ struct _predecessor_receiver {
 };
 template <typename Successor, typename Receiver>
 using predecessor_receiver =
-    typename _predecessor_receiver<Successor, std::remove_cvref_t<Receiver>>::type;
+    typename _predecessor_receiver<Successor, remove_cvref_t<Receiver>>::type;
 
 template <typename Successor, typename Receiver>
 struct _predecessor_receiver<Successor, Receiver>::type {
@@ -247,8 +247,8 @@ struct _sender {
 };
 template <typename Predecessor, typename Successor>
 using sender = typename _sender<
-    std::remove_cvref_t<Predecessor>,
-    std::remove_cvref_t<Successor>>::type;
+    remove_cvref_t<Predecessor>,
+    remove_cvref_t<Successor>>::type;
 
 template <typename Predecessor, typename Successor>
 struct _sender<Predecessor, Successor>::type {

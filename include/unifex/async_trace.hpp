@@ -119,7 +119,7 @@ inline continuation_info continuation_info::from_continuation(
     const Continuation& r) noexcept {
   static constexpr vtable_t vtable{
       []() noexcept -> std::type_index {
-        return typeid(std::remove_cvref_t<Continuation>);
+        return typeid(remove_cvref_t<Continuation>);
       },
       [](const void* address, callback_t* cb, void* data) {
         visit_continuations(
@@ -187,7 +187,7 @@ namespace _async_trace {
     };
   };
   template <typename Receiver>
-  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+  using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
   struct sender {
     template <

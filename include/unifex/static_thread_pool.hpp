@@ -41,7 +41,7 @@ namespace _static_thread_pool {
     class type;
   };
   template <typename Receiver>
-  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+  using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
   class context {
     template <typename Receiver>

@@ -40,7 +40,7 @@ struct _receiver {
 };
 template <typename Policy, typename Range, typename Func, typename Receiver>
 using receiver =
-    typename _receiver<Policy, Range, Func, std::remove_cvref_t<Receiver>>::type;
+    typename _receiver<Policy, Range, Func, remove_cvref_t<Receiver>>::type;
 template <typename Policy, typename Range, typename Func, typename Receiver>
 struct _receiver<Policy, Range, Func, Receiver>::type {
   using receiver = type;
@@ -117,7 +117,7 @@ struct _sender {
 };
 template <typename Predecessor, typename Policy, typename Range, typename Func>
 using sender = typename _sender<
-    std::remove_cvref_t<Predecessor>,
+    remove_cvref_t<Predecessor>,
     std::decay_t<Policy>,
     std::decay_t<Range>,
     std::decay_t<Func>>::type;

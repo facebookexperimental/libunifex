@@ -73,7 +73,7 @@ struct _op {
   class type;
 };
 template <typename CPO, typename Value, typename Sender, typename Receiver>
-using operation = typename _op<CPO, Value, Sender, std::remove_cvref_t<Receiver>>::type;
+using operation = typename _op<CPO, Value, Sender, remove_cvref_t<Receiver>>::type;
 
 template <typename CPO, typename Value, typename Sender, typename Receiver>
 class _op<CPO, Value, Sender, Receiver>::type {
@@ -102,7 +102,7 @@ struct _sender {
 };
 template <typename CPO, typename Value, typename Sender>
 using sender =
-    typename _sender<CPO, std::decay_t<Value>, std::remove_cvref_t<Sender>>::type;
+    typename _sender<CPO, std::decay_t<Value>, remove_cvref_t<Sender>>::type;
 
 template <typename CPO, typename Value, typename Sender>
 class _sender<CPO, Value, Sender>::type {
@@ -122,19 +122,19 @@ public:
     typename Self,
     typename Receiver,
     std::enable_if_t<
-      std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+      std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
     std::enable_if_t<
       std::is_constructible_v<Value, member_t<Self, Value>>, int> = 0,
     std::enable_if_t<
       is_connectable_v<
         member_t<Self, Sender>,
-        receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>,
+        receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>,
       int> = 0>
   friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)
       noexcept(std::is_nothrow_constructible_v<Value, member_t<Self, Value>> &&
                is_nothrow_connectable_v<
                   member_t<Self, Sender>,
-                  receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>)
+                  receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>)
       -> operation<CPO, Value, member_t<Self, Sender>, Receiver> {
     return operation<CPO, Value, member_t<Self, Sender>, Receiver>{
         static_cast<Self&&>(s).sender_,

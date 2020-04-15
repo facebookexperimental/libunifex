@@ -433,8 +433,8 @@ class io_epoll_context::schedule_at_sender {
       : context_(context), dueTime_(dueTime) {}
 
   template <typename Receiver>
-  operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::remove_cvref_t<Receiver>>{
+  operation<remove_cvref_t<Receiver>> connect(Receiver&& r) {
+    return operation<remove_cvref_t<Receiver>>{
         context_, dueTime_, (Receiver &&) r};
   }
 

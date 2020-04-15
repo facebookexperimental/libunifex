@@ -177,7 +177,7 @@ namespace _sync_wait_cpo {
     template <
         typename Sender,
         typename StopToken = unstoppable_token,
-        typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
+        typename Result = single_value_result_t<remove_cvref_t<Sender>>>
     auto operator()(Sender&& sender, StopToken&& stopToken = {}) const
         -> std::optional<Result> {
       auto blockingResult = blocking(sender);

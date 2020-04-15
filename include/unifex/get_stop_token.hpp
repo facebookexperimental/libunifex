@@ -49,6 +49,6 @@ using get_stop_token_result_t =
 
 template <typename Receiver>
 using stop_token_type_t =
-    std::remove_cvref_t<get_stop_token_result_t<Receiver>>;
+    remove_cvref_t<get_stop_token_result_t<Receiver>>;
 
 } // namespace unifex

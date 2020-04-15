@@ -33,7 +33,7 @@ namespace unifex
       class type;
     };
     template <typename Receiver>
-    using receiver = typename _receiver<std::remove_cvref_t<Receiver>>::type;
+    using receiver = typename _receiver<remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
     class _receiver<Receiver>::type {
@@ -191,7 +191,7 @@ namespace unifex
       class type;
     };
     template <typename Source>
-    using sender = typename _sender<std::remove_cvref_t<Source>>::type;
+    using sender = typename _sender<remove_cvref_t<Source>>::type;
 
     template <typename Source>
     class _sender<Source>::type {
@@ -218,13 +218,13 @@ namespace unifex
       template <
           typename Self,
           typename Receiver,
-          std::enable_if_t<std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+          std::enable_if_t<std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
           std::enable_if_t<
               is_connectable_v<member_t<Self, Source>, receiver<Receiver>>,
               int> = 0>
       friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
           is_nothrow_connectable_v<member_t<Self, Source>, receiver<Receiver>> &&
-              std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
+              std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
           -> operation_t<member_t<Self, Source>, receiver<Receiver>> {
         return unifex::connect(
             static_cast<Self&&>(self).source_,

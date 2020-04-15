@@ -47,7 +47,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver>
     using operation =
-        typename _op<SourceSender, CompletionSender, std::remove_cvref_t<Receiver>>::type;
+        typename _op<SourceSender, CompletionSender, remove_cvref_t<Receiver>>::type;
 
     template <
         typename SourceSender,
@@ -591,7 +591,7 @@ namespace unifex
       }
 
     private:
-      UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<CompletionSender> completionSender_;
+      UNIFEX_NO_UNIQUE_ADDRESS remove_cvref_t<CompletionSender> completionSender_;
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       bool started_ = false;
 
@@ -599,11 +599,11 @@ namespace unifex
       union {
         // Storage for error-types that might be produced by SourceSender.
         UNIFEX_NO_UNIQUE_ADDRESS
-        typename std::remove_cvref_t<SourceSender>::template error_types<error_result_union>
+        typename remove_cvref_t<SourceSender>::template error_types<error_result_union>
             error_;
 
         // Storage for value-types that might be produced by SourceSender.
-        UNIFEX_NO_UNIQUE_ADDRESS typename std::remove_cvref_t<SourceSender>::template value_types<
+        UNIFEX_NO_UNIQUE_ADDRESS typename remove_cvref_t<SourceSender>::template value_types<
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
             value_;
@@ -619,13 +619,13 @@ namespace unifex
 
         // Storage for the completion operation for the case where
         // the source operation completed with a value.
-        typename std::remove_cvref_t<SourceSender>::
+        typename remove_cvref_t<SourceSender>::
             template value_types<manual_lifetime_union, value_operation>
                 completionValueOp_;
 
         // Storage for the completion operation for the case where the
         // source operation completed with an error.
-        typename std::remove_cvref_t<SourceSender>::template error_types<error_operation_union>
+        typename remove_cvref_t<SourceSender>::template error_types<error_operation_union>
             completionErrorOp_;
 
         // Storage for the completion operation for the case where the
@@ -640,8 +640,8 @@ namespace unifex
     };
     template <typename SourceSender, typename CompletionSender>
     using sender = typename _sender<
-        std::remove_cvref_t<SourceSender>,
-        std::remove_cvref_t<CompletionSender>>::type;
+        remove_cvref_t<SourceSender>,
+        remove_cvref_t<CompletionSender>>::type;
 
     template <typename SourceSender, typename CompletionSender>
     class _sender<SourceSender, CompletionSender>::type {
@@ -686,14 +686,14 @@ namespace unifex
         typename S,
         typename Receiver,
         std::enable_if_t<std::is_same_v<CPO, tag_t<connect>>, int> = 0,
-        std::enable_if_t<std::is_same_v<std::remove_cvref_t<S>, sender>, int> = 0,
+        std::enable_if_t<std::is_same_v<remove_cvref_t<S>, sender>, int> = 0,
         std::enable_if_t<
             is_connectable_v<
               member_t<S, SourceSender>,
               receiver<
                 member_t<S, SourceSender>,
                 CompletionSender,
-                std::remove_cvref_t<Receiver>>>,
+                remove_cvref_t<Receiver>>>,
             int> = 0,
         std::enable_if_t<
             is_connectable_v<
@@ -701,7 +701,7 @@ namespace unifex
               done_receiver<
                 member_t<S, SourceSender>,
                 CompletionSender,
-                std::remove_cvref_t<Receiver>>>,
+                remove_cvref_t<Receiver>>>,
             int> = 0>
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
           -> operation<member_t<S, SourceSender>, CompletionSender, Receiver> {

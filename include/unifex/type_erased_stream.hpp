@@ -108,7 +108,7 @@ struct _stream<Values...>::type {
     };
   };
   template <typename Receiver>
-  using next_receiver = typename _next_receiver<std::remove_cvref_t<Receiver>>::type;
+  using next_receiver = typename _next_receiver<remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
   struct _cleanup_receiver {
@@ -134,7 +134,7 @@ struct _stream<Values...>::type {
   };
   template <typename Receiver>
   using cleanup_receiver =
-      typename _cleanup_receiver<std::remove_cvref_t<Receiver>>::type;
+      typename _cleanup_receiver<remove_cvref_t<Receiver>>::type;
 
   template <typename Stream>
   struct _stream {
@@ -268,7 +268,7 @@ struct _stream<Values...>::type {
     };
   };
   template <typename Stream>
-  using stream = typename _stream<std::remove_cvref_t<Stream>>::type;
+  using stream = typename _stream<remove_cvref_t<Stream>>::type;
 
   struct next_sender {
     stream_base& stream_;
@@ -317,7 +317,7 @@ struct _stream<Values...>::type {
       };
     };
     template <typename Receiver>
-    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+    using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) {
@@ -351,7 +351,7 @@ struct _stream<Values...>::type {
       };
     };
     template <typename Receiver>
-    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+    using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) {

@@ -33,7 +33,7 @@ struct _op {
   struct type;
 };
 template <typename Receiver, typename... Values>
-using operation = typename _op<std::remove_cvref_t<Receiver>, Values...>::type;
+using operation = typename _op<remove_cvref_t<Receiver>, Values...>::type;
 
 template <typename Receiver, typename... Values>
 struct _op<Receiver, Values...>::type {
@@ -84,7 +84,7 @@ class _sender<Values...>::type {
   template <
       typename This,
       typename Receiver,
-      std::enable_if_t<std::is_same_v<std::remove_cvref_t<This>, type>, int> = 0,
+      std::enable_if_t<std::is_same_v<remove_cvref_t<This>, type>, int> = 0,
       std::enable_if_t<(std::is_constructible_v<Values, member_t<This, Values>> &&...), int> = 0>
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
       noexcept((std::is_nothrow_constructible_v<Values, member_t<This, Values>> &&...))

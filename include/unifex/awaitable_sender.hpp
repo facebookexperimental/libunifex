@@ -107,7 +107,7 @@ struct _sender {
   struct type;
 };
 template <typename Awaitable>
-using sender = typename _sender<std::remove_cvref_t<Awaitable>>::type;
+using sender = typename _sender<remove_cvref_t<Awaitable>>::type;
 
 template <typename Awaitable>
 struct _sender<Awaitable>::type {
@@ -121,7 +121,7 @@ struct _sender<Awaitable>::type {
   using value_types = conditional_t<
       std::is_void_v<result_type>,
       Variant<Tuple<>>,
-      Variant<Tuple<std::remove_cvref_t<result_type>>>>;
+      Variant<Tuple<remove_cvref_t<result_type>>>>;
 
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
@@ -129,7 +129,7 @@ struct _sender<Awaitable>::type {
   template <typename Receiver>
   detail::sender_task connect(Receiver&& receiver) && {
     return [](Awaitable awaitable,
-           std::remove_cvref_t<Receiver> receiver) -> detail::sender_task {
+           remove_cvref_t<Receiver> receiver) -> detail::sender_task {
           std::exception_ptr ex;
           try {
             if constexpr (std::is_void_v<result_type>) {

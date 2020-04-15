@@ -54,6 +54,23 @@ struct single_type<T> {
 template<typename... Ts>
 using single_type_t = typename single_type<Ts...>::type;
 
+// We don't care about volatile, and not handling volatile is
+// less work for the compiler.
+template <class T> struct remove_cvref { using type = T; };
+template <class T> struct remove_cvref<T const> { using type = T; };
+// template <class T> struct remove_cvref<T volatile> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile> { using type = T; };
+template <class T> struct remove_cvref<T&> { using type = T; };
+template <class T> struct remove_cvref<T const&> { using type = T; };
+// template <class T> struct remove_cvref<T volatile&> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile&> { using type = T; };
+template <class T> struct remove_cvref<T&&> { using type = T; };
+template <class T> struct remove_cvref<T const&&> { using type = T; };
+// template <class T> struct remove_cvref<T volatile&&> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile&&> { using type = T; };
+
+template <class T> using remove_cvref_t = typename remove_cvref<T>::type;
+
 template <template<typename...> class T, typename X>
 inline constexpr bool instance_of_v = false;
 
@@ -94,7 +111,7 @@ using member_t =
 
 template <typename T>
 using decay_rvalue_t =
-    conditional_t<std::is_lvalue_reference_v<T>, T, std::remove_cvref_t<T>>;
+    conditional_t<std::is_lvalue_reference_v<T>, T, remove_cvref_t<T>>;
 
 template <typename... Args>
 using is_empty_list = std::bool_constant<(sizeof...(Args) == 0)>;
@@ -108,7 +125,7 @@ struct is_nothrow_constructible_from {
 template <template <typename...> class Tuple>
 struct decayed_tuple {
   template <typename... Ts>
-  using apply = Tuple<std::remove_cvref_t<Ts>...>;
+  using apply = Tuple<remove_cvref_t<Ts>...>;
 };
 
 template <typename T, typename... Ts>
