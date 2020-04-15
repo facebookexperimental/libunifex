@@ -80,16 +80,14 @@ namespace _demat {
     template <
         typename CPO,
         UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type),
-        typename... Args,
         std::enable_if_t<
             !is_receiver_cpo_v<CPO>, int> = 0,
         std::enable_if_t<
-            is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
-    friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r, Args&&... args)
-        noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-        -> callable_result_t<CPO, const Receiver&, Args...> {
-      return static_cast<CPO&&>(cpo)(
-          std::as_const(r.receiver_), static_cast<Args&&>(args)...);
+            is_callable_v<CPO, const Receiver&>, int> = 0>
+    friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r)
+        noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+        -> callable_result_t<CPO, const Receiver&> {
+      return static_cast<CPO&&>(cpo)(std::as_const(r.receiver_));
     }
 
     template <typename Func>

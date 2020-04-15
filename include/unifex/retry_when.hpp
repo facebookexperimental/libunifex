@@ -122,11 +122,14 @@ public:
 
 private:
 
-  template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const trigger_receiver& r, Args&&... args)
-      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-      -> callable_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(r.get_receiver(), (Args&&)args...);
+  template<
+    typename CPO,
+    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const trigger_receiver& r)
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(r.get_receiver());
   }
 
   template <typename VisitFunc>
@@ -213,11 +216,14 @@ public:
   }
 
 private:
-  template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const source_receiver& r, Args&&... args)
-      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-      -> callable_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(r.get_receiver(), (Args&&)args...);
+  template<
+    typename CPO,
+    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const source_receiver& r)
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(r.get_receiver());
   }
 
   template <typename VisitFunc>

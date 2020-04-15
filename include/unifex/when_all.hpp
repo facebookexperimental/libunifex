@@ -167,17 +167,16 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   template <
       typename CPO,
       typename R,
-      typename... Args,
       std::enable_if_t<
           !is_receiver_cpo_v<CPO>, int> = 0,
       std::enable_if_t<
           std::is_same_v<R, element_receiver>, int> = 0,
       std::enable_if_t<
-          is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
-  friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-      is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-      -> callable_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(std::as_const(r.get_receiver()), (Args&&)args...);
+          is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const R& r) noexcept(
+      is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
   inplace_stop_source& get_stop_source() const {
