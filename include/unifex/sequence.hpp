@@ -73,11 +73,9 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-              is_receiver_cpo<CPO>,
-              std::is_same<R, successor_receiver>,
-              is_callable<CPO, Receiver, Args...>>, int> = 0>
+          std::enable_if_t<is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, successor_receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, Receiver, Args...>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
@@ -94,11 +92,9 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, successor_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, successor_receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -210,11 +206,9 @@ namespace unifex
           typename CPO,
           typename R,
           typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, predecessor_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, predecessor_receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const R& r,
@@ -369,36 +363,24 @@ namespace unifex
 
       template <
           typename Receiver,
-        typename Sender,
+          typename Sender,
+          std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
+          std::enable_if_t<std::is_move_constructible_v<Successor>, int> = 0,
           std::enable_if_t<
-            std::conjunction_v<
-            std::is_same<Sender, type>,
-            std::is_move_constructible<Successor>,
-            is_connectable<Predecessor, predecessor_receiver<Predecessor, Successor, Receiver>>,
-            is_connectable<Successor, successor_receiver<Predecessor, Successor, Receiver>>>, int> = 0>
-      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
-          -> operation<Predecessor, Successor, Receiver> {
-        return operation<Predecessor, Successor,  Receiver>{
-            std::move(sender).predecessor_,
-            std::move(sender).successor_,
-            (Receiver &&) receiver};
-      }
-
-      template <
-          typename Receiver,
-        typename Sender,
+            is_connectable_v<
+              member_t<Sender, Predecessor>,
+              predecessor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>,
+            int> = 0,
           std::enable_if_t<
-              std::conjunction_v<
-            std::is_same<std::remove_cvref_t<Sender>, type>,
-            std::negation<std::is_same<Sender, type>>,
-            std::is_copy_constructible<Successor>,
-            is_connectable<const Predecessor&, predecessor_receiver<const Predecessor&, Successor, Receiver>>,
-            is_connectable<Successor, successor_receiver<const Predecessor&, Successor, Receiver>>>, int> = 0>
+            is_connectable_v<
+              Successor,
+              successor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>,
+            int> = 0>
       friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
-          -> operation<const Predecessor&, Successor, Receiver> {
-        return operation<const Predecessor&, Successor,  Receiver>{
-            sender.predecessor_,
-            sender.successor_,
+          -> operation<member_t<Sender, Predecessor>, Successor, Receiver> {
+        return operation<member_t<Sender, Predecessor>, Successor,  Receiver>{
+            static_cast<Sender&&>(sender).predecessor_,
+            static_cast<Sender&&>(sender).successor_,
             (Receiver &&) receiver};
       }
 

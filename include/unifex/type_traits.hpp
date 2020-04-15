@@ -19,6 +19,23 @@
 
 #include <type_traits>
 
+#if (defined(__cpp_lib_type_trait_variable_templates) && \
+  __cpp_lib_type_trait_variable_templates > 0)
+#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
+#else
+#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 0
+#endif
+
+#if defined(__clang__)
+#define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
+#elif defined(__GNUC__) && __GNUC__ >= 6
+#define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
+#endif
+
 namespace unifex {
 
 template <typename T>
@@ -37,9 +54,6 @@ struct single_type<T> {
 template<typename... Ts>
 using single_type_t = typename single_type<Ts...>::type;
 
-template <template <typename T> class Predicate, typename T>
-using requires_t = std::enable_if_t<Predicate<T>::value, T>;
-
 template <template<typename...> class T, typename X>
 inline constexpr bool instance_of_v = false;
 
@@ -51,17 +65,35 @@ using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 struct unit {};
 
-template <typename T>
-using non_void_t = std::conditional_t<std::is_void_v<T>, unit, T>;
+template <bool B>
+struct _conditional {
+  template <typename, typename T>
+  using apply = T;
+};
+template <>
+struct _conditional<true> {
+  template <typename T, typename>
+  using apply = T;
+};
+
+template <bool B, typename T, typename U>
+using conditional_t = typename _conditional<B>::template apply<T, U>;
 
 template <typename T>
-using wrap_reference_t = std::conditional_t<
+using non_void_t = conditional_t<std::is_void_v<T>, unit, T>;
+
+template <typename T>
+using wrap_reference_t = conditional_t<
     std::is_reference_v<T>,
     std::reference_wrapper<std::remove_reference_t<T>>,
     T>;
 
+template <typename Class, typename Member>
+using member_t =
+    conditional_t<std::is_lvalue_reference_v<Class>, const Member&, Member>;
+
 template <typename T>
-using decay_rvalue_t = std::
+using decay_rvalue_t =
     conditional_t<std::is_lvalue_reference_v<T>, T, std::remove_cvref_t<T>>;
 
 template <typename... Args>
@@ -80,7 +112,7 @@ struct decayed_tuple {
 };
 
 template <typename T, typename... Ts>
-inline constexpr bool is_one_of_v = (std::is_same_v<T, Ts> || ...);
+inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =

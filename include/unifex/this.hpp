@@ -16,8 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-
-#include <type_traits>
+#include <unifex/type_traits.hpp>
 
 namespace unifex {
 
@@ -93,7 +92,7 @@ template <typename Arg, typename T>
 using replace_this_t = typename replace_this<Arg>::template apply<Arg, T>;
 
 template <typename Arg>
-using replace_this_with_void_ptr_t = std::
+using replace_this_with_void_ptr_t =
     conditional_t<std::is_same_v<std::remove_cvref_t<Arg>, this_>, void*, Arg>;
 
 template <typename... ArgTypes>

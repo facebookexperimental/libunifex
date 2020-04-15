@@ -153,7 +153,7 @@ struct inline_vtable_holder {
 };
 
 template <typename... CPOs>
-using vtable_holder = std::conditional_t<
+using vtable_holder = conditional_t<
     (sizeof...(CPOs) <= 2),
     inline_vtable_holder<CPOs...>,
     indirect_vtable_holder<CPOs...>>;

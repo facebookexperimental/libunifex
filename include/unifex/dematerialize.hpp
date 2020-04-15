@@ -81,10 +81,8 @@ namespace _demat {
         typename CPO,
         UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type),
         typename... Args,
-        std::enable_if_t<
-          std::conjunction_v<
-            std::negation<is_receiver_cpo<CPO>>,
-            is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+        std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
     friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r, Args&&... args)
         noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
         -> callable_result_t<CPO, const Receiver&, Args...> {

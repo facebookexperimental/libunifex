@@ -20,6 +20,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/type_traits.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "C++20 coroutine support is required to use <unifex/awaitable_sender.hpp>"
@@ -117,7 +118,7 @@ struct _sender<Awaitable>::type {
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types = std::conditional_t<
+  using value_types = conditional_t<
       std::is_void_v<result_type>,
       Variant<Tuple<>>,
       Variant<Tuple<std::remove_cvref_t<result_type>>>>;

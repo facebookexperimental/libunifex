@@ -16,8 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-
-#include <type_traits>
+#include <unifex/type_traits.hpp>
 
 namespace unifex {
   namespace _tag_invoke {
@@ -88,7 +87,7 @@ namespace unifex {
 
   template <typename CPO, typename... Args>
   struct tag_invoke_result
-    : std::conditional_t<
+    : conditional_t<
           is_tag_invocable_v<CPO, Args...>,
           _tag_invoke::defer<tag_invoke_result_t, CPO, Args...>,
           _tag_invoke::empty> 
