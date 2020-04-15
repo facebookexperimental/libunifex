@@ -20,9 +20,10 @@
 #include <unifex/range_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/scope_guard.hpp>
-#include <unifex/single_thread_context.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/trampoline_scheduler.hpp>
+#include <unifex/stop_when.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -32,32 +33,24 @@ using namespace unifex;
 using namespace std::literals::chrono_literals;
 
 int main() {
-  single_thread_context context;
-
-  inplace_stop_source stopSource;
-
-  std::thread t{[&] {
-    std::this_thread::sleep_for(100ms);
-    stopSource.request_stop();
-  }};
-  scope_guard joinThread = [&]() noexcept {
-    t.join();
-  };
+  timed_single_thread_context context;
 
   using namespace std::chrono;
 
   auto start = steady_clock::now();
 
   sync_wait(
-      on(for_each(
+      on(
+        stop_when(
+          for_each(
              on_stream(trampoline_scheduler{}, range_stream{0, 20}),
              [](int value) {
                // Simulate some work
                std::printf("processing %i\n", value);
                std::this_thread::sleep_for(10ms);
              }),
-         context.get_scheduler()),
-      stopSource.get_token());
+          schedule_after(100ms)),
+        context.get_scheduler()));
 
   auto end = steady_clock::now();
 

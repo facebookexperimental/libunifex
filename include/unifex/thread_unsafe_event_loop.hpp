@@ -262,15 +262,15 @@ namespace _thread_unsafe_event_loop {
     thread_unsafe_event_loop& loop_;
   };
 
-  template <typename T, typename StopToken>
+  template <typename T>
   struct _sync_wait_promise {
     class type;
   };
-  template <typename T, typename StopToken>
-  using sync_wait_promise = typename _sync_wait_promise<T, StopToken>::type;
+  template <typename T>
+  using sync_wait_promise = typename _sync_wait_promise<T>::type;
 
-  template <typename T, typename StopToken>
-  class _sync_wait_promise<T, StopToken>::type {
+  template <typename T>
+  class _sync_wait_promise<T>::type {
     using sync_wait_promise = type;
     enum class state { incomplete, done, value, error };
 
@@ -296,18 +296,8 @@ namespace _thread_unsafe_event_loop {
         promise_.state_ = state::done;
       }
 
-      friend const StopToken& tag_invoke(
-          tag_t<get_stop_token>,
-          const receiver& r) noexcept {
-        return r.get_stop_token();
-      }
-
      private:
       friend sync_wait_promise;
-
-      StopToken& get_stop_token() const noexcept {
-        return promise_.stopToken_;
-      }
 
       explicit receiver(sync_wait_promise& promise) noexcept
         : promise_(promise) {}
@@ -316,8 +306,7 @@ namespace _thread_unsafe_event_loop {
     };
 
    public:
-    explicit type(StopToken&& stopToken) noexcept
-      : stopToken_((StopToken &&) stopToken) {}
+    type() noexcept {}
 
     ~type() {
       if (state_ == state::value) {
@@ -352,7 +341,6 @@ namespace _thread_unsafe_event_loop {
     };
 
     state state_ = state::incomplete;
-    StopToken stopToken_;
   };
 } // namespace _thread_unsafe_event_loop
 
@@ -378,11 +366,10 @@ class thread_unsafe_event_loop {
 
   template <
       typename Sender,
-      typename StopToken = unstoppable_token,
       typename Result = single_value_result_t<remove_cvref_t<Sender>>>
-  std::optional<Result> sync_wait(Sender&& sender, StopToken st = {}) {
-    using promise_t = _thread_unsafe_event_loop::sync_wait_promise<Result, StopToken&&>;
-    promise_t promise{(StopToken &&) st};
+  std::optional<Result> sync_wait(Sender&& sender) {
+    using promise_t = _thread_unsafe_event_loop::sync_wait_promise<Result>;
+    promise_t promise;
 
     auto op = connect((Sender &&) sender, promise.get_receiver());
     start(op);

@@ -18,6 +18,7 @@
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
