@@ -218,23 +218,12 @@ namespace unifex
         : source_(static_cast<Source2&&>(source)) {}
 
       template <typename Receiver>
-      auto connect(Receiver&& r) && noexcept(
-          is_nothrow_connectable_v<Source, receiver<Receiver>> &&
+      friend auto tag_dispatch(tag_t<connect>, This&& that, Receiver&& r) noexcept(
+          is_nothrow_connectable_v<member_t<This, Source>, receiver<Receiver>> &&
               std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<Source, receiver<Receiver>> {
+          -> operation_t<member_t<This, Source>, receiver<Receiver>> {
         return unifex::connect(
-            static_cast<Source&&>(source_),
-            receiver<Receiver>{static_cast<Receiver&&>(r)});
-      }
-
-      template <typename Receiver>
-      auto connect(Receiver&& r) const &
-          noexcept(
-              is_nothrow_connectable_v<const Source&, receiver<Receiver>>&&
-              std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<const Source&, receiver<Receiver>> {
-        return unifex::connect(
-            std::as_const(source_),
+            static_cast<This&&>(that).source_,
             receiver<Receiver>{static_cast<Receiver&&>(r)});
       }
 

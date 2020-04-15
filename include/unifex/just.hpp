@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 
 #include <exception>
@@ -80,20 +81,15 @@ class _sender<Values...>::type {
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
-  template <typename Receiver,
-    std::enable_if_t<std::is_move_constructible_v<std::tuple<Values...>>, int> = 0>
-  auto connect(Receiver&& r) &&
-    noexcept(std::is_nothrow_move_constructible_v<std::tuple<Values...>>)
-    -> operation<Receiver, Values...> {
-    return {std::move(values_), (Receiver &&) r};
-  }
-
-  template <typename Receiver,
-    std::enable_if_t<std::is_copy_constructible_v<std::tuple<Values...>>, int> = 0>
-  auto connect(Receiver&& r) const &
-    noexcept(std::is_nothrow_copy_constructible_v<std::tuple<Values...>>)
-    -> operation<Receiver, Values...> {
-    return {values_, (Receiver &&) r};
+  template <
+      typename This,
+      typename Receiver,
+      std::enable_if_t<std::is_same_v<std::remove_cvref_t<This>, type>, int> = 0,
+      std::enable_if_t<(std::is_constructible_v<Values, member_t<This, Values>> &&...), int> = 0>
+  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
+      noexcept((std::is_nothrow_constructible_v<Values, member_t<This, Values>> &&...))
+      -> operation<Receiver, Values...> {
+    return {static_cast<This&&>(that).values_, static_cast<Receiver&&>(r)};
   }
 
   friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {

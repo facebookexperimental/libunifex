@@ -175,30 +175,18 @@ namespace _demat {
       : source_(static_cast<Source2&&>(source)) {}
 
     template <
+        typename This,
         typename Receiver,
+        std::enable_if_t<std::is_same_v<std::remove_cvref_t<This>, type>, int> = 0,
         std::enable_if_t<
-            is_connectable_v<Source, receiver<Receiver>>,
-            int> = 0>
-    auto connect(Receiver&& r) &&
-        noexcept(is_nothrow_connectable_v<Source, receiver<Receiver>> &&
+          is_connectable_v<member_t<This, Source>, receiver<Receiver>>,
+          int> = 0>
+    friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
+        noexcept(is_nothrow_connectable_v<member_t<This, Source>, receiver<Receiver>> &&
                  std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<Source, receiver<Receiver>> {
+        -> operation_t<member_t<This, Source>, receiver<Receiver>> {
       return unifex::connect(
-          static_cast<Source&&>(source_),
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
-    }
-
-    template <
-        typename Receiver,
-        std::enable_if_t<
-            is_connectable_v<const Source&, receiver<Receiver>>,
-            int> = 0>
-    auto connect(Receiver&& r) const &
-        noexcept(is_nothrow_connectable_v<const Source&, receiver<Receiver>> &&
-                 std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<const Source&, receiver<Receiver>> {
-      return unifex::connect(
-          std::as_const(source_),
+          static_cast<This&&>(that).source_,
           receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 
