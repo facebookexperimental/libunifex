@@ -118,13 +118,12 @@ public:
 private:
   template<
     typename CPO, 
-    typename... Args, 
-    std::enable_if_t<
-      is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
-  friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
-      noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&, Args...>)
-      -> std::invoke_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(r.get_rcvr(), (Args&&)args...);
+    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const type& r)
+      noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(r.get_rcvr());
   }
   
   template <typename VisitFunc>
@@ -211,43 +210,24 @@ public:
   {}
 
   template<
+    typename Sender,
     typename Receiver,
     std::enable_if_t<
-      std::conjunction_v<
-        std::is_move_constructible<Source>,
-        std::is_move_constructible<Predicate>,
-        std::is_constructible<std::remove_cvref_t<Receiver>, Receiver>,
-        is_connectable<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>>, int> = 0>
-  operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) &&
-       noexcept(
-        std::is_nothrow_move_constructible_v<Source> &&
-        std::is_nothrow_move_constructible_v<Predicate> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>) {
-    return operation_type<Source, Predicate, std::remove_cvref_t<Receiver>>{
-      (Source&&)source_, 
-      (Predicate&&)predicate_, 
-      (Receiver&&)r
-    };
-  }
-
-  template<
-    typename Receiver,
+        std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
     std::enable_if_t<
-      std::conjunction_v<
-        std::is_copy_constructible<Source>,
-        std::is_copy_constructible<Predicate>,
-        std::is_constructible<std::remove_cvref_t<Receiver>, Receiver>,
-        is_connectable<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>>, int> = 0>
-  operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> connect(Receiver&& r) const&
+        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver>, int> = 0,
+    std::enable_if_t<
+        is_connectable_v<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>, int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
-        std::is_nothrow_copy_constructible_v<Source> &&
-        std::is_nothrow_copy_constructible_v<Predicate> &&
+        std::is_nothrow_constructible_v<Source, decltype((static_cast<Sender&&>(s).source_))> &&
+        std::is_nothrow_constructible_v<Predicate, decltype((static_cast<Sender&&>(s).predicate_))> &&
         std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>) {
+        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, std::remove_cvref_t<Receiver>>>)
+        -> operation_type<Source, Predicate, std::remove_cvref_t<Receiver>> {
     return operation_type<Source, Predicate, std::remove_cvref_t<Receiver>>{
-      source_, 
-      predicate_, 
+      static_cast<Sender&&>(s).source_, 
+      static_cast<Sender&&>(s).predicate_, 
       (Receiver&&)r
     };
   }
