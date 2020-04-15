@@ -91,20 +91,16 @@ namespace unifex
       template <
           typename CPO,
           typename R,
-          typename... Args,
           std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
           std::enable_if_t<std::is_same_v<R, successor_receiver>, int> = 0,
-          std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
+          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const R& r,
-          Args&&... args) noexcept(is_nothrow_callable_v<
+          const R& r) noexcept(is_nothrow_callable_v<
                                            CPO,
-                                           const Receiver&,
-              Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            r.get_const_receiver(), static_cast<Args&&>(args)...);
+                                           const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_const_receiver());
       }
 
       template <typename Func>
@@ -205,20 +201,16 @@ namespace unifex
       template <
           typename CPO,
           typename R,
-          typename... Args,
           std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
           std::enable_if_t<std::is_same_v<R, predecessor_receiver>, int> = 0,
-          std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
+          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const R& r,
-          Args&&... args) noexcept(is_nothrow_callable_v<
+          const R& r) noexcept(is_nothrow_callable_v<
                                            CPO,
-                                           const Receiver&,
-                                           Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            r.get_const_receiver(), static_cast<Args&&>(args)...);
+                                           const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_const_receiver());
       }
 
       template <typename Func>
@@ -364,8 +356,10 @@ namespace unifex
       template <
           typename Receiver,
           typename Sender,
-          std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
-          std::enable_if_t<std::is_move_constructible_v<Successor>, int> = 0,
+          std::enable_if_t<
+              std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
+          std::enable_if_t<
+              std::is_constructible_v<Successor, member_t<Sender, Successor>>, int> = 0,
           std::enable_if_t<
             is_connectable_v<
               member_t<Sender, Predecessor>,

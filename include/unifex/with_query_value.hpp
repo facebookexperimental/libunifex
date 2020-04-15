@@ -118,16 +118,28 @@ public:
   explicit type(Sender2 &&sender, Value2 &&value)
     : sender_((Sender2 &&) sender), value_((Value &&) value) {}
 
-  template <typename Receiver>
-  operation<CPO, Value, Sender, Receiver> connect(Receiver &&receiver) && {
-    return operation<CPO, Value, Sender, Receiver>{
-        (Sender &&) sender_, (Receiver &&) receiver, (Value &&) value_};
-  }
-
-  template <typename Receiver>
-  operation<CPO, Value, const Sender &, Receiver> connect(Receiver &&receiver) const & {
-    return operation<CPO, Value, const Sender &, Receiver>{
-        sender_, (Receiver &&) receiver, value_};
+  template <
+    typename Self,
+    typename Receiver,
+    std::enable_if_t<
+      std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+    std::enable_if_t<
+      std::is_constructible_v<Value, member_t<Self, Value>>, int> = 0,
+    std::enable_if_t<
+      is_connectable_v<
+        member_t<Self, Sender>,
+        receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>,
+      int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)
+      noexcept(std::is_nothrow_constructible_v<Value, member_t<Self, Value>> &&
+               is_nothrow_connectable_v<
+                  member_t<Self, Sender>,
+                  receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>)
+      -> operation<CPO, Value, member_t<Self, Sender>, Receiver> {
+    return operation<CPO, Value, member_t<Self, Sender>, Receiver>{
+        static_cast<Self&&>(s).sender_,
+        static_cast<Receiver &&>(receiver),
+        static_cast<Self&&>(s).value_};
   }
 
 private:

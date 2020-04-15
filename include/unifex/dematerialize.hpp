@@ -80,14 +80,14 @@ namespace _demat {
     template <
         typename CPO,
         UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type),
-        typename... Args,
-        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-        std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
-    friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r, Args&&... args)
-        noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-        -> callable_result_t<CPO, const Receiver&, Args...> {
-      return static_cast<CPO&&>(cpo)(
-          std::as_const(r.receiver_), static_cast<Args&&>(args)...);
+        std::enable_if_t<
+            !is_receiver_cpo_v<CPO>, int> = 0,
+        std::enable_if_t<
+            is_callable_v<CPO, const Receiver&>, int> = 0>
+    friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r)
+        noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+        -> callable_result_t<CPO, const Receiver&> {
+      return static_cast<CPO&&>(cpo)(std::as_const(r.receiver_));
     }
 
     template <typename Func>
@@ -175,18 +175,18 @@ namespace _demat {
       : source_(static_cast<Source2&&>(source)) {}
 
     template <
-        typename This,
+        typename Self,
         typename Receiver,
-        std::enable_if_t<std::is_same_v<std::remove_cvref_t<This>, type>, int> = 0,
+        std::enable_if_t<std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
         std::enable_if_t<
-          is_connectable_v<member_t<This, Source>, receiver<Receiver>>,
+          is_connectable_v<member_t<Self, Source>, receiver<Receiver>>,
           int> = 0>
-    friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
-        noexcept(is_nothrow_connectable_v<member_t<This, Source>, receiver<Receiver>> &&
+    friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
+        noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver<Receiver>> &&
                  std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<member_t<This, Source>, receiver<Receiver>> {
+        -> operation_t<member_t<Self, Source>, receiver<Receiver>> {
       return unifex::connect(
-          static_cast<This&&>(that).source_,
+          static_cast<Self&&>(self).source_,
           receiver<Receiver>{static_cast<Receiver&&>(r)});
     }
 

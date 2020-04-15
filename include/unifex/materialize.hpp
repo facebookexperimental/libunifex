@@ -127,19 +127,17 @@ namespace unifex
       template <
           typename CPO,
           UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
-          typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-          std::enable_if_t<is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
+          std::enable_if_t<
+              !is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<
+              is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
-          Args&&... args) noexcept(is_nothrow_callable_v<
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r) noexcept(is_nothrow_callable_v<
                                            CPO,
-                                           const Receiver&,
-                                           Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            std::as_const(r.receiver_), static_cast<Args&&>(args)...);
+                                           const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(std::as_const(r.receiver_));
       }
 
       template <
@@ -217,13 +215,19 @@ namespace unifex
           std::is_nothrow_constructible_v<Source, Source2>)
         : source_(static_cast<Source2&&>(source)) {}
 
-      template <typename Receiver>
-      friend auto tag_dispatch(tag_t<connect>, This&& that, Receiver&& r) noexcept(
-          is_nothrow_connectable_v<member_t<This, Source>, receiver<Receiver>> &&
+      template <
+          typename Self,
+          typename Receiver,
+          std::enable_if_t<std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+          std::enable_if_t<
+              is_connectable_v<member_t<Self, Source>, receiver<Receiver>>,
+              int> = 0>
+      friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
+          is_nothrow_connectable_v<member_t<Self, Source>, receiver<Receiver>> &&
               std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<member_t<This, Source>, receiver<Receiver>> {
+          -> operation_t<member_t<Self, Source>, receiver<Receiver>> {
         return unifex::connect(
-            static_cast<This&&>(that).source_,
+            static_cast<Self&&>(self).source_,
             receiver<Receiver>{static_cast<Receiver&&>(r)});
       }
 
