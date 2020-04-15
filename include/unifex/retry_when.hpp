@@ -345,36 +345,27 @@ public:
   // with the corresponding trigger_receiver.
 
   template<
+    typename Self,
     typename Receiver,
     std::enable_if_t<
-        std::is_move_constructible_v<Source> &&
-        std::is_move_constructible_v<Func> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+        std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+    std::enable_if_t<
+        std::is_constructible_v<Source, member_t<Self, Source>>, int> = 0,
+    std::enable_if_t<
+        std::is_constructible_v<Func, member_t<Self, Func>>, int> = 0,
+    std::enable_if_t<
+        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver>, int> = 0,
+    std::enable_if_t<
         is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  operation<Source, Func, Receiver> connect(Receiver&& r) &&
+  friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r)
       noexcept(
-        std::is_nothrow_move_constructible_v<Source> &&
-        std::is_nothrow_move_constructible_v<Func> &&
+        std::is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
+        std::is_nothrow_constructible_v<Func, member_t<Self, Func>> &&
         std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>) {
+        is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>)
+      -> operation<Source, Func, Receiver> {
     return operation<Source, Func, Receiver>{
-        (Source&&)source_, (Func&&)func_, (Receiver&&)r};
-  }
-
-  template<
-    typename Receiver,
-    std::enable_if_t<
-        std::is_copy_constructible_v<Source> &&
-        std::is_copy_constructible_v<Func> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>, int> = 0>
-  operation<Source, Func, Receiver> connect(Receiver&& r) const&
-      noexcept(
-        std::is_nothrow_copy_constructible_v<Source> &&
-        std::is_nothrow_copy_constructible_v<Func> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_nothrow_connectable_v<Source&, source_receiver<Source, Func, std::remove_cvref_t<Receiver>>>) {
-    return operation<Source, Func, Receiver>{source_, func_, (Receiver&&)r};
+        static_cast<Self&&>(self).source_, static_cast<Self&&>(self).func_, (Receiver&&)r};
   }
 
 private:
