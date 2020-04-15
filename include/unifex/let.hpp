@@ -321,9 +321,8 @@ public:
     typename CPO,
     typename Sender,
     typename Receiver,
-    std::enable_if_t<std::conjunction_v<
-      std::is_same<CPO, tag_t<unifex::connect>>,
-      std::is_same<std::remove_cvref_t<Sender>, type>>, int> = 0>
+    std::enable_if_t<std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
+    std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0>
   friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
       -> operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver> {
     return operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver>{

@@ -129,9 +129,9 @@ namespace unifex
           UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
           typename... Args,
           std::enable_if_t<
-            std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+              !is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<
+              is_callable_v<CPO, const Receiver&, Args...>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,

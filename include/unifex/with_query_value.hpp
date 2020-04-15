@@ -118,16 +118,42 @@ public:
   explicit type(Sender2 &&sender, Value2 &&value)
     : sender_((Sender2 &&) sender), value_((Value &&) value) {}
 
-  template <typename Receiver>
-  operation<CPO, Value, Sender, Receiver> connect(Receiver &&receiver) && {
+  template <
+    typename Self,
+    typename Receiver,
+    std::enable_if_t<
+      std::is_same_v<Self, type>, int> = 0,
+    std::enable_if_t<
+      std::is_move_constructible_v<Value>, int> = 0,
+    std::enable_if_t<
+      is_connectable_v<Sender, receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>, int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)
+      noexcept(std::is_nothrow_move_constructible_v<Value> &&
+               is_nothrow_connectable_v<Sender, receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>)
+      -> operation<CPO, Value, Sender, Receiver> {
     return operation<CPO, Value, Sender, Receiver>{
-        (Sender &&) sender_, (Receiver &&) receiver, (Value &&) value_};
+        (Sender &&) s.sender_, (Receiver &&) receiver, (Value &&) s.value_};
   }
 
-  template <typename Receiver>
-  operation<CPO, Value, const Sender &, Receiver> connect(Receiver &&receiver) const & {
-    return operation<CPO, Value, const Sender &, Receiver>{
-        sender_, (Receiver &&) receiver, value_};
+  template <
+    typename Self,
+    typename Receiver,
+    std::enable_if_t<
+      std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+    std::enable_if_t<
+      !std::is_same_v<Self, type>, int> = 0,
+    std::enable_if_t<
+      std::is_copy_constructible_v<Value>, int> = 0,
+    std::enable_if_t<
+      is_connectable_v<const Sender&, receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>, int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)
+      noexcept(std::is_nothrow_copy_constructible_v<Value> &&
+               is_nothrow_connectable_v<const Sender&, receiver_wrapper<CPO, Value, std::remove_cvref_t<Receiver>>>)
+      -> operation<CPO, Value, const Sender&, Receiver> {
+    return operation<CPO, Value, const Sender&, Receiver>{
+        std::as_const(s.sender_),
+        (Receiver &&) receiver,
+        std::as_const(s.value_)};
   }
 
 private:
