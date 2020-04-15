@@ -30,6 +30,25 @@
 namespace unifex {
 namespace _sync_wait {
 
+struct event {
+public:
+  inline void notify() noexcept {
+    std::lock_guard lk{mut_};
+    signalled_ = true;
+    cv_.notify_one(); 
+  }
+
+  inline void wait() noexcept {
+    std::unique_lock lk{mut_};
+    cv_.wait(lk, [&] { return signalled_; });
+  }
+
+private:
+  std::condition_variable cv_;
+  std::mutex mut_;
+  bool signalled_ = false;
+};
+
 template <typename T>
 struct promise {
   promise() {}
@@ -41,9 +60,6 @@ struct promise {
       exception_.destruct();
     }
   }
-
-  std::mutex mutex_;
-  std::condition_variable cv_;
   union {
     manual_lifetime<T> value_;
     manual_lifetime<std::exception_ptr> exception_;
@@ -51,6 +67,8 @@ struct promise {
 
   enum class state { incomplete, done, value, error };
   state state_ = state::incomplete;
+
+  std::optional<event> doneEvent_;
 };
 
 template <typename T>
@@ -62,7 +80,6 @@ struct _receiver {
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-      std::lock_guard lock{ promise_.mutex_ };
       try {
         promise_.value_.construct((Values&&)values...);
         promise_.state_ = promise<T>::state::value;
@@ -71,14 +88,13 @@ struct _receiver {
         promise_.exception_.construct(std::current_exception());
         promise_.state_ = promise<T>::state::error;
       }
-      promise_.cv_.notify_one();
+      signal_complete();
     }
 
     void set_error(std::exception_ptr err) && noexcept {
-      std::lock_guard lock{ promise_.mutex_ };
       promise_.exception_.construct(std::move(err));
       promise_.state_ = promise<T>::state::error;
-      promise_.cv_.notify_one();
+      signal_complete();
     }
 
     template <typename Error>
@@ -87,74 +103,21 @@ struct _receiver {
     }
 
     void set_done() && noexcept {
-      std::lock_guard lock{ promise_.mutex_ };
       promise_.state_ = promise<T>::state::done;
-      promise_.cv_.notify_one();
+      signal_complete();
+    }
+
+  private:
+    void signal_complete() noexcept {
+      if (promise_.doneEvent_) {
+        promise_.doneEvent_->notify();
+      }
     }
   };
 };
 
 template <typename T>
 using receiver = typename _receiver<T>::type;
-
-template<typename T>
-struct thread_unsafe_promise {
-  thread_unsafe_promise() noexcept {}
-
-  ~thread_unsafe_promise() {
-    if (state_ == state::value) {
-      value_.destruct();
-    } else if (state_ == state::error) {
-      exception_.destruct();
-    }
-  }
-
-  union {
-    manual_lifetime<T> value_;
-    manual_lifetime<std::exception_ptr> exception_;
-  };
-
-  enum class state { incomplete, done, value, error };
-  state state_ = state::incomplete;
-};
-
-template<typename T>
-struct _thread_unsafe_receiver {
-  struct type {
-    using thread_unsafe_receiver = type;
-
-    thread_unsafe_promise<T>& promise_;
-
-    template <typename... Values>
-    void set_value(Values&&... values) && noexcept {
-      try {
-        promise_.value_.construct((Values&&)values...);
-        promise_.state_ = thread_unsafe_promise<T>::state::value;
-      }
-      catch (...) {
-        promise_.exception_.construct(std::current_exception());
-        promise_.state_ = thread_unsafe_promise<T>::state::error;
-      }
-    }
-
-    void set_error(std::exception_ptr err) && noexcept {
-      promise_.exception_.construct(std::move(err));
-      promise_.state_ = thread_unsafe_promise<T>::state::error;
-    }
-
-    template <typename Error>
-    void set_error(Error&& e) && noexcept {
-      std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
-    }
-
-    void set_done() && noexcept {
-      promise_.state_ = thread_unsafe_promise<T>::state::done;
-    }
-  };
-};
-
-template<typename T>
-using thread_unsafe_receiver = typename _thread_unsafe_receiver<T>::type;
 
 } // namespace _sync_wait
 
@@ -166,54 +129,36 @@ namespace _sync_wait_cpo {
     auto operator()(Sender&& sender) const
         -> std::optional<Result> {
       auto blockingResult = blocking(sender);
-      if (blockingResult == blocking_kind::always ||
-          blockingResult == blocking_kind::always_inline) {
-        using promise_t = _sync_wait::thread_unsafe_promise<Result>;
-        promise_t promise;
+      const bool completesSynchronously =
+          blockingResult == blocking_kind::always ||
+          blockingResult == blocking_kind::always_inline;
 
-        auto operation = connect(
-          (Sender&&)sender,
-          _sync_wait::thread_unsafe_receiver<Result>{promise});
+      using promise_t = _sync_wait::promise<Result>;
+      promise_t promise;
+      if (!completesSynchronously) {
+        promise.doneEvent_.emplace();
+      }
 
-        start(operation);
+      // Store state for the operation on the stack.
+      auto operation = connect(
+          ((Sender &&) sender),
+          _sync_wait::receiver<Result>{promise});
 
-        assert(promise.state_ != promise_t::state::incomplete);
+      start(operation);
 
-        switch (promise.state_) {
-          case promise_t::state::done:
-            return std::nullopt;
-          case promise_t::state::value:
-            return std::move(promise.value_).get();
-          case promise_t::state::error:
-            std::rethrow_exception(promise.exception_.get());
-          default:
-            std::terminate();
-        }
-      } else {
-        using promise_t = _sync_wait::promise<Result>;
-        promise_t promise;
+      if (!completesSynchronously) {
+        promise.doneEvent_->wait();
+      }
 
-        // Store state for the operation on the stack.
-        auto operation = connect(
-            ((Sender &&) sender),
-            _sync_wait::receiver<Result>{promise});
-
-        start(operation);
-
-        std::unique_lock lock{promise.mutex_};
-        promise.cv_.wait(
-            lock, [&] { return promise.state_ != promise_t::state::incomplete; });
-
-        switch (promise.state_) {
-          case promise_t::state::done:
-            return std::nullopt;
-          case promise_t::state::value:
-            return std::move(promise.value_).get();
-          case promise_t::state::error:
-            std::rethrow_exception(promise.exception_.get());
-          default:
-            std::terminate();
-        }
+      switch (promise.state_) {
+        case promise_t::state::done:
+          return std::nullopt;
+        case promise_t::state::value:
+          return std::move(promise.value_).get();
+        case promise_t::state::error:
+          std::rethrow_exception(promise.exception_.get());
+        default:
+          std::terminate();
       }
     }
   };
