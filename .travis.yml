@@ -22,14 +22,14 @@ addons:
     sources:
     # - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
     #   key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
-    - sourceline: 'ppa:ubuntu-toolchain-r/test'
+    # - sourceline: 'ppa:ubuntu-toolchain-r/test'
     packages:
     - gcc-9
-    - g++-9
-    - libstdc++-9-dev
-    - libgcc-9-dev
-    - cmake
-    - ninja-build
+    # - g++-9
+    # - libstdc++-9-dev
+    # - libgcc-9-dev
+    # - cmake
+    # - ninja-build
     # - clang-9
     # - libc++-9-dev
     # - libc++abi-9-dev
