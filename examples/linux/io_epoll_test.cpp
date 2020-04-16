@@ -118,17 +118,9 @@ int main() {
     std::printf("error: %s\n", ex.what());
   }
 
-  auto [rPipe, wPipe] = open_pipe(scheduler);
-
-  inplace_stop_source stopWrite;
-  auto buffer = std::vector<char>{};
-  buffer.resize(1);
-  auto offset = 0;
-  auto reps = 0;
-  const auto databuffer = as_bytes(span{data});
-  auto pipe_bench = [&, &rPipeRef = rPipe](int seconds) {
+  auto pipe_bench = [](auto& rPipeRef, auto& buffer, auto scheduler, int seconds, auto& data, auto& reps, auto& offset) {
     return defer(
-      [&, seconds]{
+      [&, scheduler, seconds] {
         return
           transform_done(
             stop_when(
@@ -136,7 +128,7 @@ int main() {
               repeat_effect(
                 typed_via(
                   defer(
-                    [&]{
+                    [&] {
                       return transform(
                         discard(
                           async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
@@ -152,7 +144,7 @@ int main() {
             []{return just();});
       });
   };
-  auto pipe_write = [&, &wPipeRef = wPipe](auto stopToken) {
+  auto pipe_write = [](auto& wPipeRef, auto databuffer, auto scheduler, auto stopToken) {
     return
       // write the data to one end of the pipe
       sequence(
@@ -164,7 +156,7 @@ int main() {
             repeat_effect(
               typed_via(
                 defer(
-                  [&]{
+                  [&, databuffer]{
                     return discard(
                       async_write_some(wPipeRef, databuffer));
                   }),
@@ -175,18 +167,26 @@ int main() {
           printf("writes stopped!\n");
         }));
   };
+  auto [rPipe, wPipe] = open_pipe(scheduler);
+
   auto start = std::chrono::high_resolution_clock::now();
   auto end = std::chrono::high_resolution_clock::now();
-  auto& wPipeRef = wPipe;
+  auto reps = 0;
+  auto offset = 0;
+  inplace_stop_source stopWrite;
+  const auto databuffer = as_bytes(span{data});
+  auto buffer = std::vector<char>{};
+  buffer.resize(1);
   try {
     sync_wait(
       when_all(
-        pipe_write(stopWrite.get_token()),
+        // write chunk of data into one end repeatedly
+        pipe_write(wPipe, databuffer, scheduler, stopWrite.get_token()),
         // read the data 1 byte at a time from the other end
         sequence(
           // read for some time before starting measurement
           // this is done to reduce startup effects
-          pipe_bench(WARMUP_DURATION), // warmup
+          pipe_bench(rPipe, buffer, scheduler, WARMUP_DURATION, data, reps, offset),
           // reset measurements to exclude warmup
           lazy([&]{
             // restart reps and keep offset in data
@@ -194,10 +194,10 @@ int main() {
             reps = 0;
             printf("warmup completed!\n");
             // exclude the warmup time
-            start = std::chrono::high_resolution_clock::now();
+            start = end = std::chrono::high_resolution_clock::now();
           }),
           // do more reads and measure how many reads occur
-          pipe_bench(BENCHMARK_DURATION),
+          pipe_bench(rPipe, buffer, scheduler, BENCHMARK_DURATION, data, reps, offset),
           // report results
           lazy([&]{
             end = std::chrono::high_resolution_clock::now();
