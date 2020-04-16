@@ -27,7 +27,7 @@ addons:
     - gcc-9
     # - g++-9
     # - libstdc++-9-dev
-    # - libgcc-9-dev
+    - libgcc-9-dev
     # - cmake
     # - ninja-build
     # - clang-9
