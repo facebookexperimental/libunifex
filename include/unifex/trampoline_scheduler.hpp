@@ -103,7 +103,7 @@ private:
     };
   };
   template<typename Receiver>
-  using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+  using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
   class schedule_sender {
   public:

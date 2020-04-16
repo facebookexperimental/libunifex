@@ -102,7 +102,7 @@ struct _op {
   struct type;
 };
 template <typename Receiver, typename... Senders>
-using operation = typename _op<std::remove_cvref_t<Receiver>, Senders...>::type;
+using operation = typename _op<remove_cvref_t<Receiver>, Senders...>::type;
 
 template <typename... Errors>
 using unique_decayed_error_types = concat_type_lists_unique_t<
@@ -253,8 +253,8 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<value_variant_for_sender<std::remove_cvref_t<Senders>>>...> values_;
-  std::optional<error_types<std::variant, std::remove_cvref_t<Senders>...>> error_;
+  std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
+  std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
@@ -272,14 +272,18 @@ struct _sender {
   class type;
 };
 template <typename... Senders>
-using sender = typename _sender<std::remove_cvref_t<Senders>...>::type;
+using sender = typename _sender<remove_cvref_t<Senders>...>::type;
 
 template<typename Receiver, typename Indices, typename... Senders>
-inline constexpr bool when_all_connectable_v = false;
+extern const bool _when_all_connectable_v;
 
 template<typename Receiver, std::size_t... Indices, typename... Senders>
-inline constexpr bool when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> = std::conjunction_v<
-  is_connectable<Senders, element_receiver<Indices, Receiver, Senders...>>...>;  
+inline constexpr bool _when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> =
+  (is_connectable_v<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
+
+template<typename Receiver, typename... Senders>
+inline constexpr bool when_all_connectable_v =
+  _when_all_connectable_v<Receiver, std::index_sequence_for<Senders...>, Senders...>;
 
 template <typename... Senders>
 class _sender<Senders...>::type {
@@ -306,35 +310,16 @@ class _sender<Senders...>::type {
     std::enable_if_t<
         std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
     std::enable_if_t<
-        std::is_same_v<Sender, type>, int> = 0,
+        std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
     std::enable_if_t<
-        when_all_connectable_v<std::remove_cvref_t<Receiver>, std::index_sequence_for<Senders...>, Senders...>, int> = 0>
+        when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>,
+        int> = 0>
   friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
-    -> operation<Receiver, Senders...> {
+    -> operation<Receiver, member_t<Sender, Senders>...> {
     return std::apply([&](Senders&&... senders) {
-      return operation<Receiver, Senders...>{
+      return operation<Receiver, member_t<Sender, Senders>...>{
           (Receiver &&) receiver, (Senders &&) senders...};
-    }, std::move(sender).senders_);
-  }
-
-  template <
-    typename CPO,
-    typename Sender,
-    typename Receiver,
-    std::enable_if_t<
-        std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
-    std::enable_if_t<
-        std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
-    std::enable_if_t<
-        !std::is_same_v<Sender, type>, int> = 0,
-    std::enable_if_t<
-        when_all_connectable_v<std::remove_cvref_t<Receiver>, std::index_sequence_for<Senders...>, const Senders&...>, int> = 0>
-  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
-    -> operation<Receiver, const Senders&...> {
-    return std::apply([&](const Senders&... senders) {
-      return operation<Receiver, const Senders&...>{
-          (Receiver &&) receiver, senders...};
-    }, sender.senders_);
+    }, static_cast<Sender &&>(sender).senders_);
   }
 
  private:

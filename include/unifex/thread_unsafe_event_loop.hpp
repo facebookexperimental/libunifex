@@ -88,7 +88,7 @@ namespace _thread_unsafe_event_loop {
     class type;
   };
   template <typename Duration, typename Receiver>
-  using after_operation = typename _after_op<Duration, std::remove_cvref_t<Receiver>>::type;
+  using after_operation = typename _after_op<Duration, remove_cvref_t<Receiver>>::type;
 
   template <typename Duration, typename Receiver>
   class _after_op<Duration, Receiver>::type final : public operation_base {
@@ -145,8 +145,8 @@ namespace _thread_unsafe_event_loop {
     using error_types = Variant<>;
 
     template <typename Receiver>
-    after_operation<Duration, std::remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
-      return after_operation<Duration, std::remove_cvref_t<Receiver>>{
+    after_operation<Duration, remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
+      return after_operation<Duration, remove_cvref_t<Receiver>>{
           (Receiver &&) r, duration_, loop_};
     }
    private:
@@ -168,7 +168,7 @@ namespace _thread_unsafe_event_loop {
     class type;
   };
   template <typename Receiver>
-  using at_operation = typename _at_op<std::remove_cvref_t<Receiver>>::type;
+  using at_operation = typename _at_op<remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
   class _at_op<Receiver>::type final : public operation_base {
@@ -221,8 +221,8 @@ namespace _thread_unsafe_event_loop {
     using error_types = Variant<>;
 
     template <typename Receiver>
-    at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
-      return at_operation<std::remove_cvref_t<Receiver>>{
+    at_operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
+      return at_operation<remove_cvref_t<Receiver>>{
           (Receiver &&) r, dueTime_, loop_};
     }
 
@@ -366,7 +366,7 @@ class thread_unsafe_event_loop {
 
   template <
       typename Sender,
-      typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
+      typename Result = single_value_result_t<remove_cvref_t<Sender>>>
   std::optional<Result> sync_wait(Sender&& sender) {
     using promise_t = _thread_unsafe_event_loop::sync_wait_promise<Result>;
     promise_t promise;

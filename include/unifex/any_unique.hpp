@@ -153,7 +153,7 @@ struct inline_vtable_holder {
 };
 
 template <typename... CPOs>
-using vtable_holder = std::conditional_t<
+using vtable_holder = conditional_t<
     (sizeof...(CPOs) <= 2),
     inline_vtable_holder<CPOs...>,
     indirect_vtable_holder<CPOs...>>;
@@ -330,7 +330,7 @@ class _make<CPOs...>::type
     : type(
           std::allocator_arg,
           std::move(alloc),
-          std::in_place_type<std::remove_cvref_t<Concrete>>,
+          std::in_place_type<remove_cvref_t<Concrete>>,
           (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
@@ -346,7 +346,7 @@ class _make<CPOs...>::type
       std::enable_if_t<!instance_of_v<std::in_place_type_t, Concrete>, int> = 0>
   type(Concrete&& concrete)
     : type(
-          std::in_place_type<std::remove_cvref_t<Concrete>>,
+          std::in_place_type<remove_cvref_t<Concrete>>,
           (Concrete &&) concrete) {}
 
   type(type&& other) noexcept

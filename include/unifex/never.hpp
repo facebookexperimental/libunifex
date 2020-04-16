@@ -34,7 +34,7 @@ struct _op {
   struct type;
 };
 template <typename Receiver>
-using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
 template <typename Receiver>
 struct _op<Receiver>::type {

@@ -145,7 +145,7 @@ using _rec_cpo::set_done;
 
 template <typename T>
 constexpr bool is_receiver_cpo_v = is_one_of_v<
-    std::remove_cvref_t<T>,
+    remove_cvref_t<T>,
     _rec_cpo::_set_value_fn,
     _rec_cpo::_set_error_fn,
     _rec_cpo::_set_done_fn>;

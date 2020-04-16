@@ -187,7 +187,7 @@ template <typename Predecessor, typename SuccessorFactory, typename Receiver>
 using operation = typename _op<
     Predecessor,
     SuccessorFactory,
-    std::remove_cvref_t<Receiver>>::type;
+    remove_cvref_t<Receiver>>::type;
 
 template <typename Predecessor, typename SuccessorFactory, typename Receiver>
 struct _op<Predecessor, SuccessorFactory, Receiver>::type {
@@ -230,7 +230,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
   }
 
 private:
-  using predecessor_type = std::remove_cvref_t<Predecessor>;
+  using predecessor_type = remove_cvref_t<Predecessor>;
   UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   UNIFEX_NO_UNIQUE_ADDRESS typename predecessor_type::
@@ -251,8 +251,8 @@ struct _sender {
 };
 template <typename Predecessor, typename SuccessorFactory>
 using sender = typename _sender<
-    std::remove_cvref_t<Predecessor>,
-    std::remove_cvref_t<SuccessorFactory>>::type;
+    remove_cvref_t<Predecessor>,
+    remove_cvref_t<SuccessorFactory>>::type;
 
 template <typename Predecessor, typename SuccessorFactory>
 class _sender<Predecessor, SuccessorFactory>::type {
@@ -322,7 +322,7 @@ public:
     typename Sender,
     typename Receiver,
     std::enable_if_t<std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
-    std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0>
+    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0>
   friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
       -> operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver> {
     return operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver>{

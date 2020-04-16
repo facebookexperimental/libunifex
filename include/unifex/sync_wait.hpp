@@ -125,7 +125,7 @@ namespace _sync_wait_cpo {
   struct _fn {
     template <
         typename Sender,
-        typename Result = single_value_result_t<std::remove_cvref_t<Sender>>>
+        typename Result = single_value_result_t<remove_cvref_t<Sender>>>
     auto operator()(Sender&& sender) const
         -> std::optional<Result> {
       auto blockingResult = blocking(sender);

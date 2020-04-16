@@ -288,54 +288,30 @@ public:
     noexcept(
       std::is_nothrow_constructible_v<Source, Source2> &&
       std::is_nothrow_constructible_v<Done, Done2>)
-  : source_((Source2&&)source)
-  , done_((Done2&&)done)
+    : source_((Source2&&)source)
+    , done_((Done2&&)done)
   {}
 
   template<
     typename Sender,
     typename Receiver,
-    typename SourceReceiver = receiver_type<Source, Done, Receiver>,
-    typename FinalReceiver = final_receiver_type<Source, Done, Receiver>,
-    std::enable_if_t<std::is_same_v<Sender, type>, int> = 0,
-    std::enable_if_t<std::is_move_constructible_v<Done>, int> = 0,
-    std::enable_if_t<std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver>, int> = 0,
-    std::enable_if_t<is_connectable_v<Source, SourceReceiver>, int> = 0,
+    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Done, Receiver>,
+    typename FinalReceiver = final_receiver_type<member_t<Sender, Source>, Done, Receiver>,
+    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
+    std::enable_if_t<std::is_constructible_v<Done, member_t<Sender, Done>>, int> = 0,
+    std::enable_if_t<std::is_constructible_v<remove_cvref_t<Receiver>, Receiver>, int> = 0,
+    std::enable_if_t<is_connectable_v<member_t<Sender, Source>, SourceReceiver>, int> = 0,
     std::enable_if_t<is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
-        is_nothrow_connectable_v<Source, SourceReceiver> &&
-        std::is_nothrow_move_constructible_v<Done> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-      -> operation_type<Source, Done, Receiver> {
-    return operation_type<Source, Done, Receiver>{
-      (Source&&)s.source_, 
-      (Done&&)s.done_, 
-      (Receiver&&)r
-    };
-  }
-
-  template<
-    typename Sender,
-    typename Receiver,
-    typename SourceReceiver = receiver_type<const Source&, Done, Receiver>,
-    typename FinalReceiver = final_receiver_type<const Source&, Done, Receiver>,
-    std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
-    std::enable_if_t<!std::is_same_v<Sender, type>, int> = 0,
-    std::enable_if_t<std::is_copy_constructible_v<Done>, int> = 0,
-    std::enable_if_t<std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver>, int> = 0,
-    std::enable_if_t<is_connectable_v<const Source&, SourceReceiver>, int> = 0,
-    std::enable_if_t<is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
-  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
-       noexcept(
-        is_nothrow_connectable_v<const Source&, SourceReceiver> &&
-        std::is_nothrow_copy_constructible_v<Done> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>)
-      -> operation_type<const Source&, Done, Receiver> {
-    return operation_type<const Source&, Done, Receiver>{
-      std::as_const(s.source_), 
-      std::as_const(s.done_), 
-      (Receiver&&)r
+        is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
+        std::is_nothrow_constructible_v<Done, member_t<Sender, Done>> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+      -> operation_type<member_t<Sender, Source>, Done, Receiver> {
+    return operation_type<member_t<Sender, Source>, Done, Receiver>{
+      static_cast<Sender&&>(s).source_,
+      static_cast<Sender&&>(s).done_,
+      static_cast<Receiver&&>(r)
     };
   }
 

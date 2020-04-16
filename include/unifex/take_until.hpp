@@ -39,8 +39,8 @@ struct _stream {
 template<typename SourceStream, typename TriggerStream>
 using stream =
     typename _stream<
-        std::remove_cvref_t<SourceStream>,
-        std::remove_cvref_t<TriggerStream>>::type;
+        remove_cvref_t<SourceStream>,
+        remove_cvref_t<TriggerStream>>::type;
 
 template<typename SourceStream, typename TriggerStream>
 struct _stream<SourceStream, TriggerStream>::type {
@@ -182,7 +182,7 @@ struct _stream<SourceStream, TriggerStream>::type {
       };
     };
     template<typename Receiver>
-    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+    using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
     template<typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
@@ -397,7 +397,7 @@ struct _stream<SourceStream, TriggerStream>::type {
       };
     };
     template<typename Receiver>
-    using operation = typename _op<std::remove_cvref_t<Receiver>>::type;
+    using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
     template<typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) {

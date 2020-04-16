@@ -43,7 +43,7 @@ namespace unifex
     using operation = typename _op<
         Predecessor,
         Successor,
-        std::remove_cvref_t<Receiver>>::type;
+        remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
     struct _successor_receiver {
@@ -54,7 +54,7 @@ namespace unifex
         typename _successor_receiver<
             Predecessor,
             Successor,
-            std::remove_cvref_t<Receiver>>::type;
+            remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
     class _successor_receiver<Predecessor, Successor, Receiver>::type final {
@@ -131,7 +131,7 @@ namespace unifex
         typename _predecessor_receiver<
             Predecessor,
             Successor,
-            std::remove_cvref_t<Receiver>>::type;
+            remove_cvref_t<Receiver>>::type;
 
     template <typename Predecessor, typename Successor, typename Receiver>
     class _predecessor_receiver<Predecessor, Successor, Receiver>::type final {
@@ -300,8 +300,8 @@ namespace unifex
     };
     template <typename Predecessor, typename Successor>
     using sender = typename _sender<
-        std::remove_cvref_t<Predecessor>,
-        std::remove_cvref_t<Successor>>::type;
+        remove_cvref_t<Predecessor>,
+        remove_cvref_t<Successor>>::type;
 
     template <typename Predecessor, typename Successor>
     class _sender<Predecessor, Successor>::type {
@@ -357,39 +357,24 @@ namespace unifex
           typename Receiver,
           typename Sender,
           std::enable_if_t<
-            std::is_same_v<Sender, type>, int> = 0,
+              std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
           std::enable_if_t<
-            std::is_move_constructible_v<Successor>, int> = 0,
+              std::is_constructible_v<Successor, member_t<Sender, Successor>>, int> = 0,
           std::enable_if_t<
-            is_connectable_v<Predecessor, predecessor_receiver<Predecessor, Successor, Receiver>>, int> = 0,
+            is_connectable_v<
+              member_t<Sender, Predecessor>,
+              predecessor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>,
+            int> = 0,
           std::enable_if_t<
-            is_connectable_v<Successor, successor_receiver<Predecessor, Successor, Receiver>>, int> = 0>
+            is_connectable_v<
+              Successor,
+              successor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>,
+            int> = 0>
       friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
-          -> operation<Predecessor, Successor, Receiver> {
-        return operation<Predecessor, Successor,  Receiver>{
-            std::move(sender).predecessor_,
-            std::move(sender).successor_,
-            (Receiver &&) receiver};
-      }
-
-      template <
-          typename Receiver,
-          typename Sender,
-          std::enable_if_t<
-            std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0,
-          std::enable_if_t<
-            !std::is_same_v<Sender, type>, int> = 0,
-          std::enable_if_t<
-            std::is_copy_constructible_v<Successor>, int> = 0,
-          std::enable_if_t<
-            is_connectable_v<const Predecessor&, predecessor_receiver<const Predecessor&, Successor, Receiver>>, int> = 0,
-          std::enable_if_t<
-            is_connectable_v<Successor, successor_receiver<const Predecessor&, Successor, Receiver>>, int> = 0>
-      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
-          -> operation<const Predecessor&, Successor, Receiver> {
-        return operation<const Predecessor&, Successor,  Receiver>{
-            std::as_const(sender.predecessor_),
-            std::as_const(sender.successor_),
+          -> operation<member_t<Sender, Predecessor>, Successor, Receiver> {
+        return operation<member_t<Sender, Predecessor>, Successor,  Receiver>{
+            static_cast<Sender&&>(sender).predecessor_,
+            static_cast<Sender&&>(sender).successor_,
             (Receiver &&) receiver};
       }
 
@@ -431,8 +416,8 @@ namespace unifex
       // Sequencing a single sender is just the same as returning the sender
       // itself.
       template <typename First>
-      std::remove_cvref_t<First> operator()(First&& first) const
-          noexcept(std::is_nothrow_constructible_v<std::remove_cvref_t<First>, First>) {
+      remove_cvref_t<First> operator()(First&& first) const
+          noexcept(std::is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
         return static_cast<First&&>(first);
       }
 

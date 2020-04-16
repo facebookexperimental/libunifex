@@ -121,7 +121,7 @@ struct _sender {
   struct type;
 };
 template <typename Predecessor, typename Func>
-using sender = typename _sender<std::remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
+using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
 
 template <typename Predecessor, typename Func>
 struct _sender<Predecessor, Func>::type {
@@ -163,16 +163,16 @@ public:
   template <
     typename Sender,
     typename Receiver,
-    std::enable_if_t<std::is_same_v<std::remove_cvref_t<Sender>, type>, int> = 0>
+    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0>
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
-      std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
+      std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
-      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver<std::remove_cvref_t<Receiver>>>)
-      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver<std::remove_cvref_t<Receiver>>> {
+      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver<remove_cvref_t<Receiver>>>)
+      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver<remove_cvref_t<Receiver>>> {
     return unifex::connect(
       static_cast<Sender&&>(s).pred_,
-      receiver<std::remove_cvref_t<Receiver>>{
+      receiver<remove_cvref_t<Receiver>>{
         static_cast<Sender&&>(s).func_,
         static_cast<Receiver&&>(r)});
   }
