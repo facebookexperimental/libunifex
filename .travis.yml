@@ -4,14 +4,14 @@
 
 language: cpp
 dist: bionic
-osx_image: xcode10.3
+# osx_image: xcode10.3
 
 compiler:
 - gcc
-- clang
+# - clang
 os:
 - linux
-- osx
+# - osx
 
 env:
 - BUILD_TYPE=Debug
@@ -20,26 +20,26 @@ env:
 addons:
   apt:
     sources:
-    - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
-      key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+    # - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
+    #   key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
     - sourceline: 'ppa:ubuntu-toolchain-r/test'
     packages:
-    - clang-9
-    - libc++-9-dev
-    - libc++abi-9-dev
-    - libstdc++-9-dev
-    - cmake
     - gcc-9
     - g++-9
-    - ninja-build
+    - libstdc++-9-dev
     - libgcc-9-dev
-  homebrew:
-    packages:
     - cmake
-    - gcc@9
-    - llvm@9
-    - ninja
-    update: true
+    - ninja-build
+    # - clang-9
+    # - libc++-9-dev
+    # - libc++abi-9-dev
+  # homebrew:
+  #   packages:
+  #   - cmake
+  #   - gcc@9
+  #   - llvm@9
+  #   - ninja
+  #   update: true
 
 install:
 # The following Homebrew packages aren't linked by default, and need to be
