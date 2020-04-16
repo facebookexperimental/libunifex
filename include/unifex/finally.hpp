@@ -47,7 +47,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver>
     using operation =
-        typename _op<SourceSender, CompletionSender, std::remove_cvref_t<Receiver>>::type;
+        typename _op<SourceSender, CompletionSender, remove_cvref_t<Receiver>>::type;
 
     template <
         typename SourceSender,
@@ -153,23 +153,16 @@ namespace unifex
       template <
           typename CPO,
           typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, value_receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, value_receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const R& r,
-          Args&&... args) noexcept(is_nothrow_callable_v<
+          const R& r) noexcept(is_nothrow_callable_v<
                                           CPO,
-                                          const Receiver&,
-                                          Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            r.get_receiver(),
-            static_cast<Args&&>(args)...);
+                                          const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
       template <typename Func>
@@ -280,23 +273,16 @@ namespace unifex
       template <
           typename CPO,
           typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-                std::negation<is_receiver_cpo<CPO>>,
-                std::is_same<R, error_receiver>,
-                is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, error_receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const R& r,
-          Args&&... args) noexcept(is_nothrow_callable_v<
+          const R& r) noexcept(is_nothrow_callable_v<
                                           CPO,
-                                          const Receiver&,
-                                          Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            r.get_receiver(),
-            static_cast<Args&&>(args)...);
+                                          const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
       template <typename Func>
@@ -362,23 +348,16 @@ namespace unifex
       template <
           typename CPO,
           typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-             std::negation<is_receiver_cpo<CPO>>,
-             std::is_same<R, done_receiver>,
-             is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, done_receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto tag_invoke(
           CPO cpo,
-          const R& r,
-          Args&&... args) noexcept(is_nothrow_callable_v<
+          const R& r) noexcept(is_nothrow_callable_v<
                                           CPO,
-                                          const Receiver&,
-                                          Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            r.get_receiver(),
-            static_cast<Args&&>(args)...);
+                                          const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
       template <typename Func>
@@ -514,19 +493,14 @@ namespace unifex
       template <
           typename CPO,
           typename R,
-          typename... Args,
-          std::enable_if_t<
-            std::conjunction_v<
-              std::negation<is_receiver_cpo<CPO>>,
-              std::is_same<R, receiver>,
-              is_callable<CPO, const Receiver&, Args...>>, int> = 0>
+          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+          std::enable_if_t<std::is_same_v<R, receiver>, int> = 0,
+          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
       friend auto
-      tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-          -> callable_result_t<CPO, const Receiver&, Args...> {
-        return static_cast<CPO&&>(cpo)(
-            r.get_receiver(),
-            static_cast<Args&&>(args)...);
+      tag_invoke(CPO cpo, const R& r) noexcept(
+          is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
       template <typename Func>
@@ -617,7 +591,7 @@ namespace unifex
       }
 
     private:
-      UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<CompletionSender> completionSender_;
+      UNIFEX_NO_UNIQUE_ADDRESS remove_cvref_t<CompletionSender> completionSender_;
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       bool started_ = false;
 
@@ -625,11 +599,11 @@ namespace unifex
       union {
         // Storage for error-types that might be produced by SourceSender.
         UNIFEX_NO_UNIQUE_ADDRESS
-        typename std::remove_cvref_t<SourceSender>::template error_types<error_result_union>
+        typename remove_cvref_t<SourceSender>::template error_types<error_result_union>
             error_;
 
         // Storage for value-types that might be produced by SourceSender.
-        UNIFEX_NO_UNIQUE_ADDRESS typename std::remove_cvref_t<SourceSender>::template value_types<
+        UNIFEX_NO_UNIQUE_ADDRESS typename remove_cvref_t<SourceSender>::template value_types<
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
             value_;
@@ -645,13 +619,13 @@ namespace unifex
 
         // Storage for the completion operation for the case where
         // the source operation completed with a value.
-        typename std::remove_cvref_t<SourceSender>::
+        typename remove_cvref_t<SourceSender>::
             template value_types<manual_lifetime_union, value_operation>
                 completionValueOp_;
 
         // Storage for the completion operation for the case where the
         // source operation completed with an error.
-        typename std::remove_cvref_t<SourceSender>::template error_types<error_operation_union>
+        typename remove_cvref_t<SourceSender>::template error_types<error_operation_union>
             completionErrorOp_;
 
         // Storage for the completion operation for the case where the
@@ -666,8 +640,8 @@ namespace unifex
     };
     template <typename SourceSender, typename CompletionSender>
     using sender = typename _sender<
-        std::remove_cvref_t<SourceSender>,
-        std::remove_cvref_t<CompletionSender>>::type;
+        remove_cvref_t<SourceSender>,
+        remove_cvref_t<CompletionSender>>::type;
 
     template <typename SourceSender, typename CompletionSender>
     class _sender<SourceSender, CompletionSender>::type {
@@ -708,60 +682,30 @@ namespace unifex
       // complete with. For now we just check done_receiver as an approximation.
 
       template <
-        typename Receiver,
         typename CPO,
         typename S,
-        std::enable_if_t<
-          std::conjunction_v<
-            std::is_same<CPO, tag_t<connect>>,
-            std::is_same<S, sender>,
-            is_connectable<
-              SourceSender,
-              receiver<
-                SourceSender,
-                CompletionSender,
-                std::remove_cvref_t<Receiver>>>,
-            is_connectable<
-              CompletionSender,
-              done_receiver<
-                SourceSender,
-                CompletionSender,
-                std::remove_cvref_t<Receiver>>>>,
-            int(*)[__LINE__]> = nullptr>
-      friend auto tag_invoke(CPO, S&& s, Receiver&& r)
-          -> operation<SourceSender, CompletionSender, Receiver> {
-        return operation<SourceSender, CompletionSender, Receiver>{
-                static_cast<S&&>(s).source_,
-                static_cast<S&&>(s).completion_,
-                static_cast<Receiver&&>(r)};
-      }
-
-      template <
         typename Receiver,
-        typename CPO,
-        typename S,
-        typename SourceSenderConstRef = const SourceSender&,
+        std::enable_if_t<std::is_same_v<CPO, tag_t<connect>>, int> = 0,
+        std::enable_if_t<std::is_same_v<remove_cvref_t<S>, sender>, int> = 0,
         std::enable_if_t<
-          std::conjunction_v<
-            std::is_same<CPO, tag_t<connect>>,
-            std::is_same<std::remove_cvref_t<S>, sender>,
-            std::negation<std::is_same<S, sender>>,
-            is_connectable<
-              SourceSenderConstRef,
+            is_connectable_v<
+              member_t<S, SourceSender>,
               receiver<
-                SourceSenderConstRef,
+                member_t<S, SourceSender>,
                 CompletionSender,
-                std::remove_cvref_t<Receiver>>>,
-            is_connectable<
+                remove_cvref_t<Receiver>>>,
+            int> = 0,
+        std::enable_if_t<
+            is_connectable_v<
               CompletionSender,
               done_receiver<
-                SourceSenderConstRef,
+                member_t<S, SourceSender>,
                 CompletionSender,
-                std::remove_cvref_t<Receiver>>>>,
-            int(*)[__LINE__]> = nullptr>
+                remove_cvref_t<Receiver>>>,
+            int> = 0>
       friend auto tag_invoke(CPO, S&& s, Receiver&& r)
-          -> operation<SourceSenderConstRef, CompletionSender, Receiver> {
-        return operation<SourceSenderConstRef, CompletionSender, Receiver>{
+          -> operation<member_t<S, SourceSender>, CompletionSender, Receiver> {
+        return operation<member_t<S, SourceSender>, CompletionSender, Receiver>{
                 static_cast<S&&>(s).source_,
                 static_cast<S&&>(s).completion_,
                 static_cast<Receiver&&>(r)};

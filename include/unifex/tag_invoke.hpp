@@ -16,8 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-
-#include <type_traits>
+#include <unifex/type_traits.hpp>
 
 namespace unifex {
   namespace _tag_invoke {
@@ -71,7 +70,7 @@ namespace unifex {
   using namespace _tag_invoke_cpo;
 
   template <auto& CPO>
-  using tag_t = std::remove_cvref_t<decltype(CPO)>;
+  using tag_t = remove_cvref_t<decltype(CPO)>;
 
   // Manually implement the traits here rather than defining them in terms of
   // the corresponding std::invoke_result/is_invocable/is_nothrow_invocable
@@ -88,7 +87,7 @@ namespace unifex {
 
   template <typename CPO, typename... Args>
   struct tag_invoke_result
-    : std::conditional_t<
+    : conditional_t<
           is_tag_invocable_v<CPO, Args...>,
           _tag_invoke::defer<tag_invoke_result_t, CPO, Args...>,
           _tag_invoke::empty> 

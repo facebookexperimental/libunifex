@@ -32,7 +32,7 @@ struct _op {
   class type;
 };
 template <typename Sender, typename Receiver>
-using operation = typename _op<Sender, std::remove_cvref_t<Receiver>>::type;
+using operation = typename _op<Sender, remove_cvref_t<Receiver>>::type;
 
 template <typename Sender, typename Receiver>
 class _op<Sender, Receiver>::type {

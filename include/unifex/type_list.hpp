@@ -86,7 +86,7 @@ namespace unifex
     : concat_type_lists_unique<
           typename concat_type_lists<
               type_list<Ts...>,
-              std::conditional_t<
+              conditional_t<
                 is_one_of_v<Us, Ts...>,
                 type_list<>,
                 type_list<Us>>...>::type,

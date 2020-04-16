@@ -75,7 +75,7 @@ namespace _alloc {
     class type;
   };
   template <typename Sender>
-  using sender = typename _sender<std::remove_cvref_t<Sender>>::type;
+  using sender = typename _sender<remove_cvref_t<Sender>>::type;
 
   template <typename Sender>
   class _sender<Sender>::type {
@@ -93,10 +93,10 @@ namespace _alloc {
     friend auto tag_invoke(tag_t<connect>, sender&& s, Receiver&& r)
         -> operation<
             operation_t<Sender, Receiver>,
-            std::remove_cvref_t<get_allocator_t<Receiver>>> {
+            remove_cvref_t<get_allocator_t<Receiver>>> {
       return operation<
           operation_t<Sender, Receiver>,
-          std::remove_cvref_t<get_allocator_t<Receiver>>>{
+          remove_cvref_t<get_allocator_t<Receiver>>>{
           (Sender &&) s.sender_, (Receiver &&) r};
     }
 
@@ -104,10 +104,10 @@ namespace _alloc {
     friend auto tag_invoke(tag_t<connect>, sender& s, Receiver&& r)
         -> operation<
             operation_t<Sender&, Receiver>,
-            std::remove_cvref_t<get_allocator_t<Receiver>>> {
+            remove_cvref_t<get_allocator_t<Receiver>>> {
       return operation<
           operation_t<Sender&, Receiver>,
-          std::remove_cvref_t<get_allocator_t<Receiver>>>{
+          remove_cvref_t<get_allocator_t<Receiver>>>{
           s.sender_, (Receiver &&) r};
     }
 
@@ -116,10 +116,10 @@ namespace _alloc {
     tag_invoke(tag_t<connect>, const sender& s, Receiver&& r)
         -> operation<
             operation_t<const Sender&, Receiver>,
-            std::remove_cvref_t<get_allocator_t<Receiver>>> {
+            remove_cvref_t<get_allocator_t<Receiver>>> {
       return operation<
           operation_t<const Sender&, Receiver>,
-          std::remove_cvref_t<get_allocator_t<Receiver>>>{
+          remove_cvref_t<get_allocator_t<Receiver>>>{
           std::as_const(s.sender_), (Receiver &&) r};
     }
 

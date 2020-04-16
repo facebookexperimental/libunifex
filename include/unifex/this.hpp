@@ -16,8 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-
-#include <type_traits>
+#include <unifex/type_traits.hpp>
 
 namespace unifex {
 
@@ -93,8 +92,8 @@ template <typename Arg, typename T>
 using replace_this_t = typename replace_this<Arg>::template apply<Arg, T>;
 
 template <typename Arg>
-using replace_this_with_void_ptr_t = std::
-    conditional_t<std::is_same_v<std::remove_cvref_t<Arg>, this_>, void*, Arg>;
+using replace_this_with_void_ptr_t =
+    conditional_t<std::is_same_v<remove_cvref_t<Arg>, this_>, void*, Arg>;
 
 template <typename... ArgTypes>
 struct extract_this;
@@ -103,7 +102,7 @@ template <typename FirstType, typename... RestTypes>
 struct extract_this<FirstType, RestTypes...> {
   template <typename TFirst, typename... TRest>
   decltype(auto) operator()(TFirst&& first, TRest&&... rest) const {
-    if constexpr (std::is_same_v<std::remove_cvref_t<FirstType>, this_>) {
+    if constexpr (std::is_same_v<remove_cvref_t<FirstType>, this_>) {
       return first;
     } else {
       static_assert(sizeof...(TRest) > 0, "Arguments to extract_this");

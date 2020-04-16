@@ -119,13 +119,15 @@ public:
 
 private:
   template<
-    typename CPO, 
-    typename... Args,
-    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-  friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
-      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-      -> callable_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(r.get_receiver(), (Args&&)args...);
+    typename CPO,
+    typename Self,
+    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+    std::enable_if_t<std::is_same_v<std::remove_cvref_t<Self>, type>, int> = 0,
+    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, Self&& r)
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(r.get_receiver());
   }
   
   template <typename VisitFunc>
@@ -183,11 +185,14 @@ public:
   }
 
 private:
-  template<typename CPO, typename... Args>
-  friend auto tag_invoke(CPO cpo, const type& r, Args&&... args)
-      noexcept(is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-      -> callable_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(r.get_receiver(), (Args&&)args...);
+  template<
+    typename CPO,
+    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const type& r)
+      noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(r.get_receiver());
   }
   
   template <typename VisitFunc>
@@ -283,49 +288,30 @@ public:
     noexcept(
       std::is_nothrow_constructible_v<Source, Source2> &&
       std::is_nothrow_constructible_v<Done, Done2>)
-  : source_((Source2&&)source)
-  , done_((Done2&&)done)
+    : source_((Source2&&)source)
+    , done_((Done2&&)done)
   {}
 
   template<
+    typename Sender,
     typename Receiver,
-    typename SourceReceiver = receiver_type<Source, Done, Receiver>,
-    typename FinalReceiver = final_receiver_type<Source, Done, Receiver>,
-    std::enable_if_t<
-        std::is_move_constructible_v<Done> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<Source, SourceReceiver> &&
-        is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
-  operation_type<Source, Done, Receiver> connect(Receiver&& r) &&
+    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Done, Receiver>,
+    typename FinalReceiver = final_receiver_type<member_t<Sender, Source>, Done, Receiver>,
+    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
+    std::enable_if_t<std::is_constructible_v<Done, member_t<Sender, Done>>, int> = 0,
+    std::enable_if_t<std::is_constructible_v<remove_cvref_t<Receiver>, Receiver>, int> = 0,
+    std::enable_if_t<is_connectable_v<member_t<Sender, Source>, SourceReceiver>, int> = 0,
+    std::enable_if_t<is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
-        is_nothrow_connectable_v<Source, SourceReceiver> &&
-        std::is_nothrow_move_constructible_v<Done> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>) {
-    return operation_type<Source, Done, Receiver>{
-      (Source&&)source_, 
-      (Done&&)done_, 
-      (Receiver&&)r
-    };
-  }
-
-  template<
-    typename Receiver,
-    typename SourceReceiver = receiver_type<const Source&, Done, Receiver>,
-    typename FinalReceiver = final_receiver_type<const Source&, Done, Receiver>,
-    std::enable_if_t<
-        std::is_copy_constructible_v<Done> &&
-        std::is_constructible_v<std::remove_cvref_t<Receiver>, Receiver> &&
-        is_connectable_v<const Source&, SourceReceiver> &&
-        is_connectable_v<final_sender_t, FinalReceiver>, int> = 0>
-  operation_type<const Source&, Done, Receiver> connect(Receiver&& r) const&
-       noexcept(
-        is_nothrow_connectable_v<const Source&, SourceReceiver> &&
-        std::is_nothrow_copy_constructible_v<Done> &&
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver>) {
-    return operation_type<const Source&, Done, Receiver>{
-      source_, 
-      done_, 
-      (Receiver&&)r
+        is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
+        std::is_nothrow_constructible_v<Done, member_t<Sender, Done>> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+      -> operation_type<member_t<Sender, Source>, Done, Receiver> {
+    return operation_type<member_t<Sender, Source>, Done, Receiver>{
+      static_cast<Sender&&>(s).source_,
+      static_cast<Sender&&>(s).done_,
+      static_cast<Receiver&&>(r)
     };
   }
 

@@ -102,12 +102,12 @@ struct _receiver<Receiver, Func>::type {
   template <
       typename CPO,
       typename R,
-      typename... Args,
-      std::enable_if_t<!is_receiver_cpo_v<CPO> && std::is_same_v<R, receiver>, int> = 0>
-  friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-      is_nothrow_callable_v<CPO, const Receiver&, Args...>)
-      -> callable_result_t<CPO, const Receiver&, Args...> {
-    return std::move(cpo)(std::as_const(r.receiver_), static_cast<Args&&>(args)...);
+      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
+      std::enable_if_t<std::is_same_v<R, receiver>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const R& r) noexcept(
+      is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(std::as_const(r.receiver_));
   }
 
   template <typename Visit>
@@ -121,7 +121,7 @@ struct _sender {
   struct type;
 };
 template <typename Predecessor, typename Func>
-using sender = typename _sender<std::remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
+using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
 
 template <typename Predecessor, typename Func>
 struct _sender<Predecessor, Func>::type {
@@ -160,29 +160,21 @@ public:
     return blocking(sender.pred_);
   }
 
-  template <typename Receiver>
-  auto connect(Receiver&& r) &&
-      noexcept(
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
-        std::is_nothrow_move_constructible_v<Func> &&
-        is_nothrow_connectable_v<Predecessor, receiver<std::remove_cvref_t<Receiver>>>)
-      -> operation_t<Predecessor, receiver<std::remove_cvref_t<Receiver>>> {
+  template <
+    typename Sender,
+    typename Receiver,
+    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0>
+  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
+    noexcept(
+      std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+      std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
+      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver<remove_cvref_t<Receiver>>>)
+      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver<remove_cvref_t<Receiver>>> {
     return unifex::connect(
-        std::forward<Predecessor>(pred_),
-        receiver<std::remove_cvref_t<Receiver>>{
-            std::forward<Func>(func_), std::forward<Receiver>(r)});
-  }
-
-  template <typename Receiver>
-  auto connect(Receiver&& r) const &
-      noexcept(
-        std::is_nothrow_constructible_v<std::remove_cvref_t<Receiver>, Receiver> && 
-        std::is_nothrow_copy_constructible_v<Func> &&
-        is_nothrow_connectable_v<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>>)
-      -> operation_t<const Predecessor&, receiver<std::remove_cvref_t<Receiver>>> {
-    return unifex::connect(
-        pred_,
-        receiver<std::remove_cvref_t<Receiver>>{func_, std::forward<Receiver>(r)});
+      static_cast<Sender&&>(s).pred_,
+      receiver<remove_cvref_t<Receiver>>{
+        static_cast<Sender&&>(s).func_,
+        static_cast<Receiver&&>(r)});
   }
 };
 } // namespace _tfx

@@ -97,6 +97,13 @@ struct cancel_operation {
   }
 };
 
+template <typename Receiver, typename... Senders>
+struct _op {
+  struct type;
+};
+template <typename Receiver, typename... Senders>
+using operation = typename _op<remove_cvref_t<Receiver>, Senders...>::type;
+
 template <typename... Errors>
 using unique_decayed_error_types = concat_type_lists_unique_t<
   type_list<std::decay_t<Errors>>...>;
@@ -113,18 +120,18 @@ template <typename Sender>
 using value_variant_for_sender =
   typename Sender::template value_types<concat_type_lists_unique_t, decayed_value_tuple>::template apply<std::variant>;
 
-template <size_t Index, typename Operation>
+template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver {
   struct type;
 };
-template <size_t Index, typename Operation>
-using element_receiver = typename _element_receiver<Index, Operation>::type;
+template <size_t Index, typename Receiver, typename... Senders>
+using element_receiver = typename _element_receiver<Index, Receiver, Senders...>::type;
 
-template <size_t Index, typename Operation>
-struct _element_receiver<Index, Operation>::type final {
+template <size_t Index, typename Receiver, typename... Senders>
+struct _element_receiver<Index, Receiver, Senders...>::type final {
   using element_receiver = type;
-  Operation& op_;
-  using receiver_type = typename Operation::receiver_type;
+
+  operation<Receiver, Senders...>& op_;
 
   template <typename... Values>
   void set_value(Values&&... values) noexcept {
@@ -155,21 +162,21 @@ struct _element_receiver<Index, Operation>::type final {
     op_.element_complete();
   }
 
-  receiver_type& get_receiver() const { return op_.receiver_; }
+  Receiver& get_receiver() const { return op_.receiver_; }
 
   template <
       typename CPO,
       typename R,
-      typename... Args,
       std::enable_if_t<
-        std::conjunction_v<
-          std::negation<is_receiver_cpo<CPO>>,
-          std::is_same<R, element_receiver>,
-          is_callable<CPO, const receiver_type&, Args...>>, int> = 0>
-  friend auto tag_invoke(CPO cpo, const R& r, Args&&... args) noexcept(
-      is_nothrow_callable_v<CPO, const receiver_type&, Args...>)
-      -> callable_result_t<CPO, const receiver_type&, Args...> {
-    return std::move(cpo)(std::as_const(r.get_receiver()), (Args&&)args...);
+          !is_receiver_cpo_v<CPO>, int> = 0,
+      std::enable_if_t<
+          std::is_same_v<R, element_receiver>, int> = 0,
+      std::enable_if_t<
+          is_callable_v<CPO, const Receiver&>, int> = 0>
+  friend auto tag_invoke(CPO cpo, const R& r) noexcept(
+      is_nothrow_callable_v<CPO, const Receiver&>)
+      -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
   inplace_stop_source& get_stop_source() const {
@@ -192,17 +199,10 @@ struct _element_receiver<Index, Operation>::type final {
 };
 
 template <typename Receiver, typename... Senders>
-struct _op {
-  struct type;
-};
-template <typename Receiver, typename... Senders>
-using operation = typename _op<std::remove_cvref_t<Receiver>, Senders...>::type;
-
-template <typename Receiver, typename... Senders>
 struct _op<Receiver, Senders...>::type {
   using operation = type;
   using receiver_type = Receiver;
-  template<std::size_t Index, typename Operation>
+  template<std::size_t Index, typename Receiver2, typename... Senders2>
   friend class _element_receiver;
 
   explicit type(Receiver&& receiver, Senders&&... senders)
@@ -253,8 +253,8 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<value_variant_for_sender<std::remove_cvref_t<Senders>>>...> values_;
-  std::optional<error_types<std::variant, std::remove_cvref_t<Senders>...>> error_;
+  std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
+  std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
@@ -263,8 +263,8 @@ struct _op<Receiver, Senders...>::type {
       stopCallback_;
   Receiver receiver_;
   template<std::size_t Index>
-  using element_receiver = element_receiver<Index, operation>;
-  operation_tuple<0, element_receiver, Senders...> ops_;
+  using op_element_receiver = element_receiver<Index, Receiver, Senders...>;
+  operation_tuple<0, op_element_receiver, Senders...> ops_;
 };
 
 template <typename... Senders>
@@ -272,7 +272,18 @@ struct _sender {
   class type;
 };
 template <typename... Senders>
-using sender = typename _sender<std::remove_cvref_t<Senders>...>::type;
+using sender = typename _sender<remove_cvref_t<Senders>...>::type;
+
+template<typename Receiver, typename Indices, typename... Senders>
+extern const bool _when_all_connectable_v;
+
+template<typename Receiver, std::size_t... Indices, typename... Senders>
+inline constexpr bool _when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> =
+  (is_connectable_v<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
+
+template<typename Receiver, typename... Senders>
+inline constexpr bool when_all_connectable_v =
+  _when_all_connectable_v<Receiver, std::index_sequence_for<Senders...>, Senders...>;
 
 template <typename... Senders>
 class _sender<Senders...>::type {
@@ -292,19 +303,23 @@ class _sender<Senders...>::type {
   explicit type(Senders2&&... senders)
     : senders_((Senders2 &&) senders...) {}
 
-  template <typename Receiver>
-  operation<Receiver, Senders...> connect(Receiver&& receiver) && {
+  template <
+    typename CPO,
+    typename Sender,
+    typename Receiver,
+    std::enable_if_t<
+        std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
+    std::enable_if_t<
+        std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
+    std::enable_if_t<
+        when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>,
+        int> = 0>
+  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+    -> operation<Receiver, member_t<Sender, Senders>...> {
     return std::apply([&](Senders&&... senders) {
-      return operation<Receiver, Senders...>{
+      return operation<Receiver, member_t<Sender, Senders>...>{
           (Receiver &&) receiver, (Senders &&) senders...};
-    }, std::move(senders_));
-  }
-  template <typename Receiver>
-  operation<Receiver, const Senders&...> connect(Receiver&& receiver) const & {
-    return std::apply([&](const Senders&... senders) {
-      return operation<Receiver, const Senders&...>{
-          (Receiver &&) receiver, senders...};
-    }, senders_);
+    }, static_cast<Sender &&>(sender).senders_);
   }
 
  private:

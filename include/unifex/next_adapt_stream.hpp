@@ -29,8 +29,8 @@ namespace _next_adapt {
   template <typename Stream, typename AdaptFunc>
   using stream =
       typename _stream<
-          std::remove_cvref_t<Stream>,
-          std::remove_cvref_t<AdaptFunc>>::type;
+          remove_cvref_t<Stream>,
+          remove_cvref_t<AdaptFunc>>::type;
 
   template <typename Stream, typename AdaptFunc>
   struct _stream<Stream, AdaptFunc>::type {

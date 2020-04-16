@@ -71,7 +71,7 @@ namespace _timed_single_thread_context {
   };
   template <typename Duration, typename Receiver>
   using after_operation =
-      typename _after_op<Duration, std::remove_cvref_t<Receiver>>::type;
+      typename _after_op<Duration, remove_cvref_t<Receiver>>::type;
 
   template <typename Duration, typename Receiver>
   class _after_op<Duration, Receiver>::type final : task_base {
@@ -145,7 +145,7 @@ namespace _timed_single_thread_context {
     class type;
   };
   template <typename Receiver>
-  using at_operation = typename _at_op<std::remove_cvref_t<Receiver>>::type;
+  using at_operation = typename _at_op<remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
   class _at_op<Receiver>::type final : task_base {
@@ -202,8 +202,8 @@ namespace _timed_single_thread_context {
     using error_types = Variant<>;
 
     template <typename Receiver>
-    at_operation<std::remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
-      return at_operation<std::remove_cvref_t<Receiver>>{
+    at_operation<remove_cvref_t<Receiver>> connect(Receiver&& receiver) {
+      return at_operation<remove_cvref_t<Receiver>>{
           *context_, dueTime_, (Receiver &&) receiver};
     }
   };
