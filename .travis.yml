@@ -25,9 +25,9 @@ addons:
     - sourceline: 'ppa:ubuntu-toolchain-r/test'
     packages:
     - clang-9
-    - libc++-8-dev
-    - libc++abi-8-dev
-    - libstdc++-8-dev
+    - libc++-9-dev
+    - libc++abi-9-dev
+    - libstdc++-9-dev
     - cmake
     - gcc-9
     - g++-9
