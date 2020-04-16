@@ -105,9 +105,13 @@ using wrap_reference_t = conditional_t<
     std::reference_wrapper<std::remove_reference_t<T>>,
     T>;
 
-template <typename Class, typename Member>
-using member_t =
-    conditional_t<std::is_lvalue_reference_v<Class>, const Member&, Member>;
+template <class Member, class Self>
+Member Self::*_memptr(const Self&);
+
+template<typename Self, typename Member>
+using member_t = decltype(
+    ((static_cast<Self(*)()>(nullptr)()) .*
+        unifex::_memptr<Member>(static_cast<Self(*)()>(nullptr)())));
 
 template <typename T>
 using decay_rvalue_t =
