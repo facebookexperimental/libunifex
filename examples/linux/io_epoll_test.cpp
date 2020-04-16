@@ -222,7 +222,7 @@ int main() {
                   << reps/ms << "ops-per-ms\n";
               stopWrite.request_stop();
             }))),
-        get_stop_token, stopSource.get_token()));
+        get_stop_token, stopWrite.get_token()));
   } catch (const std::system_error& se) {
     std::printf("async_read_some system_error: [%s], [%s]\n", se.code().message().c_str(), se.what());
   } catch (const std::exception& ex) {
