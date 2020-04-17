@@ -21,6 +21,7 @@
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
 #include <unifex/detail/intrusive_queue.hpp>
+#include <unifex/pipe_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -37,6 +38,9 @@
 #include <system_error>
 #include <utility>
 
+#include <sys/uio.h>
+#include <sys/epoll.h>
+
 namespace unifex {
 namespace linuxos {
 
@@ -47,6 +51,10 @@ class io_epoll_context {
   template <typename Duration>
   class schedule_after_sender;
   class scheduler;
+  class read_sender;
+  class write_sender;
+  class async_reader;
+  class async_writer;
 
   io_epoll_context();
 
@@ -59,7 +67,11 @@ class io_epoll_context {
 
  private:
   struct operation_base {
-    operation_base() noexcept {}
+    ~operation_base() {
+      assert(enqueued_.load() == 0);
+    }
+    operation_base() noexcept : enqueued_(0), next_(nullptr), execute_(nullptr)  {}
+    std::atomic<int> enqueued_;
     operation_base* next_;
     void (*execute_)(operation_base*) noexcept;
   };
@@ -248,7 +260,7 @@ class io_epoll_context::schedule_sender {
   using error_types = Variant<std::exception_ptr>;
 
   template <typename Receiver>
-  operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) {
+  operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) && {
     return operation<std::remove_reference_t<Receiver>>{context_,
                                                         (Receiver &&) r};
   }
@@ -315,7 +327,15 @@ class io_epoll_context::schedule_at_sender {
         }
       }
 
-      unifex::set_value(std::move(timerOp).receiver_);
+      if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
+        unifex::set_value(std::move(timerOp).receiver_);
+      } else {
+        try {
+          unifex::set_value(std::move(timerOp).receiver_);
+        } catch (...) {
+          unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
+        }
+      }
     }
 
     static void remove_timer_from_queue_and_complete_with_done(
@@ -425,7 +445,7 @@ class io_epoll_context::schedule_at_sender {
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
-  using error_types = Variant<>;
+  using error_types = Variant<std::exception_ptr>;
 
   explicit schedule_at_sender(
       io_epoll_context& context,
@@ -464,6 +484,10 @@ class io_epoll_context::scheduler {
  private:
   friend io_epoll_context;
 
+  friend std::pair<async_reader, async_writer> tag_invoke(
+      tag_t<open_pipe>,
+      scheduler s);
+
   friend bool operator==(const scheduler& a, const scheduler& b) noexcept {
     return a.context_ == b.context_;
   }
@@ -476,6 +500,467 @@ class io_epoll_context::scheduler {
 inline io_epoll_context::scheduler io_epoll_context::get_scheduler() noexcept {
   return scheduler{*this};
 }
+
+class io_epoll_context::read_sender {
+
+  struct done_op : operation_base {
+  };
+
+  template <typename Receiver>
+  class operation : private completion_base, private done_op {
+    friend io_epoll_context;
+
+    static constexpr bool is_stop_ever_possible =
+        !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
+
+   public:
+    template <typename Receiver2>
+    explicit operation(const read_sender& sender, Receiver2&& r)
+        : context_(sender.context_),
+          fd_(sender.fd_),
+          receiver_((Receiver2 &&) r) {
+      buffer_[0].iov_base = sender.buffer_.data();
+      buffer_[0].iov_len = sender.buffer_.size();
+    }
+
+    void start() noexcept {
+      if (!context_.is_running_on_io_thread()) {
+        static_cast<completion_base*>(this)->execute_ = &operation::on_schedule_complete;
+        context_.schedule_remote(static_cast<completion_base*>(this));
+      } else {
+        start_io();
+      }
+    }
+    
+   private:
+    static void on_schedule_complete(operation_base* op) noexcept {
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
+      self.start_io();
+    }
+
+    void start_io() noexcept {
+      assert(context_.is_running_on_io_thread());
+
+      auto result = readv(fd_, buffer_, 1);
+
+      if (result == -EAGAIN || result == -EWOULDBLOCK || result == -EPERM) {
+        if constexpr (is_stop_ever_possible) {
+          stopCallback_.construct(
+              get_stop_token(receiver_), cancel_callback{*this});
+        }
+        assert(static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        static_cast<completion_base*>(this)->execute_ = &operation::on_read_complete;
+        epoll_event event;
+        event.data.ptr = static_cast<completion_base*>(this);
+        event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
+        (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_ADD, fd_, &event);
+        return;
+      }
+
+      auto oldState = state_.fetch_add(
+          io_epoll_context::read_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
+      if (result == -ECANCELED) {
+        unifex::set_done(std::move(receiver_));
+      } else if (result >= 0) {
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(receiver_), ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(receiver_), ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(receiver_), std::current_exception());
+          }
+        }
+      } else {
+        unifex::set_error(
+            std::move(receiver_),
+            std::error_code{-int(result), std::system_category()});
+      }
+    }
+
+    static void on_read_complete(operation_base* op) noexcept {
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
+
+      assert(static_cast<completion_base&>(self).enqueued_.load() == 0);
+
+      self.stopCallback_.destruct();
+
+      auto oldState = self.state_.fetch_add(
+          io_epoll_context::read_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
+      epoll_event event = {};
+      (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
+
+      auto result = readv(self.fd_, self.buffer_, 1);
+      assert(result != -EAGAIN);
+      assert(result != -EWOULDBLOCK);
+      if (result == -ECANCELED) {
+        unifex::set_done(std::move(self.receiver_));
+      } else if (result >= 0) {
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(self).receiver_, ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(self).receiver_, ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(self).receiver_, std::current_exception());
+          }
+        }
+      } else {
+        unifex::set_error(
+            std::move(self.receiver_),
+            std::error_code{-int(result), std::system_category()});
+      }
+    }
+
+    static void complete_with_done(operation_base* op) noexcept {
+      auto& self = *static_cast<operation*>(static_cast<done_op*>(op));
+
+      assert(static_cast<done_op&>(self).enqueued_.load() == 0);
+
+      if (static_cast<completion_base&>(self).enqueued_.load() == 0) {
+        // Avoid instantiating set_done() if we're not going to call it.
+        if constexpr (is_stop_ever_possible) {
+          unifex::set_done(std::move(self.receiver_));
+        } else {
+          // This should never be called if stop is not possible.
+          assert(false);
+        }
+      } else {
+        // reschedule after queued io is cleared
+        static_cast<done_op&>(self).execute_ = &operation::complete_with_done;
+        self.context_.schedule_local(static_cast<done_op*>(&self));
+      }
+    }
+
+    void request_stop() noexcept {
+      auto oldState = this->state_.fetch_add(
+          io_epoll_context::read_sender::operation<Receiver>::cancel_pending_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::io_mask) == 0) {
+        // IO not yet completed.
+        epoll_event event = {};
+        (void)epoll_ctl(this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
+
+        // We are responsible for scheduling the completion of this io
+        // operation.
+        static_cast<done_op&>(*this).execute_ = &operation::complete_with_done;
+        this->context_.schedule_remote(static_cast<done_op*>(this));
+      }
+    }
+
+    struct cancel_callback {
+      operation& op_;
+
+      void operator()() noexcept {
+        op_.request_stop();
+      }
+    };
+
+    io_epoll_context& context_;
+    int fd_;
+    iovec buffer_[1];
+    Receiver receiver_;
+    manual_lifetime<typename stop_token_type_t<
+      Receiver>::template callback_type<cancel_callback>>
+      stopCallback_;
+    static constexpr std::uint32_t io_flag = 0x00010000;
+    static constexpr std::uint32_t io_mask = 0xFFFF0000;
+    static constexpr std::uint32_t cancel_pending_flag = 1;
+    static constexpr std::uint32_t cancel_pending_mask = 0xFFFF;
+    std::atomic<std::uint32_t> state_ = 0;
+  };
+
+ public:
+  // Produces number of bytes read.
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  using value_types = Variant<Tuple<ssize_t>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<std::error_code, std::exception_ptr>;
+
+  explicit read_sender(
+      io_epoll_context& context,
+      int fd,
+      span<std::byte> buffer) noexcept
+      : context_(context), fd_(fd), buffer_(buffer) {}
+
+  template <typename Receiver>
+  operation<std::decay_t<Receiver>> connect(Receiver&& r) && {
+    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
+  }
+
+ private:
+  io_epoll_context& context_;
+  int fd_;
+  span<std::byte> buffer_;
+};
+
+class io_epoll_context::write_sender {
+
+  struct done_op : operation_base {
+  };
+
+  template <typename Receiver>
+  class operation : private completion_base, private done_op {
+    friend io_epoll_context;
+
+    static constexpr bool is_stop_ever_possible =
+        !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
+   public:
+    template <typename Receiver2>
+    explicit operation(const write_sender& sender, Receiver2&& r)
+        : context_(sender.context_),
+          fd_(sender.fd_),
+          receiver_((Receiver2 &&) r) {
+      buffer_[0].iov_base = (void*)sender.buffer_.data();
+      buffer_[0].iov_len = sender.buffer_.size();
+    }
+
+    void start() noexcept {
+      if (!context_.is_running_on_io_thread()) {
+        static_cast<completion_base*>(this)->execute_ = &operation::on_schedule_complete;
+        context_.schedule_remote(static_cast<completion_base*>(this));
+      } else {
+        start_io();
+      }
+    }
+
+   private:
+
+    static void on_schedule_complete(operation_base* op) noexcept {
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
+      self.start_io();
+    }
+
+    void start_io() noexcept {
+      assert(context_.is_running_on_io_thread());
+
+      auto result = writev(fd_, buffer_, 1);
+
+      if (result == -EAGAIN || result == -EWOULDBLOCK || result == -EPERM) {
+        if constexpr (is_stop_ever_possible) {
+          stopCallback_.construct(
+              get_stop_token(receiver_), cancel_callback{*this});
+        }
+
+        assert(static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        static_cast<completion_base*>(this)->execute_ = &operation::on_write_complete;
+        epoll_event event;
+        event.data.ptr = static_cast<completion_base*>(this);
+        event.events = EPOLLOUT | EPOLLRDHUP | EPOLLHUP;
+        (void)epoll_ctl(context_.epollFd_.get(), EPOLL_CTL_ADD, fd_, &event);
+        return;
+      }
+
+      auto oldState = state_.fetch_add(
+          io_epoll_context::write_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
+      if (result == -ECANCELED) {
+        unifex::set_done(std::move(receiver_));
+      } else if (result >= 0) {
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(receiver_), ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(receiver_), ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(receiver_), std::current_exception());
+          }
+        }
+      } else {
+        unifex::set_error(
+            std::move(receiver_),
+            std::error_code{-int(result), std::system_category()});
+      }
+    }
+
+    static void on_write_complete(operation_base* op) noexcept {
+      auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
+
+      assert(static_cast<completion_base&>(self).enqueued_.load() == 0);
+
+      self.stopCallback_.destruct();
+
+      epoll_event event = {};
+      (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
+
+      auto oldState = self.state_.fetch_add(
+          io_epoll_context::write_sender::operation<Receiver>::io_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+        // io has been cancelled by a remote thread.
+        // The other thread is responsible for enqueueing the operation completion
+        return;
+      }
+
+      auto result = writev(self.fd_, self.buffer_, 1);
+      assert(result != -EAGAIN);
+      assert(result != -EWOULDBLOCK);
+      if (result == -ECANCELED) {
+        unifex::set_done(std::move(self.receiver_));
+      } else if (result >= 0) {
+        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+          unifex::set_value(std::move(self).receiver_, ssize_t(result));
+        } else {
+          try {
+            unifex::set_value(std::move(self).receiver_, ssize_t(result));
+          } catch (...) {
+            unifex::set_error(std::move(self).receiver_, std::current_exception());
+          }
+        }
+      } else {
+        unifex::set_error(
+            std::move(self.receiver_),
+            std::error_code{-int(result), std::system_category()});
+      }
+    }
+
+    static void complete_with_done(operation_base* op) noexcept {
+      auto& self = *static_cast<operation*>(static_cast<done_op*>(op));
+
+      assert(static_cast<done_op&>(self).enqueued_.load() == 0);
+
+      if (static_cast<completion_base&>(self).enqueued_.load() == 0) {
+        // Avoid instantiating set_done() if we're not going to call it.
+        if constexpr (is_stop_ever_possible) {
+          unifex::set_done(std::move(self.receiver_));
+        } else {
+          // This should never be called if stop is not possible.
+          assert(false);
+        }
+      } else {
+        // reschedule after queued io is cleared
+        static_cast<done_op&>(self).execute_ = &operation::complete_with_done;
+        self.context_.schedule_local(static_cast<done_op*>(&self));
+      }
+    }
+
+    void request_stop() noexcept {
+      auto oldState = this->state_.fetch_add(
+          io_epoll_context::write_sender::operation<Receiver>::cancel_pending_flag,
+          std::memory_order_acq_rel);
+      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::io_mask) == 0) {
+        // IO not yet completed.
+        epoll_event event = {};
+        (void)epoll_ctl(this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
+
+        // We are responsible for scheduling the completion of this io
+        // operation.
+        static_cast<done_op&>(*this).execute_ = &operation::complete_with_done;
+        this->context_.schedule_remote(static_cast<done_op*>(this));
+      }
+    }
+
+    struct cancel_callback {
+      operation& op_;
+
+      void operator()() noexcept {
+        op_.request_stop();
+      }
+    };
+
+    io_epoll_context& context_;
+    int fd_;
+    iovec buffer_[1];
+    Receiver receiver_;
+    manual_lifetime<typename stop_token_type_t<
+      Receiver>::template callback_type<cancel_callback>>
+      stopCallback_;
+    static constexpr std::uint32_t io_flag = 0x00010000;
+    static constexpr std::uint32_t io_mask = 0xFFFF0000;
+    static constexpr std::uint32_t cancel_pending_flag = 1;
+    static constexpr std::uint32_t cancel_pending_mask = 0xFFFF;
+    std::atomic<std::uint32_t> state_ = 0;
+  };
+
+ public:
+  // Produces number of bytes read.
+  template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+  using value_types = Variant<Tuple<ssize_t>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<std::error_code, std::exception_ptr>;
+
+  explicit write_sender(
+      io_epoll_context& context,
+      int fd,
+      span<const std::byte> buffer) noexcept
+      : context_(context), fd_(fd), buffer_(buffer) {}
+
+  template <typename Receiver>
+  operation<std::decay_t<Receiver>> connect(Receiver&& r) && {
+    return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
+  }
+
+ private:
+  io_epoll_context& context_;
+  int fd_;
+  span<const std::byte> buffer_;
+};
+
+class io_epoll_context::async_reader {
+ public:
+
+  explicit async_reader(io_epoll_context& context, int fd) noexcept
+      : context_(context), fd_(fd) {}
+
+ private:
+  friend scheduler;
+
+  friend read_sender tag_invoke(
+      tag_t<async_read_some>,
+      async_reader& reader,
+      span<std::byte> buffer) noexcept {
+    return read_sender{reader.context_, reader.fd_.get(), buffer};
+  }
+
+  io_epoll_context& context_;
+  safe_file_descriptor fd_;
+};
+
+class io_epoll_context::async_writer {
+ public:
+
+  explicit async_writer(io_epoll_context& context, int fd) noexcept
+      : context_(context), fd_(fd) {}
+
+ private:
+  friend scheduler;
+
+  friend write_sender tag_invoke(
+      tag_t<async_write_some>,
+      async_writer& writer,
+      span<const std::byte> buffer) noexcept {
+    return write_sender{writer.context_, writer.fd_.get(), buffer};
+  }
+
+  io_epoll_context& context_;
+  safe_file_descriptor fd_;
+};
 
 } // namespace linuxos
 } // namespace unifex
