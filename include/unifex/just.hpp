@@ -19,11 +19,14 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <exception>
 #include <tuple>
 #include <type_traits>
 #include <utility>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _just {
@@ -73,19 +76,15 @@ class _sender<Values...>::type {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  template <
-    typename... Values2,
-    std::enable_if_t<
-      sizeof...(Values2) == sizeof...(Values), int> = 0>
-    explicit type(std::in_place_t, Values2&&... values)
+  template(typename... Values2)
+    (requires (sizeof...(Values2) == sizeof...(Values)))
+  explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
-  template <
-      typename This,
-      typename Receiver,
-      std::enable_if_t<std::is_same_v<remove_cvref_t<This>, type>, int> = 0,
-      std::enable_if_t<(std::is_constructible_v<Values, member_t<This, Values>> &&...), int> = 0>
+  template(typename This, typename Receiver)
+      (requires same_as<remove_cvref_t<This>, type> AND
+        (constructible_from<Values, member_t<This, Values>> &&...))
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
       noexcept((std::is_nothrow_constructible_v<Values, member_t<This, Values>> &&...))
       -> operation<Receiver, Values...> {
@@ -100,7 +99,7 @@ class _sender<Values...>::type {
 
 namespace _just_cpo {
   inline constexpr struct just_fn {
-    template<typename... Values>
+    template <typename... Values>
     constexpr auto operator()(Values&&... values) const
       noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
       -> _just::sender<std::decay_t<Values>...> {
@@ -111,3 +110,5 @@ namespace _just_cpo {
 using _just_cpo::just;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

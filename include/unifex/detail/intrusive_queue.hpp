@@ -19,6 +19,8 @@
 #include <tuple>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 template <typename Item, Item* Item::*Next>
@@ -121,3 +123,5 @@ class intrusive_queue {
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -19,6 +19,8 @@
 
 #include <unifex/io_concepts.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _pipe_cpo {
 inline constexpr struct open_pipe_cpo {
@@ -37,3 +39,5 @@ inline constexpr struct open_pipe_cpo {
 
 using _pipe_cpo::open_pipe;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

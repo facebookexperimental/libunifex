@@ -17,6 +17,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 template <typename Func>
@@ -37,3 +39,5 @@ template <typename Func>
 scope_guard(Func&& func)->scope_guard<Func>;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

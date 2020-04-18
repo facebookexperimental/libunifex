@@ -17,6 +17,8 @@
 
 #include <exception>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _null {
   struct receiver {
@@ -32,3 +34,5 @@ namespace _null {
 } // namespace _null
 using null_receiver = _null::receiver;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

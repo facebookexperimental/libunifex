@@ -25,22 +25,25 @@
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <exception>
 #include <functional>
 #include <type_traits>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _reduce {
-template<typename Operation>
+template <typename Operation>
 struct _error_cleanup_receiver {
   struct type;
 };
-template<typename Operation>
+template <typename Operation>
 using error_cleanup_receiver = typename _error_cleanup_receiver<Operation>::type;
 
-template<typename Operation>
+template <typename Operation>
 struct _error_cleanup_receiver<Operation>::type {
   using error_cleanup_receiver = type;
   using receiver_type = typename Operation::receiver_type;
@@ -63,9 +66,8 @@ struct _error_cleanup_receiver<Operation>::type {
     unifex::set_error(static_cast<receiver_type&&>(op.receiver_), std::move(ex));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  template(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -87,14 +89,14 @@ struct _error_cleanup_receiver<Operation>::type {
   }
 };
 
-template<typename Operation>
+template <typename Operation>
 struct _done_cleanup_receiver {
   struct type;
 };
-template<typename Operation>
+template <typename Operation>
 using done_cleanup_receiver = typename _done_cleanup_receiver<Operation>::type;
 
-template<typename Operation>
+template <typename Operation>
 struct _done_cleanup_receiver<Operation>::type {
   using done_cleanup_receiver = type;
   using state_type = typename Operation::state_type;
@@ -116,9 +118,8 @@ struct _done_cleanup_receiver<Operation>::type {
         std::forward<state_type>(op.state_));
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  template(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -140,23 +141,22 @@ struct _done_cleanup_receiver<Operation>::type {
   }
 };
 
-template<typename Operation>
+template <typename Operation>
 struct _next_receiver {
   struct type;
 };
-template<typename Operation>
+template <typename Operation>
 using next_receiver = typename _next_receiver<Operation>::type;
 
-template<typename Operation>
+template <typename Operation>
 struct _next_receiver<Operation>::type {
   using next_receiver = type;
   using state_type = typename Operation::state_type;
   using receiver_type = typename Operation::receiver_type;
   Operation& op_;
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  template(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -302,7 +302,7 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
       typename cleanup_sender_t<StreamSender>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
-  template<typename Receiver>
+  template <typename Receiver>
   using operation = operation<StreamSender, State, ReducerFunc, Receiver>;
 
   template <typename Receiver>
@@ -345,3 +345,5 @@ namespace _reduce_cpo {
 } // namespace _reduce_cpo
 using _reduce_cpo::reduce_stream;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

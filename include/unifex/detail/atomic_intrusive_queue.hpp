@@ -21,6 +21,8 @@
 #include <cassert>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 // An intrusive queue that supports multiple threads concurrently
@@ -165,3 +167,5 @@ public:
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -18,6 +18,8 @@
 #include <cstdint>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace linuxos {
 
@@ -54,3 +56,5 @@ struct mmap_region {
 
 } // namespace linuxos
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

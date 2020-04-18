@@ -24,6 +24,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _trampoline {
 class scheduler {
@@ -102,7 +104,7 @@ private:
       }
     };
   };
-  template<typename Receiver>
+  template <typename Receiver>
   using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
   class schedule_sender {
@@ -138,3 +140,5 @@ public:
 using trampoline_scheduler = _trampoline::scheduler;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

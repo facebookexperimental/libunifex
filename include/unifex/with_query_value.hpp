@@ -20,17 +20,19 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _with_query_value {
 
-template<typename CPO, typename Value, typename Receiver>
+template <typename CPO, typename Value, typename Receiver>
 struct _receiver_wrapper {
   class type;
 };
-template<typename CPO, typename Value, typename Receiver>
+template <typename CPO, typename Value, typename Receiver>
 using receiver_wrapper = typename _receiver_wrapper<CPO, Value, Receiver>::type;
 
-template<typename CPO, typename Value, typename Receiver>
+template <typename CPO, typename Value, typename Receiver>
 class _receiver_wrapper<CPO, Value, Receiver>::type {
  public:
   template <typename Receiver2>
@@ -118,18 +120,12 @@ public:
   explicit type(Sender2 &&sender, Value2 &&value)
     : sender_((Sender2 &&) sender), value_((Value &&) value) {}
 
-  template <
-    typename Self,
-    typename Receiver,
-    std::enable_if_t<
-      std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
-    std::enable_if_t<
-      std::is_constructible_v<Value, member_t<Self, Value>>, int> = 0,
-    std::enable_if_t<
+  template(typename Self, typename Receiver)
+    (requires same_as<remove_cvref_t<Self>, type> AND
+      constructible_from<Value, member_t<Self, Value>> AND
       is_connectable_v<
         member_t<Self, Sender>,
-        receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>,
-      int> = 0>
+        receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)
       noexcept(std::is_nothrow_constructible_v<Value, member_t<Self, Value>> &&
                is_nothrow_connectable_v<
@@ -165,3 +161,5 @@ namespace _with_query_value_cpo {
 using _with_query_value_cpo::with_query_value;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

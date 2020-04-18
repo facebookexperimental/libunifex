@@ -24,11 +24,14 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <exception>
 #include <functional>
 #include <type_traits>
 #include <utility>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _tfx {
@@ -99,11 +102,8 @@ struct _receiver<Receiver, Func>::type {
     unifex::set_done((Receiver &&) receiver_);
   }
 
-  template <
-      typename CPO,
-      typename R,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-      std::enable_if_t<std::is_same_v<R, receiver>, int> = 0>
+  template(typename CPO, typename R)
+      (requires (!is_receiver_cpo_v<CPO>) AND same_as<R, receiver>)
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -134,7 +134,7 @@ private:
   // This helper transforms an argument list into either
   // - type_list<type_list<Result>> - if Result is non-void, or
   // - type_list<type_list<>>       - if Result is void
-  template<typename... Args>
+  template <typename... Args>
   using result = type_list<
     typename detail::result_overload<std::invoke_result_t<Func, Args...>>::type>;
 
@@ -160,10 +160,8 @@ public:
     return blocking(sender.pred_);
   }
 
-  template <
-    typename Sender,
-    typename Receiver,
-    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0>
+  template(typename Sender, typename Receiver)
+    (requires same_as<remove_cvref_t<Sender>, type>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
@@ -182,7 +180,7 @@ public:
 namespace _tfx_cpo {
   inline constexpr struct _fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Sender, typename Func>
       auto operator()(Sender&& predecessor, Func&& func) const
@@ -203,7 +201,7 @@ namespace _tfx_cpo {
     }
   } transform{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Sender, typename Func>
     auto operator()(Sender&& predecessor, Func&& func) const
@@ -216,3 +214,5 @@ namespace _tfx_cpo {
 } // namespace _tfx_cpo
 using _tfx_cpo::transform;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -22,6 +22,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex
 {
   namespace _delay {
@@ -40,4 +42,6 @@ namespace unifex
     } delay{};
   } // namespace _delay
   using _delay::delay;
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

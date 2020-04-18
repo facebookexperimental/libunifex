@@ -20,6 +20,8 @@
 #include <functional>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _adapt_stream {
 template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc>
@@ -96,3 +98,5 @@ namespace _adapt_stream_cpo {
 } // namespace _adapt_stream_cpo
 using _adapt_stream_cpo::adapt_stream;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

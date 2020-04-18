@@ -23,11 +23,14 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <exception>
 #include <functional>
 #include <tuple>
 #include <type_traits>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _let {
@@ -73,7 +76,7 @@ struct _successor_receiver<Operation, Values...>::type {
   }
 
 private:
-  template<typename... Values2>
+  template <typename... Values2>
   using successor_operation = typename Operation::template successor_operation<Values2...>;
 
   void cleanup() noexcept {
@@ -81,9 +84,8 @@ private:
     op_.values_.template get<decayed_tuple<Values...>>().destruct();
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  template(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const typename Operation::receiver_type&>)
       -> callable_result_t<CPO, const typename Operation::receiver_type&> {
@@ -111,7 +113,7 @@ struct _predecessor_receiver<Operation>::type {
   using predecessor_receiver = type;
   using receiver_type = typename Operation::receiver_type;
 
-  template<typename... Values>
+  template <typename... Values>
   using successor_operation = typename Operation::template successor_operation<Values...>;
 
   Operation& op_;
@@ -161,9 +163,8 @@ struct _predecessor_receiver<Operation>::type {
     unifex::set_error(std::move(op_.receiver_), (Error &&) error);
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+  template(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -203,7 +204,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
       operation_t<successor_type<Values...>, successor_receiver<operation, Values...>>;
 
   friend predecessor_receiver<operation>;
-  template<typename Operation, typename... Values>
+  template <typename Operation, typename... Values>
   friend struct _successor_receiver;
 
   template <typename SuccessorFactory2, typename Receiver2>
@@ -317,12 +318,9 @@ public:
           std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
     : pred_((Predecessor2 &&) pred), func_((SuccessorFactory2 &&) func) {}
 
-  template <
-    typename CPO,
-    typename Sender,
-    typename Receiver,
-    std::enable_if_t<std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
-    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0>
+  template(typename CPO, typename Sender, typename Receiver)
+      (requires same_as<CPO, tag_t<unifex::connect>> AND
+        same_as<remove_cvref_t<Sender>, type>)
   friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
       -> operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver> {
     return operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver>{
@@ -351,3 +349,5 @@ namespace _let_cpo {
 using _let_cpo::let;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

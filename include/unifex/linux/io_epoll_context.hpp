@@ -41,6 +41,8 @@
 #include <sys/uio.h>
 #include <sys/epoll.h>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace linuxos {
 
@@ -964,5 +966,7 @@ class io_epoll_context::async_writer {
 
 } // namespace linuxos
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>
 
 #endif // !UNIFEX_NO_EPOLL

@@ -26,6 +26,8 @@
 
 #include <unifex/get_stop_token.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _type_erase {
 
@@ -273,11 +275,11 @@ struct _stream<Values...>::type {
   struct next_sender {
     stream_base& stream_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types = Variant<Tuple<Values...>>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
     template <typename Receiver>
@@ -328,11 +330,11 @@ struct _stream<Values...>::type {
   struct cleanup_sender {
     stream_base& stream_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types = Variant<>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
     template <typename Receiver>
@@ -391,3 +393,5 @@ template <typename... Ts>
 inline constexpr _type_erase_cpo::_fn<Ts...> type_erase {};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

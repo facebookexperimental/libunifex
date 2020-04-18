@@ -24,6 +24,8 @@
 #include <cstdint>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 class inplace_stop_source;
@@ -156,3 +158,5 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

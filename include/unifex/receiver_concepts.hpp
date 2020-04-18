@@ -20,11 +20,13 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _rec_cpo {
   inline constexpr struct _set_value_fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
     template <typename Receiver, typename... Values>
       auto operator()(Receiver&& r, Values&&... values) const
@@ -49,7 +51,7 @@ namespace _rec_cpo {
     }
   } set_value{};
 
-  template<>
+  template <>
   struct _set_value_fn::_impl<false> {
     template <typename Receiver, typename... Values>
     auto operator()(Receiver&& r, Values&&... values) const
@@ -62,7 +64,7 @@ namespace _rec_cpo {
 
   inline constexpr struct _set_next_fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
     template <typename Receiver, typename... Values>
       auto operator()(Receiver&& r, Values&&... values) const
@@ -87,7 +89,7 @@ namespace _rec_cpo {
     }
   } set_next{};
 
-  template<>
+  template <>
   struct _set_next_fn::_impl<false> {
     template <typename Receiver, typename... Values>
     auto operator()(Receiver&& r, Values&&... values) const
@@ -100,7 +102,7 @@ namespace _rec_cpo {
 
   inline constexpr struct _set_error_fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
     template <typename Receiver, typename Error>
       auto operator()(Receiver&& r, Error&& error) const noexcept
@@ -126,7 +128,7 @@ namespace _rec_cpo {
     }
   } set_error{};
 
-  template<>
+  template <>
   struct _set_error_fn::_impl<false> {
     template <typename Receiver, typename Error>
     auto operator()(Receiver&& r, Error&& error) const noexcept
@@ -140,7 +142,7 @@ namespace _rec_cpo {
 
   inline constexpr struct _set_done_fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
     template <typename Receiver>
       auto operator()(Receiver&& r) const noexcept
@@ -164,7 +166,7 @@ namespace _rec_cpo {
     }
   } set_done{};
 
-  template<>
+  template <>
   struct _set_done_fn::_impl<false> {
     template <typename Receiver>
     auto operator()(Receiver&& r) const noexcept
@@ -194,3 +196,5 @@ template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

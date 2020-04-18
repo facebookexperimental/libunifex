@@ -21,6 +21,9 @@
 #include <cstdint>
 #include <type_traits>
 
+#include <unifex/std_concepts.hpp>
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 inline constexpr std::size_t dynamic_extent = -1;
@@ -61,20 +64,15 @@ struct span {
         "Cannot construct a larger span from a smaller one");
   }
 
-  template <
-      typename U,
-      std::enable_if_t<!std::is_const_v<U> && std::is_same_v<const U, T>, int> =
-          0>
+  template(typename U)
+    (requires (!std::is_const_v<U>) AND same_as<const U, T>)
   explicit constexpr span(const span<U, dynamic_extent>& other) noexcept
       : data_(other.data()) {
     assert(other.size() >= Extent);
   }
 
-  template <
-      std::size_t OtherExtent,
-      typename U,
-      std::enable_if_t<!std::is_const_v<U> && std::is_same_v<const U, T>, int> =
-          0>
+  template(std::size_t OtherExtent, typename U)
+      (requires (!std::is_const_v<U>) AND same_as<const U, T>)
   constexpr span(const span<U, OtherExtent>& other) noexcept
       : data_(other.data()) {
     static_assert(
@@ -160,13 +158,9 @@ struct span<T, dynamic_extent> {
   constexpr span(std::array<T, N>& arr) noexcept
       : data_(arr.data()), size_(N) {}
 
-  template <
-      typename U,
-      std::size_t OtherExtent,
-      std::enable_if_t<
-          std::is_same_v<U, T> ||
-              (!std::is_const_v<U> && std::is_same_v<const U, T>),
-          int> = 0>
+  template(typename U, std::size_t OtherExtent)
+      (requires same_as<U, T> ||
+          (!std::is_const_v<U> && same_as<const U, T>))
   constexpr span(const span<U, OtherExtent>& other) noexcept
       : data_(other.data()), size_(other.size()) {}
 
@@ -294,10 +288,8 @@ span<const std::byte> as_bytes(const span<T>& s) noexcept {
                                s.size() * sizeof(T)};
 }
 
-template <
-    typename T,
-    std::size_t Extent,
-    std::enable_if_t<!std::is_const_v<T>, int> = 0>
+template(typename T, std::size_t Extent)
+    (requires (!std::is_const_v<T>))
 span<std::byte, Extent * sizeof(T)> as_writable_bytes(
     const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
@@ -306,7 +298,8 @@ span<std::byte, Extent * sizeof(T)> as_writable_bytes(
       reinterpret_cast<std::byte*>(s.data())};
 }
 
-template <typename T, std::enable_if_t<!std::is_const_v<T>, int> = 0>
+template(typename T)
+    (requires (!std::is_const_v<T>))
 span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   assert(s.size() <= maxSize);
@@ -315,3 +308,5 @@ span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
 }
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

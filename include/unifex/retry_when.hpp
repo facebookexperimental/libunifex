@@ -29,32 +29,34 @@
 #include <cassert>
 #include <exception>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _retry_when {
 
-template<typename Source, typename Func, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _op {
   class type;
 };
-template<typename Source, typename Func, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 using operation = typename _op<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template<typename Source, typename Func, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _source_receiver {
   class type;
 };
-template<typename Source, typename Func, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 using source_receiver = typename _source_receiver<Source, Func, Receiver>::type;
 
-template<typename Source, typename Func, typename Receiver, typename Trigger>
+template <typename Source, typename Func, typename Receiver, typename Trigger>
 struct _trigger_receiver {
   class type;
 };
-template<typename Source, typename Func, typename Receiver, typename Trigger>
+template <typename Source, typename Func, typename Receiver, typename Trigger>
 using trigger_receiver =
     typename _trigger_receiver<Source, Func, Receiver, Trigger>::type;
 
-template<typename Source, typename Func, typename Receiver, typename Trigger>
+template <typename Source, typename Func, typename Receiver, typename Trigger>
 class _trigger_receiver<Source, Func, Receiver, Trigger>::type {
   using trigger_receiver = type;
 
@@ -94,9 +96,8 @@ public:
     }
   }
 
-  template<
-    typename R = Receiver,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_done), Receiver>, int> = 0>
+  template(typename R = Receiver)
+    (requires is_callable_v<decltype(unifex::set_done), Receiver>)
   void set_done() && noexcept {
     assert(op_ != nullptr);
 
@@ -105,9 +106,8 @@ public:
     unifex::set_done((Receiver&&)op->receiver_);
   }
 
-  template<
-    typename Error,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_error), Receiver, Error>, int> = 0>
+  template(typename Error)
+    (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
   void set_error(Error error) && noexcept {
     assert(op_ != nullptr);
 
@@ -122,10 +122,9 @@ public:
 
 private:
 
-  template<
-    typename CPO,
-    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  template(typename CPO)
+    (requires (!is_receiver_cpo_v<CPO>) AND
+        is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const trigger_receiver& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -155,7 +154,7 @@ private:
   operation<Source, Func, Receiver>* op_;
 };
 
-template<typename Source, typename Func, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 class _source_receiver<Source, Func, Receiver>::type {
   using source_receiver = type;
 public:
@@ -166,26 +165,23 @@ public:
   : op_(std::exchange(other.op_, {}))
   {}
 
-  template<
-    typename... Values,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_value), Receiver, Values...>, int> = 0>
+  template(typename... Values)
+    (requires is_callable_v<decltype(unifex::set_value), Receiver, Values...>)
   void set_value(Values&&... values)
       noexcept(is_nothrow_callable_v<decltype(unifex::set_value), Receiver, Values...>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
-  template<
-    typename R = Receiver,
-    std::enable_if_t<is_callable_v<decltype(unifex::set_done), R>, int> = 0>
+  template(typename R = Receiver)
+    (requires is_callable_v<decltype(unifex::set_done), R>)
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  template<
-    typename Error,
-    std::enable_if_t<std::is_invocable_v<Func&, Error>, int> = 0>
+  template(typename Error)
+    (requires std::is_invocable_v<Func&, Error>)
   void set_error(Error error) noexcept {
     assert(op_ != nullptr);
     auto* op = op_;
@@ -216,10 +212,9 @@ public:
   }
 
 private:
-  template<
-    typename CPO,
-    std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-    std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+  template(typename CPO)
+    (requires (!is_receiver_cpo_v<CPO>) AND
+        is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const source_receiver& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -244,12 +239,12 @@ private:
   operation<Source, Func, Receiver>* op_;
 };
 
-template<typename Source, typename Func, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 class _op<Source, Func, Receiver>::type {
   using operation = type;
   using source_receiver_t = source_receiver<Source, Func, Receiver>;
 public:
-  template<typename Source2, typename Func2, typename Receiver2>
+  template <typename Source2, typename Func2, typename Receiver2>
   explicit type(Source2&& source, Func2&& func, Receiver2&& receiver)
       noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
                std::is_nothrow_constructible_v<Func, Func2> &&
@@ -276,23 +271,23 @@ public:
 private:
   friend source_receiver_t;
 
-  template<typename Source2, typename Func2, typename Receiver2, typename Trigger>
+  template <typename Source2, typename Func2, typename Receiver2, typename Trigger>
   friend class _trigger_receiver;
 
   using source_op_t = operation_t<Source&, source_receiver_t>;
 
-  template<typename Error>
+  template <typename Error>
   using trigger_sender_t = std::invoke_result_t<Func&, remove_cvref_t<Error>>;
 
-  template<typename Error>
+  template <typename Error>
   using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
 
-  template<typename Error>
+  template <typename Error>
   using trigger_op_t = operation_t<
       trigger_sender_t<Error>,
       trigger_receiver_t<Error>>;
 
-  template<typename... Errors>
+  template <typename... Errors>
   using trigger_op_union = manual_lifetime_union<trigger_op_t<Errors>...>;
 
   UNIFEX_NO_UNIQUE_ADDRESS Source source_;
@@ -305,34 +300,34 @@ private:
   };
 };
 
-template<typename Source, typename Func>
+template <typename Source, typename Func>
 struct _sender {
   class type;
 };
-template<typename Source, typename Func>
+template <typename Source, typename Func>
 using sender = typename _sender<remove_cvref_t<Source>, std::decay_t<Func>>::type;
 
-template<typename Source, typename Func>
+template <typename Source, typename Func>
 class _sender<Source, Func>::type {
   using sender = type;
 
-  template<typename Error>
+  template <typename Error>
   using trigger_sender = std::invoke_result_t<Func&, remove_cvref_t<Error>>;
 
-  template<typename... Errors>
+  template <typename... Errors>
   using make_error_type_list = typename concat_type_lists_unique<
       typename trigger_sender<Errors>::template error_types<type_list>...,
       type_list<std::exception_ptr>>::type;
 
 public:
-  template<template<typename...> class Variant,
-           template<typename...> class Tuple>
+  template <template <typename...> class Variant,
+           template <typename...> class Tuple>
   using value_types = typename Source::template value_types<Variant, Tuple>;
 
-  template<template<typename...> class Variant>
+  template <template <typename...> class Variant>
   using error_types = typename Source::template error_types<make_error_type_list>::template apply<Variant>;
 
-  template<typename Source2, typename Func2>
+  template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)
     noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
              std::is_nothrow_constructible_v<Func, Func2>)
@@ -344,19 +339,12 @@ public:
   // Ideally they should also check that func() invoked with each of the errors can be connected
   // with the corresponding trigger_receiver.
 
-  template<
-    typename Self,
-    typename Receiver,
-    std::enable_if_t<
-        std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
-    std::enable_if_t<
-        std::is_constructible_v<Source, member_t<Self, Source>>, int> = 0,
-    std::enable_if_t<
-        std::is_constructible_v<Func, member_t<Self, Func>>, int> = 0,
-    std::enable_if_t<
-        std::is_constructible_v<remove_cvref_t<Receiver>, Receiver>, int> = 0,
-    std::enable_if_t<
-        is_connectable_v<Source&, source_receiver<Source, Func, remove_cvref_t<Receiver>>>, int> = 0>
+  template(typename Self, typename Receiver)
+      (requires same_as<remove_cvref_t<Self>, type> AND
+          constructible_from<Source, member_t<Self, Source>> AND
+          constructible_from<Func, member_t<Self, Func>> AND
+          constructible_from<remove_cvref_t<Receiver>, Receiver> AND
+          is_connectable_v<Source&, source_receiver<Source, Func, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r)
       noexcept(
         std::is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
@@ -377,7 +365,7 @@ private:
 namespace _retry_when_cpo {
   inline constexpr struct _fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Source, typename Func>
       auto operator()(Source&& source, Func&& func) const
@@ -386,7 +374,7 @@ namespace _retry_when_cpo {
       }
     };
   public:
-    template<typename Source, typename Func>
+    template <typename Source, typename Func>
     auto operator()(Source&& source, Func&& func) const
         noexcept(is_nothrow_callable_v<
             _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func>)
@@ -397,15 +385,12 @@ namespace _retry_when_cpo {
       }
   } retry_when{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
-    template<
-      typename Source,
-      typename Func,
-      std::enable_if_t<
-          !is_tag_invocable_v<_fn, Source, Func> &&
-          std::is_constructible_v<remove_cvref_t<Source>, Source> &&
-          std::is_constructible_v<remove_cvref_t<Func>, Func>, int> = 0>
+    template(typename Source, typename Func)
+      (requires (!is_tag_invocable_v<_fn, Source, Func>) AND
+          constructible_from<remove_cvref_t<Source>, Source> AND
+          constructible_from<remove_cvref_t<Func>, Func>)
     auto operator()(Source&& source, Func&& func) const
         noexcept(std::is_nothrow_constructible_v<
           _retry_when::sender<Source, Func>, Source, Func>)
@@ -417,3 +402,5 @@ namespace _retry_when_cpo {
 using _retry_when_cpo::retry_when;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

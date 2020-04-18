@@ -21,6 +21,8 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 class async_mutex {
@@ -124,3 +126,5 @@ inline bool async_mutex::try_lock() noexcept {
 }
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

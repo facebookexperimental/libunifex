@@ -44,6 +44,8 @@
 //     sync_wait();
 //
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _io_cpo {
 //
@@ -199,3 +201,5 @@ using _io_cpo::async_read_some_at;
 using _io_cpo::async_write_some_at;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

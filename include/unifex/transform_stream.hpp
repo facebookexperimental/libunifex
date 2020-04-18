@@ -20,6 +20,8 @@
 
 #include <functional>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _tfx_stream {
   struct _fn {
@@ -35,3 +37,5 @@ namespace _tfx_stream {
 
 inline constexpr _tfx_stream::_fn transform_stream {};
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

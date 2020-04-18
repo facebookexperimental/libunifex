@@ -18,6 +18,8 @@
 #include <unifex/config.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 struct this_ {};
@@ -112,3 +114,5 @@ struct extract_this<FirstType, RestTypes...> {
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

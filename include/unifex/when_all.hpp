@@ -24,6 +24,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <atomic>
 #include <cstddef>
@@ -31,6 +32,8 @@
 #include <tuple>
 #include <type_traits>
 #include <variant>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _when_all {
@@ -113,7 +116,7 @@ using error_types = typename concat_type_lists_unique_t<
     typename Senders::template error_types<unique_decayed_error_types>...,
     type_list<std::exception_ptr>>::template apply<Variant>;
 
-template<typename... Values>
+template <typename... Values>
 using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
 
 template <typename Sender>
@@ -164,15 +167,10 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
 
   Receiver& get_receiver() const { return op_.receiver_; }
 
-  template <
-      typename CPO,
-      typename R,
-      std::enable_if_t<
-          !is_receiver_cpo_v<CPO>, int> = 0,
-      std::enable_if_t<
-          std::is_same_v<R, element_receiver>, int> = 0,
-      std::enable_if_t<
-          is_callable_v<CPO, const Receiver&>, int> = 0>
+  template(typename CPO, typename R)
+      (requires (!is_receiver_cpo_v<CPO>) AND
+          same_as<R, element_receiver> AND
+          is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -202,7 +200,7 @@ template <typename Receiver, typename... Senders>
 struct _op<Receiver, Senders...>::type {
   using operation = type;
   using receiver_type = Receiver;
-  template<std::size_t Index, typename Receiver2, typename... Senders2>
+  template <std::size_t Index, typename Receiver2, typename... Senders2>
   friend class _element_receiver;
 
   explicit type(Receiver&& receiver, Senders&&... senders)
@@ -262,7 +260,7 @@ struct _op<Receiver, Senders...>::type {
       Receiver&>::template callback_type<cancel_operation>>
       stopCallback_;
   Receiver receiver_;
-  template<std::size_t Index>
+  template <std::size_t Index>
   using op_element_receiver = element_receiver<Index, Receiver, Senders...>;
   operation_tuple<0, op_element_receiver, Senders...> ops_;
 };
@@ -274,14 +272,14 @@ struct _sender {
 template <typename... Senders>
 using sender = typename _sender<remove_cvref_t<Senders>...>::type;
 
-template<typename Receiver, typename Indices, typename... Senders>
+template <typename Receiver, typename Indices, typename... Senders>
 extern const bool _when_all_connectable_v;
 
-template<typename Receiver, std::size_t... Indices, typename... Senders>
+template <typename Receiver, std::size_t... Indices, typename... Senders>
 inline constexpr bool _when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> =
   (is_connectable_v<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
 
-template<typename Receiver, typename... Senders>
+template <typename Receiver, typename... Senders>
 inline constexpr bool when_all_connectable_v =
   _when_all_connectable_v<Receiver, std::index_sequence_for<Senders...>, Senders...>;
 
@@ -303,17 +301,10 @@ class _sender<Senders...>::type {
   explicit type(Senders2&&... senders)
     : senders_((Senders2 &&) senders...) {}
 
-  template <
-    typename CPO,
-    typename Sender,
-    typename Receiver,
-    std::enable_if_t<
-        std::is_same_v<CPO, tag_t<unifex::connect>>, int> = 0,
-    std::enable_if_t<
-        std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
-    std::enable_if_t<
-        when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>,
-        int> = 0>
+  template(typename CPO, typename Sender, typename Receiver)
+      (requires same_as<CPO, tag_t<unifex::connect>> AND
+        same_as<remove_cvref_t<Sender>, type> AND
+        when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
   friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
     -> operation<Receiver, member_t<Sender, Senders>...> {
     return std::apply([&](Senders&&... senders) {
@@ -380,3 +371,5 @@ namespace _when_all_cpo {
 using _when_all_cpo::when_all;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

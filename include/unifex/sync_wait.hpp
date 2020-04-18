@@ -27,6 +27,8 @@
 #include <optional>
 #include <cassert>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _sync_wait {
 
@@ -186,3 +188,5 @@ template <typename Result>
 inline constexpr _sync_wait_r_cpo::_fn<Result> sync_wait_r {};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

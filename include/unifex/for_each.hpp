@@ -19,11 +19,13 @@
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _for_each {
   inline constexpr struct _fn {
     private:
-      template<bool>
+      template <bool>
       struct _impl {
         template <typename Stream, typename Func>
         auto operator()(Stream&& stream, Func&& func) const
@@ -44,7 +46,7 @@ namespace _for_each {
     }
   } for_each{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Stream, typename Func>
     auto operator()(Stream&& stream, Func&& func) const {
@@ -63,3 +65,5 @@ namespace _for_each {
 
 using _for_each::for_each;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -17,6 +17,8 @@
 
 #include <cassert>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 // A doubly-linked intrusive list maintained in ascending order of the 'SortKey'
@@ -110,3 +112,5 @@ class intrusive_heap {
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

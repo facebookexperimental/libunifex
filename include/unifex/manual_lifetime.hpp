@@ -22,6 +22,8 @@
 #include <memory>
 #include <new>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 template <typename T>
@@ -142,3 +144,5 @@ class manual_lifetime<void> {
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

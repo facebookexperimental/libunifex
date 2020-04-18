@@ -21,11 +21,13 @@
 #include <type_traits>
 #include <exception>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _schedule {
   struct sender;
   inline constexpr struct _fn {
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Scheduler>
       constexpr auto operator()(Scheduler&& s) const
@@ -48,7 +50,7 @@ namespace _schedule {
     constexpr sender operator()() const noexcept;
   } schedule{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Scheduler>
     constexpr auto operator()(Scheduler&& s) noexcept(
@@ -76,12 +78,12 @@ namespace _get_scheduler {
 using _get_scheduler::get_scheduler;
 
 struct _schedule::sender {
-  template<
-    template<typename...> class Variant,
-    template<typename...> class Tuple>
+  template <
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
-  template<template<typename...> class Variant>
+  template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
   template <
@@ -101,15 +103,15 @@ inline constexpr _schedule::sender _schedule::_fn::operator()() const noexcept {
 }
 
 namespace _schedule_after {
-  template<typename Duration>
+  template <typename Duration>
   struct _sender {
     class type;
   };
-  template<typename Duration>
+  template <typename Duration>
   using sender = typename _sender<Duration>::type;
 
   inline constexpr struct _fn {
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename TimeScheduler, typename Duration>
       constexpr auto operator()(TimeScheduler&& s, Duration&& d) const
@@ -130,13 +132,13 @@ namespace _schedule_after {
           static_cast<Duration&&>(d));
     }
 
-    template<typename Duration>
+    template <typename Duration>
     constexpr sender<Duration> operator()(Duration d) const {
       return sender<Duration>{std::move(d)};
     }
   } schedule_after{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename TimeScheduler, typename Duration>
     constexpr auto operator()(TimeScheduler&& s, Duration&& d) const noexcept(
@@ -146,13 +148,13 @@ namespace _schedule_after {
     }
   };
 
-  template<typename Duration>
+  template <typename Duration>
   class _sender<Duration>::type {
   public:
-    template<template<typename...> class Variant, template<typename...> class Tuple>
+    template <template <typename...> class Variant, template <typename...> class Tuple>
     using value_types = Variant<Tuple<>>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
     explicit type(Duration d)
@@ -162,7 +164,7 @@ namespace _schedule_after {
   private:
     friend _fn;
 
-    template<
+    template <
       typename Receiver,
       typename Scheduler =
         std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
@@ -181,7 +183,7 @@ using _schedule_after::schedule_after;
 
 namespace _schedule_at {
   inline constexpr struct _fn {
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename TimeScheduler, typename TimePoint>
       constexpr auto operator()(TimeScheduler&& s, TimePoint&& tp) const
@@ -203,7 +205,7 @@ namespace _schedule_at {
     }
   } schedule_at {};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename TimeScheduler, typename TimePoint>
     constexpr auto operator()(TimeScheduler&& s, TimePoint&& tp) const noexcept(
@@ -217,7 +219,7 @@ using _schedule_at::schedule_at;
 
 namespace _now {
   inline constexpr struct _fn {
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename TimeScheduler>
       constexpr auto operator()(TimeScheduler&& s) const
@@ -238,7 +240,7 @@ namespace _now {
     }
   } now {};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename TimeScheduler>
     constexpr auto operator()(TimeScheduler&& s) const noexcept(
@@ -251,3 +253,5 @@ namespace _now {
 using _now::now;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

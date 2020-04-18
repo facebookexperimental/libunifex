@@ -20,6 +20,8 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/unstoppable_token.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _get_stop_token {
   inline constexpr struct _fn {
@@ -52,3 +54,5 @@ using stop_token_type_t =
     remove_cvref_t<get_stop_token_result_t<Receiver>>;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

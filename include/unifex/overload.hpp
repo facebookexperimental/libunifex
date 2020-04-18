@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 namespace detail {
@@ -51,3 +53,5 @@ constexpr auto& overload(CPO) {
 }
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

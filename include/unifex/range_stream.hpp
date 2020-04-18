@@ -23,6 +23,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _range {
 struct stream;
@@ -96,3 +98,5 @@ void _op<Receiver>::type::start() noexcept {
 using range_stream = _range::stream;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

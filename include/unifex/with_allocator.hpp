@@ -18,6 +18,8 @@
 #include <unifex/get_allocator.hpp>
 #include <unifex/with_query_value.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _with_alloc_cpo {
   struct _fn {
@@ -31,3 +33,5 @@ namespace _with_alloc_cpo {
 
 inline constexpr _with_alloc_cpo::_fn with_allocator {};
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

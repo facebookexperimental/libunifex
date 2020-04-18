@@ -30,31 +30,33 @@
 #include <utility>
 #include <cassert>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _take_until {
-template<typename SourceStream, typename TriggerStream>
+template <typename SourceStream, typename TriggerStream>
 struct _stream {
   struct type;
 };
-template<typename SourceStream, typename TriggerStream>
+template <typename SourceStream, typename TriggerStream>
 using stream =
     typename _stream<
         remove_cvref_t<SourceStream>,
         remove_cvref_t<TriggerStream>>::type;
 
-template<typename SourceStream, typename TriggerStream>
+template <typename SourceStream, typename TriggerStream>
 struct _stream<SourceStream, TriggerStream>::type {
  private:
   using take_until_stream = type;
   struct trigger_next_receiver {
     take_until_stream& stream_;
 
-    template<typename... Values>
+    template <typename... Values>
     void set_value(Values&&...) && noexcept {
       std::move(*this).set_done();
     }
 
-    template<typename Error>
+    template <typename Error>
     void set_error(Error&&) && noexcept {
       std::move(*this).set_done();
     }
@@ -90,23 +92,23 @@ struct _stream<SourceStream, TriggerStream>::type {
   struct next_sender {
     take_until_stream& stream_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types =
       typename next_sender_t<SourceStream>::
         template value_types<Variant, Tuple>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types =
       typename next_sender_t<SourceStream>::template error_types<Variant>;
 
-    template<typename Receiver>
+    template <typename Receiver>
     struct _op {
       struct type {
         struct receiver_wrapper {
           type& op_;
 
-          template<typename... Values>
+          template <typename... Values>
           void set_value(Values&&... values) && noexcept {
             op_.stopCallback_.destruct();
             unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
@@ -118,7 +120,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             unifex::set_done(std::move(op_.receiver_));
           }
 
-          template<typename Error>
+          template <typename Error>
           void set_error(Error&& error) && noexcept {
             op_.stopCallback_.destruct();
             op_.stream_.stopSource_.request_stop();
@@ -150,7 +152,7 @@ struct _stream<SourceStream, TriggerStream>::type {
           stopCallback_;
         next_operation_t<SourceStream, receiver_wrapper> innerOp_;
 
-        template<typename Receiver2>
+        template <typename Receiver2>
         explicit type(take_until_stream& stream, Receiver2&& receiver)
           : stream_(stream)
           , receiver_((Receiver2&&)receiver)
@@ -181,10 +183,10 @@ struct _stream<SourceStream, TriggerStream>::type {
         }
       };
     };
-    template<typename Receiver>
+    template <typename Receiver>
     using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-    template<typename Receiver>
+    template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
       return operation<Receiver>{
         stream_,
@@ -195,17 +197,17 @@ struct _stream<SourceStream, TriggerStream>::type {
   struct cleanup_sender {
     take_until_stream& stream_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types =
       typename cleanup_sender_t<SourceStream>::
         template value_types<Variant, Tuple>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types =
       typename cleanup_sender_t<SourceStream>::template error_types<Variant>;
 
-    template<typename Receiver>
+    template <typename Receiver>
     struct _op {
       struct type final : cleanup_operation_base {
         struct source_receiver {
@@ -217,7 +219,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.source_cleanup_done();
           }
 
-          template<typename Error>
+          template <typename Error>
           void set_error(Error&& error) && noexcept {
             std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
           }
@@ -246,7 +248,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.trigger_cleanup_done();
           }
 
-          template<typename Error>
+          template <typename Error>
           void set_error(Error&& error) && noexcept {
             std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
           }
@@ -277,7 +279,7 @@ struct _stream<SourceStream, TriggerStream>::type {
         manual_lifetime<cleanup_operation_t<TriggerStream, trigger_receiver>>
           triggerOp_;
 
-        template<typename Receiver2>
+        template <typename Receiver2>
         explicit type(take_until_stream& stream, Receiver2&& receiver)
           : stream_(stream)
           , receiver_((Receiver2&&)receiver)
@@ -396,10 +398,10 @@ struct _stream<SourceStream, TriggerStream>::type {
         }
       };
     };
-    template<typename Receiver>
+    template <typename Receiver>
     using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-    template<typename Receiver>
+    template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) {
       return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
@@ -436,7 +438,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
 public:
 
-  template<typename SourceStream2, typename TriggerStream2>
+  template <typename SourceStream2, typename TriggerStream2>
   explicit type(SourceStream2&& source, TriggerStream2&& trigger)
   : source_((SourceStream2&&)source)
   , trigger_((TriggerStream2&&)trigger)
@@ -459,7 +461,7 @@ public:
 
 namespace _take_until_cpo {
   inline constexpr struct _fn {
-    template<typename SourceStream, typename TriggerStream>
+    template <typename SourceStream, typename TriggerStream>
     auto operator()(SourceStream&& source, TriggerStream&& trigger) const {
       return _take_until::stream<SourceStream, TriggerStream>{
         (SourceStream&&)source,
@@ -471,3 +473,5 @@ namespace _take_until_cpo {
 using _take_until_cpo::take_until;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

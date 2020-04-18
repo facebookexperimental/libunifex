@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 struct unstoppable_token {
@@ -31,3 +33,5 @@ struct unstoppable_token {
 };
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

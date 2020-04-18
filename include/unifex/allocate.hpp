@@ -24,6 +24,8 @@
 #include <memory>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _alloc {
   template <typename Operation, typename Allocator>
@@ -130,7 +132,7 @@ namespace _alloc {
 namespace _alloc_cpo {
   inline constexpr struct _fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Sender>
       auto operator()(Sender&& predecessor) const
@@ -147,7 +149,7 @@ namespace _alloc_cpo {
     }
   } allocate{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
@@ -160,3 +162,5 @@ namespace _alloc_cpo {
 using _alloc_cpo::allocate;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

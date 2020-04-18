@@ -20,6 +20,8 @@
 #include <unifex/typed_via.hpp>
 #include <unifex/via.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _via_stream_cpo {
   struct _fn {
@@ -39,3 +41,5 @@ namespace _via_stream_cpo {
 
 inline constexpr _via_stream_cpo::_fn via_stream {};
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

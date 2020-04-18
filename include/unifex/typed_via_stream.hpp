@@ -19,6 +19,8 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/typed_via.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _typed_via_stream {
   struct _fn {
@@ -36,3 +38,5 @@ namespace _typed_via_stream {
 inline constexpr _typed_via_stream::_fn typed_via_stream {};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

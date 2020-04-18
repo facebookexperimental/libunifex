@@ -22,13 +22,15 @@
 
 #include <exception>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex
 {
   namespace _execute
   {
     struct default_execute_receiver {
       void set_done() && noexcept {}
-      template<typename Error>
+      template <typename Error>
       [[noreturn]] void set_error(Error&&) && noexcept {
         std::terminate();
       }
@@ -36,7 +38,7 @@ namespace unifex
     };
 
     inline constexpr struct _fn {
-      template<typename Scheduler, typename Func>
+      template <typename Scheduler, typename Func>
       void operator()(Scheduler&& s, Func&& func) const {
         if constexpr (is_tag_invocable_v<_fn, Scheduler, Func>) {
           unifex::tag_invoke(*this, (Scheduler&&)s, (Func&&)func);
@@ -51,3 +53,5 @@ namespace unifex
   } // namespace _execute
   using _execute::execute;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

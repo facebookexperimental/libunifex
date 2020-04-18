@@ -25,11 +25,14 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <cassert>
 #include <exception>
 #include <type_traits>
 #include <utility>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex
 {
@@ -69,13 +72,10 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
     private:
-      template <
-          typename CPO,
-          typename R,
-          typename... Args,
-          std::enable_if_t<is_receiver_cpo_v<CPO>, int> = 0,
-          std::enable_if_t<std::is_same_v<R, successor_receiver>, int> = 0,
-          std::enable_if_t<is_callable_v<CPO, Receiver, Args...>, int> = 0>
+      template(typename CPO, typename R, typename... Args)
+          (requires is_receiver_cpo_v<CPO> AND
+              same_as<R, successor_receiver> AND
+              is_callable_v<CPO, Receiver, Args...>)
       friend auto tag_invoke(
           CPO cpo,
           R&& r,
@@ -88,12 +88,10 @@ namespace unifex
             r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
       }
 
-      template <
-          typename CPO,
-          typename R,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-          std::enable_if_t<std::is_same_v<R, successor_receiver>, int> = 0,
-          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+      template(typename CPO, typename R)
+          (requires (!is_receiver_cpo_v<CPO>) AND
+            same_as<R, successor_receiver> AND
+            is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r) noexcept(is_nothrow_callable_v<
@@ -177,33 +175,25 @@ namespace unifex
         }
       }
 
-      template <
-          typename Error,
-          std::enable_if_t<
-              is_callable_v<decltype(unifex::set_error), Receiver, Error>,
-              int> = 0>
+      template(typename Error)
+          (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
       void set_error(Error&& error) && noexcept {
         unifex::set_error(
             static_cast<Receiver&&>(op_->receiver_),
             static_cast<Error&&>(error));
       }
 
-      template <
-          typename... Args,
-          std::enable_if_t<
-              is_callable_v<decltype(unifex::set_done), Receiver, Args...>,
-              int> = 0>
+      template(typename... Args)
+          (requires is_callable_v<decltype(unifex::set_done), Receiver, Args...>)
       void set_done(Args...) && noexcept {
         unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
       }
 
     private:
-      template <
-          typename CPO,
-          typename R,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-          std::enable_if_t<std::is_same_v<R, predecessor_receiver>, int> = 0,
-          std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
+      template(typename CPO, typename R)
+          (requires (!is_receiver_cpo_v<CPO>) AND
+            same_as<R, predecessor_receiver> AND
+            is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
           CPO cpo,
           const R& r) noexcept(is_nothrow_callable_v<
@@ -319,13 +309,9 @@ namespace unifex
           typename Successor::template error_types<type_list>,
           type_list<std::exception_ptr>>::template apply<Variant>;
 
-      template <
-          typename Predecessor2,
-          typename Successor2,
-          std::enable_if_t<
-              std::is_constructible_v<Predecessor, Predecessor2> &&
-                  std::is_constructible_v<Successor, Successor2>,
-              int> = 0>
+      template(typename Predecessor2, typename Successor2)
+          (requires constructible_from<Predecessor, Predecessor2> AND
+              constructible_from<Successor, Successor2>)
       explicit type(Predecessor2&& predecessor, Successor2&& successor)
           noexcept(std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
               std::is_nothrow_constructible_v<Successor, Successor2>)
@@ -353,23 +339,15 @@ namespace unifex
         }
       }
 
-      template <
-          typename Receiver,
-          typename Sender,
-          std::enable_if_t<
-              std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
-          std::enable_if_t<
-              std::is_constructible_v<Successor, member_t<Sender, Successor>>, int> = 0,
-          std::enable_if_t<
+      template(typename Receiver, typename Sender)
+          (requires same_as<remove_cvref_t<Sender>, type> AND
+            constructible_from<Successor, member_t<Sender, Successor>> AND
             is_connectable_v<
               member_t<Sender, Predecessor>,
-              predecessor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>,
-            int> = 0,
-          std::enable_if_t<
+              predecessor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>> AND
             is_connectable_v<
               Successor,
-              successor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>,
-            int> = 0>
+              successor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>)
       friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
           -> operation<member_t<Sender, Predecessor>, Successor, Receiver> {
         return operation<member_t<Sender, Predecessor>, Successor,  Receiver>{
@@ -387,7 +365,7 @@ namespace unifex
   namespace _seq_cpo {
     inline constexpr struct _fn {
     private:
-      template<bool>
+      template <bool>
       struct _impl2 {
         template <typename First, typename Second>
         auto operator()(First&& first, Second&& second) const
@@ -398,7 +376,7 @@ namespace unifex
         }
       };
 
-      template<bool>
+      template <bool>
       struct _impl3 {
         template <typename First, typename Second, typename... Rest>
         auto operator()(First&& first, Second&& second, Rest&&... rest) const
@@ -446,7 +424,7 @@ namespace unifex
       }
     } sequence{};
 
-    template<>
+    template <>
     struct _fn::_impl2<false> {
       template <typename First, typename Second>
       auto operator()(First&& first, Second&& second) const
@@ -461,7 +439,7 @@ namespace unifex
       }
     };
 
-    template<>
+    template <>
     struct _fn::_impl3<false> {
       template <typename First, typename Second, typename... Rest>
       auto operator()(First&& first, Second&& second, Rest&&... rest) const
@@ -484,4 +462,6 @@ namespace unifex
 
   using _seq_cpo::sequence;
 
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>
