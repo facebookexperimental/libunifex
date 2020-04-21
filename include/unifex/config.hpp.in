@@ -23,8 +23,14 @@
 #cmakedefine UNIFEX_MEMORY_RESOURCE_HEADER <@UNIFEX_MEMORY_RESOURCE_HEADER@>
 #cmakedefine UNIFEX_MEMORY_RESOURCE_NAMESPACE @UNIFEX_MEMORY_RESOURCE_NAMESPACE@
 
-#if __GNUG__ && !__clang__
+#if defined(__has_cpp_attribute)
+// prior to clang-10, [[no_unique_address]] leads to bad codegen
+#if __has_cpp_attribute(no_unique_address) && \
+  (!defined(__clang__) || __clang_major__ > 9)
 #define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#else
+#define UNIFEX_NO_UNIQUE_ADDRESS
+#endif
 #else
 #define UNIFEX_NO_UNIQUE_ADDRESS
 #endif
