@@ -340,22 +340,22 @@ namespace unifex
                   stop_when_source_receiver<
                       Source,
                       Trigger,
-                      std::remove_cvref_t<Receiver>>> &&
+                      remove_cvref_t<Receiver>>> &&
                   is_connectable_v<
                       Trigger,
                       stop_when_trigger_receiver<
                           Source,
                           Trigger,
-                          std::remove_cvref_t<Receiver>>>,
+                          remove_cvref_t<Receiver>>>,
               int> = 0>
       auto connect(Receiver&& r) && -> stop_when_operation<
           Source,
           Trigger,
-          std::remove_cvref_t<Receiver>> {
+          remove_cvref_t<Receiver>> {
         return stop_when_operation<
             Source,
             Trigger,
-            std::remove_cvref_t<Receiver>>{
+            remove_cvref_t<Receiver>>{
             (Source &&) source_, (Trigger &&) trigger_, (Receiver &&) r};
       }
 
@@ -367,22 +367,22 @@ namespace unifex
                   stop_when_source_receiver<
                       const Source&,
                       const Trigger&,
-                      std::remove_cvref_t<Receiver>>> &&
+                      remove_cvref_t<Receiver>>> &&
                   is_connectable_v<
                       Trigger&,
                       stop_when_trigger_receiver<
                           const Source&,
                           const Trigger&,
-                          std::remove_cvref_t<Receiver>>>,
+                          remove_cvref_t<Receiver>>>,
               int> = 0>
       auto connect(Receiver&& r) const& -> stop_when_operation<
           const Source&,
           const Trigger&,
-          std::remove_cvref_t<Receiver>> {
+          remove_cvref_t<Receiver>> {
         return stop_when_operation<
             const Source&,
             const Trigger&,
-            std::remove_cvref_t<Receiver>>{
+            remove_cvref_t<Receiver>>{
             std::as_const(source_), std::as_const(trigger_), (Receiver &&) r};
       }
 
@@ -408,16 +408,16 @@ namespace unifex
           typename Trigger,
           std::enable_if_t<!is_tag_invocable_v<_fn, Source, Trigger>, int> = 0>
       auto operator()(Source&& source, Trigger&& trigger) const noexcept(
-          std::is_nothrow_constructible_v<std::remove_cvref_t<Source>, Source>&&
+          std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>&&
               std::is_nothrow_constructible_v<
-                  std::remove_cvref_t<Trigger>,
+                  remove_cvref_t<Trigger>,
                   Trigger>)
           -> _stop_when::stop_when_sender<
-              std::remove_cvref_t<Source>,
-              std::remove_cvref_t<Trigger>> {
+              remove_cvref_t<Source>,
+              remove_cvref_t<Trigger>> {
         return _stop_when::stop_when_sender<
-            std::remove_cvref_t<Source>,
-            std::remove_cvref_t<Trigger>>(
+            remove_cvref_t<Source>,
+            remove_cvref_t<Trigger>>(
             (Source &&) source, (Trigger &&) trigger);
       }
     };
