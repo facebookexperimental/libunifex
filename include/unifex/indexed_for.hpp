@@ -42,11 +42,10 @@ struct _receiver {
   struct type;
 };
 template <typename Policy, typename Range, typename Func, typename Receiver>
-using receiver =
+using receiver_t =
     typename _receiver<Policy, Range, Func, remove_cvref_t<Receiver>>::type;
 template <typename Policy, typename Range, typename Func, typename Receiver>
 struct _receiver<Policy, Range, Func, Receiver>::type {
-  using receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
   UNIFEX_NO_UNIQUE_ADDRESS Range range_;
@@ -98,7 +97,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
 
   template(typename CPO)
       (requires (!is_receiver_cpo_v<CPO>))
-  friend auto tag_invoke(CPO cpo, const receiver& r) noexcept(
+  friend auto tag_invoke(CPO cpo, const type& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.receiver_));
@@ -107,7 +106,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   template <typename Visit>
   friend void tag_invoke(
       tag_t<visit_continuations>,
-      const receiver& r,
+      const type& r,
       Visit&& visit) {
     std::invoke(visit, r.receiver_);
   }
@@ -152,7 +151,7 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
   auto connect(Receiver&& receiver) && {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
-        _ifor::receiver<Policy, Range, Func, Receiver>{
+        _ifor::receiver_t<Policy, Range, Func, Receiver>{
             (Func &&) func_,
             (Policy &&) policy_,
             (Range &&) range_,

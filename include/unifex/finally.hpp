@@ -234,10 +234,7 @@ namespace unifex
       }
 
       template(typename OtherError)
-          (requires is_callable_v<
-              decltype(unifex::set_error),
-              Receiver,
-              OtherError>)
+          (requires receiver<Receiver, OtherError>)
       void set_error(OtherError otherError) && noexcept {
         auto* op = op_;
 
@@ -323,7 +320,7 @@ namespace unifex
       }
 
       template(typename Error)
-          (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+          (requires receiver<Receiver, Error>)
       void set_error(Error&& error) && noexcept {
         auto* op = op_;
         op->completionDoneOp_.destruct();
@@ -372,11 +369,10 @@ namespace unifex
       class type;
     };
     template <typename SourceSender, typename CompletionSender, typename Receiver>
-    using receiver = typename _receiver<SourceSender, CompletionSender, Receiver>::type;
+    using receiver_t = typename _receiver<SourceSender, CompletionSender, Receiver>::type;
 
     template <typename SourceSender, typename CompletionSender, typename Receiver>
     class _receiver<SourceSender, CompletionSender, Receiver>::type final {
-      using receiver = type;
       using operation_type = operation<SourceSender, CompletionSender, Receiver>;
 
     public:
@@ -386,10 +382,7 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
       template(typename... Values)
-          (requires is_callable_v<
-              decltype(unifex::set_value),
-              Receiver,
-              std::decay_t<Values>...>)
+          (requires receiver_of<Receiver, Values...>)
       void set_value(Values&&... values) && noexcept {
         auto* op = op_;
         auto& valueStorage =
@@ -480,7 +473,7 @@ namespace unifex
 
       template(typename CPO, typename R)
           (requires (!is_receiver_cpo_v<CPO>) AND
-            same_as<R, receiver> AND
+            same_as<R, type> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto
       tag_invoke(CPO cpo, const R& r) noexcept(
@@ -491,7 +484,7 @@ namespace unifex
 
       template <typename Func>
       friend void tag_invoke(
-          tag_t<visit_continuations>, const receiver& r, Func&& func) {
+          tag_t<visit_continuations>, const type& r, Func&& func) {
         std::invoke(func, r.get_receiver());
       }
 
@@ -508,7 +501,7 @@ namespace unifex
         typename CompletionSender,
         typename Receiver>
     class _op<SourceSender, CompletionSender, Receiver>::type {
-      friend receiver<SourceSender, CompletionSender, Receiver>;
+      friend receiver_t<SourceSender, CompletionSender, Receiver>;
       friend done_receiver<SourceSender, CompletionSender, Receiver>;
 
       template <
@@ -560,7 +553,7 @@ namespace unifex
         sourceOp_.construct_from([&] {
           return unifex::connect(
               static_cast<SourceSender&&>(sourceSender),
-              receiver<SourceSender, CompletionSender, Receiver>{this});
+              receiver_t<SourceSender, CompletionSender, Receiver>{this});
         });
       }
 
@@ -600,7 +593,7 @@ namespace unifex
         // Storage for the source operation state.
         manual_lifetime<operation_t<
             SourceSender,
-            receiver<SourceSender, CompletionSender, Receiver>>>
+            receiver_t<SourceSender, CompletionSender, Receiver>>>
             sourceOp_;
 
         // Storage for the completion operation for the case where
@@ -673,7 +666,7 @@ namespace unifex
           same_as<remove_cvref_t<S>, sender> AND
           is_connectable_v<
             member_t<S, SourceSender>,
-            receiver<
+            receiver_t<
               member_t<S, SourceSender>,
               CompletionSender,
               remove_cvref_t<Receiver>>> AND

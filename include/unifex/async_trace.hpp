@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <unifex/detail/concept_macros.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>

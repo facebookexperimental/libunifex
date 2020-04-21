@@ -44,7 +44,7 @@ struct _rcvr {
   class type;
 };
 template <typename Source, typename Predicate, typename Receiver>
-using receiver_type = typename _rcvr<Source, Predicate, Receiver>::type;
+using receiver_t = typename _rcvr<Source, Predicate, Receiver>::type;
 
 template <typename Source, typename Predicate>
 struct _sndr {
@@ -101,15 +101,13 @@ public:
     }
   }
 
-  template(typename R = Receiver)
-    (requires is_callable_v<decltype(unifex::set_done), R>)
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
   }
 
   template(typename Error)
-    (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+    (requires receiver<Receiver, Error>)
   void set_error(Error&& error) noexcept {
     assert(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
@@ -145,7 +143,7 @@ private:
 
 template <typename Source, typename Predicate, typename Receiver>
 class _op<Source, Predicate, Receiver>::type {
-  using receiver = receiver_type<Source, Predicate, Receiver>;
+  using _receiver_t = receiver_t<Source, Predicate, Receiver>;
 
 public:
   template <typename Source2, typename Predicate2, typename Receiver2>
@@ -153,13 +151,13 @@ public:
       noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                std::is_nothrow_constructible_v<Predicate, Predicate2> &&
                std::is_nothrow_constructible_v<Source, Source2> &&
-               is_nothrow_connectable_v<Source&, receiver>)
+               is_nothrow_connectable_v<Source&, _receiver_t>)
   : source_((Source2&&)source)
   , predicate_((Predicate2&&)predicate)
   , receiver_((Receiver2&&)dest)
   {
     sourceOp_.construct_from([&] {
-        return unifex::connect(source_, receiver{this});
+        return unifex::connect(source_, _receiver_t{this});
       });
   }
 
@@ -175,9 +173,9 @@ public:
   }
 
 private:
-  friend receiver;
+  friend _receiver_t;
 
-  using source_op_t = operation_t<Source&, receiver>;
+  using source_op_t = operation_t<Source&, _receiver_t>;
 
   UNIFEX_NO_UNIQUE_ADDRESS Source source_;
   UNIFEX_NO_UNIQUE_ADDRESS Predicate predicate_;
@@ -213,13 +211,13 @@ public:
         constructible_from<remove_cvref_t<Receiver>, Receiver> AND
         is_connectable_v<
             Source&,
-            receiver_type<Source, Predicate, remove_cvref_t<Receiver>>>)
+            receiver_t<Source, Predicate, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
         std::is_nothrow_constructible_v<Source, decltype((static_cast<Sender&&>(s).source_))> &&
         std::is_nothrow_constructible_v<Predicate, decltype((static_cast<Sender&&>(s).predicate_))> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
-        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, remove_cvref_t<Receiver>>>)
+        is_nothrow_connectable_v<Source&, receiver_t<Source, Predicate, remove_cvref_t<Receiver>>>)
         -> operation_type<Source, Predicate, remove_cvref_t<Receiver>> {
     return operation_type<Source, Predicate, remove_cvref_t<Receiver>>{
       static_cast<Sender&&>(s).source_, 

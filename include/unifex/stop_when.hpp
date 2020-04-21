@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <unifex/detail/concept_macros.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>

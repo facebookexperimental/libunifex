@@ -15,9 +15,12 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/std_concepts.hpp>
 
+#include <exception>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
@@ -185,7 +188,7 @@ using _rec_cpo::set_error;
 using _rec_cpo::set_done;
 
 template <typename T>
-constexpr bool is_receiver_cpo_v = is_one_of_v<
+inline constexpr bool is_receiver_cpo_v = is_one_of_v<
     remove_cvref_t<T>,
     _rec_cpo::_set_value_fn,
     _rec_cpo::_set_next_fn,
@@ -194,6 +197,41 @@ constexpr bool is_receiver_cpo_v = is_one_of_v<
 
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
+
+template <typename R, typename E>
+UNIFEX_CONCEPT_FRAGMENT(
+  _receiver,
+    requires(remove_cvref_t<R>&& r, E&& e) //
+    (
+      noexcept(set_done(std::move(r))),
+      noexcept(set_error(std::move(r), (E&&) e))
+    ));
+
+template <typename R, typename E = std::exception_ptr>
+UNIFEX_CONCEPT
+  receiver =
+    move_constructible<remove_cvref_t<R>> &&
+    constructible_from<remove_cvref_t<R>, R> &&
+    UNIFEX_FRAGMENT(unifex::_receiver, R, E);
+
+template <typename T, typename... An>
+UNIFEX_CONCEPT_FRAGMENT(
+  _receiver_of,
+    requires(remove_cvref_t<T>&& t, An&&... an) //
+    (
+      set_value(std::move(t), (An&&) an...)
+    ));
+
+template <typename R, typename... An>
+UNIFEX_CONCEPT
+  receiver_of =
+    receiver<R> &&
+    UNIFEX_FRAGMENT(unifex::_receiver_of, R, An...);
+
+template <typename R, typename... An>
+  inline constexpr bool is_nothrow_receiver_of_v =
+    receiver_of<R, An...> &&
+    is_nothrow_callable_v<decltype(set_value), R, An...>;
 
 } // namespace unifex
 
