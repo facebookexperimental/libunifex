@@ -213,19 +213,19 @@ public:
     typename Sender,
     typename Receiver,
     std::enable_if_t<
-        std::is_same_v<unifex::remove_cvref_t<Sender>, type>, int> = 0,
+        std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0,
     std::enable_if_t<
-        std::is_constructible_v<unifex::remove_cvref_t<Receiver>, Receiver>, int> = 0,
+        std::is_constructible_v<remove_cvref_t<Receiver>, Receiver>, int> = 0,
     std::enable_if_t<
-        is_connectable_v<Source&, receiver_type<Source, Predicate, unifex::remove_cvref_t<Receiver>>>, int> = 0>
+        is_connectable_v<Source&, receiver_type<Source, Predicate, remove_cvref_t<Receiver>>>, int> = 0>
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
         std::is_nothrow_constructible_v<Source, decltype((static_cast<Sender&&>(s).source_))> &&
         std::is_nothrow_constructible_v<Predicate, decltype((static_cast<Sender&&>(s).predicate_))> &&
-        std::is_nothrow_constructible_v<unifex::remove_cvref_t<Receiver>, Receiver> &&
-        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, unifex::remove_cvref_t<Receiver>>>)
-        -> operation_type<Source, Predicate, unifex::remove_cvref_t<Receiver>> {
-    return operation_type<Source, Predicate, unifex::remove_cvref_t<Receiver>>{
+        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+        is_nothrow_connectable_v<Source&, receiver_type<Source, Predicate, remove_cvref_t<Receiver>>>)
+        -> operation_type<Source, Predicate, remove_cvref_t<Receiver>> {
+    return operation_type<Source, Predicate, remove_cvref_t<Receiver>>{
       static_cast<Sender&&>(s).source_, 
       static_cast<Sender&&>(s).predicate_, 
       (Receiver&&)r
@@ -255,15 +255,15 @@ inline constexpr struct repeat_effect_until_cpo {
     typename Predicate,
     std::enable_if_t<
         !is_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate> &&
-        std::is_constructible_v<unifex::remove_cvref_t<Source>, Source> &&
+        std::is_constructible_v<remove_cvref_t<Source>, Source> &&
         std::is_constructible_v<std::decay_t<Predicate>, Predicate>, int> = 0>
   auto operator()(Source&& source, Predicate&& predicate) const
       noexcept(std::is_nothrow_constructible_v<
-                   repeat_effect_until_sender<unifex::remove_cvref_t<Source>, std::decay_t<Predicate>>,
+                   repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>>,
                    Source, 
                    Predicate>)
-      -> repeat_effect_until_sender<unifex::remove_cvref_t<Source>, std::decay_t<Predicate>> {
-    return repeat_effect_until_sender<unifex::remove_cvref_t<Source>, std::decay_t<Predicate>>{
+      -> repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>> {
+    return repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>>{
         (Source&&)source, (Predicate&&)predicate};
   }
 } repeat_effect_until{};
@@ -283,13 +283,13 @@ inline constexpr struct repeat_effect_cpo {
     typename Source,
     std::enable_if_t<
         !is_tag_invocable_v<repeat_effect_cpo, Source> &&
-        std::is_constructible_v<unifex::remove_cvref_t<Source>, Source>, int> = 0>
+        std::is_constructible_v<remove_cvref_t<Source>, Source>, int> = 0>
   auto operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<
-                   repeat_effect_until_sender<unifex::remove_cvref_t<Source>, forever>,
+                   repeat_effect_until_sender<remove_cvref_t<Source>, forever>,
                    Source>)
-      -> repeat_effect_until_sender<unifex::remove_cvref_t<Source>, forever> {
-    return repeat_effect_until_sender<unifex::remove_cvref_t<Source>, forever>{
+      -> repeat_effect_until_sender<remove_cvref_t<Source>, forever> {
+    return repeat_effect_until_sender<remove_cvref_t<Source>, forever>{
         (Source&&)source, forever{}};
   }
 } repeat_effect{};

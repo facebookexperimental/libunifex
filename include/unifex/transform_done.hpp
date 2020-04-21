@@ -37,21 +37,21 @@ struct _op {
   class type;
 };
 template<typename Source, typename Done, typename Receiver>
-using operation_type = typename _op<Source, Done, unifex::remove_cvref_t<Receiver>>::type;
+using operation_type = typename _op<Source, Done, remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Done, typename Receiver>
 struct _rcvr {
   class type;
 };
 template<typename Source, typename Done, typename Receiver>
-using receiver_type = typename _rcvr<Source, Done, unifex::remove_cvref_t<Receiver>>::type;
+using receiver_type = typename _rcvr<Source, Done, remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Done, typename Receiver>
 struct _frcvr {
   class type;
 };
 template<typename Source, typename Done, typename Receiver>
-using final_receiver_type = typename _frcvr<Source, Done, unifex::remove_cvref_t<Receiver>>::type;
+using final_receiver_type = typename _frcvr<Source, Done, remove_cvref_t<Receiver>>::type;
 
 template<typename Source, typename Done>
 struct _sndr {
@@ -122,7 +122,7 @@ private:
     typename CPO,
     typename Self,
     std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-    std::enable_if_t<std::is_same_v<unifex::remove_cvref_t<Self>, type>, int> = 0,
+    std::enable_if_t<std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
     std::enable_if_t<is_callable_v<CPO, const Receiver&>, int> = 0>
   friend auto tag_invoke(CPO cpo, Self&& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
@@ -323,7 +323,8 @@ private:
 } // namespace _transform_done
 
 template<class Source, class Done>
-using transform_done_sender = typename _transform_done::_sndr<unifex::remove_cvref_t<Source>, unifex::remove_cvref_t<Done>>::type;
+using transform_done_sender =
+    typename _transform_done::_sndr<remove_cvref_t<Source>, remove_cvref_t<Done>>::type;
 
 inline constexpr struct transform_done_cpo {
   template<typename Source, typename Done>
@@ -338,9 +339,9 @@ inline constexpr struct transform_done_cpo {
     typename Done,
     std::enable_if_t<
         !is_tag_invocable_v<transform_done_cpo, Source, Done> &&
-        std::is_constructible_v<unifex::remove_cvref_t<Source>, Source> &&
-        std::is_constructible_v<unifex::remove_cvref_t<Done>, Done> &&
-        is_callable_v<unifex::remove_cvref_t<Done>>, int> = 0>
+        std::is_constructible_v<remove_cvref_t<Source>, Source> &&
+        std::is_constructible_v<remove_cvref_t<Done>, Done> &&
+        is_callable_v<remove_cvref_t<Done>>, int> = 0>
   auto operator()(Source&& source, Done&& done) const
       noexcept(std::is_nothrow_constructible_v<
                    transform_done_sender<Source, Done>,
