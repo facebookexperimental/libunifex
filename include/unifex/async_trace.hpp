@@ -17,7 +17,6 @@
 
 #include <unifex/blocking.hpp>
 #include <unifex/receiver_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/config.hpp>
 #include <unifex/coroutine.hpp>
@@ -30,7 +29,7 @@
 
 namespace unifex {
 
-namespace _visit_continuations {
+namespace _visit_continuations_cpo {
   inline constexpr struct _fn {
     template <typename Continuation, typename Func>
     friend void
@@ -62,8 +61,8 @@ namespace _visit_continuations {
       return tag_invoke(_fn{}, c, (Func &&) func);
     }
   } visit_continuations {};
-} // namespace _visit_continuations
-using _visit_continuations::visit_continuations;
+} // namespace _visit_continuations_cpo
+using _visit_continuations_cpo::visit_continuations;
 
 class continuation_info {
  public:

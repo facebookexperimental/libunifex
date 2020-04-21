@@ -160,11 +160,11 @@ namespace _demat {
 
     template(typename Self, typename Receiver)
         (requires same_as<remove_cvref_t<Self>, type> AND
-          is_connectable_v<member_t<Self, Source>, receiver_t<Receiver>>)
+          sender_to<member_t<Self, Source>, receiver_t<Receiver>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
                  std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<member_t<Self, Source>, receiver_t<Receiver>> {
+        -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
       return unifex::connect(
           static_cast<Self&&>(self).source_,
           receiver_t<Receiver>{static_cast<Receiver&&>(r)});

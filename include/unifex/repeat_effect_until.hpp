@@ -175,7 +175,7 @@ public:
 private:
   friend _receiver_t;
 
-  using source_op_t = operation_t<Source&, _receiver_t>;
+  using source_op_t = connect_result_t<Source&, _receiver_t>;
 
   UNIFEX_NO_UNIQUE_ADDRESS Source source_;
   UNIFEX_NO_UNIQUE_ADDRESS Predicate predicate_;
@@ -209,7 +209,7 @@ public:
   template(typename Sender, typename Receiver)
     (requires same_as<remove_cvref_t<Sender>, type> AND
         constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-        is_connectable_v<
+        sender_to<
             Source&,
             receiver_t<Source, Predicate, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
@@ -245,7 +245,7 @@ inline constexpr struct repeat_effect_until_cpo {
   }
 
   template(typename Source, typename Predicate)
-    (requires (!is_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate>) AND
+    (requires (!tag_invocable<repeat_effect_until_cpo, Source, Predicate>) AND
         constructible_from<remove_cvref_t<Source>, Source> AND
         constructible_from<std::decay_t<Predicate>, Predicate>)
   auto operator()(Source&& source, Predicate&& predicate) const
@@ -271,7 +271,7 @@ inline constexpr struct repeat_effect_cpo {
   }
 
   template(typename Source)
-    (requires (!is_tag_invocable_v<repeat_effect_cpo, Source>) AND
+    (requires (!tag_invocable<repeat_effect_cpo, Source>) AND
         constructible_from<remove_cvref_t<Source>, Source>)
   auto operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<

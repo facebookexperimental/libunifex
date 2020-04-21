@@ -40,7 +40,7 @@ template <typename Sender, typename Receiver>
 struct _next_op<Sender, Receiver>::type {
   union {
     Receiver receiver_;
-    manual_lifetime<operation_t<Sender, Receiver>> innerOp_;
+    manual_lifetime<connect_result_t<Sender, Receiver>> innerOp_;
   };
   bool done_;
 

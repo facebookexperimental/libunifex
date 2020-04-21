@@ -95,7 +95,7 @@ class _op<CPO, Value, Sender, Receiver>::type {
  private:
   UNIFEX_NO_UNIQUE_ADDRESS Value value_;
   /*UNIFEX_NO_UNIQUE_ADDRESS*/
-  operation_t<Sender, receiver_wrapper<CPO, Value, Receiver>> innerOp_;
+  connect_result_t<Sender, receiver_wrapper<CPO, Value, Receiver>> innerOp_;
 };
 
 template <typename CPO, typename Value, typename Sender>
@@ -123,7 +123,7 @@ public:
   template(typename Self, typename Receiver)
     (requires same_as<remove_cvref_t<Self>, type> AND
       constructible_from<Value, member_t<Self, Value>> AND
-      is_connectable_v<
+      sender_to<
         member_t<Self, Sender>,
         receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)

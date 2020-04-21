@@ -201,7 +201,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
 
   template <typename... Values>
   using successor_operation =
-      operation_t<successor_type<Values...>, successor_receiver<operation, Values...>>;
+      connect_result_t<successor_type<Values...>, successor_receiver<operation, Values...>>;
 
   friend predecessor_receiver<operation>;
   template <typename Operation, typename... Values>
@@ -238,7 +238,7 @@ private:
       template value_types<manual_lifetime_union, decayed_tuple>
           values_;
   union {
-    manual_lifetime<operation_t<Predecessor, predecessor_receiver<operation>>> predOp_;
+    manual_lifetime<connect_result_t<Predecessor, predecessor_receiver<operation>>> predOp_;
     typename predecessor_type::template
         value_types<manual_lifetime_union, successor_operation>
             succOp_;

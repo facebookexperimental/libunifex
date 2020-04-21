@@ -13,23 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/single_thread_context.hpp>
-#include <unifex/executor_concepts.hpp>
-#include <unifex/scheduler_concepts.hpp>
 
-#include <cstdio>
-#include <cassert>
+#pragma once
 
-using namespace unifex;
+namespace unifex {
+  namespace detail {
+    template <typename, typename = void>
+    extern const bool _is_executor;
 
-int main() {
-    single_thread_context ctx;
+    template <typename E, typename R, typename = void>
+    extern const bool _can_execute;
 
-    for (int i = 0; i < 5; ++i) {
-        execute(schedule(ctx.get_scheduler()), [i]() {
-            printf("hello execute() %i\n", i);
-        });
-    }
+    template <typename Sender, typename Fn, typename = void>
+    extern const bool _can_submit;
+  } // detail
 
-    return 0;
-}
+  namespace _execute_cpo {
+    extern const struct _fn execute;
+  } // namespace _execute_cpo
+  using _execute_cpo::execute;
+
+  namespace _submit_cpo {
+    extern const struct _fn submit;
+  } // namespace _execute_cpo
+  using _submit_cpo::submit;
+} // namespace unifex
