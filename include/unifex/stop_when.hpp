@@ -22,6 +22,7 @@
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/type_traits.hpp>
 
 #include <atomic>
 #include <functional>
