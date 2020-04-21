@@ -35,7 +35,7 @@ namespace _demat {
     class type;
   };
   template <typename Receiver>
-  using receiver = typename _receiver<remove_cvref_t<Receiver>>::type;
+  using receiver_t = typename _receiver<remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
   class _receiver<Receiver>::type {
@@ -56,16 +56,13 @@ namespace _demat {
     }
 
     template(typename Error)
-        (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& error) && noexcept {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), static_cast<Error&&>(error));
     }
 
-    template(typename... DummyPack)
-        (requires (sizeof...(DummyPack) == 0) AND
-            is_callable_v<decltype(unifex::set_done), Receiver>)
-    void set_done(DummyPack...) && noexcept {
+    void set_done() && noexcept {
       unifex::set_done(static_cast<Receiver&&>(receiver_));
     }
 
@@ -163,14 +160,14 @@ namespace _demat {
 
     template(typename Self, typename Receiver)
         (requires same_as<remove_cvref_t<Self>, type> AND
-          is_connectable_v<member_t<Self, Source>, receiver<Receiver>>)
+          is_connectable_v<member_t<Self, Source>, receiver_t<Receiver>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
-        noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver<Receiver>> &&
+        noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
                  std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<member_t<Self, Source>, receiver<Receiver>> {
+        -> operation_t<member_t<Self, Source>, receiver_t<Receiver>> {
       return unifex::connect(
           static_cast<Self&&>(self).source_,
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
+          receiver_t<Receiver>{static_cast<Receiver&&>(r)});
     }
 
   private:

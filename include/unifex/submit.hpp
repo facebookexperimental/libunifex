@@ -45,14 +45,16 @@ class _op<Sender, Receiver>::type {
   public:
     explicit wrapped_receiver(type* op) noexcept : op_(op) {}
 
-    template <typename... Values>
+    template(typename... Values)
+      (requires receiver_of<Receiver, Values...>)
     void set_value(Values&&... values) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
       destroy(std::move(allocator));
     }
 
-    template <typename Error>
+    template(typename Error)
+      (requires receiver<Receiver, Error>)
     void set_error(Error&& error) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_error(std::move(op_->receiver_), (Error &&) error);

@@ -176,16 +176,14 @@ namespace unifex
       }
 
       template(typename Error)
-          (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+          (requires receiver<Receiver, Error>)
       void set_error(Error&& error) && noexcept {
         unifex::set_error(
             static_cast<Receiver&&>(op_->receiver_),
             static_cast<Error&&>(error));
       }
 
-      template(typename... Args)
-          (requires is_callable_v<decltype(unifex::set_done), Receiver, Args...>)
-      void set_done(Args...) && noexcept {
+      void set_done() && noexcept {
         unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
       }
 

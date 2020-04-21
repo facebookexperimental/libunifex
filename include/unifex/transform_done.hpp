@@ -74,14 +74,14 @@ public:
   : op_(std::exchange(other.op_, {}))
   {}
  
-  template <typename... Values>
-  void set_value(Values&&... values) noexcept(is_nothrow_callable_v<tag_t<unifex::set_value>&, Receiver, Values...>) {
+  template(typename... Values)
+    (requires receiver_of<Receiver, Values...>)
+  void set_value(Values&&... values) noexcept(
+      is_nothrow_receiver_of_v<Receiver, Values...>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
-  template(typename R = Receiver)
-    (requires is_callable_v<decltype(unifex::set_done), R>)
   void set_done() noexcept {
     assert(op_ != nullptr);
     auto op = op_; // preserve pointer value.
@@ -111,7 +111,7 @@ public:
   }
 
   template(typename Error)
-      (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+      (requires receiver<Receiver, Error>)
   void set_error(Error&& error) noexcept {
     assert(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
@@ -159,21 +159,20 @@ public:
   {}
  
   template(typename... Values)
-    (requires is_callable_v<decltype(unifex::set_value), Receiver, Values...>)
-  void set_value(Values&&... values) noexcept(is_nothrow_callable_v<tag_t<unifex::set_value>&, Receiver, Values...>) {
+    (requires receiver_of<Receiver, Values...>)
+  void set_value(Values&&... values) noexcept(
+      is_nothrow_receiver_of_v<Receiver, Values...>) {
     assert(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_));
   }
 
-  template(typename R = Receiver)
-    (requires is_callable_v<decltype(unifex::set_done), R>)
   void set_done() noexcept {
     assert(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
   }
 
   template(typename Error)
-    (requires is_callable_v<decltype(unifex::set_error), Receiver, Error>)
+    (requires receiver<Receiver, Error>)
   void set_error(Error&& error) noexcept {
     assert(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
