@@ -71,7 +71,7 @@ private:
     struct _op {
       class type : waiter_base {
         friend lock_sender;
-
+      public:
         template <typename Receiver2>
         explicit type(async_mutex &mutex, Receiver2 &&r) noexcept
             : mutex_(mutex), receiver_((Receiver2 &&) r) {
@@ -82,7 +82,8 @@ private:
         }
 
         type(type &&) = delete;
-
+        
+       private:
         friend void tag_invoke(tag_t<start>, type &op) noexcept {
           if (!op.mutex_.try_enqueue(&op)) {
             // Failed to enqueue because we acquired the lock
