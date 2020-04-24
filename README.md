@@ -17,7 +17,7 @@ This project contains implementations of the following:
 This project is still evolving and should be considered experimental in nature.
 
 **Build status**
-- on Travis-CI: [![Travis Build Status](https://travis-ci.com/facebookexperimental/libunifex.svg?branch=master)](https://travis-ci.com/facebookexperimental/libunifex)
+- on Github Actions: ![libunifex CI](https://github.com/facebookexperimental/libunifex/workflows/libunifex%20CI/badge.svg)
 
 # Documentation
 
