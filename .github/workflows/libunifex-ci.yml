@@ -30,28 +30,28 @@ jobs:
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
           }
         - {
-            name: "Linux GCC Debug", artifact: "Linux.tar.xz",
+            name: "Linux GCC 9 Debug", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
-            cc: "gcc", cxx: "g++"
+            cc: "gcc-9", cxx: "g++-9"
           }
         - {
-            name: "Linux GCC Optimised", artifact: "Linux.tar.xz",
+            name: "Linux GCC 9 Optimised", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
-            cc: "gcc", cxx: "g++"
+            cc: "gcc-9", cxx: "g++-9"
           }
         - {
-            name: "Linux Clang Debug", artifact: "Linux.tar.xz",
+            name: "Linux Clang 9 Debug", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++"
+            cc: "clang", cxx: "clang++-9"
           }
         - {
-            name: "Linux Clang Optimised", artifact: "Linux.tar.xz",
+            name: "Linux Clang 9 Optimised", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
-            cc: "clang", cxx: "clang++"
+            cc: "clang-9", cxx: "clang++-9"
           }
         - {
             name: "macOS Clang Debug", artifact: "macOS.tar.xz",
@@ -155,6 +155,7 @@ jobs:
             -D CMAKE_BUILD_TYPE=${{ matrix.config.build_type }}
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=ninja
+            -D CMAKE_VERBOSE_MAKEFILE=ON
             -D CMAKE_C_COMPILER_LAUNCHER=${{ matrix.config.cc }}
             -D CMAKE_CXX_COMPILER_LAUNCHER=${{ matrix.config.cxx }}
           RESULT_VARIABLE result
