@@ -156,8 +156,6 @@ jobs:
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=ninja
             -D CMAKE_VERBOSE_MAKEFILE=ON
-            -D CMAKE_C_COMPILER_LAUNCHER=${{ matrix.config.cc }}
-            -D CMAKE_CXX_COMPILER_LAUNCHER=${{ matrix.config.cxx }}
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
