@@ -31,6 +31,8 @@
 #include <type_traits>
 #include <variant>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex
 {
   namespace _stop_when
@@ -90,10 +92,8 @@ namespace unifex
         return r.get_stop_token();
       }
 
-      template <
-          typename CPO,
-          typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+      template(typename CPO, typename... Args)
+          (requires (!is_receiver_cpo_v<CPO>))
       friend auto tag_invoke(
           CPO cpo,
           const type& r,
@@ -150,10 +150,8 @@ namespace unifex
         return r.get_stop_token();
       }
 
-      template <
-          typename CPO,
-          typename... Args,
-          std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+      template(typename CPO, typename... Args)
+          (requires (!is_receiver_cpo_v<CPO>))
       friend auto tag_invoke(
           CPO cpo,
           const type& r,
@@ -333,22 +331,20 @@ namespace unifex
         : source_((Source2 &&) source)
         , trigger_((Trigger2 &&) trigger) {}
 
-      template <
-          typename Receiver,
-          std::enable_if_t<
+      template(typename Receiver)
+          (requires
               is_connectable_v<
                   Source,
                   stop_when_source_receiver<
                       Source,
                       Trigger,
-                      remove_cvref_t<Receiver>>> &&
-                  is_connectable_v<
+                      remove_cvref_t<Receiver>>> AND
+              is_connectable_v<
+                  Trigger,
+                  stop_when_trigger_receiver<
+                      Source,
                       Trigger,
-                      stop_when_trigger_receiver<
-                          Source,
-                          Trigger,
-                          remove_cvref_t<Receiver>>>,
-              int> = 0>
+                      remove_cvref_t<Receiver>>>)
       auto connect(Receiver&& r) && -> stop_when_operation<
           Source,
           Trigger,
@@ -360,22 +356,20 @@ namespace unifex
             (Source &&) source_, (Trigger &&) trigger_, (Receiver &&) r};
       }
 
-      template <
-          typename Receiver,
-          std::enable_if_t<
+      template(typename Receiver)
+          (requires
               is_connectable_v<
                   Source&,
                   stop_when_source_receiver<
                       const Source&,
                       const Trigger&,
-                      remove_cvref_t<Receiver>>> &&
-                  is_connectable_v<
-                      Trigger&,
-                      stop_when_trigger_receiver<
-                          const Source&,
-                          const Trigger&,
-                          remove_cvref_t<Receiver>>>,
-              int> = 0>
+                      remove_cvref_t<Receiver>>> AND
+              is_connectable_v<
+                  Trigger&,
+                  stop_when_trigger_receiver<
+                      const Source&,
+                      const Trigger&,
+                      remove_cvref_t<Receiver>>>)
       auto connect(Receiver&& r) const& -> stop_when_operation<
           const Source&,
           const Trigger&,
@@ -404,10 +398,8 @@ namespace unifex
             *this, (Source &&) source, (Trigger &&) trigger);
       }
 
-      template <
-          typename Source,
-          typename Trigger,
-          std::enable_if_t<!is_tag_invocable_v<_fn, Source, Trigger>, int> = 0>
+      template(typename Source, typename Trigger)
+          (requires (!is_tag_invocable_v<_fn, Source, Trigger>))
       auto operator()(Source&& source, Trigger&& trigger) const noexcept(
           std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>&&
               std::is_nothrow_constructible_v<
@@ -427,4 +419,6 @@ namespace unifex
 
   inline constexpr _stop_when_cpo::_fn stop_when{};
 
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -21,8 +21,11 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <type_traits>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex
 {
@@ -33,50 +36,31 @@ namespace unifex
       class type;
     };
     template <typename Receiver>
-    using receiver = typename _receiver<remove_cvref_t<Receiver>>::type;
+    using receiver_t = typename _receiver<remove_cvref_t<Receiver>>::type;
 
     template <typename Receiver>
     class _receiver<Receiver>::type {
-      using receiver = type;
     public:
       template <typename Receiver2>
       explicit type(Receiver2&& receiver) noexcept(
           std::is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
-      template <
-          typename... Values,
-          std::enable_if_t<
-              is_callable_v<
-                  decltype(unifex::set_value),
-                  Receiver,
-                  decltype(unifex::set_value),
-                  Values...>,
-              int> = 0>
+      template(typename... Values)
+          (requires receiver_of<Receiver, decltype(unifex::set_value), Values...>)
       void
-      set_value(Values&&... values) && noexcept(is_nothrow_callable_v<
-                                                decltype(unifex::set_value),
-                                                Receiver,
-                                                decltype(unifex::set_value),
-                                                Values...>) {
+      set_value(Values&&... values) && noexcept(
+          is_nothrow_receiver_of_v<Receiver, decltype(unifex::set_value), Values...>) {
         unifex::set_value(
             static_cast<Receiver&&>(receiver_),
             unifex::set_value,
             static_cast<Values&&>(values)...);
       }
 
-      template <
-          typename Error,
-          std::enable_if_t<
-              is_callable_v<
-                  decltype(unifex::set_value),
-                  Receiver,
-                  decltype(unifex::set_error),
-                  Error>,
-              int> = 0>
+      template(typename Error)
+          (requires receiver_of<Receiver, decltype(unifex::set_error), Error>)
       void set_error(Error&& error) && noexcept {
-        if constexpr (is_nothrow_callable_v<
-                          decltype(unifex::set_value),
+        if constexpr (is_nothrow_receiver_of_v<
                           Receiver,
                           decltype(unifex::set_error),
                           Error>) {
@@ -97,20 +81,10 @@ namespace unifex
         }
       }
 
-      template <
-          typename... DummyPack,
-          std::enable_if_t<
-              sizeof...(DummyPack) == 0 &&
-                  is_callable_v<
-                      decltype(unifex::set_value),
-                      Receiver,
-                      decltype(unifex::set_done)>,
-              int> = 0>
-      void set_done(DummyPack...) && noexcept {
-        if constexpr (is_nothrow_callable_v<
-                          decltype(unifex::set_value),
-                          Receiver,
-                          decltype(unifex::set_done)>) {
+      template(typename R = Receiver)
+          (requires receiver_of<R, decltype(unifex::set_done)>)
+      void set_done() && noexcept {
+        if constexpr (is_nothrow_receiver_of_v<Receiver, decltype(unifex::set_done)>) {
           unifex::set_value(
               static_cast<Receiver&&>(receiver_), unifex::set_done);
         } else {
@@ -124,16 +98,12 @@ namespace unifex
         }
       }
 
-      template <
-          typename CPO,
-          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver),
-          std::enable_if_t<
-              !is_receiver_cpo_v<CPO>, int> = 0,
-          std::enable_if_t<
-              is_callable_v<CPO, const Receiver&>, int> = 0>
+      template(typename CPO, UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type))
+          (requires (!is_receiver_cpo_v<CPO>) AND
+              is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
           CPO cpo,
-          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r) noexcept(is_nothrow_callable_v<
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r) noexcept(is_nothrow_callable_v<
                                            CPO,
                                            const Receiver&>)
           -> callable_result_t<CPO, const Receiver&> {
@@ -143,10 +113,10 @@ namespace unifex
       template <
           typename Func,
           UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
-          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, receiver)>
+          UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type)>
       friend void tag_invoke(
           UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
-          const UNIFEX_USE_NON_DEDUCED_TYPE(R, receiver)& r,
+          const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r,
           Func&& func) noexcept(std::is_nothrow_invocable_v<
                                         Func&,
                                         const Receiver&>) {
@@ -208,27 +178,22 @@ namespace unifex
       template <template <typename...> class Variant>
       using error_types = Variant<std::exception_ptr>;
 
-      template <
-          typename Source2,
-          std::enable_if_t<std::is_constructible_v<Source, Source2>, int> = 0>
+      template(typename Source2)
+          (requires constructible_from<Source, Source2>)
       explicit type(Source2&& source) noexcept(
           std::is_nothrow_constructible_v<Source, Source2>)
         : source_(static_cast<Source2&&>(source)) {}
 
-      template <
-          typename Self,
-          typename Receiver,
-          std::enable_if_t<std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
-          std::enable_if_t<
-              is_connectable_v<member_t<Self, Source>, receiver<Receiver>>,
-              int> = 0>
+      template(typename Self, typename Receiver)
+          (requires same_as<remove_cvref_t<Self>, type> AND
+            is_connectable_v<member_t<Self, Source>, receiver_t<Receiver>>)
       friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
-          is_nothrow_connectable_v<member_t<Self, Source>, receiver<Receiver>> &&
+          is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
               std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<member_t<Self, Source>, receiver<Receiver>> {
+          -> operation_t<member_t<Self, Source>, receiver_t<Receiver>> {
         return unifex::connect(
             static_cast<Self&&>(self).source_,
-            receiver<Receiver>{static_cast<Receiver&&>(r)});
+            receiver_t<Receiver>{static_cast<Receiver&&>(r)});
       }
 
     private:
@@ -239,7 +204,7 @@ namespace unifex
   namespace _mat_cpo {
     inline constexpr struct _fn {
     private:
-      template<bool>
+      template <bool>
       struct _impl {
         template <typename Source>
         auto operator()(Source&& source) const
@@ -256,7 +221,7 @@ namespace unifex
       }
     } materialize{};
 
-    template<>
+    template <>
     struct _fn::_impl<false> {
       template <typename Source>
       auto operator()(Source&& source) const
@@ -269,4 +234,6 @@ namespace unifex
 
   using _mat_cpo::materialize;
 
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

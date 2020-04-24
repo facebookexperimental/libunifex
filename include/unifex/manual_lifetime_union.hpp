@@ -16,8 +16,11 @@
 #pragma once
 
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <type_traits>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 
@@ -26,9 +29,8 @@ class manual_lifetime_union {
  public:
   manual_lifetime_union() = default;
 
-  template <
-      typename T,
-      std::enable_if_t<std::disjunction_v<std::is_same<T, Ts>...>, int> = 0>
+  template(typename T)
+      (requires is_one_of_v<T, Ts...>)
   manual_lifetime<T>& get() noexcept {
     return *reinterpret_cast<manual_lifetime<T>*>(&storage_);
   }
@@ -41,3 +43,5 @@ template <>
 class manual_lifetime_union<> {};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

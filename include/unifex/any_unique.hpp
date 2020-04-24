@@ -20,9 +20,12 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/this.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <memory>
 #include <utility>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _any_unique {
@@ -273,9 +276,8 @@ struct _with_forwarding_tag_invoke<
 inline constexpr struct deallocate_cpo {
   using type_erased_signature_t = void(this_&&) noexcept;
 
-  template <
-      typename T,
-      std::enable_if_t<is_tag_invocable_v<deallocate_cpo, T&&>, int> = 0>
+  template(typename T)
+      (requires is_tag_invocable_v<deallocate_cpo, T&&>)
   void operator()(T&& obj) const noexcept {
     tag_invoke(deallocate_cpo{}, (T &&) obj);
   }
@@ -319,13 +321,9 @@ class _make<CPOs...>::type
     impl_ = static_cast<void*>(ptr);
   }
 
-  template <
-      typename Concrete,
-      typename Allocator,
-      std::enable_if_t<
-          !(std::is_same_v<std::allocator_arg_t, std::decay_t<Concrete>> ||
-            instance_of_v<std::in_place_type_t, std::decay_t<Concrete>>),
-          int> = 0>
+  template(typename Concrete, typename Allocator)
+      (requires (!same_as<std::allocator_arg_t, std::decay_t<Concrete>>) AND
+          (!instance_of_v<std::in_place_type_t, std::decay_t<Concrete>>))
   type(Concrete&& concrete, Allocator alloc)
     : type(
           std::allocator_arg,
@@ -341,9 +339,8 @@ class _make<CPOs...>::type
           tag,
           (Args &&) args...) {}
 
-  template <
-      typename Concrete,
-      std::enable_if_t<!instance_of_v<std::in_place_type_t, Concrete>, int> = 0>
+  template(typename Concrete)
+      (requires (!instance_of_v<std::in_place_type_t, Concrete>))
   type(Concrete&& concrete)
     : type(
           std::in_place_type<remove_cvref_t<Concrete>>,
@@ -415,3 +412,5 @@ template <auto&... CPOs>
 using any_unique_t = any_unique<tag_t<CPOs>...>;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

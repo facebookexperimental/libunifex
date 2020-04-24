@@ -92,3 +92,46 @@
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
 # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
 #endif
+
+#if !defined(UNIFEX_CXX_CONCEPTS)
+#ifdef UNIFEX_DOXYGEN_INVOKED
+#define UNIFEX_CXX_CONCEPTS 201800L
+#elif defined(__cpp_concepts) && __cpp_concepts > 0
+#define UNIFEX_CXX_CONCEPTS __cpp_concepts
+#else
+#define UNIFEX_CXX_CONCEPTS 0L
+#endif
+#endif
+
+#if defined(_MSC_VER) && !defined(__clang__)
+  #define UNIFEX_DIAGNOSTIC_PUSH __pragma(warning(push))
+  #define UNIFEX_DIAGNOSTIC_POP __pragma(warning(pop))
+  #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
+  #define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
+  #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
+#else // ^^^ defined(_MSC_VER) ^^^ / vvv !defined(_MSC_VER) vvv
+  #if defined(__GNUC__) || defined(__clang__)
+    #define UNIFEX_PRAGMA(X) _Pragma(#X)
+    #define UNIFEX_DIAGNOSTIC_PUSH UNIFEX_PRAGMA(GCC diagnostic push)
+    #define UNIFEX_DIAGNOSTIC_POP UNIFEX_PRAGMA(GCC diagnostic pop)
+    #define UNIFEX_DIAGNOSTIC_IGNORE_PRAGMAS \
+      UNIFEX_PRAGMA(GCC diagnostic ignored "-Wpragmas")
+    #define UNIFEX_DIAGNOSTIC_IGNORE(X) \
+      UNIFEX_DIAGNOSTIC_IGNORE_PRAGMAS \
+      UNIFEX_PRAGMA(GCC diagnostic ignored "-Wunknown-pragmas") \
+      UNIFEX_PRAGMA(GCC diagnostic ignored X)
+    #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME \
+      UNIFEX_DIAGNOSTIC_IGNORE("-Wunknown-warning-option") \
+      UNIFEX_DIAGNOSTIC_IGNORE("-Winit-list-lifetime")
+    #define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL \
+      UNIFEX_DIAGNOSTIC_IGNORE("-Wfloat-equal")
+    #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT \
+      UNIFEX_DIAGNOSTIC_IGNORE("-Wc++2a-compat")
+  #else
+    #define UNIFEX_DIAGNOSTIC_PUSH
+    #define UNIFEX_DIAGNOSTIC_POP
+    #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
+    #define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
+    #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
+  #endif
+#endif // MSVC/Generic configuration switch

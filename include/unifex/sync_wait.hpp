@@ -27,6 +27,8 @@
 #include <optional>
 #include <cassert>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _sync_wait {
 
@@ -74,8 +76,6 @@ struct promise {
 template <typename T>
 struct _receiver {
   struct type {
-    using receiver = type;
-
     promise<T>& promise_;
 
     template <typename... Values>
@@ -121,7 +121,7 @@ struct _receiver {
 };
 
 template <typename T>
-using receiver = typename _receiver<T>::type;
+using receiver_t = typename _receiver<T>::type;
 
 } // namespace _sync_wait
 
@@ -146,7 +146,7 @@ namespace _sync_wait_cpo {
       // Store state for the operation on the stack.
       auto operation = connect(
           ((Sender &&) sender),
-          _sync_wait::receiver<Result>{promise});
+          _sync_wait::receiver_t<Result>{promise});
 
       start(operation);
 
@@ -186,3 +186,5 @@ template <typename Result>
 inline constexpr _sync_wait_r_cpo::_fn<Result> sync_wait_r {};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

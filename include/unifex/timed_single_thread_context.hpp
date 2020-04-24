@@ -28,6 +28,8 @@
 #include <thread>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 class timed_single_thread_context;
 
@@ -246,9 +248,9 @@ class timed_single_thread_context {
   using cancel_callback = _timed_single_thread_context::cancel_callback;
   friend cancel_callback;
   friend scheduler;
-  template<typename Duration, typename Receiver>
+  template <typename Duration, typename Receiver>
   friend class _timed_single_thread_context::_after_op;
-  template<typename Receiver>
+  template <typename Receiver>
   friend class _timed_single_thread_context::_at_op;
 
   void enqueue(task_base* task) noexcept;
@@ -291,3 +293,5 @@ namespace _timed_single_thread_context {
   }
 } // namespace _timed_single_thread_context
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

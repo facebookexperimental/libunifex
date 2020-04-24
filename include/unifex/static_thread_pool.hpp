@@ -29,6 +29,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _static_thread_pool {
   struct task_base {
@@ -65,7 +67,7 @@ namespace _static_thread_pool {
         using error_types = Variant<>;
 
       private:
-        template<typename Receiver>
+        template <typename Receiver>
         operation<Receiver> make_operation_(Receiver&& r) const {
           return operation<Receiver>{pool_, (Receiver &&) r};
         }
@@ -166,4 +168,6 @@ namespace _static_thread_pool {
 
 using static_thread_pool = _static_thread_pool::context;
 
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

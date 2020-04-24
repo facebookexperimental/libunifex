@@ -22,6 +22,7 @@
 #   if __cpp_lib_filesystem >= 201703L && __has_include(<filesystem>)
 #    include <filesystem>
 #    define UNIFEX_HAVE_FILESYSTEM 1
+
 namespace unifex
 {
     namespace filesystem
@@ -35,6 +36,7 @@ namespace unifex
 #   if __has_include(<experimental/filesystem>)
 #    include <experimental/filesystem>
 #    define UNIFEX_HAVE_FILESYSTEM 1
+
 namespace unifex
 {
     namespace filesystem

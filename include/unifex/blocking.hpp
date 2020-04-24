@@ -18,6 +18,8 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 enum class blocking_kind {
@@ -76,3 +78,5 @@ struct _fn::_impl<true> {
 using _blocking::blocking;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

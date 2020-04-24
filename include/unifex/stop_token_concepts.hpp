@@ -17,6 +17,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 template <typename T, typename = void>
@@ -33,3 +35,5 @@ template <typename T>
 using is_stop_never_possible = std::bool_constant<is_stop_never_possible_v<T>>;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

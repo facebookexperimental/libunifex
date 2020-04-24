@@ -21,6 +21,8 @@
 
 #include <unifex/filesystem.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _filesystem {
 inline constexpr struct open_file_read_only_cpo {
@@ -73,3 +75,5 @@ using _filesystem::open_file_read_only;
 using _filesystem::open_file_write_only;
 using _filesystem::open_file_read_write;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

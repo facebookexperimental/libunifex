@@ -20,6 +20,8 @@
 #include <memory>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _get_alloc {
   inline constexpr struct _fn {
@@ -40,7 +42,9 @@ namespace _get_alloc {
 
 using _get_alloc::get_allocator;
 
-template<typename T>
+template <typename T>
 using get_allocator_t = decltype(get_allocator(std::declval<T>()));
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

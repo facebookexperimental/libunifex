@@ -17,6 +17,8 @@
 
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace linuxos {
 
@@ -56,3 +58,5 @@ class safe_file_descriptor {
 
 } // namespace linuxos
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

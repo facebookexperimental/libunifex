@@ -29,6 +29,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 class thread_unsafe_event_loop;
 
@@ -387,3 +389,5 @@ namespace _thread_unsafe_event_loop {
 }
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -29,6 +29,8 @@
 #include <optional>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _await {
 namespace detail {
@@ -174,3 +176,5 @@ namespace _await_cpo {
 } // namespace _await_cpo
 using _await_cpo::awaitable_sender;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

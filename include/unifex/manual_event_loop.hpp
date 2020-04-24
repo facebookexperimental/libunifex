@@ -24,6 +24,8 @@
 #include <mutex>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _manual_event_loop {
 class context;
@@ -144,3 +146,5 @@ inline void _op<Receiver>::type::start() noexcept {
 
 using manual_event_loop = _manual_event_loop::context;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

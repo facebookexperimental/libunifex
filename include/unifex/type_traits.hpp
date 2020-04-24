@@ -19,6 +19,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 #if (defined(__cpp_lib_type_trait_variable_templates) && \
   __cpp_lib_type_trait_variable_templates > 0)
 #define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
@@ -36,6 +38,25 @@
 #define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
 #endif
 
+#if defined(__GNUC__) || defined(_MSC_VER)
+#define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
+#endif
+
+#if defined(__clang__) || defined(_MSC_VER) || \
+  (defined(__GNUC__) && __GNUC__ >= 8)
+#define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
+#endif
+
+#define UNIFEX_DECLVAL(T) static_cast<T(*)()noexcept>(nullptr)()
+
 namespace unifex {
 
 template <typename T>
@@ -43,15 +64,15 @@ struct identity {
   using type = T;
 };
 
-template<typename... Ts>
+template <typename... Ts>
 struct single_type {};
 
-template<typename T>
+template <typename T>
 struct single_type<T> {
   using type = T;
 };
 
-template<typename... Ts>
+template <typename... Ts>
 using single_type_t = typename single_type<Ts...>::type;
 
 // We don't care about volatile, and not handling volatile is
@@ -71,13 +92,13 @@ template <class T> struct remove_cvref<T const&&> { using type = T; };
 
 template <class T> using remove_cvref_t = typename remove_cvref<T>::type;
 
-template <template<typename...> class T, typename X>
+template <template <typename...> class T, typename X>
 inline constexpr bool instance_of_v = false;
 
-template <template<typename...> class T, typename... Args>
+template <template <typename...> class T, typename... Args>
 inline constexpr bool instance_of_v<T, T<Args...>> = true;
 
-template <template<typename...> class T, typename X>
+template <template <typename...> class T, typename X>
 using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 struct unit {};
@@ -108,7 +129,7 @@ using wrap_reference_t = conditional_t<
 template <class Member, class Self>
 Member Self::*_memptr(const Self&);
 
-template<typename Self, typename Member>
+template <typename Self, typename Member>
 using member_t = decltype(
     ((static_cast<Self(*)()>(nullptr)()) .*
         unifex::_memptr<Member>(static_cast<Self(*)()>(nullptr)())));
@@ -137,8 +158,7 @@ inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =
-    decltype(static_cast<Fn(*)() noexcept>(nullptr)()(
-             static_cast<As(*)() noexcept>(nullptr)()...));
+    decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(As)...));
 
 namespace _is_callable {
   struct yes_type { char dummy; };
@@ -150,8 +170,7 @@ namespace _is_callable {
       typename... As,
       typename = callable_result_t<Fn, As...>>
   yes_type _try_call(Fn(*)(As...))
-      noexcept(noexcept(static_cast<Fn(*)() noexcept>(nullptr)()(
-                        static_cast<As(*)() noexcept>(nullptr)()...)));
+      noexcept(noexcept(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(As)...)));
   no_type _try_call(...) noexcept(false);
 } // namespace _is_callable
 
@@ -170,3 +189,5 @@ template <typename Fn, typename... As>
 struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

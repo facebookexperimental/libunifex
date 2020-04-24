@@ -23,6 +23,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 namespace detail {
@@ -78,3 +80,5 @@ using await_result_t =
     typename detail::await_result_impl<awaiter_type_t<Awaitable>>::type;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

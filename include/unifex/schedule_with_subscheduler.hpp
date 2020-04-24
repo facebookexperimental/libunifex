@@ -19,6 +19,8 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/transform.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _subschedule {
   inline constexpr struct _fn {
@@ -44,7 +46,7 @@ namespace _subschedule {
     template <typename T>
     using return_value = typename _return_value<std::decay_t<T>>::type;
 
-    template<bool>
+    template <bool>
     struct _impl {
     template <typename Scheduler>
       auto operator()(Scheduler&& sched) const
@@ -65,7 +67,7 @@ namespace _subschedule {
     }
   } schedule_with_subscheduler{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Scheduler>
     auto operator()(Scheduler&& sched) const
@@ -83,3 +85,5 @@ namespace _subschedule {
 using _subschedule::schedule_with_subscheduler;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

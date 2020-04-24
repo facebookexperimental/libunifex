@@ -20,6 +20,8 @@
 #include <functional>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _next_adapt {
   template <typename Stream, typename AdaptFunc>
@@ -63,3 +65,5 @@ namespace _next_adapt_cpo {
 using _next_adapt_cpo::next_adapt_stream;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

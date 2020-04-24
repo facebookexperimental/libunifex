@@ -18,6 +18,8 @@
 #include <unifex/config.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
   namespace _tag_invoke {
     void tag_invoke();
@@ -32,9 +34,8 @@ namespace unifex {
     };
 
     template <typename CPO, typename... Args>
-    using tag_invoke_result_t = decltype(tag_invoke(
-        static_cast<CPO && (*)() noexcept>(nullptr)(),
-        static_cast<Args && (*)() noexcept>(nullptr)()...));
+    using tag_invoke_result_t = decltype(
+        tag_invoke(UNIFEX_DECLVAL(CPO && ), UNIFEX_DECLVAL(Args && )...));
 
     struct yes_type {
       char dummy;
@@ -44,14 +45,11 @@ namespace unifex {
     };
 
     template <typename CPO, typename... Args>
-    auto try_tag_invoke(int) noexcept(noexcept(tag_invoke(
-        static_cast<CPO && (*)() noexcept>(nullptr)(),
-        static_cast<Args && (*)() noexcept>(nullptr)()...)))
-        -> decltype(
-            static_cast<void>(tag_invoke(
-                static_cast<CPO && (*)() noexcept>(nullptr)(),
-                static_cast<Args && (*)() noexcept>(nullptr)()...)),
-            yes_type{});
+    auto try_tag_invoke(int) //
+        noexcept(noexcept(tag_invoke(
+            UNIFEX_DECLVAL(CPO && ), UNIFEX_DECLVAL(Args && )...)))
+        -> decltype(static_cast<void>(tag_invoke(
+            UNIFEX_DECLVAL(CPO && ), UNIFEX_DECLVAL(Args && )...)), yes_type{});
 
     template <typename CPO, typename... Args>
     no_type try_tag_invoke(...) noexcept(false);
@@ -104,4 +102,6 @@ namespace unifex {
   using is_nothrow_tag_invocable =
       std::bool_constant<is_nothrow_tag_invocable_v<CPO, Args...>>;
 
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

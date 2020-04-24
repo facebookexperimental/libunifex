@@ -21,6 +21,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _ready_done {
   template <typename Receiver>
@@ -64,3 +66,5 @@ namespace _ready_done {
 using ready_done_sender = _ready_done::sender;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

@@ -24,6 +24,9 @@
 #include <unifex/config.hpp>
 #include <unifex/get_allocator.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/std_concepts.hpp>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _submit {
@@ -42,14 +45,16 @@ class _op<Sender, Receiver>::type {
   public:
     explicit wrapped_receiver(type* op) noexcept : op_(op) {}
 
-    template <typename... Values>
+    template(typename... Values)
+      (requires receiver_of<Receiver, Values...>)
     void set_value(Values&&... values) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
       destroy(std::move(allocator));
     }
 
-    template <typename Error>
+    template(typename Error)
+      (requires receiver<Receiver, Error>)
     void set_error(Error&& error) && noexcept {
       auto allocator = get_allocator(op_->receiver_);
       unifex::set_error(std::move(op_->receiver_), (Error &&) error);
@@ -64,7 +69,7 @@ class _op<Sender, Receiver>::type {
 
   private:
 
-    template<typename Allocator>
+    template <typename Allocator>
     void destroy(Allocator allocator) noexcept {
       using allocator_traits = std::allocator_traits<Allocator>;
       using typed_allocator = typename allocator_traits::template rebind_alloc<type>;
@@ -76,9 +81,8 @@ class _op<Sender, Receiver>::type {
 
     Receiver& get_receiver() const { return op_->receiver_; }
 
-    template <
-        typename CPO,
-        std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
+    template(typename CPO)
+        (requires (!is_receiver_cpo_v<CPO>))
     friend auto tag_invoke(CPO cpo, const wrapped_receiver& r) noexcept(
         is_nothrow_callable_v<CPO, const Receiver&>)
         -> callable_result_t<CPO, const Receiver&> {
@@ -113,7 +117,7 @@ private:
 
 namespace _submit_cpo {
   inline constexpr struct submit_cpo {
-    template<typename Sender, typename Receiver>
+    template <typename Sender, typename Receiver>
     void operator()(Sender&& sender, Receiver&& receiver) const {
       if constexpr (is_tag_invocable_v<submit_cpo, Sender, Receiver>) {
         static_assert(
@@ -166,3 +170,5 @@ namespace _submit_cpo {
 using _submit_cpo::submit;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

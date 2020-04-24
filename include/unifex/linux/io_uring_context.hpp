@@ -43,6 +43,8 @@
 
 #include <sys/uio.h>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace linuxos {
 
@@ -934,5 +936,7 @@ inline io_uring_context::scheduler io_uring_context::get_scheduler() noexcept {
 
 } // namespace linuxos
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>
 
 #endif // __has_include(<liburing.h>)

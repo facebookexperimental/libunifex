@@ -25,6 +25,8 @@
 #include <optional>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _single {
 template <typename Sender, typename Receiver>
@@ -88,11 +90,11 @@ struct _stream<Sender>::type {
   struct next_sender {
     std::optional<Sender> sender_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types = typename Sender::template value_types<Variant, Tuple>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = typename Sender::template error_types<Variant>;
 
     template <typename Receiver>
@@ -132,3 +134,5 @@ namespace _single_cpo {
 using _single_cpo::single;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

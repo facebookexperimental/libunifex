@@ -20,6 +20,8 @@
 #include <limits>
 #include <ratio>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace linuxos {
 
@@ -192,3 +194,5 @@ inline void monotonic_clock::time_point::normalize() noexcept {
 
 } // namespace linuxos
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

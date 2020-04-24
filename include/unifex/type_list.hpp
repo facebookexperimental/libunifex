@@ -19,6 +19,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex
 {
   // A template metaprogramming data-structure used to represent an
@@ -97,19 +99,21 @@ namespace unifex
 
   namespace detail
   {
-    template<
-      template<typename...> class Outer,
-      template<typename...> class Inner>
+    template <
+      template <typename...> class Outer,
+      template <typename...> class Inner>
     struct type_list_nested_apply_impl {
-      template<typename... Lists>
+      template <typename... Lists>
       using apply = Outer<typename Lists::template apply<Inner>...>;
     };
   }
 
-  template<
+  template <
     typename ListOfLists,
-    template<typename...> class Outer,
-    template<typename...> class Inner>
+    template <typename...> class Outer,
+    template <typename...> class Inner>
   using type_list_nested_apply_t = typename ListOfLists::template apply<
     detail::type_list_nested_apply_impl<Outer, Inner>::template apply>;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

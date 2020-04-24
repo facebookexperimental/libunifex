@@ -30,6 +30,8 @@
 #include <exception>
 #include <optional>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _coroutine {
 template <typename Sender, typename Value>
@@ -44,7 +46,7 @@ struct _sender_awaiter<Sender, Value>::type {
   struct coroutine_receiver {
     type& awaiter_;
 
-    template<typename... Values>
+    template <typename... Values>
     void set_value(Values&&... values) && noexcept {
       if constexpr (std::is_nothrow_constructible_v<Value, Values...>) {
         awaiter_.value_.construct((Values&&)values...);
@@ -61,7 +63,7 @@ struct _sender_awaiter<Sender, Value>::type {
       awaiter_.continuation_.resume();
     }
 
-    template<typename Error>
+    template <typename Error>
     void set_error(Error&& error) && noexcept {
       std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
     }
@@ -155,21 +157,20 @@ private:
 };
 } // namespace _coroutine
 
-template<
+template <
   typename Sender,
   typename Result = single_value_result_t<std::remove_reference_t<Sender>>>
 auto operator co_await(Sender&& sender) {
   return _coroutine::sender_awaiter<Sender, Result>{(Sender&&)sender};
 }
 
-template<
-    typename Sender,
-    std::enable_if_t<
-      std::remove_reference_t<Sender>::template value_types<
-        is_empty_list, is_empty_list>::value,
-      int> = 0>
+template(typename Sender)
+    (requires (std::remove_reference_t<Sender>::template value_types<
+        is_empty_list, is_empty_list>::value))
 auto operator co_await(Sender&& sender) {
   return _coroutine::sender_awaiter<Sender, void>{(Sender&&)sender};
 }
 
-}
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

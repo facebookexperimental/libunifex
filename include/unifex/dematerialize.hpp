@@ -22,8 +22,11 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <type_traits>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _demat {
@@ -32,24 +35,19 @@ namespace _demat {
     class type;
   };
   template <typename Receiver>
-  using receiver = typename _receiver<remove_cvref_t<Receiver>>::type;
+  using receiver_t = typename _receiver<remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
   class _receiver<Receiver>::type {
    public:
-    template <
-      typename Receiver2,
-      std::enable_if_t<std::is_constructible_v<Receiver, Receiver2>, int> = 0>
+    template(typename Receiver2)
+      (requires constructible_from<Receiver, Receiver2>)
     explicit type(Receiver2&& receiver) noexcept(
         std::is_nothrow_constructible_v<Receiver, Receiver2>)
       : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
-    template <
-        typename CPO,
-        typename... Values,
-        std::enable_if_t<
-            is_receiver_cpo_v<CPO> && is_callable_v<CPO, Receiver, Values...>,
-            int> = 0>
+    template(typename CPO, typename... Values)
+        (requires is_receiver_cpo_v<CPO> AND is_callable_v<CPO, Receiver, Values...>)
     void set_value(CPO cpo, Values&&... values) && noexcept(
         is_nothrow_callable_v<CPO, Receiver, Values...>) {
       static_cast<CPO&&>(cpo)(
@@ -57,33 +55,19 @@ namespace _demat {
           static_cast<Values&&>(values)...);
     }
 
-    template <
-        typename Error,
-        std::enable_if_t<
-            is_callable_v<decltype(unifex::set_error), Receiver, Error>,
-            int> = 0>
+    template(typename Error)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& error) && noexcept {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), static_cast<Error&&>(error));
     }
 
-    template <
-        typename... DummyPack,
-        std::enable_if_t<
-            sizeof...(DummyPack) == 0 &&
-                is_callable_v<decltype(unifex::set_done), Receiver>,
-            int> = 0>
-    void set_done(DummyPack...) && noexcept {
+    void set_done() && noexcept {
       unifex::set_done(static_cast<Receiver&&>(receiver_));
     }
 
-    template <
-        typename CPO,
-        UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type),
-        std::enable_if_t<
-            !is_receiver_cpo_v<CPO>, int> = 0,
-        std::enable_if_t<
-            is_callable_v<CPO, const Receiver&>, int> = 0>
+    template(typename CPO, UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type))
+        (requires (!is_receiver_cpo_v<CPO>) AND is_callable_v<CPO, const Receiver&>)
     friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r)
         noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
         -> callable_result_t<CPO, const Receiver&> {
@@ -174,20 +158,16 @@ namespace _demat {
         noexcept(std::is_nothrow_constructible_v<Source, Source2>)
       : source_(static_cast<Source2&&>(source)) {}
 
-    template <
-        typename Self,
-        typename Receiver,
-        std::enable_if_t<std::is_same_v<remove_cvref_t<Self>, type>, int> = 0,
-        std::enable_if_t<
-          is_connectable_v<member_t<Self, Source>, receiver<Receiver>>,
-          int> = 0>
+    template(typename Self, typename Receiver)
+        (requires same_as<remove_cvref_t<Self>, type> AND
+          is_connectable_v<member_t<Self, Source>, receiver_t<Receiver>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
-        noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver<Receiver>> &&
+        noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
                  std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-        -> operation_t<member_t<Self, Source>, receiver<Receiver>> {
+        -> operation_t<member_t<Self, Source>, receiver_t<Receiver>> {
       return unifex::connect(
           static_cast<Self&&>(self).source_,
-          receiver<Receiver>{static_cast<Receiver&&>(r)});
+          receiver_t<Receiver>{static_cast<Receiver&&>(r)});
     }
 
   private:
@@ -198,7 +178,7 @@ namespace _demat {
 namespace _demat_cpo {
   inline constexpr struct _fn {
    private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Sender>
       auto operator()(Sender&& predecessor) const
@@ -215,7 +195,7 @@ namespace _demat_cpo {
     }
   } dematerialize{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Sender>
     auto operator()(Sender&& predecessor) const
@@ -227,4 +207,6 @@ namespace _demat_cpo {
 } // namespace _demat_cpo
 using _demat_cpo::dematerialize;
 
-}  // namespace unifex
+} // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

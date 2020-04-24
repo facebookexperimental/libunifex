@@ -23,6 +23,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <functional>
 #include <type_traits>
@@ -32,6 +33,8 @@ class sequenced_policy;
 class parallel_policy;
 }
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _ifor {
 template <typename Policy, typename Range, typename Func, typename Receiver>
@@ -39,18 +42,17 @@ struct _receiver {
   struct type;
 };
 template <typename Policy, typename Range, typename Func, typename Receiver>
-using receiver =
+using receiver_t =
     typename _receiver<Policy, Range, Func, remove_cvref_t<Receiver>>::type;
 template <typename Policy, typename Range, typename Func, typename Receiver>
 struct _receiver<Policy, Range, Func, Receiver>::type {
-  using receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Policy policy_;
   UNIFEX_NO_UNIQUE_ADDRESS Range range_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
   // sequenced_policy version supports forward range
-  template<typename... Values>
+  template <typename... Values>
   static void apply_func_with_policy(const execution::sequenced_policy&, Range&& range, Func&& func, Values&... values)
       noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
     for(auto idx : range) {
@@ -59,7 +61,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   }
 
   // parallel_policy version requires random access range
-  template<typename... Values>
+  template <typename... Values>
   static void apply_func_with_policy(const execution::parallel_policy&, Range&& range, Func&& func, Values&... values)
       noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
     auto start = range.begin();
@@ -93,10 +95,9 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
     unifex::set_done((Receiver &&) receiver_);
   }
 
-  template <
-      typename CPO,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0>
-  friend auto tag_invoke(CPO cpo, const receiver& r) noexcept(
+  template(typename CPO)
+      (requires (!is_receiver_cpo_v<CPO>))
+  friend auto tag_invoke(CPO cpo, const type& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.receiver_));
@@ -105,7 +106,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   template <typename Visit>
   friend void tag_invoke(
       tag_t<visit_continuations>,
-      const receiver& r,
+      const type& r,
       Visit&& visit) {
     std::invoke(visit, r.receiver_);
   }
@@ -150,7 +151,7 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
   auto connect(Receiver&& receiver) && {
     return unifex::connect(
         std::forward<Predecessor>(pred_),
-        _ifor::receiver<Policy, Range, Func, Receiver>{
+        _ifor::receiver_t<Policy, Range, Func, Receiver>{
             (Func &&) func_,
             (Policy &&) policy_,
             (Range &&) range_,
@@ -172,3 +173,5 @@ namespace _ifor_cpo {
 using _ifor_cpo::indexed_for;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

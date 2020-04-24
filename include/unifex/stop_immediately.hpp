@@ -32,16 +32,18 @@
 #include <type_traits>
 #include <cassert>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _stop_immediately {
-template<typename SourceStream, typename... Values>
+template <typename SourceStream, typename... Values>
 struct _stream {
   struct type;
 };
-template<typename SourceStream, typename... Values>
+template <typename SourceStream, typename... Values>
 using stream = typename _stream<remove_cvref_t<SourceStream>, Values...>::type;
 
-template<typename SourceStream, typename... Values>
+template <typename SourceStream, typename... Values>
 struct _stream<SourceStream, Values...>::type {
  private:
   using stream = type;
@@ -131,7 +133,7 @@ struct _stream<SourceStream, Values...>::type {
       });
     }
 
-    template<typename Error>
+    template <typename Error>
     void set_error(Error&& error) && noexcept {
       std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
     }
@@ -144,7 +146,7 @@ struct _stream<SourceStream, Values...>::type {
       });
     }
 
-    template<typename Func>
+    template <typename Func>
     void handle_signal(Func deliverSignalTo) noexcept {
       auto& strm = stream_;
       strm.nextOp_.destruct();
@@ -199,16 +201,16 @@ struct _stream<SourceStream, Values...>::type {
   struct next_sender {
     stream& stream_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types =
       typename next_sender_t<SourceStream>::template value_types<Variant, Tuple>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types =
       typename next_sender_t<SourceStream>::template error_types<Variant>;
 
-    template<typename Receiver>
+    template <typename Receiver>
     struct _op {
       struct type {
         struct concrete_receiver final : next_receiver_base {
@@ -243,7 +245,7 @@ struct _stream<SourceStream, Values...>::type {
           typename ST::template callback_type<cancel_next_callback>>
             stopCallback_;
 
-        template<typename Receiver2>
+        template <typename Receiver2>
         explicit type(stream& strm, Receiver2&& receiver)
           : stream_(strm)
           , concreteReceiver_(*this)
@@ -292,22 +294,22 @@ struct _stream<SourceStream, Values...>::type {
     template <typename Receiver>
     using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-    template<typename Receiver>
+    template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
       return operation<Receiver>{stream_, (Receiver&&)receiver};
     }
-    template<typename Receiver>
+    template <typename Receiver>
     void connect(Receiver&& receiver) const& =delete;
   };
 
   struct cleanup_sender {
     stream& stream_;
 
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types = Variant<>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = typename concat_type_lists_unique_t<
       typename cleanup_sender_t<SourceStream>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
@@ -330,7 +332,7 @@ struct _stream<SourceStream, Values...>::type {
             }
           }
 
-          template<typename Error>
+          template <typename Error>
           void set_error(Error&& error) && noexcept {
             auto& op = op_;
             op.cleanupOp_.destruct();
@@ -352,7 +354,7 @@ struct _stream<SourceStream, Values...>::type {
         manual_lifetime<cleanup_operation_t<SourceStream, receiver_wrapper>>
             cleanupOp_;
 
-        template<typename Receiver2>
+        template <typename Receiver2>
         explicit type(stream& strm, Receiver2&& receiver)
           : stream_(strm)
           , receiver_((Receiver2&&)receiver)
@@ -411,11 +413,11 @@ struct _stream<SourceStream, Values...>::type {
     template <typename Receiver>
     using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-    template<typename Receiver>
+    template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
       return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
-    template<typename Receiver>
+    template <typename Receiver>
     void connect(Receiver&& receiver) const& = delete;
   };
 
@@ -429,7 +431,7 @@ struct _stream<SourceStream, Values...>::type {
 
 public:
 
-  template<typename SourceStream2>
+  template <typename SourceStream2>
   explicit type(SourceStream2&& source)
     : source_((SourceStream2&&)source)
   {}
@@ -449,7 +451,7 @@ public:
 } // namespace _stop_immediately
 
 namespace _stop_immediately_cpo {
-  template<typename... Values>
+  template <typename... Values>
   struct _fn {
     template <typename SourceStream>
     auto operator()(SourceStream&& source) const {
@@ -459,7 +461,9 @@ namespace _stop_immediately_cpo {
   };
 } // namespace _stop_immediately_cpo
 
-template<typename... Values>
+template <typename... Values>
 inline constexpr _stop_immediately_cpo::_fn<Values...> stop_immediately{};
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

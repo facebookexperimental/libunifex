@@ -24,11 +24,14 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/std_concepts.hpp>
 
 #include <exception>
 #include <functional>
 #include <type_traits>
 #include <utility>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _tfx {
@@ -48,11 +51,10 @@ struct _receiver {
   struct type;
 };
 template <typename Receiver, typename Func>
-using receiver = typename _receiver<Receiver, Func>::type;
+using receiver_t = typename _receiver<Receiver, Func>::type;
 
 template <typename Receiver, typename Func>
 struct _receiver<Receiver, Func>::type {
-  using receiver = type;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
@@ -99,11 +101,8 @@ struct _receiver<Receiver, Func>::type {
     unifex::set_done((Receiver &&) receiver_);
   }
 
-  template <
-      typename CPO,
-      typename R,
-      std::enable_if_t<!is_receiver_cpo_v<CPO>, int> = 0,
-      std::enable_if_t<std::is_same_v<R, receiver>, int> = 0>
+  template(typename CPO, typename R)
+      (requires (!is_receiver_cpo_v<CPO>) AND same_as<R, type>)
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -111,7 +110,7 @@ struct _receiver<Receiver, Func>::type {
   }
 
   template <typename Visit>
-  friend void tag_invoke(tag_t<visit_continuations>, const receiver& r, Visit&& visit) {
+  friend void tag_invoke(tag_t<visit_continuations>, const type& r, Visit&& visit) {
     std::invoke(visit, r.receiver_);
   }
 };
@@ -134,7 +133,7 @@ private:
   // This helper transforms an argument list into either
   // - type_list<type_list<Result>> - if Result is non-void, or
   // - type_list<type_list<>>       - if Result is void
-  template<typename... Args>
+  template <typename... Args>
   using result = type_list<
     typename detail::result_overload<std::invoke_result_t<Func, Args...>>::type>;
 
@@ -154,25 +153,23 @@ public:
     type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename Receiver>
-  using receiver = receiver<Receiver, Func>;
+  using receiver_t = receiver_t<Receiver, Func>;
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const sender& sender) {
     return blocking(sender.pred_);
   }
 
-  template <
-    typename Sender,
-    typename Receiver,
-    std::enable_if_t<std::is_same_v<remove_cvref_t<Sender>, type>, int> = 0>
+  template(typename Sender, typename Receiver)
+    (requires same_as<remove_cvref_t<Sender>, type>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
-      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver<remove_cvref_t<Receiver>>>)
-      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver<remove_cvref_t<Receiver>>> {
+      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>>)
+      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>> {
     return unifex::connect(
       static_cast<Sender&&>(s).pred_,
-      receiver<remove_cvref_t<Receiver>>{
+      receiver_t<remove_cvref_t<Receiver>>{
         static_cast<Sender&&>(s).func_,
         static_cast<Receiver&&>(r)});
   }
@@ -182,7 +179,7 @@ public:
 namespace _tfx_cpo {
   inline constexpr struct _fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Sender, typename Func>
       auto operator()(Sender&& predecessor, Func&& func) const
@@ -203,7 +200,7 @@ namespace _tfx_cpo {
     }
   } transform{};
 
-  template<>
+  template <>
   struct _fn::_impl<false> {
     template <typename Sender, typename Func>
     auto operator()(Sender&& predecessor, Func&& func) const
@@ -216,3 +213,5 @@ namespace _tfx_cpo {
 } // namespace _tfx_cpo
 using _tfx_cpo::transform;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

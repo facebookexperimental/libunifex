@@ -26,6 +26,8 @@
 #include <typeindex>
 #include <vector>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 
 namespace _visit_continuations {
@@ -35,10 +37,8 @@ namespace _visit_continuations {
     tag_invoke(_fn, const Continuation&, Func&&) noexcept {}
 
 #if !UNIFEX_NO_COROUTINES
-    template <
-        typename Promise,
-        typename Func,
-        std::enable_if_t<!std::is_void_v<Promise>, int> = 0>
+    template(typename Promise, typename Func)
+        (requires (!std::is_void_v<Promise>))
     friend void tag_invoke(
         _fn cpo,
         coro::coroutine_handle<Promise> h,
@@ -211,3 +211,5 @@ namespace _async_trace {
 using async_trace_sender = _async_trace::sender;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

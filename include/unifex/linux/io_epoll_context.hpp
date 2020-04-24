@@ -41,6 +41,8 @@
 #include <sys/uio.h>
 #include <sys/epoll.h>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace linuxos {
 
@@ -234,7 +236,7 @@ class io_epoll_context::schedule_sender {
           return;
         }
       }
-      if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
+      if constexpr (is_nothrow_receiver_of_v<Receiver>) {
         unifex::set_value(static_cast<Receiver&&>(op.receiver_));
       } else {
         try {
@@ -327,7 +329,7 @@ class io_epoll_context::schedule_at_sender {
         }
       }
 
-      if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver>) {
+      if constexpr (is_nothrow_receiver_of_v<Receiver>) {
         unifex::set_value(std::move(timerOp).receiver_);
       } else {
         try {
@@ -569,7 +571,7 @@ class io_epoll_context::read_sender {
       if (result == -ECANCELED) {
         unifex::set_done(std::move(receiver_));
       } else if (result >= 0) {
-        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+        if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(receiver_), ssize_t(result));
         } else {
           try {
@@ -610,7 +612,7 @@ class io_epoll_context::read_sender {
       if (result == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else if (result >= 0) {
-        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+        if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(self).receiver_, ssize_t(result));
         } else {
           try {
@@ -780,7 +782,7 @@ class io_epoll_context::write_sender {
       if (result == -ECANCELED) {
         unifex::set_done(std::move(receiver_));
       } else if (result >= 0) {
-        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+        if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(receiver_), ssize_t(result));
         } else {
           try {
@@ -821,7 +823,7 @@ class io_epoll_context::write_sender {
       if (result == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else if (result >= 0) {
-        if constexpr (is_nothrow_callable_v<unifex::tag_t<unifex::set_value>&, Receiver, ssize_t>) {
+        if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(self).receiver_, ssize_t(result));
         } else {
           try {
@@ -964,5 +966,7 @@ class io_epoll_context::async_writer {
 
 } // namespace linuxos
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>
 
 #endif // !UNIFEX_NO_EPOLL

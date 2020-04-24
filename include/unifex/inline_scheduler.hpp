@@ -25,6 +25,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _inline_sched {
   template <typename Receiver>
@@ -87,3 +89,5 @@ namespace _inline_sched {
 
 using inline_scheduler = _inline_sched::scheduler;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

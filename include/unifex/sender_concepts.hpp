@@ -21,6 +21,8 @@
 #include <tuple>
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _start {
   inline constexpr struct _fn {
@@ -149,3 +151,5 @@ constexpr bool is_sender_nofail_v =
     Sender::template error_types<is_empty_list>::value;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

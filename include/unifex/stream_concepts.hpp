@@ -18,11 +18,13 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/sender_concepts.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _streams {
   inline constexpr struct _next_fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Stream>
       auto operator()(Stream& stream) const
@@ -42,7 +44,7 @@ namespace _streams {
     }
   } next{};
 
-  template<>
+  template <>
   struct _next_fn::_impl<false> {
     template <typename Stream>
     auto operator()(Stream& stream) const
@@ -54,7 +56,7 @@ namespace _streams {
 
   inline constexpr struct _cleanup_fn {
   private:
-    template<bool>
+    template <bool>
     struct _impl {
       template <typename Stream>
       auto operator()(Stream& stream) const
@@ -74,7 +76,7 @@ namespace _streams {
     }
   } cleanup{};
 
-  template<>
+  template <>
   struct _cleanup_fn::_impl<false> {
     template <typename Stream>
     auto operator()(Stream& stream) const
@@ -101,3 +103,5 @@ template <typename Stream, typename Receiver>
 using cleanup_operation_t = operation_t<cleanup_sender_t<Stream>, Receiver>;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

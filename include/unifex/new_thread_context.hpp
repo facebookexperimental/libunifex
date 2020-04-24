@@ -25,21 +25,23 @@
 #include <mutex>
 #include <thread>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _new_thread {
 class context;
 
-template<typename Receiver>
+template <typename Receiver>
 struct _op {
   class type;
 };
-template<typename Receiver>
+template <typename Receiver>
 using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-template<typename Receiver>
+template <typename Receiver>
 class _op<Receiver>::type final {
  public:
-  template<typename Receiver2>
+  template <typename Receiver2>
   explicit type(context* ctx, Receiver2&& r)
     : ctx_(ctx), receiver_((Receiver2&&)r) {}
 
@@ -66,17 +68,17 @@ private:
 
   class schedule_sender {
   public:
-    template<template<typename...> class Variant,
-             template<typename...> class Tuple>
+    template <template <typename...> class Variant,
+             template <typename...> class Tuple>
     using value_types = Variant<Tuple<>>;
 
-    template<template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
     explicit schedule_sender(context* ctx) noexcept
       : context_(ctx) {}
 
-    template<typename Receiver>
+    template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const {
       return operation<Receiver>{context_, (Receiver&&)r};
     }
@@ -143,7 +145,7 @@ private:
   std::atomic<size_t> activeThreadCount_ = 1;
 };
 
-template<typename Receiver>
+template <typename Receiver>
 inline void _op<Receiver>::type::start() & noexcept {
   try {
     // Acquire the lock before launching the thread.
@@ -166,7 +168,7 @@ inline void _op<Receiver>::type::start() & noexcept {
   }
 }
 
-template<typename Receiver>
+template <typename Receiver>
 inline void _op<Receiver>::type::run() noexcept {
   // Read the thread_ and ctx_ members out from the operation-state
   // and store them as local variables on the stack before calling the
@@ -206,3 +208,5 @@ inline void _op<Receiver>::type::run() noexcept {
 using new_thread_context = _new_thread::context;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

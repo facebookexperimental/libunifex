@@ -19,6 +19,8 @@
 
 #include <thread>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _single_thread {
 class context {
@@ -42,3 +44,5 @@ public:
 using single_thread_context = _single_thread::context;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

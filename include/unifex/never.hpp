@@ -26,6 +26,8 @@
 
 #include <type_traits>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _never {
 
@@ -97,3 +99,5 @@ struct stream {
 using never_sender = _never::sender;
 using never_stream = _never::stream;
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>

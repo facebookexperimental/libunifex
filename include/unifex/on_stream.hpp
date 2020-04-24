@@ -19,6 +19,8 @@
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
+#include <unifex/detail/prologue.hpp>
+
 namespace unifex {
 namespace _on_stream {
   inline constexpr struct _fn {
@@ -36,3 +38,5 @@ namespace _on_stream {
 using _on_stream::on_stream;
 
 } // namespace unifex
+
+#include <unifex/detail/epilogue.hpp>
