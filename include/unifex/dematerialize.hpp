@@ -67,7 +67,7 @@ namespace _demat {
     }
 
     template(typename CPO, UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type))
-        (requires (!is_receiver_cpo_v<CPO>) AND is_callable_v<CPO, const Receiver&>)
+        (requires is_receiver_query_cpo_v<CPO> AND is_callable_v<CPO, const Receiver&>)
     friend auto tag_invoke(CPO cpo, const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r)
         noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
         -> callable_result_t<CPO, const Receiver&> {
