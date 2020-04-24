@@ -201,7 +201,7 @@ struct _op<Receiver, Senders...>::type {
   using operation = type;
   using receiver_type = Receiver;
   template <std::size_t Index, typename Receiver2, typename... Senders2>
-  friend class _element_receiver;
+  friend struct _element_receiver;
 
   explicit type(Receiver&& receiver, Senders&&... senders)
     : receiver_((Receiver &&) receiver),

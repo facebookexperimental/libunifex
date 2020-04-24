@@ -509,14 +509,14 @@ namespace unifex
           typename CompletionSender2,
           typename Receiver2,
           typename... Values>
-      friend class _value_receiver;
+      friend struct _value_receiver;
 
       template <
           typename SourceSender2,
           typename CompletionSender2,
           typename Receiver2,
           typename Error>
-      friend class _error_receiver;
+      friend struct _error_receiver;
 
       template <typename... Values>
       using value_operation = operation_t<

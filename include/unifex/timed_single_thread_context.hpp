@@ -249,9 +249,9 @@ class timed_single_thread_context {
   friend cancel_callback;
   friend scheduler;
   template <typename Duration, typename Receiver>
-  friend class _timed_single_thread_context::_after_op;
+  friend struct _timed_single_thread_context::_after_op;
   template <typename Receiver>
-  friend class _timed_single_thread_context::_at_op;
+  friend struct _timed_single_thread_context::_at_op;
 
   void enqueue(task_base* task) noexcept;
   void run();
