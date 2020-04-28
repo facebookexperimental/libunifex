@@ -58,7 +58,7 @@ namespace _timed_single_thread_context {
     void operator()() noexcept;
   };
 
-  struct scheduler;
+  class scheduler;
 
   template <typename Duration>
   struct _schedule_after_sender {
