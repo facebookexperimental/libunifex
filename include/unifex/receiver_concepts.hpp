@@ -19,6 +19,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/detail/fwddecls.hpp>
 
 #include <exception>
 #include <type_traits>
@@ -26,10 +27,6 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
-    namespace _connect {
-        struct _fn;
-    }
-
 namespace _rec_cpo {
   inline constexpr struct _set_value_fn {
   private:
@@ -209,7 +206,7 @@ inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
     _rec_cpo::_set_next_fn,
     _rec_cpo::_set_error_fn,
     _rec_cpo::_set_done_fn,
-    _connect::_fn>;
+    _connect_cpo::_fn>;
 
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;

@@ -145,7 +145,7 @@ UNIFEX_CONCEPT   //
     sender<S> && //
     detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
 
-namespace _start {
+namespace _start_cpo {
   inline constexpr struct _fn {
     template(typename Operation)
       (requires tag_invocable<_fn, Operation&>)
@@ -166,9 +166,9 @@ namespace _start {
     }
   } start{};
 } // namespace _start
-using _start::start;
+using _start_cpo::start;
 
-namespace _connect {
+namespace _connect_cpo {
   using detail::_can_execute;
 
   struct _fn;
@@ -187,7 +187,7 @@ namespace _connect {
   UNIFEX_CONCEPT //
     _with_member_connect = //
       sender<Sender> &&
-      UNIFEX_FRAGMENT(_connect::_has_member_connect_, Sender, Receiver);
+      UNIFEX_FRAGMENT(_connect_cpo::_has_member_connect_, Sender, Receiver);
   template <typename Sender, typename Receiver>
   UNIFEX_CONCEPT //
     _with_tag_invoke = //
@@ -272,8 +272,8 @@ namespace _connect {
       return _as_operation<Executor, Receiver>{(Executor &&) e, (Receiver &&) r};
     }
   } connect{};
-} // namespace _connect
-using _connect::connect;
+} // namespace _connect_cpo
+using _connect_cpo::connect;
 
 #if UNIFEX_CXX_CONCEPTS
 // Define the sender_to concept without macros for

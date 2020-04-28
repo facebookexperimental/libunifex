@@ -35,6 +35,11 @@ namespace unifex {
 
   namespace _submit_cpo {
     extern const struct _fn submit;
-  } // namespace _execute_cpo
+  } // namespace _submit_cpo
   using _submit_cpo::submit;
+
+  namespace _connect_cpo {
+    extern const struct _fn connect;
+  } // namespace _connect_cpo
+  using _connect_cpo::connect;
 } // namespace unifex
