@@ -168,7 +168,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   Receiver& get_receiver() const { return op_.receiver_; }
 
   template(typename CPO, typename R)
-      (requires (!is_receiver_cpo_v<CPO>) AND
+      (requires is_receiver_query_cpo_v<CPO> AND
           same_as<R, element_receiver> AND
           is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
@@ -201,7 +201,7 @@ struct _op<Receiver, Senders...>::type {
   using operation = type;
   using receiver_type = Receiver;
   template <std::size_t Index, typename Receiver2, typename... Senders2>
-  friend class _element_receiver;
+  friend struct _element_receiver;
 
   explicit type(Receiver&& receiver, Senders&&... senders)
     : receiver_((Receiver &&) receiver),

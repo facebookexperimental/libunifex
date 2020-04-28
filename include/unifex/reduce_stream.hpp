@@ -67,7 +67,7 @@ struct _error_cleanup_receiver<Operation>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const error_cleanup_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -119,7 +119,7 @@ struct _done_cleanup_receiver<Operation>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const done_cleanup_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -156,7 +156,7 @@ struct _next_receiver<Operation>::type {
   Operation& op_;
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const next_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {

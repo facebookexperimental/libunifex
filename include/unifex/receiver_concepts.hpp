@@ -26,6 +26,10 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
+    namespace _connect {
+        struct _fn;
+    }
+
 namespace _rec_cpo {
   inline constexpr struct _set_value_fn {
   private:
@@ -194,6 +198,18 @@ inline constexpr bool is_receiver_cpo_v = is_one_of_v<
     _rec_cpo::_set_next_fn,
     _rec_cpo::_set_error_fn,
     _rec_cpo::_set_done_fn>;
+
+
+// HACK: Approximation for CPOs that should be forwarded through receivers
+// as query operations.
+template <typename T>
+inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
+    remove_cvref_t<T>,
+    _rec_cpo::_set_value_fn,
+    _rec_cpo::_set_next_fn,
+    _rec_cpo::_set_error_fn,
+    _rec_cpo::_set_done_fn,
+    _connect::_fn>;
 
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;

@@ -123,7 +123,7 @@ public:
 private:
 
   template(typename CPO)
-    (requires (!is_receiver_cpo_v<CPO>) AND
+    (requires is_receiver_query_cpo_v<CPO> AND
         is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const trigger_receiver& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
@@ -211,7 +211,7 @@ public:
 
 private:
   template(typename CPO)
-    (requires (!is_receiver_cpo_v<CPO>) AND
+    (requires is_receiver_query_cpo_v<CPO> AND
         is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const source_receiver& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)

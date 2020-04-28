@@ -115,7 +115,7 @@ public:
 
 private:
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>) AND
+      (requires is_receiver_query_cpo_v<CPO> AND
           is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const type& r)
       noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&>)

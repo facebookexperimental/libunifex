@@ -73,7 +73,8 @@ namespace unifex
 
     private:
       template(typename CPO, typename R, typename... Args)
-          (requires is_receiver_cpo_v<CPO> AND
+          (requires 
+              is_receiver_cpo_v<CPO> AND
               same_as<R, successor_receiver> AND
               is_callable_v<CPO, Receiver, Args...>)
       friend auto tag_invoke(
@@ -89,7 +90,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, successor_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -189,7 +190,7 @@ namespace unifex
 
     private:
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, predecessor_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(

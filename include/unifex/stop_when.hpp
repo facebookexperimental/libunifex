@@ -93,7 +93,7 @@ namespace unifex
       }
 
       template(typename CPO, typename... Args)
-          (requires (!is_receiver_cpo_v<CPO>))
+          (requires is_receiver_query_cpo_v<CPO>)
       friend auto tag_invoke(
           CPO cpo,
           const type& r,
@@ -151,7 +151,7 @@ namespace unifex
       }
 
       template(typename CPO, typename... Args)
-          (requires (!is_receiver_cpo_v<CPO>))
+          (requires is_receiver_query_cpo_v<CPO>)
       friend auto tag_invoke(
           CPO cpo,
           const type& r,

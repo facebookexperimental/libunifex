@@ -154,7 +154,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, value_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -266,7 +266,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, error_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -336,7 +336,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, done_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -472,7 +472,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, type> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto
@@ -509,14 +509,14 @@ namespace unifex
           typename CompletionSender2,
           typename Receiver2,
           typename... Values>
-      friend class _value_receiver;
+      friend struct _value_receiver;
 
       template <
           typename SourceSender2,
           typename CompletionSender2,
           typename Receiver2,
           typename Error>
-      friend class _error_receiver;
+      friend struct _error_receiver;
 
       template <typename... Values>
       using value_operation = operation_t<

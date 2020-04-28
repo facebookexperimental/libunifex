@@ -99,7 +99,7 @@ namespace unifex
       }
 
       template(typename CPO, UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type))
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
               is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
           CPO cpo,

@@ -85,7 +85,7 @@ private:
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const typename Operation::receiver_type&>)
       -> callable_result_t<CPO, const typename Operation::receiver_type&> {
@@ -164,7 +164,7 @@ struct _predecessor_receiver<Operation>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
