@@ -30,157 +30,136 @@ namespace unifex {
 namespace _rec_cpo {
   inline const struct _set_value_fn {
   private:
-    template <bool>
-    struct _impl {
     template <typename Receiver, typename... Values>
-      auto operator()(Receiver&& r, Values&&... values) const
-          noexcept(
-              is_nothrow_tag_invocable_v<_set_value_fn, Receiver, Values...>)
-          -> tag_invoke_result_t<_set_value_fn, Receiver, Values...> {
-        return unifex::tag_invoke(
-            _set_value_fn{}, (Receiver &&) r, (Values &&) values...);
-      }
-    };
+    using set_value_member_result_t =
+      decltype(UNIFEX_DECLVAL(Receiver).set_value(UNIFEX_DECLVAL(Values)...));
+    template <typename Receiver, typename... Values>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_set_value_fn, Receiver, Values...>,
+        meta_tag_invoke_result<_set_value_fn>,
+        meta_quote1_<set_value_member_result_t>>::template apply<Receiver, Values...>;
   public:
-    template <typename Receiver, typename... Values>
+    template(typename Receiver, typename... Values)
+      (requires tag_invocable<_set_value_fn, Receiver, Values...>)
     auto operator()(Receiver&& r, Values&&... values) const
-        noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_set_value_fn, Receiver, Values...>>,
-            Receiver, Values...>)
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_set_value_fn, Receiver, Values...>>,
-            Receiver, Values...> {
-      return _impl<is_tag_invocable_v<_set_value_fn, Receiver, Values...>>{}(
-          (Receiver &&) r, (Values &&) values...);
+        noexcept(
+            is_nothrow_tag_invocable_v<_set_value_fn, Receiver, Values...>)
+        -> _result_t<Receiver, Values...> {
+      return unifex::tag_invoke(
+          _set_value_fn{}, (Receiver &&) r, (Values &&) values...);
     }
-  } set_value{};
-
-  template <>
-  struct _set_value_fn::_impl<false> {
-    template <typename Receiver, typename... Values>
+    template(typename Receiver, typename... Values)
+      (requires (!tag_invocable<_set_value_fn, Receiver, Values...>))
     auto operator()(Receiver&& r, Values&&... values) const
         noexcept(noexcept(
             static_cast<Receiver&&>(r).set_value((Values &&) values...)))
-        -> decltype(static_cast<Receiver&&>(r).set_value((Values &&) values...)) {
+        -> _result_t<Receiver, Values...> {
       return static_cast<Receiver&&>(r).set_value((Values &&) values...);
     }
-  };
+  } set_value{};
 
   inline const struct _set_next_fn {
   private:
-    template <bool>
-    struct _impl {
     template <typename Receiver, typename... Values>
-      auto operator()(Receiver&& r, Values&&... values) const
-          noexcept(
-              is_nothrow_tag_invocable_v<_set_next_fn, Receiver, Values...>)
-          -> tag_invoke_result_t<_set_next_fn, Receiver, Values...> {
-        return unifex::tag_invoke(
-            _set_next_fn{}, (Receiver &&) r, (Values &&) values...);
-      }
-    };
+    using set_next_member_result_t =
+      decltype(UNIFEX_DECLVAL(Receiver).set_next(UNIFEX_DECLVAL(Values)...));
+    template <typename Receiver, typename... Values>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_set_next_fn, Receiver, Values...>,
+        meta_tag_invoke_result<_set_next_fn>,
+        meta_quote1_<set_next_member_result_t>>::template apply<Receiver, Values...>;
   public:
-    template <typename Receiver, typename... Values>
+    template(typename Receiver, typename... Values)
+      (requires tag_invocable<_set_next_fn, Receiver, Values...>)
     auto operator()(Receiver&& r, Values&&... values) const
-        noexcept(std::is_nothrow_invocable_v<
-            _impl<is_tag_invocable_v<_set_next_fn, Receiver, Values...>>,
-            Receiver, Values...>)
-        -> std::invoke_result_t<
-            _impl<is_tag_invocable_v<_set_next_fn, Receiver, Values...>>,
-            Receiver, Values...> {
-      return _impl<is_tag_invocable_v<_set_next_fn, Receiver, Values...>>{}(
-          (Receiver &&) r, (Values &&) values...);
+        noexcept(
+            is_nothrow_tag_invocable_v<_set_next_fn, Receiver, Values...>)
+        -> _result_t<Receiver, Values...> {
+      return unifex::tag_invoke(
+          _set_next_fn{}, (Receiver &&) r, (Values &&) values...);
     }
-  } set_next{};
-
-  template <>
-  struct _set_next_fn::_impl<false> {
-    template <typename Receiver, typename... Values>
+    template(typename Receiver, typename... Values)
+      (requires (!tag_invocable<_set_next_fn, Receiver, Values...>))
     auto operator()(Receiver&& r, Values&&... values) const
         noexcept(noexcept(
             static_cast<Receiver&&>(r).set_next((Values &&) values...)))
-        -> decltype(static_cast<Receiver&&>(r).set_next((Values &&) values...)) {
+        -> _result_t<Receiver, Values...> {
       return static_cast<Receiver&&>(r).set_next((Values &&) values...);
     }
-  };
+  } set_next{};
 
   inline const struct _set_error_fn {
   private:
-    template <bool>
-    struct _impl {
     template <typename Receiver, typename Error>
-      auto operator()(Receiver&& r, Error&& error) const noexcept
-          -> tag_invoke_result_t<_set_error_fn, Receiver, Error> {
-        static_assert(
-            is_nothrow_tag_invocable_v<_set_error_fn, Receiver, Error>,
-            "set_error() invocation is required to be noexcept.");
-        static_assert(
-          std::is_void_v<tag_invoke_result_t<_set_error_fn, Receiver, Error>>
-        );
-        return unifex::tag_invoke(
-            _set_error_fn{}, (Receiver &&) r, (Error&&) error);
-      }
-    };
+    using set_error_member_result_t =
+      decltype(UNIFEX_DECLVAL(Receiver).set_error(UNIFEX_DECLVAL(Error)));
+    template <typename Receiver, typename Error>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_set_error_fn, Receiver, Error>,
+        meta_tag_invoke_result<_set_error_fn>,
+        meta_quote2<set_error_member_result_t>>::template apply<Receiver, Error>;
   public:
-    template <typename Receiver, typename Error>
+    template(typename Receiver, typename Error)
+      (requires tag_invocable<_set_error_fn, Receiver, Error>)
     auto operator()(Receiver&& r, Error&& error) const noexcept
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_set_error_fn, Receiver, Error>>,
-            Receiver, Error> {
-      return _impl<is_tag_invocable_v<_set_error_fn, Receiver, Error>>{}(
-          (Receiver &&) r, (Error&&) error);
+        -> _result_t<Receiver, Error> {
+      static_assert(
+          is_nothrow_tag_invocable_v<_set_error_fn, Receiver, Error>,
+          "set_error() invocation is required to be noexcept.");
+      static_assert(
+        std::is_void_v<tag_invoke_result_t<_set_error_fn, Receiver, Error>>
+      );
+      return unifex::tag_invoke(
+          _set_error_fn{}, (Receiver &&) r, (Error&&) error);
     }
-  } set_error{};
-
-  template <>
-  struct _set_error_fn::_impl<false> {
-    template <typename Receiver, typename Error>
+    template(typename Receiver, typename Error)
+      (requires (!tag_invocable<_set_error_fn, Receiver, Error>))
     auto operator()(Receiver&& r, Error&& error) const noexcept
-        -> decltype(static_cast<Receiver&&>(r).set_error((Error&&) error)) {
+        -> _result_t<Receiver, Error> {
       static_assert(
           noexcept(static_cast<Receiver&&>(r).set_error((Error &&) error)),
           "receiver.set_error() method must be nothrow invocable");
       return static_cast<Receiver&&>(r).set_error((Error&&) error);
     }
-  };
+  } set_error{};
 
   inline const struct _set_done_fn {
   private:
-    template <bool>
-    struct _impl {
     template <typename Receiver>
-      auto operator()(Receiver&& r) const noexcept
-          -> tag_invoke_result_t<_set_done_fn, Receiver> {
-        static_assert(
-            is_nothrow_tag_invocable_v<_set_done_fn, Receiver>,
-            "set_done() invocation is required to be noexcept.");
-        static_assert(
-          std::is_void_v<tag_invoke_result_t<_set_done_fn, Receiver>>
-        );
-        return unifex::tag_invoke(_set_done_fn{}, (Receiver &&) r);
-      }
-    };
+    using set_done_member_result_t =
+      decltype(UNIFEX_DECLVAL(Receiver).set_done());
+    template <typename Receiver>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_set_done_fn, Receiver>,
+        meta_tag_invoke_result<_set_done_fn>,
+        meta_quote1<set_done_member_result_t>>::template apply<Receiver>;
   public:
-    template <typename Receiver>
+    template(typename Receiver)
+      (requires tag_invocable<_set_done_fn, Receiver>)
     auto operator()(Receiver&& r) const noexcept
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_set_done_fn, Receiver>>, Receiver> {
-      return _impl<is_tag_invocable_v<_set_done_fn, Receiver>>{}(
-          (Receiver &&) r);
+        -> _result_t<Receiver> {
+      static_assert(
+          is_nothrow_tag_invocable_v<_set_done_fn, Receiver>,
+          "set_done() invocation is required to be noexcept.");
+      static_assert(
+        std::is_void_v<tag_invoke_result_t<_set_done_fn, Receiver>>
+      );
+      return unifex::tag_invoke(_set_done_fn{}, (Receiver &&) r);
     }
-  } set_done{};
-
-  template <>
-  struct _set_done_fn::_impl<false> {
-    template <typename Receiver>
+    template(typename Receiver)
+      (requires (!tag_invocable<_set_done_fn, Receiver>))
     auto operator()(Receiver&& r) const noexcept
-        -> decltype(static_cast<Receiver&&>(r).set_done()) {
+        -> _result_t<Receiver> {
       static_assert(
           noexcept(static_cast<Receiver&&>(r).set_done()),
           "receiver.set_done() method must be nothrow invocable");
       return static_cast<Receiver&&>(r).set_done();
     }
-  };
+  } set_done{};
 } // namespace _rec_cpo
 
 using _rec_cpo::set_value;
@@ -211,6 +190,28 @@ inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
 
+#if UNIFEX_CPP_CONCEPTS
+// Defined the receiver concepts without the macros for improved diagnostics
+template <typename R, typename E>
+concept //
+  receiver = //
+    move_constructible<remove_cvref_t<R>> &&
+    constructible_from<remove_cvref_t<R>, R> &&
+    requires(remove_cvref_t<R>&& r, E&& e)
+    {
+      { set_done(std::move(r))) } noexcept;
+      { set_error(std::move(r), (E&&) e)) } noexcept;
+    };
+
+template <typename R, typename... An>
+concept //
+  receiver_of = //
+    receiver<R> &&
+    requires(remove_cvref_t<R>&& r, An&&... an) //
+    {
+      set_value(std::move(r), (An&&) an...);
+    };
+#else
 template <typename R, typename E>
 UNIFEX_CONCEPT_FRAGMENT(
   _receiver,
@@ -221,25 +222,26 @@ UNIFEX_CONCEPT_FRAGMENT(
     ));
 
 template <typename R, typename E = std::exception_ptr>
-UNIFEX_CONCEPT
-  receiver =
+UNIFEX_CONCEPT //
+  receiver = //
     move_constructible<remove_cvref_t<R>> &&
     constructible_from<remove_cvref_t<R>, R> &&
     UNIFEX_FRAGMENT(unifex::_receiver, R, E);
 
 template <typename T, typename... An>
-UNIFEX_CONCEPT_FRAGMENT(
-  _receiver_of,
+UNIFEX_CONCEPT_FRAGMENT( //
+  _receiver_of, //
     requires(remove_cvref_t<T>&& t, An&&... an) //
     (
       set_value(std::move(t), (An&&) an...)
     ));
 
 template <typename R, typename... An>
-UNIFEX_CONCEPT
-  receiver_of =
+UNIFEX_CONCEPT //
+  receiver_of = //
     receiver<R> &&
     UNIFEX_FRAGMENT(unifex::_receiver_of, R, An...);
+#endif
 
 template <typename R, typename... An>
   inline constexpr bool is_nothrow_receiver_of_v =

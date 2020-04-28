@@ -23,8 +23,7 @@
 
 namespace unifex {
 namespace _subschedule {
-  inline const struct _fn {
-  private:
+  namespace _detail {
     template <typename T>
     struct _return_value {
       struct type {
@@ -43,43 +42,43 @@ namespace _subschedule {
         }
       };
     };
-    template <typename T>
-    using return_value = typename _return_value<std::decay_t<T>>::type;
+  } // _detail
 
-    template <bool>
-    struct _impl {
+  inline const struct _fn {
+  private:
+    template <typename T>
+    using _return_value =
+      typename _detail::_return_value<remove_cvref_t<T>>::type;
+
     template <typename Scheduler>
-      auto operator()(Scheduler&& sched) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler>)
-          -> tag_invoke_result_t<_fn, Scheduler> {
-        return unifex::tag_invoke(_fn{}, (Scheduler &&) sched);
-      }
-    };
+    using _default_result_t =
+      decltype(transform(
+        UNIFEX_DECLVAL(callable_result_t<decltype(schedule), Scheduler&>),
+        UNIFEX_DECLVAL(_return_value<Scheduler>)));
+    template <typename Scheduler>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_fn, Scheduler>,
+        meta_tag_invoke_result<_fn>,
+        meta_quote1<_default_result_t>>::template apply<Scheduler>;
   public:
-    template <typename Scheduler>
+    template(typename Scheduler)
+      (requires tag_invocable<_fn, Scheduler>)
     auto operator()(Scheduler&& sched) const
-        noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler>)
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_fn, Scheduler>>, Scheduler> {
-      return _impl<is_tag_invocable_v<_fn, Scheduler>>{}(
-          (Scheduler &&) sched);
+        noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler>)
+        -> _result_t<Scheduler> {
+      return unifex::tag_invoke(_fn{}, (Scheduler &&) sched);
+    }
+    template(typename Scheduler)
+      (requires (!tag_invocable<_fn, Scheduler>))
+    auto operator()(Scheduler&& sched) const
+        -> _result_t<Scheduler> {
+      auto&& scheduleOp = schedule(sched);
+      return transform(
+        static_cast<decltype(scheduleOp)>(scheduleOp),
+        _return_value<Scheduler>{(Scheduler &&) sched});
     }
   } schedule_with_subscheduler{};
-
-  template <>
-  struct _fn::_impl<false> {
-    template <typename Scheduler>
-    auto operator()(Scheduler&& sched) const
-        -> decltype(transform(
-            std::declval<callable_result_t<decltype(schedule), Scheduler&>>(),
-            std::declval<return_value<Scheduler>>())) {
-    auto&& scheduleOp = schedule(sched);
-    return transform(
-        static_cast<decltype(scheduleOp)>(scheduleOp),
-        return_value<Scheduler>{(Scheduler &&) sched});
-    }
-  };
 } // namespace _subschedule
 
 using _subschedule::schedule_with_subscheduler;

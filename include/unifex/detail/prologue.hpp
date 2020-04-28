@@ -22,5 +22,16 @@
 #endif
 #define UNIFEX_PROLOGUE_HPP
 
-#define template(...) UNIFEX_TEMPLATE(__VA_ARGS__)
+#include <unifex/config.hpp>
+
+#if UNIFEX_CXX_CONCEPTS
+  #define template(...) \
+    template <__VA_ARGS__> UNIFEX_PP_EXPAND \
+    /**/
+#else
+  #define template(...) \
+    template <__VA_ARGS__ UNIFEX_TEMPLATE_SFINAE_AUX_ \
+    /**/
+#endif
+
 #define AND UNIFEX_AND

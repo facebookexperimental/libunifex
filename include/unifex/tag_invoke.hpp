@@ -108,6 +108,9 @@ namespace unifex {
       (sizeof(_tag_invoke::try_tag_invoke<CPO, Args...>(0)) ==
        sizeof(_tag_invoke::yes_type));
 
+  template <typename Fn>
+  using meta_tag_invoke_result =
+      meta_quote1_<tag_invoke_result_t>::bind_front<Fn>;
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

@@ -248,8 +248,8 @@
   #define UNIFEX_AND && \
     /**/
 #else
-  #define UNIFEX_TEMPLATE \
-    UNIFEX_TEMPLATE_SFINAE \
+  #define UNIFEX_TEMPLATE(...) \
+    template <__VA_ARGS__ UNIFEX_TEMPLATE_SFINAE_AUX_ \
     /**/
   #define UNIFEX_AND && UNIFEX_true_, int> = 0, std::enable_if_t< \
     /**/

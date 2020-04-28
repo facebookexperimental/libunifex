@@ -179,37 +179,29 @@ public:
 namespace _tfx_cpo {
   inline const struct _fn {
   private:
-    template <bool>
-    struct _impl {
-      template <typename Sender, typename Func>
-      auto operator()(Sender&& predecessor, Func&& func) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
-          -> tag_invoke_result_t<_fn, Sender, Func> {
-        return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
-      }
-    };
+    template <typename Sender, typename Func>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_fn, Sender, Func>,
+        meta_tag_invoke_result<_fn>,
+        meta_quote2<_tfx::sender>>::template apply<Sender, Func>;
   public:
-    template <typename Sender, typename Func>
+    template(typename Sender, typename Func)
+      (requires tag_invocable<_fn, Sender, Func>)
     auto operator()(Sender&& predecessor, Func&& func) const
-        noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func>)
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_fn, Sender, Func>>, Sender, Func> {
-      return _impl<is_tag_invocable_v<_fn, Sender, Func>>{}(
-        (Sender&&)predecessor, (Func&&)func);
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
+        -> _result_t<Sender, Func> {
+      return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
     }
-  } transform{};
-
-  template <>
-  struct _fn::_impl<false> {
-    template <typename Sender, typename Func>
+    template(typename Sender, typename Func)
+      (requires (!tag_invocable<_fn, Sender, Func>))
     auto operator()(Sender&& predecessor, Func&& func) const
         noexcept(std::is_nothrow_constructible_v<
           _tfx::sender<Sender, Func>, Sender, Func>)
-        -> _tfx::sender<Sender, Func> {
+        -> _result_t<Sender, Func> {
       return _tfx::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
     }
-  };
+  } transform{};
 } // namespace _tfx_cpo
 using _tfx_cpo::transform;
 } // namespace unifex

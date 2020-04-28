@@ -24,67 +24,57 @@ namespace unifex {
 namespace _streams {
   inline const struct _next_fn {
   private:
-    template <bool>
-    struct _impl {
-      template <typename Stream>
-      auto operator()(Stream& stream) const
-          noexcept(is_nothrow_tag_invocable_v<_next_fn, Stream&>)
-          -> tag_invoke_result_t<_next_fn, Stream&> {
-        return unifex::tag_invoke(_next_fn{}, stream);
-      }
-    };
-  public:
     template <typename Stream>
+    using _member_next_result_t = decltype(UNIFEX_DECLVAL(Stream).next());
+    template <typename Stream>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_next_fn, Stream>,
+        meta_tag_invoke_result<_next_fn>,
+        meta_quote1<_member_next_result_t>>::template apply<Stream>;
+  public:
+    template(typename Stream)
+      (requires tag_invocable<_next_fn, Stream&>)
     auto operator()(Stream& stream) const
-        noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_next_fn, Stream&>>, Stream&>)
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_next_fn, Stream&>>, Stream&> {
-      return _impl<is_tag_invocable_v<_next_fn, Stream&>>{}(stream);
+        noexcept(is_nothrow_tag_invocable_v<_next_fn, Stream&>)
+        -> _result_t<Stream&> {
+      return unifex::tag_invoke(_next_fn{}, stream);
+    }
+    template(typename Stream)
+      (requires (!tag_invocable<_next_fn, Stream&>))
+    auto operator()(Stream& stream) const
+        noexcept(noexcept(stream.next()))
+        -> _result_t<Stream&> {
+      return stream.next();
     }
   } next{};
 
-  template <>
-  struct _next_fn::_impl<false> {
-    template <typename Stream>
-    auto operator()(Stream& stream) const
-        noexcept(noexcept(stream.next()))
-        -> decltype(stream.next()) {
-      return stream.next();
-    }
-  };
-
   inline const struct _cleanup_fn {
   private:
-    template <bool>
-    struct _impl {
-      template <typename Stream>
-      auto operator()(Stream& stream) const
-          noexcept(is_nothrow_tag_invocable_v<_cleanup_fn, Stream&>)
-          -> tag_invoke_result_t<_cleanup_fn, Stream&> {
-        return unifex::tag_invoke(_cleanup_fn{}, stream);
-      }
-    };
+    template <typename Stream>
+    using _member_cleanup_result_t = decltype(UNIFEX_DECLVAL(Stream).cleanup());
+    template <typename Stream>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_cleanup_fn, Stream>,
+        meta_tag_invoke_result<_cleanup_fn>,
+        meta_quote1<_member_cleanup_result_t>>::template apply<Stream>;
   public:
-    template <typename Stream>
+    template(typename Stream)
+      (requires tag_invocable<_cleanup_fn, Stream&>)
     auto operator()(Stream& stream) const
-        noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>, Stream&>)
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>, Stream&> {
-      return _impl<is_tag_invocable_v<_cleanup_fn, Stream&>>{}(stream);
+        noexcept(is_nothrow_tag_invocable_v<_cleanup_fn, Stream&>)
+        -> _result_t<Stream&> {
+      return unifex::tag_invoke(_cleanup_fn{}, stream);
     }
-  } cleanup{};
-
-  template <>
-  struct _cleanup_fn::_impl<false> {
-    template <typename Stream>
+    template(typename Stream)
+      (requires (!tag_invocable<_cleanup_fn, Stream&>))
     auto operator()(Stream& stream) const
         noexcept(noexcept(stream.cleanup()))
-        -> decltype(stream.cleanup()) {
+        -> _result_t<Stream&> {
       return stream.cleanup();
     }
-  };
+  } cleanup{};
 } // namespace _streams
 
 using _streams::next;

@@ -176,8 +176,6 @@ using _start_cpo::start;
 namespace _connect_cpo {
   using detail::_can_execute;
 
-  struct _fn;
-
   template <typename Sender, typename Receiver>
   using _member_connect_result_t =
       decltype((UNIFEX_DECLVAL(Sender&&)).connect(
@@ -221,26 +219,14 @@ namespace _connect_cpo {
     };
     template <typename Executor, typename Receiver>
     using _as_operation = typename _as_op<Executor, Receiver>::type;
-    struct _tag_invoke_result {
-      template <typename Sender, typename Receiver>
-      using apply = tag_invoke_result_t<_fn, Sender, Receiver>;
-    };
-    struct _member_connect_result {
-      template <typename Sender, typename Receiver>
-      using apply = _member_connect_result_t<Sender, Receiver>;
-    };
-    struct _execute_result {
-      template <typename Executor, typename Receiver>
-      using apply = _as_operation<Executor, Receiver>;
-    };
     template <typename Sender, typename Receiver>
     static auto _select() {
       if constexpr (_with_tag_invoke<Sender, Receiver>) {
-        return _tag_invoke_result{};
+        return meta_tag_invoke_result<_fn>{};
       } else if constexpr (_with_member_connect<Sender, Receiver>) {
-        return _member_connect_result{};
+        return meta_quote2<_member_connect_result_t>{};
       } else if constexpr (_with_execute<Sender, Receiver>) {
-        return _execute_result{};
+        return meta_quote2<_as_operation>{};
       } else {
         return type_always<void>{};
       }

@@ -20,6 +20,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/tag_invoke.hpp>
 
 #include <memory>
 #include <type_traits>
@@ -132,32 +133,28 @@ namespace _alloc {
 namespace _alloc_cpo {
   inline const struct _fn {
   private:
-    template <bool>
-    struct _impl {
-      template <typename Sender>
-      auto operator()(Sender&& predecessor) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Sender>) {
-        return unifex::tag_invoke(_fn{}, (Sender&&) predecessor);
-      }
-    };
+    template <typename Sender>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_fn, Sender>,
+        meta_tag_invoke_result<_fn>,
+        meta_quote1<_alloc::sender>>::template apply<Sender>;
   public:
-    template <typename Sender>
+    template(typename Sender)
+      (requires tag_invocable<_fn, Sender>)
     auto operator()(Sender&& predecessor) const
-        noexcept(is_nothrow_callable_v<
-          _impl<is_tag_invocable_v<_fn, Sender>>, Sender>) {
-      return _impl<is_tag_invocable_v<_fn, Sender>>{}((Sender&&) predecessor);
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender>)
+        -> _result_t<Sender> {
+      return unifex::tag_invoke(_fn{}, (Sender&&) predecessor);
     }
-  } allocate{};
-
-  template <>
-  struct _fn::_impl<false> {
-    template <typename Sender>
+    template(typename Sender)
+      (requires (!tag_invocable<_fn, Sender>))
     auto operator()(Sender&& predecessor) const
         noexcept(std::is_nothrow_constructible_v<_alloc::sender<Sender>, Sender>)
-        -> _alloc::sender<Sender> {
+        -> _result_t<Sender> {
       return _alloc::sender<Sender>{(Sender &&) predecessor};
     }
-  };
+  } allocate{};
 } // namespace _alloc_cpo
 using _alloc_cpo::allocate;
 

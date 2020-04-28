@@ -204,32 +204,28 @@ namespace unifex
   namespace _mat_cpo {
     inline const struct _fn {
     private:
-      template <bool>
-      struct _impl {
-        template <typename Source>
-        auto operator()(Source&& source) const
-            noexcept(is_nothrow_tag_invocable_v<_fn, Source>) {
-          return unifex::tag_invoke(_fn{}, (Source&&) source);
-        }
-      };
+      template <typename Source>
+      using _result_t =
+        typename conditional_t<
+          tag_invocable<_fn, Source>,
+          meta_tag_invoke_result<_fn>,
+          meta_quote1<_mat::sender>>::template apply<Source>;
     public:
-      template <typename Source>
+      template(typename Source)
+        (requires tag_invocable<_fn, Source>)
       auto operator()(Source&& source) const
-          noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_fn, Source>>, Source>) {
-        return _impl<is_tag_invocable_v<_fn, Source>>{}((Source&&) source);
+          noexcept(is_nothrow_tag_invocable_v<_fn, Source>)
+          -> _result_t<Source> {
+        return unifex::tag_invoke(_fn{}, (Source&&) source);
       }
-    } materialize{};
-
-    template <>
-    struct _fn::_impl<false> {
-      template <typename Source>
+      template(typename Source)
+        (requires (!tag_invocable<_fn, Source>))
       auto operator()(Source&& source) const
           noexcept(std::is_nothrow_constructible_v<_mat::sender<Source>, Source>)
-          -> _mat::sender<Source> {
+          -> _result_t<Source> {
         return _mat::sender<Source>{(Source&&) source};
       }
-    };
+    } materialize{};
   } // namespace _mat_cpo
 
   using _mat_cpo::materialize;
