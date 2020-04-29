@@ -27,10 +27,12 @@
 #include <unifex/std_concepts.hpp>
 
 #include <memory>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
+namespace _submit {
 template <typename Allocator, typename T>
 using rebind_alloc_t =
     typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
@@ -38,7 +40,6 @@ template <typename Allocator, typename T>
 using rebind_traits_t =
     std::allocator_traits<rebind_alloc_t<Allocator, T>>;
 
-namespace _submit {
 template <typename Sender, typename Receiver>
 struct _op {
   class type;
@@ -97,7 +98,7 @@ class _op<Sender, Receiver>::type {
         tag_t<visit_continuations>,
         const wrapped_receiver& r,
         Func&& func) {
-      std::invoke(func, r.get_receiver());
+      std::invoke(func, std::as_const(r.get_receiver()));
     }
   };
 
@@ -116,10 +117,11 @@ private:
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   /*UNIFEX_NO_UNIQUE_ADDRESS*/ connect_result_t<Sender, wrapped_receiver> inner_;
 };
-
 } // namespace _submit
 
 namespace _submit_cpo {
+  using _submit::rebind_alloc_t;
+  using _submit::rebind_traits_t;
   template <typename Sender, typename Receiver>
   using _member_submit_result_t =
       decltype((UNIFEX_DECLVAL(Sender&&)).submit(UNIFEX_DECLVAL(Receiver&&)));

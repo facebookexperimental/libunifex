@@ -37,6 +37,19 @@ namespace {
       return false;
     }
   };
+  struct throwing_executor {
+    UNIFEX_TEMPLATE(typename Fn)
+      (requires invocable<Fn&>)
+    void execute(Fn fn) const {
+      throw std::runtime_error("sorry, charlie");
+    }
+    friend bool operator==(throwing_executor, throwing_executor) noexcept {
+      return true;
+    }
+    friend bool operator!=(throwing_executor, throwing_executor) noexcept {
+      return false;
+    }
+  };
   class inline_sender : sender_base {
     template <typename Receiver>
     struct _op {
@@ -81,4 +94,25 @@ TEST(P0443, connect_with_executor) {
   auto op = connect(inline_executor{}, _receiver{&i});
   start(op);
   EXPECT_EQ(1, i);
+}
+
+TEST(P0443, connect_with_throwing_executor) {
+  int i = 0;
+  struct _receiver {
+    int *p;
+    void set_value() && noexcept {
+      *p = 1;
+    }
+    void set_error(std::exception_ptr) && noexcept {
+      *p = 2;
+    }
+    void set_done() && noexcept {
+      *p = 3;
+    }
+  };
+  auto op = connect(throwing_executor{}, _receiver{&i});
+  try {
+    start(op);
+  } catch (...) {}
+  EXPECT_EQ(3, i);
 }

@@ -16,7 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/detail/fwddecls.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
@@ -130,7 +130,7 @@ concept //
 #else
 template <typename E, typename F>
 UNIFEX_CONCEPT_FRAGMENT( //
-  _executor_of_impl_,    //
+  _executor_of_impl_part,    //
     requires(const E e, F&& f) (
       unifex::execute(e, (F&&) f)
     ));
@@ -144,7 +144,7 @@ UNIFEX_CONCEPT        //
     copy_constructible<E> &&
     equality_comparable<E> &&
     std::is_nothrow_copy_constructible_v<E> &&
-    UNIFEX_FRAGMENT(unifex::_executor_of_impl_, E, F);
+    UNIFEX_FRAGMENT(unifex::_executor_of_impl_part, E, F);
 #endif
 
 template <typename E>

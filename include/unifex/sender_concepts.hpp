@@ -16,7 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/detail/fwddecls.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -92,7 +92,9 @@ namespace detail {
       !UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S);
 
   struct _void_sender_traits {
-    template <template <typename...> class Tuple, template <typename...> class Variant>
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
     using value_types = Variant<Tuple<>>;
 
     template <template <typename...> class Variant>
@@ -103,7 +105,9 @@ namespace detail {
 
   template <typename S>
   struct _typed_sender_traits {
-    template <template <typename...> class Tuple, template <typename...> class Variant>
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
     using value_types = typename S::template value_types<Tuple, Variant>;
 
     template <template <typename...> class Variant>
@@ -209,7 +213,8 @@ namespace _connect_cpo {
             detail::_as_invocable<remove_cvref_t<Receiver>, Executor>;
           unifex::execute(std::move(e_), _as_invocable{r_});
         } catch(...) {
-          unifex::set_error(std::move(r_), std::current_exception());
+          // BUGBUG: see https://github.com/executors/executors/issues/463
+          // unifex::set_error(std::move(r_), std::current_exception());
         }
       };
     };
