@@ -361,7 +361,7 @@ private:
 } // namespace _retry_when
 
 namespace _retry_when_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
   private:
     template <bool>
     struct _impl {

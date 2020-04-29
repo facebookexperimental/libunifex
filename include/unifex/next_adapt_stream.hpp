@@ -52,7 +52,7 @@ namespace _next_adapt {
 } // namespace _next_adapt
 
 namespace _next_adapt_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Stream, typename AdaptFunc>
     auto operator()(Stream&& stream, AdaptFunc&& adapt) const {
       return _next_adapt::stream<Stream, AdaptFunc>{

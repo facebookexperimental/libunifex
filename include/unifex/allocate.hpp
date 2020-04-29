@@ -130,7 +130,7 @@ namespace _alloc {
 } // namespace _alloc
 
 namespace _alloc_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
   private:
     template <bool>
     struct _impl {

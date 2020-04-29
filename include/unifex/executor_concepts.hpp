@@ -68,7 +68,7 @@ namespace _execute_cpo {
     _has_member_execute = //
       UNIFEX_FRAGMENT(_execute_cpo::_has_member_execute_, Executor, Fn);
 
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template(typename Executor, typename Fn)
       (requires (invocable<remove_cvref_t<Fn>&> &&
           constructible_from<remove_cvref_t<Fn>, Fn> &&

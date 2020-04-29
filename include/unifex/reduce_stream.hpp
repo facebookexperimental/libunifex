@@ -326,7 +326,7 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
 } // namespace _reduce
 
 namespace _reduce_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename StreamSender, typename State, typename ReducerFunc>
     auto operator()(
         StreamSender&& stream,

@@ -28,7 +28,7 @@
 
 namespace unifex {
 namespace _rec_cpo {
-  inline constexpr struct _set_value_fn {
+  inline const struct _set_value_fn {
   private:
     template <bool>
     struct _impl {
@@ -66,7 +66,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_next_fn {
+  inline const struct _set_next_fn {
   private:
     template <bool>
     struct _impl {
@@ -104,7 +104,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_error_fn {
+  inline const struct _set_error_fn {
   private:
     template <bool>
     struct _impl {
@@ -144,7 +144,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_done_fn {
+  inline const struct _set_done_fn {
   private:
     template <bool>
     struct _impl {

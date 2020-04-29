@@ -57,7 +57,7 @@ namespace _io_cpo {
 // Another that only describes the remaining portions of the original
 // BufferSequence
 //
-inline constexpr struct async_read_some_cpo {
+inline const struct async_read_some_cpo {
   template <typename ForwardReader, typename BufferSequence>
   auto operator()(
       ForwardReader& socket,
@@ -95,7 +95,7 @@ inline constexpr struct async_read_some_cpo {
 // Another that only describes the remaining portions of the original
 // BufferSequence
 //
-inline constexpr struct async_write_some_cpo {
+inline const struct async_write_some_cpo {
   template <typename ForwardWriter, typename BufferSequence>
   auto operator()(
       ForwardWriter& socket,
@@ -126,7 +126,7 @@ inline constexpr struct async_write_some_cpo {
   }
 } async_write_some{};
 
-inline constexpr struct async_read_some_at_cpo {
+inline const struct async_read_some_at_cpo {
   template <typename RandomReader, typename BufferSequence>
   auto operator()(
       RandomReader& file,
@@ -160,7 +160,7 @@ inline constexpr struct async_read_some_at_cpo {
   }
 } async_read_some_at{};
 
-inline constexpr struct async_write_some_at_cpo {
+inline const struct async_write_some_at_cpo {
   template <typename RandomWriter, typename BufferSequence>
   auto operator()(
       RandomWriter& file,

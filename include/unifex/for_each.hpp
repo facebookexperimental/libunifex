@@ -23,7 +23,7 @@
 
 namespace unifex {
 namespace _for_each {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     private:
       template <bool>
       struct _impl {

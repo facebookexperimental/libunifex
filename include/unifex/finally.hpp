@@ -691,7 +691,7 @@ namespace unifex
 
   namespace _final_cpo
   {
-    inline constexpr struct _fn {
+    inline const struct _fn {
       template <typename SourceSender, typename CompletionSender>
       auto operator()(SourceSender&& source, CompletionSender&& completion) const
           noexcept(std::is_nothrow_constructible_v<

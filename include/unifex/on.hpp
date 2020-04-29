@@ -26,7 +26,7 @@
 
 namespace unifex {
 namespace _on {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template(typename Sender, typename Scheduler)
         (requires tag_invocable<_fn, Sender, Scheduler>)
     auto operator()(Sender&& sender, Scheduler&& scheduler) const

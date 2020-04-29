@@ -137,7 +137,7 @@ namespace _submit_cpo {
     _has_member_submit = //
       UNIFEX_FRAGMENT(_submit_cpo::_has_member_submit_, Sender, Receiver);
 
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template(typename Sender, typename Receiver)
         (requires sender<Sender> AND receiver<Receiver> AND
           tag_invocable<_fn, Sender, Receiver>)

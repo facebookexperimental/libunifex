@@ -333,7 +333,7 @@ public:
 } // namespace _let
 
 namespace _let_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Predecessor, typename SuccessorFactory>
     auto operator()(Predecessor&& pred, SuccessorFactory&& func) const
         noexcept(std::is_nothrow_constructible_v<

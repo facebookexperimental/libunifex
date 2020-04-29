@@ -123,7 +123,7 @@ struct _stream<Sender>::type {
 } // namespace _single
 
 namespace _single_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Sender>
     auto operator()(Sender&& sender) const {
       return _single::stream<Sender>{(Sender&&)sender};

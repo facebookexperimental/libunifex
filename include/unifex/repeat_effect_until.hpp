@@ -236,7 +236,7 @@ private:
 template <class Source, class Predicate>
 using repeat_effect_until_sender = typename _repeat_effect_until::_sndr<Source, Predicate>::type;
 
-inline constexpr struct repeat_effect_until_cpo {
+inline const struct repeat_effect_until_cpo {
   template <typename Source, typename Predicate>
   auto operator()(Source&& source, Predicate&& predicate) const
       noexcept(is_nothrow_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate>)
@@ -259,7 +259,7 @@ inline constexpr struct repeat_effect_until_cpo {
   }
 } repeat_effect_until{};
 
-inline constexpr struct repeat_effect_cpo {
+inline const struct repeat_effect_cpo {
   struct forever {
     bool operator()() const { return false; }
   };

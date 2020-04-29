@@ -319,7 +319,7 @@ template <class Source, class Done>
 using transform_done_sender =
     typename _transform_done::_sndr<remove_cvref_t<Source>, remove_cvref_t<Done>>::type;
 
-inline constexpr struct transform_done_cpo {
+inline const struct transform_done_cpo {
   template <typename Source, typename Done>
   auto operator()(Source&& source, Done&& done) const
       noexcept(is_nothrow_tag_invocable_v<transform_done_cpo, Source, Done>)

@@ -151,7 +151,7 @@ UNIFEX_CONCEPT   //
     detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
 
 namespace _start_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template(typename Operation)
       (requires tag_invocable<_fn, Operation&>)
     auto operator()(Operation& op) const noexcept
@@ -202,7 +202,7 @@ namespace _connect_cpo {
     _with_execute = //
       receiver_of<Receiver> && _can_execute<Executor, Receiver>;
 
-  inline constexpr struct _fn {
+  inline const struct _fn {
    private:
     template <typename Executor, typename Receiver>
     struct _as_op {

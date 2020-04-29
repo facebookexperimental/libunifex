@@ -22,7 +22,7 @@
 
 namespace unifex {
 namespace _streams {
-  inline constexpr struct _next_fn {
+  inline const struct _next_fn {
   private:
     template <bool>
     struct _impl {
@@ -54,7 +54,7 @@ namespace _streams {
     }
   };
 
-  inline constexpr struct _cleanup_fn {
+  inline const struct _cleanup_fn {
   private:
     template <bool>
     struct _impl {

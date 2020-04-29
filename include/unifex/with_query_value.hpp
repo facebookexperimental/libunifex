@@ -145,7 +145,7 @@ private:
 } // namespace _with_query_value
 
 namespace _with_query_value_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Sender, typename CPO, typename Value>
     _with_query_value::sender<CPO, Value, Sender>
     operator()(Sender &&sender, CPO, Value &&value) const {
