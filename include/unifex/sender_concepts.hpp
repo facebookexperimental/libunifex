@@ -108,12 +108,13 @@ namespace detail {
     template <
         template <typename...> class Variant,
         template <typename...> class Tuple>
-    using value_types = typename S::template value_types<Tuple, Variant>;
+    using value_types = typename S::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types = typename S::template error_types<Variant>;
 
-    static constexpr bool sends_done = S::sends_done;
+    // TODO
+    // static constexpr bool sends_done = S::sends_done;
   };
 
   struct _no_sender_traits {
