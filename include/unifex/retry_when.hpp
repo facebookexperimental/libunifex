@@ -147,7 +147,7 @@ private:
   }
 
   void destroy_trigger_op() noexcept {
-    using trigger_op = operation_t<Trigger, trigger_receiver>;
+    using trigger_op = connect_result_t<Trigger, trigger_receiver>;
     op_->triggerOps_.template get<trigger_op>().destruct();
   }
 
@@ -189,7 +189,7 @@ public:
 
     using trigger_sender_t = std::invoke_result_t<Func&, Error>;
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
-    using trigger_op_t = unifex::operation_t<trigger_sender_t, trigger_receiver_t>;
+    using trigger_op_t = unifex::connect_result_t<trigger_sender_t, trigger_receiver_t>;
     auto& triggerOpStorage = op->triggerOps_.template get<trigger_op_t>();
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
@@ -272,7 +272,7 @@ private:
   template <typename Source2, typename Func2, typename Receiver2, typename Trigger>
   friend class _trigger_receiver;
 
-  using source_op_t = operation_t<Source&, source_receiver_t>;
+  using source_op_t = connect_result_t<Source&, source_receiver_t>;
 
   template <typename Error>
   using trigger_sender_t = std::invoke_result_t<Func&, remove_cvref_t<Error>>;
@@ -281,7 +281,7 @@ private:
   using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
 
   template <typename Error>
-  using trigger_op_t = operation_t<
+  using trigger_op_t = connect_result_t<
       trigger_sender_t<Error>,
       trigger_receiver_t<Error>>;
 
@@ -342,7 +342,7 @@ public:
           constructible_from<Source, member_t<Self, Source>> AND
           constructible_from<Func, member_t<Self, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          is_connectable_v<Source&, source_receiver<Source, Func, remove_cvref_t<Receiver>>>)
+          sender_to<Source&, source_receiver<Source, Func, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r)
       noexcept(
         std::is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
@@ -361,7 +361,7 @@ private:
 } // namespace _retry_when
 
 namespace _retry_when_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
   private:
     template <bool>
     struct _impl {
@@ -386,7 +386,7 @@ namespace _retry_when_cpo {
   template <>
   struct _fn::_impl<false> {
     template(typename Source, typename Func)
-      (requires (!is_tag_invocable_v<_fn, Source, Func>) AND
+      (requires (!tag_invocable<_fn, Source, Func>) AND
           constructible_from<remove_cvref_t<Source>, Source> AND
           constructible_from<remove_cvref_t<Func>, Func>)
     auto operator()(Source&& source, Func&& func) const

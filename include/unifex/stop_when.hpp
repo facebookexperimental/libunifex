@@ -278,8 +278,8 @@ namespace unifex
           Receiver>::template callback_type<cancel_callback>>
           stopCallback_;
       UNIFEX_NO_UNIQUE_ADDRESS result_variant result_;
-      UNIFEX_NO_UNIQUE_ADDRESS operation_t<Source, source_receiver> sourceOp_;
-      UNIFEX_NO_UNIQUE_ADDRESS operation_t<Trigger, trigger_receiver>
+      UNIFEX_NO_UNIQUE_ADDRESS connect_result_t<Source, source_receiver> sourceOp_;
+      UNIFEX_NO_UNIQUE_ADDRESS connect_result_t<Trigger, trigger_receiver>
           triggerOp_;
     };
 
@@ -333,13 +333,13 @@ namespace unifex
 
       template(typename Receiver)
           (requires
-              is_connectable_v<
+              sender_to<
                   Source,
                   stop_when_source_receiver<
                       Source,
                       Trigger,
                       remove_cvref_t<Receiver>>> AND
-              is_connectable_v<
+              sender_to<
                   Trigger,
                   stop_when_trigger_receiver<
                       Source,
@@ -358,13 +358,13 @@ namespace unifex
 
       template(typename Receiver)
           (requires
-              is_connectable_v<
+              sender_to<
                   Source&,
                   stop_when_source_receiver<
                       const Source&,
                       const Trigger&,
                       remove_cvref_t<Receiver>>> AND
-              is_connectable_v<
+              sender_to<
                   Trigger&,
                   stop_when_trigger_receiver<
                       const Source&,
@@ -399,7 +399,7 @@ namespace unifex
       }
 
       template(typename Source, typename Trigger)
-          (requires (!is_tag_invocable_v<_fn, Source, Trigger>))
+          (requires (!tag_invocable<_fn, Source, Trigger>))
       auto operator()(Source&& source, Trigger&& trigger) const noexcept(
           std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>&&
               std::is_nothrow_constructible_v<

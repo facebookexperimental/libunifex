@@ -27,7 +27,7 @@
 namespace unifex
 {
   namespace _delay {
-    inline constexpr struct _fn {
+    inline const struct _fn {
       template <typename Stream, typename Scheduler, typename Duration>
       auto operator()(Stream&& stream, Scheduler&& scheduler, Duration&& duration) const {
         return adapt_stream(

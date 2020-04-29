@@ -26,10 +26,20 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/std_concepts.hpp>
 
+#include <memory>
+#include <utility>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _submit {
+template <typename Allocator, typename T>
+using rebind_alloc_t =
+    typename std::allocator_traits<Allocator>::template rebind_alloc<T>;
+template <typename Allocator, typename T>
+using rebind_traits_t =
+    std::allocator_traits<rebind_alloc_t<Allocator, T>>;
+
 template <typename Sender, typename Receiver>
 struct _op {
   class type;
@@ -39,47 +49,41 @@ using operation = typename _op<Sender, remove_cvref_t<Receiver>>::type;
 
 template <typename Sender, typename Receiver>
 class _op<Sender, Receiver>::type {
-  class wrapped_receiver {
+  struct wrapped_receiver {
     type* op_;
-
-  public:
-    explicit wrapped_receiver(type* op) noexcept : op_(op) {}
 
     template(typename... Values)
       (requires receiver_of<Receiver, Values...>)
     void set_value(Values&&... values) && noexcept {
-      auto allocator = get_allocator(op_->receiver_);
-      unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
+      auto allocator = get_allocator(get_receiver());
+      unifex::set_value(std::move(get_receiver()), (Values &&) values...);
       destroy(std::move(allocator));
     }
 
     template(typename Error)
       (requires receiver<Receiver, Error>)
     void set_error(Error&& error) && noexcept {
-      auto allocator = get_allocator(op_->receiver_);
-      unifex::set_error(std::move(op_->receiver_), (Error &&) error);
+      auto allocator = get_allocator(get_receiver());
+      unifex::set_error(std::move(get_receiver()), (Error &&) error);
       destroy(std::move(allocator));
     }
 
     void set_done() && noexcept {
-      auto allocator = get_allocator(op_->receiver_);
-      unifex::set_done(std::move(op_->receiver_));
+      auto allocator = get_allocator(get_receiver());
+      unifex::set_done(std::move(get_receiver()));
       destroy(std::move(allocator));
     }
 
-  private:
-
     template <typename Allocator>
     void destroy(Allocator allocator) noexcept {
-      using allocator_traits = std::allocator_traits<Allocator>;
-      using typed_allocator = typename allocator_traits::template rebind_alloc<type>;
-      using typed_allocator_traits = std::allocator_traits<typed_allocator>;
-      typed_allocator typedAllocator{allocator};
-      typed_allocator_traits::destroy(typedAllocator, op_);
-      typed_allocator_traits::deallocate(typedAllocator, op_, 1);
+      rebind_alloc_t<Allocator, type> typedAllocator{allocator};
+      rebind_traits_t<Allocator, type>::destroy(typedAllocator, op_);
+      rebind_traits_t<Allocator, type>::deallocate(typedAllocator, op_, 1);
     }
 
-    Receiver& get_receiver() const { return op_->receiver_; }
+    Receiver& get_receiver() const noexcept {
+      return op_->receiver_;
+    }
 
     template(typename CPO)
         (requires is_receiver_query_cpo_v<CPO>)
@@ -94,7 +98,7 @@ class _op<Sender, Receiver>::type {
         tag_t<visit_continuations>,
         const wrapped_receiver& r,
         Func&& func) {
-      std::invoke(func, r.op_->receiver_);
+      std::invoke(func, std::as_const(r.get_receiver()));
     }
   };
 
@@ -111,57 +115,86 @@ public:
 
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  /*UNIFEX_NO_UNIQUE_ADDRESS*/ operation_t<Sender, wrapped_receiver> inner_;
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/ connect_result_t<Sender, wrapped_receiver> inner_;
 };
 } // namespace _submit
 
 namespace _submit_cpo {
-  inline constexpr struct submit_cpo {
-    template <typename Sender, typename Receiver>
+  using _submit::rebind_alloc_t;
+  using _submit::rebind_traits_t;
+  template <typename Sender, typename Receiver>
+  using _member_submit_result_t =
+      decltype((UNIFEX_DECLVAL(Sender&&)).submit(UNIFEX_DECLVAL(Receiver&&)));
+
+  template <typename Sender, typename Receiver>
+  UNIFEX_CONCEPT_FRAGMENT( //
+    _has_member_submit_,  //
+      requires() (         //
+        typename(_member_submit_result_t<Sender, Receiver>)
+      ));
+  template <typename Sender, typename Receiver>
+  UNIFEX_CONCEPT //
+    _has_member_submit = //
+      UNIFEX_FRAGMENT(_submit_cpo::_has_member_submit_, Sender, Receiver);
+
+  inline const struct _fn {
+    template(typename Sender, typename Receiver)
+        (requires sender<Sender> AND receiver<Receiver> AND
+          tag_invocable<_fn, Sender, Receiver>)
     void operator()(Sender&& sender, Receiver&& receiver) const {
-      if constexpr (is_tag_invocable_v<submit_cpo, Sender, Receiver>) {
-        static_assert(
-          std::is_same_v<tag_invoke_result_t<submit_cpo, Sender, Receiver>>,
-          "Customisations of submit() must have a void return value");
-        unifex::tag_invoke(*this, (Sender&&)sender, (Receiver&&)receiver);
-      } else {
-        // Default implementation in terms of connect/start
-        switch (blocking(sender)) {
-          case blocking_kind::always:
-          case blocking_kind::always_inline:
-          {
-            // The sender will complete synchronously so we can avoid allocating the
-            // state on the heap.
-            auto op = unifex::connect((Sender &&) sender, (Receiver &&) receiver);
-            unifex::start(op);
-            break;
-          }
-          default:
-          {
-            // Otherwise need to heap-allocate the operation-state
-            using operation_type = _submit::operation<Sender, Receiver>;
+      static_assert(
+        std::is_void_v<tag_invoke_result_t<_fn, Sender, Receiver>>,
+        "Customisations of submit() must have a void return value");
+      unifex::tag_invoke(*this, (Sender&&) sender, (Receiver&&) receiver);
+    }
+    template(typename Sender, typename Receiver)
+        (requires sender<Sender> AND receiver<Receiver> AND
+          (!tag_invocable<_fn, Sender, Receiver>) AND
+          _has_member_submit<Sender, Receiver>)
+    void operator()(Sender&& sender, Receiver&& receiver) const {
+      ((Sender&&) sender).submit((Receiver&&) receiver);
+    }
+    template(typename Sender, typename Receiver)
+        (requires sender<Sender> AND receiver<Receiver> AND
+          (!tag_invocable<_fn, Sender, Receiver>) AND
+          (!_has_member_submit<Sender, Receiver>) AND
+          sender_to<Sender, Receiver>)
+    void operator()(Sender&& sender, Receiver&& receiver) const {
+      // Default implementation in terms of connect/start
+      switch (blocking(sender)) {
+        case blocking_kind::always:
+        case blocking_kind::always_inline:
+        {
+          // The sender will complete synchronously so we can avoid allocating the
+          // state on the heap.
+          auto op = unifex::connect((Sender &&) sender, (Receiver &&) receiver);
+          unifex::start(op);
+          break;
+        }
+        default:
+        {
+          // Otherwise need to heap-allocate the operation-state
+          using op_t = _submit::operation<Sender, Receiver>;
+          op_t* op = nullptr;
 
-            operation_type* op = nullptr;
-            {
-              // Use the receiver's associated allocator to allocate this state.
-              auto allocator = get_allocator(receiver);
-              using allocator_traits = std::allocator_traits<decltype(allocator)>;
-              using typed_allocator = typename allocator_traits::template rebind_alloc<operation_type>;
-              using typed_allocator_traits = std::allocator_traits<typed_allocator>;
+          {
+            // Use the receiver's associated allocator to allocate this state.
+            auto allocator = get_allocator(receiver);
+            using allocator_t = decltype(allocator);
 
-              typed_allocator typedAllocator{allocator};
-              op = typed_allocator_traits::allocate(typedAllocator, 1);
-              bool constructorSucceeded = false;
-              scope_guard freeOnError = [&]() noexcept {
-                if (!constructorSucceeded) {
-                  typed_allocator_traits::deallocate(typedAllocator, op, 1);
-                }
-              };
-              typed_allocator_traits::construct(typedAllocator, op, (Sender&&)sender, (Receiver&&)receiver);
-              constructorSucceeded = true;
-            }
-            op->start();
+            rebind_alloc_t<allocator_t, op_t> typedAllocator{allocator};
+            op = rebind_traits_t<allocator_t, op_t>::allocate(typedAllocator, 1);
+            bool constructorSucceeded = false;
+            scope_guard freeOnError = [&]() noexcept {
+              if (!constructorSucceeded) {
+                rebind_traits_t<allocator_t, op_t>::deallocate(typedAllocator, op, 1);
+              }
+            };
+            rebind_traits_t<allocator_t, op_t>::construct(
+                typedAllocator, op, (Sender&&)sender, (Receiver&&)receiver);
+            constructorSucceeded = true;
           }
+          op->start();
         }
       }
     }

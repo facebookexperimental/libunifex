@@ -167,7 +167,7 @@ struct _sender<Awaitable>::type {
 } // namespace _await
 
 namespace _await_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Awaitable>
     auto operator()(Awaitable &&awaitable) const -> _await::sender<Awaitable> {
       return _await::sender<Awaitable>{(Awaitable &&) awaitable};

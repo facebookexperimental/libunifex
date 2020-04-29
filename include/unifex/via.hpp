@@ -305,7 +305,7 @@ struct _sender<Predecessor, Successor>::type {
 } // namespace _via
 
 namespace _via_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Predecessor, typename Successor>
     auto operator()(Successor&& succ, Predecessor&& pred) const
         noexcept(std::is_nothrow_constructible_v<

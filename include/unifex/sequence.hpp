@@ -272,11 +272,11 @@ namespace unifex
       };
       status status_;
       union {
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             Predecessor,
             predecessor_receiver<Predecessor, Successor, Receiver>>>
             predOp_;
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             Successor,
             successor_receiver<Predecessor, Successor, Receiver>>>
             succOp_;
@@ -341,10 +341,10 @@ namespace unifex
       template(typename Receiver, typename Sender)
           (requires same_as<remove_cvref_t<Sender>, type> AND
             constructible_from<Successor, member_t<Sender, Successor>> AND
-            is_connectable_v<
+            sender_to<
               member_t<Sender, Predecessor>,
               predecessor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>> AND
-            is_connectable_v<
+            sender_to<
               Successor,
               successor_receiver<member_t<Sender, Predecessor>, Successor, Receiver>>)
       friend auto tag_invoke(tag_t<unifex::connect>, Sender&& sender, Receiver&& receiver)
@@ -362,7 +362,7 @@ namespace unifex
   }  // namespace _seq
 
   namespace _seq_cpo {
-    inline constexpr struct _fn {
+    inline const struct _fn {
     private:
       template <bool>
       struct _impl2 {

@@ -26,9 +26,9 @@
 
 namespace unifex {
 namespace _on {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template(typename Sender, typename Scheduler)
-        (requires is_tag_invocable_v<_fn, Sender, Scheduler>)
+        (requires tag_invocable<_fn, Sender, Scheduler>)
     auto operator()(Sender&& sender, Scheduler&& scheduler) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>) {
       return unifex::tag_invoke(
@@ -36,7 +36,7 @@ namespace _on {
     }
 
     template(typename Sender, typename Scheduler)
-        (requires (!is_tag_invocable_v<_fn, Sender, Scheduler>))
+        (requires (!tag_invocable<_fn, Sender, Scheduler>))
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
       return with_query_value(
           sequence(schedule(), (Sender&&)sender),

@@ -98,7 +98,7 @@ class _sender<Values...>::type {
 } // namespace _just
 
 namespace _just_cpo {
-  inline constexpr struct just_fn {
+  inline const struct just_fn {
     template <typename... Values>
     constexpr auto operator()(Values&&... values) const
       noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)

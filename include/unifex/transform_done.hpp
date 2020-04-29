@@ -38,21 +38,21 @@ template <typename Source, typename Done, typename Receiver>
 struct _op {
   class type;
 };
-template<typename Source, typename Done, typename Receiver>
+template <typename Source, typename Done, typename Receiver>
 using operation_type = typename _op<Source, Done, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Done, typename Receiver>
 struct _rcvr {
   class type;
 };
-template<typename Source, typename Done, typename Receiver>
+template <typename Source, typename Done, typename Receiver>
 using receiver_type = typename _rcvr<Source, Done, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Done, typename Receiver>
 struct _frcvr {
   class type;
 };
-template<typename Source, typename Done, typename Receiver>
+template <typename Source, typename Done, typename Receiver>
 using final_receiver_type = typename _frcvr<Source, Done, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Done>
@@ -243,11 +243,11 @@ private:
   friend source_receiver;
   friend final_receiver;
 
-  using source_op_t = operation_t<Source, source_receiver>;
+  using source_op_t = connect_result_t<Source, source_receiver>;
 
   using final_sender_t = callable_result_t<Done>;
 
-  using final_op_t = operation_t<final_sender_t, final_receiver>;
+  using final_op_t = connect_result_t<final_sender_t, final_receiver>;
 
   UNIFEX_NO_UNIQUE_ADDRESS Done done_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -293,8 +293,8 @@ public:
       (requires same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Done, member_t<Sender, Done>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          is_connectable_v<member_t<Sender, Source>, SourceReceiver> AND
-          is_connectable_v<final_sender_t, FinalReceiver>)
+          sender_to<member_t<Sender, Source>, SourceReceiver> AND
+          sender_to<final_sender_t, FinalReceiver>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
         is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
@@ -315,11 +315,11 @@ private:
 
 } // namespace _transform_done
 
-template<class Source, class Done>
+template <class Source, class Done>
 using transform_done_sender =
     typename _transform_done::_sndr<remove_cvref_t<Source>, remove_cvref_t<Done>>::type;
 
-inline constexpr struct transform_done_cpo {
+inline const struct transform_done_cpo {
   template <typename Source, typename Done>
   auto operator()(Source&& source, Done&& done) const
       noexcept(is_nothrow_tag_invocable_v<transform_done_cpo, Source, Done>)
@@ -328,7 +328,7 @@ inline constexpr struct transform_done_cpo {
   }
 
   template(typename Source, typename Done)
-    (requires (!is_tag_invocable_v<transform_done_cpo, Source, Done>) AND
+    (requires (!tag_invocable<transform_done_cpo, Source, Done>) AND
         constructible_from<remove_cvref_t<Source>, Source> AND
         constructible_from<remove_cvref_t<Done>, Done> AND
         is_callable_v<remove_cvref_t<Done>>)

@@ -460,7 +460,7 @@ public:
 } // namespace _take_until
 
 namespace _take_until_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename SourceStream, typename TriggerStream>
     auto operator()(SourceStream&& source, TriggerStream&& trigger) const {
       return _take_until::stream<SourceStream, TriggerStream>{

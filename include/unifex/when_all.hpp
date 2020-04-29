@@ -77,7 +77,7 @@ struct _operation_tuple<Index, Receiver, First, Rest...>::type
   }
 
  private:
-  operation_t<First, Receiver<Index>> op_;
+  connect_result_t<First, Receiver<Index>> op_;
 };
 
 template <std::size_t Index, template <std::size_t> class Receiver>
@@ -277,7 +277,7 @@ extern const bool _when_all_connectable_v;
 
 template <typename Receiver, std::size_t... Indices, typename... Senders>
 inline constexpr bool _when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> =
-  (is_connectable_v<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
+  (sender_to<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
 
 template <typename Receiver, typename... Senders>
 inline constexpr bool when_all_connectable_v =
@@ -359,7 +359,7 @@ class _sender<Senders...>::type {
 } // namespace _when_all
 
 namespace _when_all_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename... Senders>
     auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {
