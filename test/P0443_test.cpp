@@ -101,18 +101,18 @@ TEST(P0443, connect_with_throwing_executor) {
   struct _receiver {
     int *p;
     void set_value() && noexcept {
-      *p = 1;
+      *p += 1;
     }
     void set_error(std::exception_ptr) && noexcept {
-      *p = 2;
+      *p += 2;
     }
     void set_done() && noexcept {
-      *p = 3;
+      *p += 4;
     }
   };
   auto op = connect(throwing_executor{}, _receiver{&i});
   try {
     start(op);
   } catch (...) {}
-  EXPECT_EQ(3, i);
+  EXPECT_EQ(4, i);
 }
