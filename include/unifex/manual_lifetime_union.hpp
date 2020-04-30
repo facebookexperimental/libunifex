@@ -31,8 +31,26 @@ class manual_lifetime_union {
 
   template(typename T)
       (requires is_one_of_v<T, Ts...>)
-  manual_lifetime<T>& get() noexcept {
+  manual_lifetime<T>& get() & noexcept {
     return *reinterpret_cast<manual_lifetime<T>*>(&storage_);
+  }
+
+  template(typename T)
+      (requires is_one_of_v<T, Ts...>)
+  const manual_lifetime<T>& get() const & noexcept {
+    return *reinterpret_cast<const manual_lifetime<T>*>(&storage_);
+  }
+
+  template(typename T)
+      (requires is_one_of_v<T, Ts...>)
+  manual_lifetime<T>&& get() && noexcept {
+    return std::move(*reinterpret_cast<manual_lifetime<T>*>(&storage_));
+  }
+
+  template(typename T)
+      (requires is_one_of_v<T, Ts...>)
+  const manual_lifetime<T>&& get() const && noexcept {
+    return std::move(*reinterpret_cast<const manual_lifetime<T>*>(&storage_));
   }
 
  private:
