@@ -135,3 +135,35 @@
     #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
   #endif
 #endif // MSVC/Generic configuration switch
+
+#if defined(__clang__) || defined(__GNUC__)
+# define UNIFEX_FORCE_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+# define UNIFEX_FORCE_INLINE __forceinline
+#else
+# define UNIFEX_FORCE_INLINE
+#endif
+
+#ifndef NDEBUG
+# define UNIFEX_ASSUME(X) assert(X)
+#elif defined(__clang__)
+# define UNIFEX_ASSUME(X) __builtin_assume(X)
+#elif defined(__GNUC__)
+# define UNIFEX_ASSUME(X) ((X) ? (void)0 : __builtin_unreachable())
+#elif defined(_MSC_VER)
+# define UNIFEX_ASSUME(X) __assume(X)
+#else
+# define UNIFEX_ASSUME(X) do {} while(false)
+#endif
+
+#ifndef NDEBUG
+# define UNIFEX_ASSUME_UNREACHABLE() assert(false)
+#elif defined(__clang__)
+# define UNIFEX_ASSUME_UNREACHABLE() __builtin_assume(false)
+#elif defined(__GNUC__)
+# define UNIFEX_ASSUME_UNREACHABLE() __builtin_unreachable()
+#elif defined(_MSC_VER)
+# define UNIFEX_ASSUME_UNREACHABLE() __assume(false)
+#else
+# define UNIFEX_ASSUME_UNREACHABLE() do {} while(false)
+#endif
