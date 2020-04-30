@@ -156,6 +156,29 @@ struct decayed_tuple {
 template <typename T, typename... Ts>
 inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
+template <typename T, typename... Ts>
+extern const std::size_t index_of_v;
+
+template <typename T, typename... Ts>
+inline constexpr std::size_t index_of_v<T, T, Ts...> = 0;
+
+template <typename T, typename U, typename... Ts>
+inline constexpr std::size_t index_of_v<T, U, Ts...> = 1 + index_of_v<T, Ts...>;
+
+template<std::size_t N, typename... Ts>
+struct nth_type {};
+
+template<std::size_t N, typename First, typename... Rest>
+struct nth_type<N, First, Rest...> : nth_type<N - 1, Rest...> {};
+
+template<typename First, typename... Rest>
+struct nth_type<0, First, Rest...> {
+  using type = First;
+};
+
+template<std::size_t N, typename... Ts>
+using nth_type_t = typename nth_type<N, Ts...>::type;
+
 template <typename Fn, typename... As>
 using callable_result_t =
     decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(As)...));
