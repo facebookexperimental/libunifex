@@ -286,8 +286,21 @@ namespace unifex {
   inline constexpr std::enable_if_t<B, int> requires_ = 0;
 #endif
 
-  template <typename B>
-  UNIFEX_CONCEPT is_true = (bool) B{};
+#if UNIFEX_CXX_CONCEPTS
+  template <typename Fn, typename... As>
+  concept //
+    callable = //
+      requires (Fn&& fn, As&&... as) {
+        ((Fn&&) fn)((As&&) as...);
+      };
+#else
+  template <typename Fn, typename... As>
+  UNIFEX_CONCEPT //
+    callable = //
+      sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) ==
+      sizeof(_is_callable::yes_type);
+#endif
+
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
