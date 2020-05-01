@@ -46,34 +46,19 @@ enum class blocking_kind {
 
 namespace _blocking {
 inline const struct _fn {
- private:
-  template <bool>
-  struct _impl {
-    template <typename Sender>
-    constexpr blocking_kind operator()(const Sender&) noexcept {
-      return blocking_kind::maybe;
-    }
-  };
- public:
-  template <typename Sender>
+  template(typename Sender)
+    (requires tag_invocable<_fn, const Sender&>)
   constexpr auto operator()(const Sender& s) const
-      noexcept(is_nothrow_callable_v<
-          _impl<is_tag_invocable_v<_fn, const Sender&>>, const Sender&>)
-      -> callable_result_t<
-          _impl<is_tag_invocable_v<_fn, const Sender&>>, const Sender&> {
-    return _impl<is_tag_invocable_v<_fn, const Sender&>>{}(s);
-  }
-} blocking{};
-
-template <>
-struct _fn::_impl<true> {
-  template <typename Sender>
-  constexpr auto operator()(const Sender& s)
       noexcept(is_nothrow_tag_invocable_v<_fn, const Sender&>)
       -> tag_invoke_result_t<_fn, const Sender&> {
     return tag_invoke(_fn{}, s);
   }
-};
+  template(typename Sender)
+    (requires (!tag_invocable<_fn, const Sender&>))
+  constexpr blocking_kind operator()(const Sender&) const noexcept {
+    return blocking_kind::maybe;
+  }
+} blocking{};
 } // namespace _blocking
 using _blocking::blocking;
 

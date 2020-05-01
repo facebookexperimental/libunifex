@@ -55,7 +55,7 @@
 #define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
 #endif
 
-#define UNIFEX_DECLVAL(T) static_cast<T(*)()noexcept>(nullptr)()
+#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__(*)()noexcept>(nullptr)()
 
 namespace unifex {
 
@@ -192,6 +192,84 @@ template <typename T>
 struct type_always {
   template <typename...>
   using apply = T;
+};
+
+template <template <typename...> class T>
+struct meta_quote {
+  template <typename... As>
+  struct bind_front {
+    template <typename... Bs>
+    using apply = T<As..., Bs...>;
+  };
+  template <typename... As>
+  using apply = T<As...>;
+};
+
+template <template <typename> class T>
+struct meta_quote1 {
+  template <typename...>
+  struct bind_front;
+  template <typename A0>
+  struct bind_front<A0> {
+    template <int = 0>
+    using apply = T<A0>;
+  };
+  template <typename A0>
+  using apply = T<A0>;
+};
+
+template <template <typename, typename> class T>
+struct meta_quote2 {
+  template <typename...>
+  struct bind_front;
+  template <typename A0>
+  struct bind_front<A0> {
+    template <typename A1>
+    using apply = T<A0, A1>;
+  };
+  template <typename A0, typename A1>
+  struct bind_front<A0, A1> {
+    template <int = 0>
+    using apply = T<A0, A1>;
+  };
+  template <typename A0, typename A1>
+  using apply = T<A0, A1>;
+};
+
+template <template <typename, typename, typename> class T>
+struct meta_quote3 {
+  template <typename...>
+  struct bind_front;
+  template <typename A0>
+  struct bind_front<A0> {
+    template <typename A1, typename A2>
+    using apply = T<A0, A1, A2>;
+  };
+  template <typename A0, typename A1>
+  struct bind_front<A0, A1> {
+    template <typename A2>
+    using apply = T<A0, A1, A2>;
+  };
+  template <typename A0, typename A1, typename A2>
+  struct bind_front<A0, A1, A2> {
+    template <int = 0>
+    using apply = T<A0, A1, A2>;
+  };
+  template <typename A0, typename A1, typename A2>
+  using apply = T<A0, A1, A2>;
+};
+
+template <template <typename, typename...> class T>
+struct meta_quote1_ {
+  template <typename A, typename... Bs>
+  using apply = T<A, Bs...>;
+  template <typename...>
+  struct bind_front;
+  template <typename A, typename... Bs>
+  struct bind_front<A, Bs...> {
+    template <typename... Cs>
+    using apply = T<A, Bs..., Cs...>;
+  };
 };
 
 } // namespace unifex

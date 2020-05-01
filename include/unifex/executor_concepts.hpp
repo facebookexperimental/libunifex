@@ -68,32 +68,31 @@ namespace _execute_cpo {
     _has_member_execute = //
       UNIFEX_FRAGMENT(_execute_cpo::_has_member_execute_, Executor, Fn);
 
+  template <typename Fn>
+  UNIFEX_CONCEPT //
+    _lvalue_callable = //
+      callable<remove_cvref_t<Fn>&> &&
+      constructible_from<remove_cvref_t<Fn>, Fn> &&
+      move_constructible<remove_cvref_t<Fn>>;
+
   inline const struct _fn {
     template(typename Executor, typename Fn)
-      (requires (invocable<remove_cvref_t<Fn>&> &&
-          constructible_from<remove_cvref_t<Fn>, Fn> &&
-          move_constructible<remove_cvref_t<Fn>>) AND
+      (requires _lvalue_callable<Fn> AND
           tag_invocable<_fn, Executor, Fn>)
-    auto operator()(Executor&& e, Fn&& fn) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Executor, Fn>) ->
-        tag_invoke_result_t<_fn, Executor, Fn> {
-      return unifex::tag_invoke(_fn{}, (Executor &&) e, (Fn &&) fn);
+    void operator()(Executor&& e, Fn&& fn) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, Executor, Fn>) {
+      unifex::tag_invoke(_fn{}, (Executor &&) e, (Fn &&) fn);
     }
     template(typename Executor, typename Fn)
-      (requires (invocable<remove_cvref_t<Fn>&> &&
-          constructible_from<remove_cvref_t<Fn>, Fn> &&
-          move_constructible<remove_cvref_t<Fn>>) AND
+      (requires _lvalue_callable<Fn> AND
           (!tag_invocable<_fn, Executor, Fn>) AND
           _has_member_execute<Executor, Fn>)
-    auto operator()(Executor&& e, Fn&& fn) const
-        noexcept(noexcept(((Executor &&) e).execute((Fn &&) fn))) ->
-        _member_execute_result_t<Executor, Fn> {
-      return ((Executor &&) e).execute((Fn &&) fn);
+    void operator()(Executor&& e, Fn&& fn) const
+        noexcept(noexcept(((Executor &&) e).execute((Fn &&) fn))) {
+      ((Executor &&) e).execute((Fn &&) fn);
     }
     template(typename Sender, typename Fn)
-      (requires (invocable<remove_cvref_t<Fn>&> &&
-          constructible_from<remove_cvref_t<Fn>, Fn> &&
-          move_constructible<remove_cvref_t<Fn>>) AND
+      (requires _lvalue_callable<Fn> AND
           (!tag_invocable<_fn, Sender, Fn>) AND
           (!_has_member_execute<Sender, Fn>) AND
           _can_submit<Sender, Fn>)

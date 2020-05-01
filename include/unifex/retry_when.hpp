@@ -363,28 +363,20 @@ private:
 namespace _retry_when_cpo {
   inline const struct _fn {
   private:
-    template <bool>
-    struct _impl {
-      template <typename Source, typename Func>
-      auto operator()(Source&& source, Func&& func) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>) {
-        return unifex::tag_invoke(_fn{}, (Source&&)source, (Func&&)func);
-      }
-    };
-  public:
     template <typename Source, typename Func>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_fn, Source, Func>,
+        meta_tag_invoke_result<_fn>,
+        meta_quote2<_retry_when::sender>>::template apply<Source, Func>;
+  public:
+    template(typename Source, typename Func)
+      (requires tag_invocable<_fn, Source, Func>)
     auto operator()(Source&& source, Func&& func) const
-        noexcept(is_nothrow_callable_v<
-            _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func>)
-        -> callable_result_t<
-            _impl<is_tag_invocable_v<_fn, Source, Func>>, Source, Func> {
-        return _impl<is_tag_invocable_v<_fn, Source, Func>>{}(
-          (Source&&)source, (Func&&)func);
-      }
-  } retry_when{};
-
-  template <>
-  struct _fn::_impl<false> {
+        noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>)
+        -> _result_t<Source, Func> {
+      return unifex::tag_invoke(_fn{}, (Source&&)source, (Func&&)func);
+    }
     template(typename Source, typename Func)
       (requires (!tag_invocable<_fn, Source, Func>) AND
           constructible_from<remove_cvref_t<Source>, Source> AND
@@ -392,10 +384,10 @@ namespace _retry_when_cpo {
     auto operator()(Source&& source, Func&& func) const
         noexcept(std::is_nothrow_constructible_v<
           _retry_when::sender<Source, Func>, Source, Func>)
-        -> _retry_when::sender<Source, Func> {
+        -> _result_t<Source, Func> {
       return _retry_when::sender<Source, Func>{(Source&&)source, (Func&&)func};
     }
-  };
+  } retry_when{};
 } // namespace _retry_when_cpo
 using _retry_when_cpo::retry_when;
 

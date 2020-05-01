@@ -177,33 +177,29 @@ namespace _demat {
 
 namespace _demat_cpo {
   inline const struct _fn {
-   private:
-    template <bool>
-    struct _impl {
-      template <typename Sender>
-      auto operator()(Sender&& predecessor) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, Sender>) {
-        return unifex::tag_invoke(_fn{}, (Sender&&) predecessor);
-      }
-    };
-   public:
+  private:
     template <typename Sender>
+    using _result_t =
+      typename conditional_t<
+        tag_invocable<_fn, Sender>,
+        meta_tag_invoke_result<_fn>,
+        meta_quote1<_demat::sender>>::template apply<Sender>;
+  public:
+    template(typename Sender)
+      (requires tag_invocable<_fn, Sender>)
     auto operator()(Sender&& predecessor) const
-        noexcept(is_nothrow_callable_v<
-          _impl<is_tag_invocable_v<_fn, Sender>>, Sender>) {
-      return _impl<is_tag_invocable_v<_fn, Sender>>{}((Sender&&) predecessor);
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender>)
+        -> _result_t<Sender> {
+      return unifex::tag_invoke(_fn{}, (Sender&&) predecessor);
     }
-  } dematerialize{};
-
-  template <>
-  struct _fn::_impl<false> {
-    template <typename Sender>
+    template(typename Sender)
+      (requires (!tag_invocable<_fn, Sender>))
     auto operator()(Sender&& predecessor) const
         noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
-        -> _demat::sender<Sender> {
+        -> _result_t<Sender> {
       return _demat::sender<Sender>{(Sender &&) predecessor};
     }
-  };
+  } dematerialize{};
 } // namespace _demat_cpo
 using _demat_cpo::dematerialize;
 
