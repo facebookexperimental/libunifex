@@ -12,7 +12,6 @@ jobs:
   build:
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
-    continue-on-error: ${{ matrix.config.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +169,7 @@ jobs:
 
     - name: Build
       shell: cmake -P {0}
+      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
 
@@ -198,6 +198,7 @@ jobs:
 
     - name: Run tests
       shell: cmake -P {0}
+      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         include(ProcessorCount)
         ProcessorCount(N)
