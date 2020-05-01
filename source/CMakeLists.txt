@@ -24,7 +24,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
       linux/io_epoll_context.cpp)
 
   target_link_libraries(unifex
-    PRIVATE
+    PUBLIC
       pthread)
 
 if (NOT UNIFEX_NO_LIBURING)
