@@ -221,7 +221,7 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
     ]] code @ONLY)
 
     # Try to compile a simple coroutines program without any compiler flags
-    set(CMAKE_REQUIRED_FLAGS "${_CXX_CXX_COROUTINES_STD20} ${_CXX_COROUTINES_STDLIB}")
+    set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD20} ${_CXX_COROUTINES_STDLIB}")
     set(CMAKE_REQUIRED_LIBRARIES "${_CXX_COROUTINES_STDLIB_LIB}")
     check_cxx_source_compiles("${code}" CXX_COROUTINES_NO_AWAIT_NEEDED)
 
