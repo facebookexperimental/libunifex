@@ -55,7 +55,7 @@
 #define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
 #endif
 
-#define UNIFEX_DECLVAL(T) static_cast<T(*)()noexcept>(nullptr)()
+#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__(*)()noexcept>(nullptr)()
 
 namespace unifex {
 
