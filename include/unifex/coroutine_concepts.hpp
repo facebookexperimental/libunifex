@@ -18,7 +18,7 @@
 #include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
-# error "C++20 coroutine support is required to use <unifex/coroutine_concepts.hpp>"
+# error "Coroutine support is required to use <unifex/coroutine_concepts.hpp>"
 #endif
 
 #include <type_traits>

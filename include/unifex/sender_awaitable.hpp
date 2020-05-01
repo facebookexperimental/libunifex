@@ -23,7 +23,7 @@
 
 #if UNIFEX_NO_COROUTINES
 #error                                                                         \
-    "C++20 coroutine support is required to use <unifex/sender_awaitable.hpp>"
+    "Coroutine support is required to use <unifex/sender_awaitable.hpp>"
 #endif
 
 #include <cassert>

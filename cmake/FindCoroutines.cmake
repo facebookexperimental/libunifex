@@ -108,12 +108,12 @@ cmake_push_check_state()
 
 set(CMAKE_REQUIRED_QUIET ${Coroutines_FIND_QUIETLY})
 
-# All of our tests required C++20 or later
+# All of our tests required C++17 or later
 if(("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC") OR "x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
-    set(_CXX_COROUTINES_STD20 "/std:latest")
+    set(_CXX_COROUTINES_STD17 "/std:c++17")
     set(_CXX_COROUTINES_AWAIT "/await")
 else()
-    set(_CXX_COROUTINES_STD20 "-std=c++2a")
+    set(_CXX_COROUTINES_STD17 "-std=c++17")
     set(_CXX_COROUTINES_AWAIT "-fcoroutines-ts")
 endif()
 
@@ -221,7 +221,7 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
     ]] code @ONLY)
 
     # Try to compile a simple coroutines program without any compiler flags
-    set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD20} ${_CXX_COROUTINES_STDLIB}")
+    set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD17} ${_CXX_COROUTINES_STDLIB}")
     set(CMAKE_REQUIRED_LIBRARIES "${_CXX_COROUTINES_STDLIB_LIB}")
     check_cxx_source_compiles("${code}" CXX_COROUTINES_NO_AWAIT_NEEDED)
 
@@ -229,7 +229,7 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
 
     if(NOT CXX_COROUTINES_NO_AWAIT_NEEDED)
         # Add the -fcoroutines-ts (or /await) flag
-        set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD20} ${_CXX_COROUTINES_STDLIB} ${_CXX_COROUTINES_AWAIT}")
+        set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD17} ${_CXX_COROUTINES_STDLIB} ${_CXX_COROUTINES_AWAIT}")
         set(CMAKE_REQUIRED_LIBRARIES "${_CXX_COROUTINES_STDLIB_LIB}")
         check_cxx_source_compiles("${code}" CXX_COROUTINES_AWAIT_NEEDED)
         set(can_link ${CXX_COROUTINES_AWAIT_NEEDED})
@@ -237,7 +237,7 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
 
     if(can_link)
         add_library(std::coroutines INTERFACE IMPORTED)
-        target_compile_features(std::coroutines INTERFACE cxx_std_20)
+        target_compile_features(std::coroutines INTERFACE cxx_std_17)
         if (NOT "x${_CXX_COROUTINES_STDLIB}" STREQUAL "x")
             target_compile_options(std::coroutines INTERFACE ${_CXX_COROUTINES_STDLIB})
         endif()
