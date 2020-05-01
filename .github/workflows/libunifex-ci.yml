@@ -45,14 +45,14 @@ jobs:
             name: "Linux Clang 9 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++-9"
+            cc: "clang", cxx: "clang++-9",
+            cmake_args: "-D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 9 Optimised (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
             cc: "clang-9", cxx: "clang++-9"
-            cmake_args: "-D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 9 Debug (C++20)", artifact: "Linux.tar.xz",
@@ -98,7 +98,7 @@ jobs:
             name: "macOS Clang Debug (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++"
+            cc: "clang", cxx: "clang++",
             cmake_args: "-D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
