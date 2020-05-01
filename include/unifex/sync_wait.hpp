@@ -123,47 +123,51 @@ struct _receiver {
 template <typename T>
 using receiver_t = typename _receiver<T>::type;
 
+template <typename Result, typename Sender>
+std::optional<Result> _impl(Sender&& sender) {
+  auto blockingResult = blocking(sender);
+  const bool completesSynchronously =
+      blockingResult == blocking_kind::always ||
+      blockingResult == blocking_kind::always_inline;
+
+  using promise_t = _sync_wait::promise<Result>;
+  promise_t promise;
+  if (!completesSynchronously) {
+    promise.doneEvent_.emplace();
+  }
+
+  // Store state for the operation on the stack.
+  auto operation = connect(
+      ((Sender &&) sender),
+      _sync_wait::receiver_t<Result>{promise});
+
+  start(operation);
+
+  if (!completesSynchronously) {
+    promise.doneEvent_->wait();
+  }
+
+  switch (promise.state_) {
+    case promise_t::state::done:
+      return std::nullopt;
+    case promise_t::state::value:
+      return std::move(promise.value_).get();
+    case promise_t::state::error:
+      std::rethrow_exception(promise.exception_.get());
+    default:
+      std::terminate();
+  }
+}
 } // namespace _sync_wait
 
 namespace _sync_wait_cpo {
   struct _fn {
-    template <
-        typename Sender,
-        typename Result = single_value_result_t<remove_cvref_t<Sender>>>
+    template(typename Sender)
+      (requires typed_sender<Sender>)
     auto operator()(Sender&& sender) const
-        -> std::optional<Result> {
-      auto blockingResult = blocking(sender);
-      const bool completesSynchronously =
-          blockingResult == blocking_kind::always ||
-          blockingResult == blocking_kind::always_inline;
-
-      using promise_t = _sync_wait::promise<Result>;
-      promise_t promise;
-      if (!completesSynchronously) {
-        promise.doneEvent_.emplace();
-      }
-
-      // Store state for the operation on the stack.
-      auto operation = connect(
-          ((Sender &&) sender),
-          _sync_wait::receiver_t<Result>{promise});
-
-      start(operation);
-
-      if (!completesSynchronously) {
-        promise.doneEvent_->wait();
-      }
-
-      switch (promise.state_) {
-        case promise_t::state::done:
-          return std::nullopt;
-        case promise_t::state::value:
-          return std::move(promise.value_).get();
-        case promise_t::state::error:
-          std::rethrow_exception(promise.exception_.get());
-        default:
-          std::terminate();
-      }
+        -> std::optional<single_value_result_t<remove_cvref_t<Sender>>> {
+      using Result = single_value_result_t<remove_cvref_t<Sender>>;
+      return _sync_wait::_impl<Result>((Sender&&) sender);
     }
   };
 } // namespace _sync_wait_cpo
@@ -173,11 +177,11 @@ inline constexpr _sync_wait_cpo::_fn sync_wait {};
 namespace _sync_wait_r_cpo {
   template <typename Result>
   struct _fn {
-    template <typename Sender>
+    template(typename Sender)
+      (requires sender<Sender>)
     decltype(auto) operator()(Sender&& sender) const {
-      return sync_wait.operator()<
-        Sender, non_void_t<wrap_reference_t<decay_rvalue_t<Result>>>>(
-          (Sender&&)sender);
+      using Result2 = non_void_t<wrap_reference_t<decay_rvalue_t<Result>>>;
+      return _sync_wait::_impl<Result2>((Sender&&) sender);
     }
   };
 } // namespace _sync_wait_r_cpo
