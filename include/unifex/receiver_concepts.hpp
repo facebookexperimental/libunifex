@@ -19,6 +19,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 
 #include <exception>
 #include <type_traits>
@@ -27,7 +28,7 @@
 
 namespace unifex {
 namespace _rec_cpo {
-  inline constexpr struct _set_value_fn {
+  inline const struct _set_value_fn {
   private:
     template <bool>
     struct _impl {
@@ -65,7 +66,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_next_fn {
+  inline const struct _set_next_fn {
   private:
     template <bool>
     struct _impl {
@@ -103,7 +104,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_error_fn {
+  inline const struct _set_error_fn {
   private:
     template <bool>
     struct _impl {
@@ -143,7 +144,7 @@ namespace _rec_cpo {
     }
   };
 
-  inline constexpr struct _set_done_fn {
+  inline const struct _set_done_fn {
   private:
     template <bool>
     struct _impl {
@@ -194,6 +195,18 @@ inline constexpr bool is_receiver_cpo_v = is_one_of_v<
     _rec_cpo::_set_next_fn,
     _rec_cpo::_set_error_fn,
     _rec_cpo::_set_done_fn>;
+
+
+// HACK: Approximation for CPOs that should be forwarded through receivers
+// as query operations.
+template <typename T>
+inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
+    remove_cvref_t<T>,
+    _rec_cpo::_set_value_fn,
+    _rec_cpo::_set_next_fn,
+    _rec_cpo::_set_error_fn,
+    _rec_cpo::_set_done_fn,
+    _connect_cpo::_fn>;
 
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;

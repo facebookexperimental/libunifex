@@ -23,7 +23,7 @@
 
 namespace unifex {
 namespace _subschedule {
-  inline constexpr struct _fn {
+  inline const struct _fn {
   private:
     template <typename T>
     struct _return_value {

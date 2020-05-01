@@ -99,7 +99,7 @@ namespace unifex
       }
 
       template(typename CPO, UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type))
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
               is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
           CPO cpo,
@@ -186,11 +186,11 @@ namespace unifex
 
       template(typename Self, typename Receiver)
           (requires same_as<remove_cvref_t<Self>, type> AND
-            is_connectable_v<member_t<Self, Source>, receiver_t<Receiver>>)
+            sender_to<member_t<Self, Source>, receiver_t<Receiver>>)
       friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
           is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
               std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-          -> operation_t<member_t<Self, Source>, receiver_t<Receiver>> {
+          -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
         return unifex::connect(
             static_cast<Self&&>(self).source_,
             receiver_t<Receiver>{static_cast<Receiver&&>(r)});
@@ -202,7 +202,7 @@ namespace unifex
   }  // namespace _mat
 
   namespace _mat_cpo {
-    inline constexpr struct _fn {
+    inline const struct _fn {
     private:
       template <bool>
       struct _impl {

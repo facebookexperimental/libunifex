@@ -102,7 +102,7 @@ struct _receiver<Receiver, Func>::type {
   }
 
   template(typename CPO, typename R)
-      (requires (!is_receiver_cpo_v<CPO>) AND same_as<R, type>)
+      (requires is_receiver_query_cpo_v<CPO> AND same_as<R, type>)
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -166,7 +166,7 @@ public:
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
       is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>>)
-      -> operation_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>> {
+      -> connect_result_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>> {
     return unifex::connect(
       static_cast<Sender&&>(s).pred_,
       receiver_t<remove_cvref_t<Receiver>>{
@@ -177,7 +177,7 @@ public:
 } // namespace _tfx
 
 namespace _tfx_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
   private:
     template <bool>
     struct _impl {

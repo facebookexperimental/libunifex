@@ -85,7 +85,7 @@ private:
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const typename Operation::receiver_type&>)
       -> callable_result_t<CPO, const typename Operation::receiver_type&> {
@@ -164,7 +164,7 @@ struct _predecessor_receiver<Operation>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
@@ -201,7 +201,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
 
   template <typename... Values>
   using successor_operation =
-      operation_t<successor_type<Values...>, successor_receiver<operation, Values...>>;
+      connect_result_t<successor_type<Values...>, successor_receiver<operation, Values...>>;
 
   friend predecessor_receiver<operation>;
   template <typename Operation, typename... Values>
@@ -238,7 +238,7 @@ private:
       template value_types<manual_lifetime_union, decayed_tuple>
           values_;
   union {
-    manual_lifetime<operation_t<Predecessor, predecessor_receiver<operation>>> predOp_;
+    manual_lifetime<connect_result_t<Predecessor, predecessor_receiver<operation>>> predOp_;
     typename predecessor_type::template
         value_types<manual_lifetime_union, successor_operation>
             succOp_;
@@ -333,7 +333,7 @@ public:
 } // namespace _let
 
 namespace _let_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Predecessor, typename SuccessorFactory>
     auto operator()(Predecessor&& pred, SuccessorFactory&& func) const
         noexcept(std::is_nothrow_constructible_v<

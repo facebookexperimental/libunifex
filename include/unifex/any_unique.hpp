@@ -273,11 +273,11 @@ struct _with_forwarding_tag_invoke<
   : _with_forwarding_tag_invoke<Derived, CPO, true, Ret(Args...)> {
 };
 
-inline constexpr struct deallocate_cpo {
+inline const struct deallocate_cpo {
   using type_erased_signature_t = void(this_&&) noexcept;
 
   template(typename T)
-      (requires is_tag_invocable_v<deallocate_cpo, T&&>)
+      (requires tag_invocable<deallocate_cpo, T&&>)
   void operator()(T&& obj) const noexcept {
     tag_invoke(deallocate_cpo{}, (T &&) obj);
   }

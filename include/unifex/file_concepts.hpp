@@ -25,7 +25,7 @@
 
 namespace unifex {
 namespace _filesystem {
-inline constexpr struct open_file_read_only_cpo {
+inline const struct open_file_read_only_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
       noexcept(is_nothrow_tag_invocable_v<
@@ -40,7 +40,7 @@ inline constexpr struct open_file_read_only_cpo {
   }
 } open_file_read_only{};
 
-inline constexpr struct open_file_write_only_cpo {
+inline const struct open_file_write_only_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
       noexcept(is_nothrow_tag_invocable_v<
@@ -55,7 +55,7 @@ inline constexpr struct open_file_write_only_cpo {
   }
 } open_file_write_only{};
 
-inline constexpr struct open_file_read_write_cpo {
+inline const struct open_file_read_write_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
       noexcept(is_nothrow_tag_invocable_v<

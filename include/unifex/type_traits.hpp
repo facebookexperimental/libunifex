@@ -60,7 +60,7 @@
 namespace unifex {
 
 template <typename T>
-struct identity {
+struct type_identity {
   using type = T;
 };
 
@@ -131,8 +131,8 @@ Member Self::*_memptr(const Self&);
 
 template <typename Self, typename Member>
 using member_t = decltype(
-    ((static_cast<Self(*)()>(nullptr)()) .*
-        unifex::_memptr<Member>(static_cast<Self(*)()>(nullptr)())));
+    (UNIFEX_DECLVAL(Self) .*
+        unifex::_memptr<Member>(UNIFEX_DECLVAL(Self))));
 
 template <typename T>
 using decay_rvalue_t =
@@ -210,6 +210,12 @@ inline constexpr bool is_nothrow_callable_v =
 
 template <typename Fn, typename... As>
 struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
+
+template <typename T>
+struct type_always {
+  template <typename...>
+  using apply = T;
+};
 
 } // namespace unifex
 

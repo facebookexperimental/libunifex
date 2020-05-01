@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -101,6 +102,11 @@ namespace unifex {
   template <typename CPO, typename... Args>
   using is_nothrow_tag_invocable =
       std::bool_constant<is_nothrow_tag_invocable_v<CPO, Args...>>;
+
+  template <typename CPO, typename... Args>
+  UNIFEX_CONCEPT tag_invocable =
+      (sizeof(_tag_invoke::try_tag_invoke<CPO, Args...>(0)) ==
+       sizeof(_tag_invoke::yes_type));
 
 } // namespace unifex
 

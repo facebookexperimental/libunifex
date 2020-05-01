@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
+#include <unifex/async_mutex.hpp>
+#include <unifex/sync_wait.hpp>
+
 #include <unifex/coroutine.hpp>
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/async_mutex.hpp>
 #include <unifex/awaitable_sender.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_awaitable.hpp>
-#include <unifex/single_thread_context.hpp>
-#include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/single_thread_context.hpp>
 
 #include <cstdio>
 
@@ -65,8 +66,13 @@ int main() {
 #include <cstdio>
 
 int main() {
-  std::printf("warning: skipping test as coroutines are not available\n");
-  return 0;
+    // Very simple usage of async_mutex.
+
+    unifex::async_mutex m;
+    unifex::sync_wait(m.async_lock());
+    m.unlock();
+    
+    return 0;
 }
 
 #endif // UNIFEX_NO_COROUTINES

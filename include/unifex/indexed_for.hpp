@@ -96,7 +96,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const type& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {

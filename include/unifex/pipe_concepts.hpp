@@ -23,7 +23,7 @@
 
 namespace unifex {
 namespace _pipe_cpo {
-inline constexpr struct open_pipe_cpo {
+inline const struct open_pipe_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor) const
       noexcept(is_nothrow_tag_invocable_v<

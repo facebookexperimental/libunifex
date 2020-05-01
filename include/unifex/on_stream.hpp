@@ -23,7 +23,7 @@
 
 namespace unifex {
 namespace _on_stream {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename StreamSender, typename Scheduler>
     auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
       return adapt_stream(

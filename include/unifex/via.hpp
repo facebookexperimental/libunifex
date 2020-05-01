@@ -68,7 +68,7 @@ struct _value_receiver<Receiver, Values...>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const value_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -112,7 +112,7 @@ struct _error_receiver<Receiver, Error>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const error_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -155,7 +155,7 @@ struct _done_receiver<Receiver>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const done_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -223,7 +223,7 @@ struct _predecessor_receiver<Successor, Receiver>::type {
   }
 
   template(typename CPO)
-      (requires (!is_receiver_cpo_v<CPO>))
+      (requires is_receiver_query_cpo_v<CPO>)
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
@@ -305,7 +305,7 @@ struct _sender<Predecessor, Successor>::type {
 } // namespace _via
 
 namespace _via_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Predecessor, typename Successor>
     auto operator()(Successor&& succ, Predecessor&& pred) const
         noexcept(std::is_nothrow_constructible_v<

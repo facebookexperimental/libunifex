@@ -77,7 +77,7 @@ struct _operation_tuple<Index, Receiver, First, Rest...>::type
   }
 
  private:
-  operation_t<First, Receiver<Index>> op_;
+  connect_result_t<First, Receiver<Index>> op_;
 };
 
 template <std::size_t Index, template <std::size_t> class Receiver>
@@ -168,7 +168,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   Receiver& get_receiver() const { return op_.receiver_; }
 
   template(typename CPO, typename R)
-      (requires (!is_receiver_cpo_v<CPO>) AND
+      (requires is_receiver_query_cpo_v<CPO> AND
           same_as<R, element_receiver> AND
           is_callable_v<CPO, const Receiver&>)
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
@@ -201,7 +201,7 @@ struct _op<Receiver, Senders...>::type {
   using operation = type;
   using receiver_type = Receiver;
   template <std::size_t Index, typename Receiver2, typename... Senders2>
-  friend class _element_receiver;
+  friend struct _element_receiver;
 
   explicit type(Receiver&& receiver, Senders&&... senders)
     : receiver_((Receiver &&) receiver),
@@ -277,7 +277,7 @@ extern const bool _when_all_connectable_v;
 
 template <typename Receiver, std::size_t... Indices, typename... Senders>
 inline constexpr bool _when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> =
-  (is_connectable_v<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
+  (sender_to<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
 
 template <typename Receiver, typename... Senders>
 inline constexpr bool when_all_connectable_v =
@@ -359,7 +359,7 @@ class _sender<Senders...>::type {
 } // namespace _when_all
 
 namespace _when_all_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename... Senders>
     auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {

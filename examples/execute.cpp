@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 #include <unifex/single_thread_context.hpp>
-#include <unifex/execute.hpp>
+#include <unifex/executor_concepts.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
 #include <cstdio>
 #include <cassert>
@@ -25,7 +26,7 @@ int main() {
     single_thread_context ctx;
 
     for (int i = 0; i < 5; ++i) {
-        execute(ctx.get_scheduler(), [i]() {
+        execute(schedule(ctx.get_scheduler()), [i]() {
             printf("hello execute() %i\n", i);
         });
     }

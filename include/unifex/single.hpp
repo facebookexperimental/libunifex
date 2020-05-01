@@ -40,7 +40,7 @@ template <typename Sender, typename Receiver>
 struct _next_op<Sender, Receiver>::type {
   union {
     Receiver receiver_;
-    manual_lifetime<operation_t<Sender, Receiver>> innerOp_;
+    manual_lifetime<connect_result_t<Sender, Receiver>> innerOp_;
   };
   bool done_;
 
@@ -123,7 +123,7 @@ struct _stream<Sender>::type {
 } // namespace _single
 
 namespace _single_cpo {
-  inline constexpr struct _fn {
+  inline const struct _fn {
     template <typename Sender>
     auto operator()(Sender&& sender) const {
       return _single::stream<Sender>{(Sender&&)sender};

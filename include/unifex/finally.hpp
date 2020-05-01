@@ -91,7 +91,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionValueOp_.template get<
-            operation_t<CompletionSender, value_receiver>>();
+            connect_result_t<CompletionSender, value_receiver>>();
         completionOp.destruct();
 
         auto& valueStorage = op->value_.template get<std::tuple<Values...>>();
@@ -127,7 +127,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionValueOp_.template get<
-            operation_t<CompletionSender, value_receiver>>();
+            connect_result_t<CompletionSender, value_receiver>>();
         completionOp.destruct();
 
         // Discard the stored value.
@@ -143,7 +143,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionValueOp_.template get<
-            operation_t<CompletionSender, value_receiver>>();
+            connect_result_t<CompletionSender, value_receiver>>();
         completionOp.destruct();
 
         // Discard the stored value.
@@ -154,7 +154,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, value_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -221,7 +221,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionErrorOp_.template get<
-            operation_t<CompletionSender, error_receiver>>();
+            connect_result_t<CompletionSender, error_receiver>>();
         completionOp.destruct();
 
         auto& errorStorage = op->error_.template get<Error>();
@@ -239,7 +239,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionErrorOp_.template get<
-            operation_t<CompletionSender, error_receiver>>();
+            connect_result_t<CompletionSender, error_receiver>>();
         completionOp.destruct();
 
         // Discard existing stored error from source-sender.
@@ -255,7 +255,7 @@ namespace unifex
         auto* op = op_;
 
         auto& completionOp = op->completionErrorOp_.template get<
-            operation_t<CompletionSender, error_receiver>>();
+            connect_result_t<CompletionSender, error_receiver>>();
         completionOp.destruct();
 
         // Discard existing stored error from source-sender.
@@ -266,7 +266,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, error_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -336,7 +336,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, done_receiver> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto tag_invoke(
@@ -404,7 +404,7 @@ namespace unifex
               Values...>;
           auto& completionOp =
               op->completionValueOp_
-                  .template get<operation_t<CompletionSender, value_receiver>>()
+                  .template get<connect_result_t<CompletionSender, value_receiver>>()
                   .construct_from([&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
@@ -437,7 +437,7 @@ namespace unifex
               Error>;
           auto& completionOp =
               op->completionErrorOp_
-                  .template get<operation_t<CompletionSender, error_receiver_t>>()
+                  .template get<connect_result_t<CompletionSender, error_receiver_t>>()
                   .construct_from([&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
@@ -472,7 +472,7 @@ namespace unifex
       }
 
       template(typename CPO, typename R)
-          (requires (!is_receiver_cpo_v<CPO>) AND
+          (requires is_receiver_query_cpo_v<CPO> AND
             same_as<R, type> AND
             is_callable_v<CPO, const Receiver&>)
       friend auto
@@ -509,22 +509,22 @@ namespace unifex
           typename CompletionSender2,
           typename Receiver2,
           typename... Values>
-      friend class _value_receiver;
+      friend struct _value_receiver;
 
       template <
           typename SourceSender2,
           typename CompletionSender2,
           typename Receiver2,
           typename Error>
-      friend class _error_receiver;
+      friend struct _error_receiver;
 
       template <typename... Values>
-      using value_operation = operation_t<
+      using value_operation = connect_result_t<
           CompletionSender,
           value_receiver<SourceSender, CompletionSender, Receiver, Values...>>;
 
       template <typename Error>
-      using error_operation = operation_t<
+      using error_operation = connect_result_t<
           CompletionSender,
           error_receiver<SourceSender, CompletionSender, Receiver, Error>>;
 
@@ -534,7 +534,7 @@ namespace unifex
             error_operation<std::exception_ptr>,
             error_operation<Errors>...>;
 
-      using done_operation = operation_t<
+      using done_operation = connect_result_t<
           CompletionSender,
           done_receiver<SourceSender, CompletionSender, Receiver>>;
 
@@ -591,7 +591,7 @@ namespace unifex
       // Operation storage.
       union {
         // Storage for the source operation state.
-        manual_lifetime<operation_t<
+        manual_lifetime<connect_result_t<
             SourceSender,
             receiver_t<SourceSender, CompletionSender, Receiver>>>
             sourceOp_;
@@ -664,13 +664,13 @@ namespace unifex
         (requires
           same_as<CPO, tag_t<connect>> AND
           same_as<remove_cvref_t<S>, sender> AND
-          is_connectable_v<
+          sender_to<
             member_t<S, SourceSender>,
             receiver_t<
               member_t<S, SourceSender>,
               CompletionSender,
               remove_cvref_t<Receiver>>> AND
-          is_connectable_v<
+          sender_to<
             CompletionSender,
             done_receiver<
               member_t<S, SourceSender>,
@@ -691,7 +691,7 @@ namespace unifex
 
   namespace _final_cpo
   {
-    inline constexpr struct _fn {
+    inline const struct _fn {
       template <typename SourceSender, typename CompletionSender>
       auto operator()(SourceSender&& source, CompletionSender&& completion) const
           noexcept(std::is_nothrow_constructible_v<

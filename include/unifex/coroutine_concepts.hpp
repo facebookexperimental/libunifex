@@ -59,7 +59,7 @@ struct await_result_impl<
 
 } // namespace detail
 
-inline constexpr struct _get_awaiter_fn {
+inline const struct _get_awaiter_fn {
   template <typename Awaitable>
   constexpr decltype(auto) operator()(Awaitable&& awaitable) const noexcept {
     if constexpr (detail::has_member_operator_co_await_v<Awaitable>) {
