@@ -12,7 +12,7 @@ jobs:
   build:
     name: ${{ matrix.config.name }}
     runs-on: ${{ matrix.config.os }}
-    continue-on-error: ${{ matrix.config.experimental }}
+    continue-on-error: ${{ matrix.config.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
