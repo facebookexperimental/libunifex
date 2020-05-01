@@ -7,6 +7,7 @@ env:
   CMAKE_VERSION: 3.16.2
   NINJA_VERSION: 1.9.0
 
+
 jobs:
   build:
     name: ${{ matrix.config.name }}
@@ -20,14 +21,16 @@ jobs:
             os: windows-latest,
             build_type: Debug,
             cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            experimental: true
           }
         - {
             name: "Windows MSVC 2019 Optimised", artifact: "Windows-MSVC.tar.xz",
             os: windows-latest,
             build_type: RelWithDebInfo,
             cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            experimental: true
           }
         - {
             name: "Linux GCC 9 Debug", artifact: "Linux.tar.xz",
@@ -166,6 +169,7 @@ jobs:
 
     - name: Build
       shell: cmake -P {0}
+      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
 
@@ -194,6 +198,7 @@ jobs:
 
     - name: Run tests
       shell: cmake -P {0}
+      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         include(ProcessorCount)
         ProcessorCount(N)
