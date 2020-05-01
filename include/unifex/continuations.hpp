@@ -25,7 +25,7 @@
 #include <type_traits>
 #include <utility>
 #include <cstddef>
-#include <cstdio>
+#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -212,7 +212,6 @@ public:
 template<typename Continuation>
 UNIFEX_FORCE_INLINE
 auto run_continuation_sequential(Continuation h) {
-    //std::printf("starting sequential run at %s\n", typeid(h).name());
     return run_continuation_sequential_impl<Continuation, unifex::type_list<null_continuation_handle>>::invoke(h);
 }
 
