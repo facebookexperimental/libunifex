@@ -16,14 +16,14 @@ Async operation concepts:
 
 ## Important Note on C++20 Concepts
 
-The implementation of unifex does not currently make use of C++20 concepts.
+The implementation of unifex conditionally uses C++20 concepts if the compiler
+supports them.
 
-Thus the C++20 concept definitions listed below are largely just indicative
-at the moment. They are not actually defined as concepts in the unifex
-source.
+The C++20 concept definitions listed below are defined as concepts in the unifex
+source on compilers that support concepts, or as Boolean variable templates otherwise.
 
-There will often be a corresponding template metafunction to check the
-concept in the C++17 way, however.
+Function templates are constrained either with `requires` clauses or with
+`std::enable_if_t` with the help of a set of portability macros.
 
 # Sender/Receiver
 

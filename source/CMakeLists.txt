@@ -55,7 +55,7 @@ target_include_directories(unifex
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>
     "${PROJECT_BINARY_DIR}/include")
 
-target_compile_features(unifex PUBLIC cxx_std_20)
+target_compile_features(unifex PUBLIC cxx_std_17)
 
 if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)

@@ -21,7 +21,7 @@
 #include <unifex/std_concepts.hpp>
 
 #if UNIFEX_NO_COROUTINES
-# error "C++20 coroutine support is required to use this header"
+# error "Coroutine support is required to use this header"
 #endif
 
 #include <exception>

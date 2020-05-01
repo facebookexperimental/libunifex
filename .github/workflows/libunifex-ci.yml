@@ -17,68 +17,144 @@ jobs:
       matrix:
         config:
         - {
-            name: "Windows MSVC 2019 Debug", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
-            build_type: Debug,
-            cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
-            experimental: true
-          }
-        - {
-            name: "Windows MSVC 2019 Optimised", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
-            build_type: RelWithDebInfo,
-            cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
-            experimental: true
-          }
-        - {
-            name: "Linux GCC 9 Debug", artifact: "Linux.tar.xz",
+            name: "Linux GCC 9 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
             cc: "gcc-9", cxx: "g++-9"
           }
         - {
-            name: "Linux GCC 9 Optimised", artifact: "Linux.tar.xz",
+            name: "Linux GCC 9 Optimised (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
             cc: "gcc-9", cxx: "g++-9"
           }
         - {
-            name: "Linux Clang 9 Debug", artifact: "Linux.tar.xz",
+            name: "Linux GCC 9 Debug (C++20)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++-9"
+            cc: "gcc-9", cxx: "g++-9",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
-            name: "Linux Clang 9 Optimised", artifact: "Linux.tar.xz",
+            name: "Linux GCC 9 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: RelWithDebInfo,
+            cc: "gcc-9", cxx: "g++-9",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux Clang 9 Debug (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: Debug,
+            cc: "clang", cxx: "clang++-9",
+            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 9 Optimised (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
             cc: "clang-9", cxx: "clang++-9"
           }
         - {
-            name: "macOS Clang Debug", artifact: "macOS.tar.xz",
-            os: macos-latest,
+            name: "Linux Clang 9 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++"
+            cc: "clang", cxx: "clang++-9",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
-            name: "macOS Clang Optimised", artifact: "macOS.tar.xz",
-            os: macos-latest,
+            name: "Linux Clang 9 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
             build_type: RelWithDebInfo,
-            cc: "clang", cxx: "clang++"
+            cc: "clang-9", cxx: "clang++-9",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
-            name: "macOS GCC Debug", artifact: "macOS.tar.xz",
+            name: "macOS GCC Debug (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
             cc: "gcc", cxx: "g++"
           }
         - {
-            name: "macOS GCC Optimised", artifact: "macOS.tar.xz",
+            name: "macOS GCC Optimised (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: RelWithDebInfo,
             cc: "gcc", cxx: "g++"
+          }
+        - {
+            name: "macOS GCC Debug (C++20)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: Debug,
+            cc: "gcc", cxx: "g++",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "macOS GCC Optimised (C++20)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "gcc", cxx: "g++",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "macOS Clang Debug (C++17)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: Debug,
+            cc: "clang", cxx: "clang++",
+            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "macOS Clang Optimised (C++17)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "clang", cxx: "clang++"
+          }
+        - {
+            name: "macOS Clang Debug (C++20)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: Debug,
+            cc: "clang", cxx: "clang++",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "macOS Clang Optimised (C++20)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "clang", cxx: "clang++",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Windows MSVC 2019 Debug (C++17)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-latest,
+            build_type: Debug,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            experimental: true
+          }
+        - {
+            name: "Windows MSVC 2019 Optimised (C++17)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-latest,
+            build_type: RelWithDebInfo,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            experimental: true
+          }
+        - {
+            name: "Windows MSVC 2019 Debug (C++20)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-latest,
+            build_type: Debug,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
+            experimental: true
+          }
+        - {
+            name: "Windows MSVC 2019 Optimised (C++20)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-latest,
+            build_type: RelWithDebInfo,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
+            experimental: true
           }
 
     steps:
@@ -160,6 +236,7 @@ jobs:
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=ninja
             -D CMAKE_VERBOSE_MAKEFILE=ON
+            ${{ matrix.config.cmake_args }}
           RESULT_VARIABLE result
         )
         if (NOT result EQUAL 0)
