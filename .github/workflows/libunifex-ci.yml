@@ -32,7 +32,7 @@ jobs:
             os: ubuntu-latest,
             build_type: Debug,
             cc: "gcc-9", cxx: "g++-9",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux GCC 9 Optimised (C++20)", artifact: "Linux.tar.xz",
@@ -52,13 +52,14 @@ jobs:
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
             cc: "clang-9", cxx: "clang++-9"
+            cmake_args: "-D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 9 Debug (C++20)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
             cc: "clang", cxx: "clang++-9",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 9 Optimised (C++20)", artifact: "Linux.tar.xz",
@@ -98,6 +99,7 @@ jobs:
             os: macos-latest,
             build_type: Debug,
             cc: "clang", cxx: "clang++"
+            cmake_args: "-D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "macOS Clang Optimised (C++17)", artifact: "macOS.tar.xz",
@@ -110,7 +112,7 @@ jobs:
             os: macos-latest,
             build_type: Debug,
             cc: "clang", cxx: "clang++",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=\"-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "macOS Clang Optimised (C++20)", artifact: "macOS.tar.xz",

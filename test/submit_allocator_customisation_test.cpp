@@ -93,18 +93,16 @@ TEST_F(SingleThreadFixture, SubmitWithStdAllocator) {
   test(thread.get_scheduler(), std::allocator<std::byte>{});
 }
 
-// BUGBUG this is segfaulting in CI for unknown reasons, and the
-// failure cannot be reproduced locally.
-// #if !UNIFEX_NO_MEMORY_RESOURCE
-// TEST_F(SingleThreadFixture, SubmitWithCountingAllocator) {
-//   counting_memory_resource res{new_delete_resource()};
-//   polymorphic_allocator<char> alloc{&res};
-//   test(thread.get_scheduler(), alloc);
+#if !UNIFEX_NO_MEMORY_RESOURCE
+TEST_F(SingleThreadFixture, SubmitWithCountingAllocator) {
+  counting_memory_resource res{new_delete_resource()};
+  polymorphic_allocator<char> alloc{&res};
+  test(thread.get_scheduler(), alloc);
 
-//   // Check that it freed all the memory it allocated
-//   EXPECT_EQ(res.total_allocated_bytes(), 0);
+  // Check that it freed all the memory it allocated
+  EXPECT_EQ(res.total_allocated_bytes(), 0);
 
-//   // Check that it actually called allocate()
-//   EXPECT_EQ(res.total_allocation_count(), 2);
-// }
-// #endif
+  // Check that it actually called allocate()
+  EXPECT_EQ(res.total_allocation_count(), 2);
+}
+#endif
