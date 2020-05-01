@@ -233,6 +233,34 @@ template <typename R, typename... An>
     receiver_of<R, An...> &&
     is_nothrow_callable_v<decltype(set_value), R, An...>;
 
+template <typename R, typename... Values>
+inline constexpr bool is_value_receiver_v =
+  is_callable_v<decltype(unifex::set_value), R, Values...>;
+
+template <typename R, typename... Values>
+struct is_value_receiver : std::bool_constant<is_value_receiver_v<R, Values...>> {};
+
+template <typename R, typename... Values>
+inline constexpr bool is_nothrow_value_receiver_v =
+  is_nothrow_callable_v<decltype(unifex::set_value), R, Values...>;
+
+template <typename R, typename... Values>
+struct is_nothrow_value_receiver : std::bool_constant<is_nothrow_value_receiver_v<R, Values...>> {};
+
+template <typename R, typename Error>
+inline constexpr bool is_error_receiver_v =
+  is_callable_v<decltype(unifex::set_error), R, Error>;
+
+template <typename R, typename Error>
+struct is_error_receiver : std::bool_constant<is_error_receiver_v<R, Error>> {};
+
+template <typename R>
+inline constexpr bool is_done_receiver_v =
+  is_callable_v<decltype(unifex::set_done), R>;
+
+template <typename R, typename Error>
+struct is_done_receiver : std::bool_constant<is_done_receiver_v<R>> {};
+
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
