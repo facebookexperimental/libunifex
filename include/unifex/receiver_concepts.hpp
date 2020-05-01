@@ -190,17 +190,17 @@ inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
 
-#if UNIFEX_CPP_CONCEPTS
+#if UNIFEX_CXX_CONCEPTS
 // Defined the receiver concepts without the macros for improved diagnostics
-template <typename R, typename E>
+template <typename R, typename E = std::exception_ptr>
 concept //
   receiver = //
     move_constructible<remove_cvref_t<R>> &&
     constructible_from<remove_cvref_t<R>, R> &&
     requires(remove_cvref_t<R>&& r, E&& e)
     {
-      { set_done(std::move(r))) } noexcept;
-      { set_error(std::move(r), (E&&) e)) } noexcept;
+      { set_done(std::move(r)) } noexcept;
+      { set_error(std::move(r), (E&&) e) } noexcept;
     };
 
 template <typename R, typename... An>
