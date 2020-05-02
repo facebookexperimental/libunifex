@@ -22,10 +22,11 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
 
+#include <cassert>
+#include <cstddef>
+#include <cstring>
 #include <type_traits>
 #include <utility>
-#include <cstddef>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 
