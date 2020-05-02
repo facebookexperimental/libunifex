@@ -83,15 +83,20 @@ void test(Scheduler scheduler, Allocator allocator) {
 }
 
 int main() {
-  single_thread_context thread;
-
-  test(thread.get_scheduler(), std::allocator<std::byte>{});
+  {
+    single_thread_context thread;
+    test(thread.get_scheduler(), std::allocator<std::byte>{});
+  }
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
   {
     counting_memory_resource res{new_delete_resource()};
     polymorphic_allocator<char> alloc{&res};
-    test(thread.get_scheduler(), alloc);
+    
+    {
+      single_thread_context thread;
+      test(thread.get_scheduler(), alloc);
+    }
 
     // Check that it freed all the memory it allocated
     if (res.total_allocated_bytes() != 0) {
