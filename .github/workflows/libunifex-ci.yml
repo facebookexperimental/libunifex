@@ -46,7 +46,7 @@ jobs:
             name: "Linux Clang 9 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++-9",
+            cc: "clang-9", cxx: "clang++-9",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
@@ -59,7 +59,7 @@ jobs:
             name: "Linux Clang 9 Debug (C++20)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
-            cc: "clang", cxx: "clang++-9",
+            cc: "clang-9", cxx: "clang++-9",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
@@ -67,6 +67,20 @@ jobs:
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
             cc: "clang-9", cxx: "clang++-9",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux Clang 10 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: Debug,
+            cc: "clang-10", cxx: "clang++-10",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 10 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: RelWithDebInfo,
+            cc: "clang-10", cxx: "clang++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
@@ -201,6 +215,16 @@ jobs:
             COMMAND chmod +x ${cmake_dir}/cmake
           )
         endif()
+
+    - name: Install Clang 10
+      id: install_clang_10
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-10' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 10
 
     - name: Configure
       shell: cmake -P {0}
