@@ -127,7 +127,7 @@ delegating_scheduler delegating_context::get_scheduler() noexcept {
 }
 } // namespace
 
-// sync_wait_with_context simulates P1897R3's sync_wait by always providing a
+// sync_wait_with_context simulates P1898R1's sync_wait by always providing a
 // context that will run the work, although for simplicity of reuse here it is
 // a thread rather than inline on the caller
 template<class Sender>
