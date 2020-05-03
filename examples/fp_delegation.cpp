@@ -29,9 +29,23 @@ using namespace unifex;
 using namespace std::chrono_literals;
 
 namespace {
-template <typename Receiver>
-struct _delegating_op {
-  class type;
+
+class delegating_scheduler;
+
+class delegating_context {
+  public:
+  void run() {
+    task_count_++;
+  }
+
+  int get_count() {
+    return task_count_;
+  }
+
+  delegating_scheduler get_scheduler() noexcept;
+
+  private:
+  std::atomic<int> task_count_{0};
 };
 
 template <typename OperationState>
@@ -39,14 +53,15 @@ class delegating_operation final {
   public:
   inline void start() noexcept {
     std::printf("start()\n");
+    context_->run();
     target_op_.start();
   }
 
   OperationState target_op_;
+  delegating_context* context_ = nullptr;
 };
 
 class delegating_sender {
-
   public:
   template <
       template <typename...> class Variant,
@@ -63,20 +78,29 @@ class delegating_sender {
     std::printf("connect\n");
     return delegating_operation<
       remove_cvref_t<decltype(target_op)>>{
-        std::move(target_op)};
+        std::move(target_op), context_};
   }
+
+  delegating_context* context_ = nullptr;
 };
 
 class delegating_scheduler {
   public:
   auto schedule() const noexcept {
-    return delegating_sender{};
+    return delegating_sender{context_};
   }
+
+  delegating_context* context_ = nullptr;
 };
+
+delegating_scheduler delegating_context::get_scheduler() noexcept {
+  return delegating_scheduler{this};
+}
 } // namespace
 
 int main() {
   timed_single_thread_context ctx;
+  delegating_context delegating_ctx;
 
   // Check that the schedule() operation can pick up the current
   // scheduler from the receiver which we inject by using 'with_query_value()'.
@@ -92,7 +116,7 @@ int main() {
   // composed operations.
   sync_wait(with_query_value(
       transform(
-          for_each(via_stream(delegating_scheduler{},
+          for_each(via_stream(delegating_ctx.get_scheduler(),
                               transform_stream(range_stream{0, 10},
                                                [](int value) {
                                                  return value * value;
@@ -100,6 +124,8 @@ int main() {
                    [](int value) { std::printf("got %i\n", value); }),
           []() { std::printf("done\n"); }),
       get_scheduler, ctx.get_scheduler()));
+
+  std::printf("delegating_ctx operations: %d\n", delegating_ctx.get_count());
 
   return 0;
 }
