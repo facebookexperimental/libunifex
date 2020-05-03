@@ -56,13 +56,15 @@ class delegating_context {
   delegating_scheduler get_scheduler() noexcept;
 
   private:
+  friend class delegating_sender;
   std::mutex m_;
   int reservation_count_{0};
   std::atomic<int> run_count_{0};
   int capacity_;
+  timed_single_thread_context single_thread_context_;
 };
 
-template <typename OperationState, typename Receiver>
+template <typename DelegatedOperationState, typename LocalOperationState>
 class delegating_operation final {
   public:
   inline void start() noexcept {
@@ -70,18 +72,17 @@ class delegating_operation final {
       // Start a delegated operation
       target_op_->start();
     }
-    if(receiver_) {
-      // Start immediately
+    if(local_op_) {
+      // Start immediately on the local context
       context_->run();
-      unifex::set_value(static_cast<Receiver&&>(*receiver_));
+      local_op_->start();
     }
   }
 
-  std::optional<OperationState> target_op_;
-  std::optional<Receiver> receiver_;
+  std::optional<DelegatedOperationState> target_op_;
+  std::optional<LocalOperationState> local_op_;
   delegating_context* context_ = nullptr;
 };
-
 
 class delegating_sender {
   public:
@@ -96,20 +97,17 @@ class delegating_sender {
   template <typename Receiver>
   auto connect(Receiver&& receiver) {
     // Attempt to reserve a slot otherwise delegate to the downstream scheduler
-    if(context_->reserve()) {
-      return delegating_operation<
+    using op = delegating_operation<
         remove_cvref_t<decltype(unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
-        remove_cvref_t<Receiver>>{
-          std::nullopt, (Receiver&&)receiver, context_};
+        remove_cvref_t<decltype(unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))>>;
+    if(context_->reserve()) {
+      auto local_op = unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver);
+      return op{std::nullopt, std::move(local_op), context_};
     }
-    std::printf("At capacity with count: %d\n", context_->get_count());
 
     auto target_scheduler = unifex::get_scheduler(std::as_const(receiver));
     auto target_op = unifex::connect(unifex::schedule(target_scheduler), (Receiver&&)receiver);
-    std::printf("connect\n");
-    return delegating_operation<
-      remove_cvref_t<decltype(target_op)>, remove_cvref_t<Receiver>>{
-        std::move(target_op), std::nullopt, context_};
+    return op{std::move(target_op), std::nullopt, context_};
  }
 
   delegating_context* context_ = nullptr;
@@ -152,7 +150,7 @@ int main() {
                               transform_stream(via_stream(inner_delegating_ctx.get_scheduler(),
                                                 transform_stream(range_stream{0, 10},
                                                                 [](int value) {
-                                                                  return value + value;
+                                                                  return value + 1;
                                                                 })),
                                                [](int value) {
                                                  return value * value;
