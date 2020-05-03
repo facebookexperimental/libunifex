@@ -24,6 +24,7 @@
 #include <unifex/with_query_value.hpp>
 
 #include <chrono>
+#include <atomic>
 
 using namespace unifex;
 using namespace std::chrono_literals;
