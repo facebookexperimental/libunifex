@@ -34,32 +34,54 @@ class delegating_scheduler;
 
 class delegating_context {
   public:
-  void run() {
-    task_count_++;
+  delegating_context(int capacity) : capacity_{capacity} {}
+
+  bool reserve() {
+    auto lck = std::scoped_lock{m_};
+    bool reservation_made = reservation_count_ < capacity_;
+    if(reservation_made) {
+      ++reservation_count_;
+    }
+    return reservation_made;
   }
 
   int get_count() {
-    return task_count_;
+    return run_count_;
+  }
+
+  void run() {
+    run_count_++;
   }
 
   delegating_scheduler get_scheduler() noexcept;
 
   private:
-  std::atomic<int> task_count_{0};
+  std::mutex m_;
+  int reservation_count_{0};
+  std::atomic<int> run_count_{0};
+  int capacity_;
 };
 
-template <typename OperationState>
+template <typename OperationState, typename Receiver>
 class delegating_operation final {
   public:
   inline void start() noexcept {
-    std::printf("start()\n");
-    context_->run();
-    target_op_.start();
+    if(target_op_) {
+      // Start a delegated operation
+      target_op_->start();
+    }
+    if(receiver_) {
+      // Start immediately
+      context_->run();
+      unifex::set_value(static_cast<Receiver&&>(*receiver_));
+    }
   }
 
-  OperationState target_op_;
+  std::optional<OperationState> target_op_;
+  std::optional<Receiver> receiver_;
   delegating_context* context_ = nullptr;
 };
+
 
 class delegating_sender {
   public:
@@ -73,13 +95,22 @@ class delegating_sender {
 
   template <typename Receiver>
   auto connect(Receiver&& receiver) {
+    // Attempt to reserve a slot otherwise delegate to the downstream scheduler
+    if(context_->reserve()) {
+      return delegating_operation<
+        remove_cvref_t<decltype(unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
+        remove_cvref_t<Receiver>>{
+          std::nullopt, (Receiver&&)receiver, context_};
+    }
+    std::printf("At capacity with count: %d\n", context_->get_count());
+
     auto target_scheduler = unifex::get_scheduler(std::as_const(receiver));
     auto target_op = unifex::connect(unifex::schedule(target_scheduler), (Receiver&&)receiver);
     std::printf("connect\n");
     return delegating_operation<
-      remove_cvref_t<decltype(target_op)>>{
-        std::move(target_op), context_};
-  }
+      remove_cvref_t<decltype(target_op)>, remove_cvref_t<Receiver>>{
+        std::move(target_op), std::nullopt, context_};
+ }
 
   delegating_context* context_ = nullptr;
 };
@@ -100,7 +131,8 @@ delegating_scheduler delegating_context::get_scheduler() noexcept {
 
 int main() {
   timed_single_thread_context ctx;
-  delegating_context delegating_ctx;
+  delegating_context inner_delegating_ctx{2};
+  delegating_context outer_delegating_ctx{3};
 
   // Check that the schedule() operation can pick up the current
   // scheduler from the receiver which we inject by using 'with_query_value()'.
@@ -116,8 +148,12 @@ int main() {
   // composed operations.
   sync_wait(with_query_value(
       transform(
-          for_each(via_stream(delegating_ctx.get_scheduler(),
-                              transform_stream(range_stream{0, 10},
+          for_each(via_stream(outer_delegating_ctx.get_scheduler(),
+                              transform_stream(via_stream(inner_delegating_ctx.get_scheduler(),
+                                                transform_stream(range_stream{0, 10},
+                                                                [](int value) {
+                                                                  return value + value;
+                                                                })),
                                                [](int value) {
                                                  return value * value;
                                                })),
@@ -125,7 +161,8 @@ int main() {
           []() { std::printf("done\n"); }),
       get_scheduler, ctx.get_scheduler()));
 
-  std::printf("delegating_ctx operations: %d\n", delegating_ctx.get_count());
+  std::printf("inner_delegating_ctx operations: %d\n", inner_delegating_ctx.get_count());
+  std::printf("outer_delegating_ctx operations: %d\n", outer_delegating_ctx.get_count());
 
   return 0;
 }
