@@ -127,24 +127,21 @@ delegating_scheduler delegating_context::get_scheduler() noexcept {
 }
 } // namespace
 
-int main() {
+// sync_wait_with_context simulates P1897R3's sync_wait by always providing a
+// context that will run the work, although for simplicity of reuse here it is
+// a thread rather than inline on the caller
+template<class Sender>
+auto sync_wait_with_context(Sender&& s) {
   timed_single_thread_context ctx;
+  return with_query_value((Sender&&)s, get_scheduler, ctx.get_scheduler());
+}
+
+int main() {
   delegating_context inner_delegating_ctx{2};
   delegating_context outer_delegating_ctx{3};
 
-  // Check that the schedule() operation can pick up the current
-  // scheduler from the receiver which we inject by using 'with_query_value()'.
-  sync_wait(with_query_value(schedule(), get_scheduler,
-                             ctx.get_scheduler()));
-
-  // Check that the schedule_after(d) operation can pick up the current
-  // scheduler from the receiver.
-  sync_wait(with_query_value(
-      schedule_after(200ms), get_scheduler, ctx.get_scheduler()));
-
-  // Check that this can propagate through multiple levels of
-  // composed operations.
-  sync_wait(with_query_value(
+  // Try inner context, then outer context, delegating to ctx if necessary
+  sync_wait_with_context(
       transform(
           for_each(via_stream(outer_delegating_ctx.get_scheduler(),
                               transform_stream(via_stream(inner_delegating_ctx.get_scheduler(),
@@ -156,8 +153,7 @@ int main() {
                                                  return value * value;
                                                })),
                    [](int value) { std::printf("got %i\n", value); }),
-          []() { std::printf("done\n"); }),
-      get_scheduler, ctx.get_scheduler()));
+          []() { std::printf("done\n"); }));
 
   std::printf("inner_delegating_ctx operations: %d\n", inner_delegating_ctx.get_count());
   std::printf("outer_delegating_ctx operations: %d\n", outer_delegating_ctx.get_count());
