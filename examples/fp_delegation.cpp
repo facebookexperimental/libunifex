@@ -79,7 +79,7 @@ class delegating_operation final {
     } else {
       // Start immediately on the local context
       context_->run();
-      std::get<LocalOperationState>(op_).op_.start();;
+      std::get<LocalOperationState>(op_).start();;
     }
   }
 
@@ -97,18 +97,26 @@ class delegating_sender {
   template <template <typename...> class Variant>
   using error_types = Variant<>;
 
+  template<typename OpType>
+  struct LocalContextType {
+    OpType op_;
+
+    inline void start() noexcept {
+      op_.start();
+    }
+  };
+
   template <typename Receiver>
   auto connect(Receiver&& receiver) {
     // Attempt to reserve a slot otherwise delegate to the downstream scheduler
-    struct LocalContextType {
-      remove_cvref_t<decltype(unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))> op_;
-    };
+
+    using LC = LocalContextType<remove_cvref_t<decltype(unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))>>;
     using op = delegating_operation<
         remove_cvref_t<decltype(unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
-        LocalContextType>;
+        LC>;
     if(context_->reserve()) {
       auto local_op = unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver);
-      return op{LocalContextType{std::move(local_op)}, context_};
+      return op{LC{std::move(local_op)}, context_};
     }
 
     auto target_scheduler = unifex::get_scheduler(std::as_const(receiver));
