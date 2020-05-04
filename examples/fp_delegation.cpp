@@ -134,7 +134,7 @@ delegating_scheduler delegating_context::get_scheduler() noexcept {
 template<class Sender>
 auto sync_wait_with_context(Sender&& s) {
   timed_single_thread_context ctx;
-  return with_query_value((Sender&&)s, get_scheduler, ctx.get_scheduler());
+  return sync_wait(with_query_value((Sender&&)s, get_scheduler, ctx.get_scheduler()));
 }
 
 int main() {
