@@ -98,18 +98,18 @@ auto read_file(io_uring_context::scheduler s, const char* path) {
 }
 
 int main() {
-  io_uring_context ctx;
-
-  inplace_stop_source stopSource;
-  std::thread t{[&] { ctx.run(stopSource.get_token()); }};
-  scope_guard stopOnExit = [&]() noexcept {
-    stopSource.request_stop();
-    t.join();
-  };
-
-  auto scheduler = ctx.get_scheduler();
-
   try {
+    io_uring_context ctx;
+
+    inplace_stop_source stopSource;
+    std::thread t{[&] { ctx.run(stopSource.get_token()); }};
+    scope_guard stopOnExit = [&]() noexcept {
+      stopSource.request_stop();
+      t.join();
+    };
+
+    auto scheduler = ctx.get_scheduler();
+
     {
       auto start = std::chrono::steady_clock::now();
       inplace_stop_source timerStopSource;
@@ -150,8 +150,15 @@ int main() {
         when_all(
             read_file(scheduler, "test.txt"),
             read_file(scheduler, "test.txt"))));
+  } catch (const std::system_error &ex) {
+    if(ex.code() == std::errc::operation_not_permitted) {
+      std::printf("Received EPERM from i/o uring, skipping i/o uring test\n");
+      return 0;
+    }
+    throw;
   } catch (const std::exception& ex) {
     std::printf("error: %s\n", ex.what());
+    return 1;
   }
 
   return 0;
