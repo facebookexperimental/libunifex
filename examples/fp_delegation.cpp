@@ -23,8 +23,9 @@
 #include <unifex/via_stream.hpp>
 #include <unifex/with_query_value.hpp>
 
-#include <chrono>
 #include <atomic>
+#include <chrono>
+#include <variant>
 
 using namespace unifex;
 using namespace std::chrono_literals;
@@ -68,20 +69,21 @@ class delegating_context {
 template <typename DelegatedOperationState, typename LocalOperationState>
 class delegating_operation final {
   public:
+  delegating_operation(DelegatedOperationState&& op, delegating_context* context) : op_{std::move(op)}, context_{context} {}
+  delegating_operation(LocalOperationState&& op, delegating_context* context) : op_{std::move(op)}, context_{context} {}
+
   inline void start() noexcept {
-    if(target_op_) {
+    if(std::holds_alternative<DelegatedOperationState>(op_)) {
       // Start a delegated operation
-      target_op_->start();
-    }
-    if(local_op_) {
+      std::get<DelegatedOperationState>(op_).start();
+    } else {
       // Start immediately on the local context
       context_->run();
-      local_op_->start();
+      std::get<LocalOperationState>(op_).op_.start();;
     }
   }
 
-  std::optional<DelegatedOperationState> target_op_;
-  std::optional<LocalOperationState> local_op_;
+  std::variant<DelegatedOperationState, LocalOperationState> op_;
   delegating_context* context_ = nullptr;
 };
 
@@ -98,17 +100,20 @@ class delegating_sender {
   template <typename Receiver>
   auto connect(Receiver&& receiver) {
     // Attempt to reserve a slot otherwise delegate to the downstream scheduler
+    struct LocalContextType {
+      remove_cvref_t<decltype(unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))> op_;
+    };
     using op = delegating_operation<
         remove_cvref_t<decltype(unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
-        remove_cvref_t<decltype(unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))>>;
+        LocalContextType>;
     if(context_->reserve()) {
       auto local_op = unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver);
-      return op{std::nullopt, std::move(local_op), context_};
+      return op{LocalContextType{std::move(local_op)}, context_};
     }
 
     auto target_scheduler = unifex::get_scheduler(std::as_const(receiver));
     auto target_op = unifex::connect(unifex::schedule(target_scheduler), (Receiver&&)receiver);
-    return op{std::move(target_op), std::nullopt, context_};
+    return op{std::move(target_op), context_};
  }
 
   delegating_context* context_ = nullptr;
