@@ -18,6 +18,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 
 #include <condition_variable>

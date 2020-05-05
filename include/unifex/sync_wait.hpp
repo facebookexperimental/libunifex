@@ -15,9 +15,11 @@
  */
 #pragma once
 
+#include <unifex/manual_event_loop.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/with_query_value.hpp>
 
 #include <condition_variable>
 #include <exception>
@@ -31,25 +33,6 @@
 
 namespace unifex {
 namespace _sync_wait {
-
-struct event {
-public:
-  inline void notify() noexcept {
-    std::lock_guard lk{mut_};
-    signalled_ = true;
-    cv_.notify_one();
-  }
-
-  inline void wait() noexcept {
-    std::unique_lock lk{mut_};
-    cv_.wait(lk, [&] { return signalled_; });
-  }
-
-private:
-  std::condition_variable cv_;
-  std::mutex mut_;
-  bool signalled_ = false;
-};
 
 template <typename T>
 struct promise {
@@ -69,14 +52,13 @@ struct promise {
 
   enum class state { incomplete, done, value, error };
   state state_ = state::incomplete;
-
-  std::optional<event> doneEvent_;
 };
 
 template <typename T>
 struct _receiver {
   struct type {
     promise<T>& promise_;
+    manual_event_loop& ctx_;
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
@@ -113,9 +95,7 @@ struct _receiver {
 
   private:
     void signal_complete() noexcept {
-      if (promise_.doneEvent_) {
-        promise_.doneEvent_->notify();
-      }
+      ctx_.stop();
     }
   };
 };
@@ -125,27 +105,18 @@ using receiver_t = typename _receiver<T>::type;
 
 template <typename Result, typename Sender>
 std::optional<Result> _impl(Sender&& sender) {
-  auto blockingResult = blocking(sender);
-  const bool completesSynchronously =
-      blockingResult == blocking_kind::always ||
-      blockingResult == blocking_kind::always_inline;
-
   using promise_t = _sync_wait::promise<Result>;
   promise_t promise;
-  if (!completesSynchronously) {
-    promise.doneEvent_.emplace();
-  }
+  manual_event_loop ctx;
 
   // Store state for the operation on the stack.
   auto operation = connect(
-      ((Sender &&) sender),
-      _sync_wait::receiver_t<Result>{promise});
+      with_query_value((Sender&&)sender, get_scheduler, ctx.get_scheduler()),
+      _sync_wait::receiver_t<Result>{promise, ctx});
 
   start(operation);
 
-  if (!completesSynchronously) {
-    promise.doneEvent_->wait();
-  }
+  ctx.run();
 
   switch (promise.state_) {
     case promise_t::state::done:

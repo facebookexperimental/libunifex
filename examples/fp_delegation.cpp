@@ -15,6 +15,7 @@
  */
 
 #include <unifex/for_each.hpp>
+#include <unifex/manual_event_loop.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
@@ -146,8 +147,9 @@ delegating_scheduler delegating_context::get_scheduler() noexcept {
 // a thread rather than inline on the caller
 template<class Sender>
 auto sync_wait_with_context(Sender&& s) {
-  timed_single_thread_context ctx;
-  return sync_wait(with_query_value((Sender&&)s, get_scheduler, ctx.get_scheduler()));
+  //timed_single_thread_context ctx;
+  //return sync_wait(with_query_value((Sender&&)s, get_scheduler, ctx.get_scheduler()));
+  return sync_wait((Sender&&)s);
 }
 
 int main() {
