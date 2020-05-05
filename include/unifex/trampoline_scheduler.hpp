@@ -37,7 +37,7 @@ class scheduler {
   explicit scheduler(std::size_t depth) noexcept
       : maxRecursionDepth_(depth) {}
 
-private:
+ private:
   struct operation_base {
     operation_base* next_ = nullptr;
     virtual void execute() noexcept = 0;
@@ -133,6 +133,12 @@ private:
 public:
   schedule_sender schedule() const noexcept {
     return schedule_sender{maxRecursionDepth_};
+  }
+  friend bool operator==(scheduler a, scheduler b) noexcept {
+    return a.maxRecursionDepth_ == b.maxRecursionDepth_;
+  }
+  friend bool operator!=(scheduler a, scheduler b) noexcept {
+    return a.maxRecursionDepth_ != b.maxRecursionDepth_;
   }
 };
 } // namespace _trampoline

@@ -490,11 +490,15 @@ class io_epoll_context::scheduler {
       tag_t<open_pipe>,
       scheduler s);
 
-  friend bool operator==(const scheduler& a, const scheduler& b) noexcept {
+  friend bool operator==(scheduler a, scheduler b) noexcept {
     return a.context_ == b.context_;
   }
+  friend bool operator!=(scheduler a, scheduler b) noexcept {
+    return a.context_ != b.context_;
+  }
 
-  explicit scheduler(io_epoll_context& context) noexcept : context_(&context) {}
+  explicit scheduler(io_epoll_context& context) noexcept
+    : context_(&context) {}
 
   io_epoll_context* context_;
 };

@@ -243,25 +243,31 @@ namespace _thread_unsafe_event_loop {
   class scheduler {
    public:
     auto schedule_at(time_point_t dueTime) const noexcept {
-      return schedule_at_sender{loop_, dueTime};
+      return schedule_at_sender{*loop_, dueTime};
     }
 
     template <typename Rep, typename Ratio>
     auto schedule_after(std::chrono::duration<Rep, Ratio> d) const noexcept {
-      return schedule_after_sender<std::chrono::duration<Rep, Ratio>>{loop_, d};
+      return schedule_after_sender<std::chrono::duration<Rep, Ratio>>{*loop_, d};
     }
 
     auto schedule() const noexcept {
       return schedule_after(std::chrono::milliseconds(0));
+    }
+    friend bool operator==(scheduler a, scheduler b) noexcept {
+      return a.loop_ == b.loop_;
+    }
+    friend bool operator!=(scheduler a, scheduler b) noexcept {
+      return a.loop_ != b.loop_;
     }
 
    private:
     friend thread_unsafe_event_loop;
 
     explicit scheduler(thread_unsafe_event_loop& loop) noexcept
-      : loop_(loop) {}
+      : loop_(&loop) {}
 
-    thread_unsafe_event_loop& loop_;
+    thread_unsafe_event_loop* loop_;
   };
 
   template <typename T>

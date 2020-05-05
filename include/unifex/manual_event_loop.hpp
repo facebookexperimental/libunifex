@@ -115,6 +115,13 @@ class context {
       return schedule_task{loop_};
     }
 
+    friend bool operator==(scheduler a, scheduler b) noexcept {
+      return a.loop_ == b.loop_;
+    }
+    friend bool operator!=(scheduler a, scheduler b) noexcept {
+      return a.loop_ != b.loop_;
+    }
+
    private:
     context* loop_;
   };

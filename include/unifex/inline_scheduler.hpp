@@ -84,6 +84,12 @@ namespace _inline_sched {
     constexpr schedule_task schedule() const noexcept {
       return {};
     }
+    friend bool operator==(scheduler, scheduler) noexcept {
+      return true;
+    }
+    friend bool operator!=(scheduler, scheduler) noexcept {
+      return false;
+    }
   };
 } // namespace _inline_sched
 

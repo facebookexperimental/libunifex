@@ -25,32 +25,104 @@
 
 namespace unifex {
 namespace _schedule {
+  struct _fn;
+
+  template <typename Scheduler>
+  UNIFEX_CONCEPT_FRAGMENT( //
+    _with_tag_invoke_helper, //
+      requires () (0) &&
+      tag_invocable<_fn, Scheduler> &&
+      sender<tag_invoke_result_t<_fn, Scheduler>>);
+  template <typename Scheduler>
+  UNIFEX_CONCEPT //
+    _with_tag_invoke = //
+      UNIFEX_FRAGMENT(_schedule::_with_tag_invoke_helper, Scheduler);
+
+  template <typename Scheduler>
+  using _member_schedule_result_t =
+    decltype(UNIFEX_DECLVAL(Scheduler).schedule());
+
+  template <typename Scheduler>
+  UNIFEX_CONCEPT_FRAGMENT( //
+    _has_member_schedule_, //
+      requires() (0) &&
+      sender<_member_schedule_result_t<Scheduler>>);
+  template <typename Scheduler>
+  UNIFEX_CONCEPT //
+    _with_member_schedule = //
+      UNIFEX_FRAGMENT(_schedule::_has_member_schedule_, Scheduler);
+
+  // For adapting an executor as a sender.
+  template <typename Executor>
+  struct _as_sender {
+    struct type {
+    private:
+      Executor ex_;
+    public:
+      template <template <class...> class Variant,
+                template <class...> class Tuple>
+      using value_types = Variant<Tuple<>>;
+
+      template <template <class...> class Variant>
+      using error_types = Variant<std::exception_ptr>;
+
+      static constexpr bool sends_done = true;
+
+      explicit type(Executor e) noexcept
+        : ex_((Executor&&) e) {}
+
+      template(typename Self, typename Receiver)
+        (requires same_as<remove_cvref_t<Self>, type> AND receiver_of<Receiver>)
+      friend connect_result_t<member_t<Self, Executor>, Receiver>
+      tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) {
+        return connect(((Self&&) self).ex_, (Receiver&&) r);
+      }
+    };
+  };
+  template <typename Executor>
+  using _as_sender_t = typename _as_sender<remove_cvref_t<Executor>>::type;
+
   struct sender;
   inline const struct _fn {
   private:
     template <typename Scheduler>
-    using _schedule_member_result_t =
-      decltype(UNIFEX_DECLVAL(Scheduler).schedule());
+    static auto _select() noexcept {
+      if constexpr (_with_tag_invoke<Scheduler>) {
+        return meta_tag_invoke_result<_fn>{};
+      } else if constexpr (_with_member_schedule<Scheduler>) {
+        return meta_quote1<_member_schedule_result_t>{};
+      } else if constexpr (executor<Scheduler>) {
+        return meta_quote1<_as_sender_t>{};
+      } else {
+        return type_always<void>{};
+      }
+    }
     template <typename Scheduler>
     using _result_t =
-      typename conditional_t<
-        tag_invocable<_fn, Scheduler>,
-        meta_tag_invoke_result<_fn>,
-        meta_quote1<_schedule_member_result_t>>::template apply<Scheduler>;
+        typename decltype(_fn::_select<Scheduler>())::template apply<Scheduler>;
   public:
     template(typename Scheduler)
-      (requires tag_invocable<_fn, Scheduler>)
+      (requires _with_tag_invoke<Scheduler>)
     constexpr auto operator()(Scheduler&& s) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler>)
         -> _result_t<Scheduler> {
       return tag_invoke(_fn{}, static_cast<Scheduler&&>(s));
     }
     template(typename Scheduler)
-      (requires (!tag_invocable<_fn, Scheduler>))
+      (requires (!_with_tag_invoke<Scheduler>) AND
+        _with_member_schedule<Scheduler>)
     constexpr auto operator()(Scheduler&& s) const noexcept(
         noexcept(static_cast<Scheduler&&>(s).schedule()))
         -> _result_t<Scheduler> {
       return static_cast<Scheduler&&>(s).schedule();
+    }
+    template(typename Executor)
+      (requires (!_with_tag_invoke<Executor>) AND
+        (!_with_member_schedule<Executor>) AND
+        executor<Executor>)
+    constexpr auto operator()(Executor&& e) const noexcept
+        -> _result_t<Executor> {
+      return _result_t<Executor>{(Executor&&) e};
     }
 
     constexpr sender operator()() const noexcept;
@@ -58,15 +130,39 @@ namespace _schedule {
 } // namespace _schedule
 using _schedule::schedule;
 
+// Define the scheduler concept without the macros for better diagnostics
+#if UNIFEX_CXX_CONCEPTS
+template <typename S>
+concept //
+  scheduler = //
+    copy_constructible<remove_cvref_t<S>> &&
+    equality_comparable<remove_cvref_t<S>> &&
+    requires(S&& s) {
+      schedule((S&&) s);
+    };
+#else
+template <typename S>
+UNIFEX_CONCEPT_FRAGMENT( //
+  _scheduler,
+    requires(S&& s) (
+      schedule((S&&) s)
+    ));
+template <typename S>
+UNIFEX_CONCEPT //
+  scheduler = //
+    copy_constructible<remove_cvref_t<S>> &&
+    equality_comparable<remove_cvref_t<S>> &&
+    UNIFEX_FRAGMENT(unifex::_scheduler, S);
+#endif
+
 namespace _get_scheduler {
   inline const struct _fn {
-    template <typename Context>
-    auto operator()(const Context &context) const noexcept
-        -> tag_invoke_result_t<_fn, const Context &> {
-      static_assert(is_nothrow_tag_invocable_v<_fn, const Context &>);
-      static_assert(is_callable_v<
-                    decltype(schedule),
-                    tag_invoke_result_t<_fn, const Context &>>);
+    template <typename SchedulerProvider>
+    auto operator()(const SchedulerProvider &context) const noexcept
+        -> tag_invoke_result_t<_fn, const SchedulerProvider &> {
+      static_assert(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider &>);
+      static_assert(
+          scheduler<tag_invoke_result_t<_fn, const SchedulerProvider &>>);
       return tag_invoke(*this, context);
     }
   } get_scheduler{};
