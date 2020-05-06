@@ -216,11 +216,11 @@ namespace _timed_single_thread_context {
     explicit scheduler(timed_single_thread_context& context) noexcept
       : context_(&context) {}
 
-    friend bool operator==(const scheduler& a, const scheduler& b) noexcept {
+    friend bool operator==(scheduler a, scheduler b) noexcept {
       return a.context_ == b.context_;
     }
-    friend bool operator!=(const scheduler& a, const scheduler& b) noexcept {
-      return !(a == b);
+    friend bool operator!=(scheduler a, scheduler b) noexcept {
+      return a.context_ != b.context_;
     }
 
     timed_single_thread_context* context_;

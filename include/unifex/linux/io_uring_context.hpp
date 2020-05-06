@@ -921,8 +921,11 @@ class io_uring_context::scheduler {
       scheduler s,
       const filesystem::path& path);
 
-  friend bool operator==(const scheduler& a, const scheduler& b) noexcept {
+  friend bool operator==(scheduler a, scheduler b) noexcept {
     return a.context_ == b.context_;
+  }
+  friend bool operator!=(scheduler a, scheduler b) noexcept {
+    return a.context_ != b.context_;
   }
 
   explicit scheduler(io_uring_context& context) noexcept : context_(&context) {}

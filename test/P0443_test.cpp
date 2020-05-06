@@ -116,3 +116,21 @@ TEST(P0443, connect_with_throwing_executor) {
   } catch (...) {}
   EXPECT_EQ(4, i);
 }
+
+TEST(P0443, schedule_with_executor) {
+  int i = 0;
+  struct _receiver {
+    int *p;
+    void set_value() && noexcept {
+      *p += 1;
+    }
+    void set_error(std::exception_ptr) && noexcept {
+      *p += 2;
+    }
+    void set_done() && noexcept {
+      *p += 4;
+    }
+  };
+  submit(schedule(inline_executor{}), _receiver{&i});
+  EXPECT_EQ(1, i);
+}
