@@ -14,10 +14,10 @@ This project contains implementations of the following:
 
 # Status
 
-This project is still evolving and should be considered experimental in nature.
+This project is still evolving and should be considered experimental in nature. No guarantee is made for API or ABI stability.
 
 **Build status**
-- on Github Actions: ![libunifex CI](https://github.com/facebookexperimental/libunifex/workflows/libunifex%20CI/badge.svg)
+- on Github Actions: [![GitHub Actions Status](https://github.com/facebookexperimental/libunifex/workflows/libunifex%20CI/badge.svg?branch=master)](https://github.com/facebookexperimental/libunifex/actions)
 
 # Documentation
 
@@ -31,11 +31,15 @@ This project is still evolving and should be considered experimental in nature.
 
 # Requirements
 
-A recent compiler that supports C++17 or later.
+A recent compiler that supports C++17 or later. Libunifex is known to work
+with the following compilers:
+
+* GCC, 9.x and later
+* Clang, 9.x and later
 
 This library also supports C++20 coroutines. You will need to compile with
 coroutine support enabled if you want to use the coroutine integrations.
-This generally means adding `-std=c++2a` or `-fcoroutines-ts` on Clang.
+This generally means adding `-std=c++2a` or `-fcoroutines-ts` on Clang (see "Configuring" below).
 
 ## Linux
 
@@ -53,16 +57,35 @@ This project can be built using CMake.
 The examples below assume using the [Ninja](https://ninja-build.org/) build system.
 You can use other build systems supported by CMake.
 
-## Configuring to build with Clang
+## Configuring
 
 First generate the build files under the `./build` subdirectory.
 
 From the libunifex project root:
+
 ```sh
 cmake -G Ninja -H. -Bbuild \
-      -DCMAKE_CXX_COMPILER=/path/to/clang++ \
-      -DCMAKE_CXX_FLAGS="-std=c++2a" \
-      -DCMAKE_EXE_LINKER_FLAGS="-L/path/to/libc++/lib"
+      -DCMAKE_CXX_COMPILER:PATH=/path/to/compiler
+```
+
+By default, this builds libunifex in C++17 without coroutines. If you want
+to turn on coroutines with clang, add:
+
+```sh
+      -DCMAKE_CXX_FLAGS:STRING=-fcoroutines-ts
+```
+
+To use libc++ with clang, which has coroutine support, you should also add:
+
+```sh
+      -DCMAKE_CXX_FLAGS:STRING=-stdlib=libc++ \
+      -DCMAKE_EXE_LINKER_FLAGS:STRING="-L/path/to/libc++/lib"
+```
+
+If you want to build libunifex as C++20, add:
+
+```sh
+      -DCMAKE_CXX_STANDARD:STRING=20
 ```
 
 ## Building Library + Running Tests
@@ -90,5 +113,5 @@ See [LICENSE.txt](license.txt) for details.
 # References
 
 C++ standardisation papers:
-* [P0443R11](https://wg21.link) "A Unified Executors Proposal for C++"
+* [P0443R13](https://wg21.link/P0443R13) "A Unified Executors Proposal for C++"
 * ...
