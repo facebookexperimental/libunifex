@@ -135,10 +135,10 @@ public:
     return schedule_sender{maxRecursionDepth_};
   }
   friend bool operator==(scheduler a, scheduler b) noexcept {
-    return a.maxRecursionDepth_ == b.maxRecursionDepth_;
+    return true;
   }
   friend bool operator!=(scheduler a, scheduler b) noexcept {
-    return a.maxRecursionDepth_ != b.maxRecursionDepth_;
+    return false;
   }
 };
 } // namespace _trampoline
