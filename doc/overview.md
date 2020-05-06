@@ -164,21 +164,11 @@ algorithms to have default implementations that are defined in terms of some
 set of basis operations - typically the basis operations that comprise the concept,
 so that the algorithms are at least functional.
 
-# Differences between this prototype and P0443R11
+# Differences between this prototype and P0443R13
 
 This design has a number of key differences from the sender/receiver
 design described in the paper "A Unified Executors Proposal for C++"
-([P0443R11](https://wg21.link/P0443R11)).
-
-## `submit(sender, receiver)` operation is no longer a basis operation
-
-Instead it's responsibilities have been broken out into `connect(sender, receiver)`,
-which returns an operation-state object which would normally have been heap-allocated
-internally to `submit()` for operations that do not complete synchronously, and
-`start(operationState)`, which starts execution of the operation.
-
-The `submit()` function is still available, it is just now a customisable algorithm
-with a default implementation in terms of `connect()` and `start()`.
+([P0443R13](https://wg21.link/P0443R13)).
 
 ## Uses `tag_invoke` as the customisation-point mechanism
 
@@ -192,17 +182,6 @@ arbitrary sets of CPO operations. For example see `unifex::any_unique`.
 
 See the `tag_invoke` proposal paper [P1895R0](https://wg21.link/P1895R0)
 for more information.
-
-## There is currently no `executor` concept or `execute()` function
-
-P0443 defines both the `executor` and `scheduler` concepts each with fundamental
-operations `execute()` and `schedule()` respectively.
-
-Unifex currently only implements support for the `scheduler` concept and the
-`schedule()` interface.
-
-The plan is to add an `execute()` customisation point with a default implementation
-in terms of `schedule()`.
 
 # Outstanding Challenges
 
