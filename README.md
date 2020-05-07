@@ -110,6 +110,10 @@ This project is made available under the Apache License, version 2.0.
 
 See [LICENSE.txt](license.txt) for details.
 
+See also:
+* Terms of Use - https://opensource.facebook.com/legal/terms
+* Privacy Policy - https://opensource.facebook.com/legal/privacy
+
 # References
 
 C++ standardisation papers:
