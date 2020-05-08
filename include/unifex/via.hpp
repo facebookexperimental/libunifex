@@ -280,7 +280,7 @@ struct _sender<Predecessor, Successor>::type {
       return blocking_kind::never;
     } else if (
         predBlocking == blocking_kind::always_inline &&
-        predBlocking == blocking_kind::always_inline) {
+        succBlocking == blocking_kind::always_inline) {
       return blocking_kind::always_inline;
     } else if (
         (predBlocking == blocking_kind::always_inline ||
