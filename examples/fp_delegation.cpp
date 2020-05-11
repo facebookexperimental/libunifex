@@ -70,8 +70,11 @@ class delegating_context {
 template <typename DelegatedOperationState, typename LocalOperationState>
 class delegating_operation final {
   public:
-  delegating_operation(DelegatedOperationState&& op, delegating_context* context) : op_{std::move(op)}, context_{context} {}
-  delegating_operation(LocalOperationState&& op, delegating_context* context) : op_{std::move(op)}, context_{context} {}
+  template<class InitFunc>
+  delegating_operation(InitFunc&& func, delegating_context* context) :
+    op_{std::in_place_type_t<std::remove_cvref_t<decltype(func())>>{}, func()}, context_{context} {
+  }
+
 
   inline void start() noexcept {
     if(std::holds_alternative<DelegatedOperationState>(op_)) {
@@ -111,17 +114,23 @@ class delegating_sender {
   auto connect(Receiver&& receiver) {
     // Attempt to reserve a slot otherwise delegate to the downstream scheduler
 
-    using LC = LocalContextType<remove_cvref_t<decltype(unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))>>;
+    using LC = LocalContextType<remove_cvref_t<decltype(unifex::connect(
+      unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))>>;
     using op = delegating_operation<
-        remove_cvref_t<decltype(unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
+        remove_cvref_t<decltype(unifex::connect(
+          unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
         LC>;
     if(context_->reserve()) {
-      auto local_op = unifex::connect(unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver);
-      return op{LC{std::move(local_op)}, context_};
+      auto local_op = [receiver = (Receiver&&)receiver, context = context_]() mutable {
+        return LC{unifex::connect(
+          unifex::schedule(context->single_thread_context_.get_scheduler()),
+          (Receiver&&)receiver)};};
+      return op{std::move(local_op), context_};
     }
 
-    auto target_scheduler = unifex::get_scheduler(std::as_const(receiver));
-    auto target_op = unifex::connect(unifex::schedule(target_scheduler), (Receiver&&)receiver);
+    auto target_op = [receiver = (Receiver&&)receiver]() mutable {
+      return unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver);
+    };
     return op{std::move(target_op), context_};
  }
 
