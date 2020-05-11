@@ -142,22 +142,12 @@ delegating_scheduler delegating_context::get_scheduler() noexcept {
 }
 } // namespace
 
-// sync_wait_with_context simulates P1898R1's sync_wait by always providing a
-// context that will run the work, although for simplicity of reuse here it is
-// a thread rather than inline on the caller
-template<class Sender>
-auto sync_wait_with_context(Sender&& s) {
-  //timed_single_thread_context ctx;
-  //return sync_wait(with_query_value((Sender&&)s, get_scheduler, ctx.get_scheduler()));
-  return sync_wait((Sender&&)s);
-}
-
 int main() {
   delegating_context inner_delegating_ctx{2};
   delegating_context outer_delegating_ctx{3};
 
   // Try inner context, then outer context, delegating to ctx if necessary
-  sync_wait_with_context(
+  sync_wait(
       transform(
           for_each(via_stream(outer_delegating_ctx.get_scheduler(),
                               transform_stream(via_stream(inner_delegating_ctx.get_scheduler(),

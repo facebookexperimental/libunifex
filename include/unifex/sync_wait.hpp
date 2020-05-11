@@ -93,6 +93,11 @@ struct _receiver {
       signal_complete();
     }
 
+    friend auto
+    tag_invoke(tag_t<get_scheduler>, const type& r) noexcept {
+      return r.ctx_.get_scheduler();
+    }
+
   private:
     void signal_complete() noexcept {
       ctx_.stop();
@@ -111,7 +116,7 @@ std::optional<Result> _impl(Sender&& sender) {
 
   // Store state for the operation on the stack.
   auto operation = connect(
-      with_query_value((Sender&&)sender, get_scheduler, ctx.get_scheduler()),
+      (Sender&&)sender,
       _sync_wait::receiver_t<Result>{promise, ctx});
 
   start(operation);
