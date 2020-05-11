@@ -72,7 +72,7 @@ class delegating_operation final {
   public:
   template<class InitFunc>
   delegating_operation(InitFunc&& func, delegating_context* context) :
-    op_{std::in_place_type_t<std::remove_cvref_t<decltype(func())>>{}, func()}, context_{context} {
+    op_{std::in_place_type_t<remove_cvref_t<decltype(func())>>{}, func()}, context_{context} {
   }
 
 
