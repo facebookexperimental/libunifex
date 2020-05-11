@@ -17,6 +17,7 @@
 
 #include <unifex/manual_event_loop.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/with_query_value.hpp>
