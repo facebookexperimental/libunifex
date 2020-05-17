@@ -192,6 +192,43 @@
 
 #include <unifex/detail/prologue.hpp>
 
+template<typename Storage, typename T>
+struct _value_factory {
+    struct type {
+        Storage value;
+
+        T operator()() noexcept(std::is_nothrow_constructible_v<T, Storage>) {
+            return static_cast<Storage&&>(value);
+        }
+    };
+};
+
+template<typename Storage, typename T = unifex::remove_cvref_t<Storage>>
+using value_factory = typename _value_factory<Storage, T>::type;
+
+template<typename F>
+struct _invoke_on_conversion {
+    F f_;
+
+    operator unifex::callable_result_t<const F&>() const & {
+        return f_();
+    }
+    operator unifex::callable_result_t<F&>() & {
+        return f_();
+    }
+    operator unifex::callable_result_t<const F&&>() const && {
+        return static_cast<const F&&>(f_)();
+    }
+    operator unifex::callable_result_t<F&&>() && {
+        return static_cast<F&&>(f_)();
+    }
+};
+
+template<typename F>
+_invoke_on_conversion(F&&) -> _invoke_on_conversion<F&&>;
+
+///////////////////////////////////////////////////
+// Receiver interface
 
 namespace _set_value
 {
@@ -237,15 +274,6 @@ namespace _set_value_from
     };
 }
 
-template<typename Storage, typename T = unifex::remove_cvref_t<Storage>>
-struct _value_factory {
-    Storage value;
-
-    T operator()() noexcept(std::is_nothrow_constructible_v<T, Storage>) {
-        return static_cast<Storage&&>(value);
-    }
-};
-
 inline constexpr _set_value_from::_fn set_value_from{};
 
 namespace _set_value
@@ -264,15 +292,15 @@ namespace _set_value
             (requires
                 (!unifex::tag_invocable<_fn, Receiver, CleanupReceiver, Values...>) AND
                 (unifex::constructible_from<unifex::remove_cvref_t<Values>, Values> && ...) AND
-                unifex::tag_invocable<_set_value_from::_fn, Receiver, CleanupReceiver, _value_factory<Values&&>...>)
+                unifex::tag_invocable<_set_value_from::_fn, Receiver, CleanupReceiver, value_factory<Values&&>...>)
         auto operator()(Receiver&& r, CleanupReceiver&& cr, Values&&... values) const
-            noexcept(unifex::is_nothrow_tag_invocable_v<_set_value_from::_fn, Receiver, CleanupReceiver, _value_factory<Values&&>...>)
-            -> unifex::tag_invoke_result_t<_set_value_from::_fn, Receiver, CleanupReceiver, _value_factory<Values&&>...> {
+            noexcept(unifex::is_nothrow_tag_invocable_v<_set_value_from::_fn, Receiver, CleanupReceiver, value_factory<Values&&>...>)
+            -> unifex::tag_invoke_result_t<_set_value_from::_fn, Receiver, CleanupReceiver, value_factory<Values&&>...> {
             return unifex::tag_invoke(
                 _set_value_from::_fn{},
                 (Receiver&&)r,
                 (CleanupReceiver&&)cr,
-                _value_factory<Values&&>{(Values&&)values}...);
+                value_factory<Values&&>{(Values&&)values}...);
         }
     };
 }
@@ -327,12 +355,12 @@ namespace _set_error
         template(typename Receiver, typename CleanupReceiver, typename Error)
             (requires
                 (!unifex::tag_invocable<_fn, Receiver, CleanupReceiver, Error>) AND
-                (unifex::tag_invocable<_set_error_from::_fn, CleanupReceiver, _value_factory<Error&&>>))
+                (unifex::tag_invocable<_set_error_from::_fn, CleanupReceiver, value_factory<Error&&>>))
         auto operator()(Receiver&& r, CleanupReceiver&& cr, Error&& error) const noexcept
-            -> unifex::tag_invoke_result_t<_set_error_from::_fn, Receiver, CleanupReceiver, _value_factory<Error&&>> {
+            -> unifex::tag_invoke_result_t<_set_error_from::_fn, Receiver, CleanupReceiver, value_factory<Error&&>> {
             static_assert(std::is_nothrow_constructible_v<unifex::remove_cvref_t<Error>, Error>);
-            static_assert(unifex::is_nothrow_tag_invocable_v<_set_error_from::_fn, Receiver, _value_factory<Error&&>>);
-            return unifex::tag_invoke(_set_error_from::_fn{}, (Receiver&&)r, (CleanupReceiver&&)cr, _value_factory<Error&&>{(Error&&)error});
+            static_assert(unifex::is_nothrow_tag_invocable_v<_set_error_from::_fn, Receiver, value_factory<Error&&>>);
+            return unifex::tag_invoke(_set_error_from::_fn{}, (Receiver&&)r, (CleanupReceiver&&)cr, value_factory<Error&&>{(Error&&)error});
         }
     };
 }
@@ -355,19 +383,6 @@ namespace _set_done
 
 inline constexpr _set_done::_fn set_done{};
 
-namespace _start
-{
-    struct _fn {
-        template<typename OpState>
-        auto operator()(OpState& op) const
-            -> unifex::tag_invoke_result_t<_fn, OpState&> {
-            return unifex::tag_invoke(*this, op);
-        }
-    };
-}
-
-inline constexpr _start::_fn start{};
-
 template<typename... Args>
 using set_value_result_t = unifex::callable_result_t<decltype(set_value), Args&&...>;
 
@@ -383,6 +398,48 @@ using set_error_from_result_t = unifex::callable_result_t<decltype(set_error_fro
 template<typename... Args>
 using set_done_result_t = unifex::callable_result_t<decltype(set_done), Args&&...>;
 
+template<typename CPO>
+inline constexpr bool is_set_value_cpo_v = unifex::is_one_of_v<
+    CPO,
+    unifex::tag_t<::set_value>,
+    unifex::tag_t<::set_value_from>>;
+
+template<typename CPO>
+inline constexpr bool is_set_error_cpo_v = unifex::is_one_of_v<
+    CPO,
+    unifex::tag_t<::set_error>,
+    unifex::tag_t<::set_error_from>>;
+
+template<typename CPO>
+inline constexpr bool is_set_done_cpo_v = std::is_same_v<CPO, unifex::tag_t<::set_done>>;
+
+template<typename CPO>
+inline constexpr bool is_set_result_cpo_v = unifex::is_one_of_v<
+    CPO,
+    unifex::tag_t<::set_value>,
+    unifex::tag_t<::set_value_from>,
+    unifex::tag_t<::set_error>,
+    unifex::tag_t<::set_error_from>,
+    unifex::tag_t<::set_done>>;
+
+//////////////////////////////
+// operation_state interface
+
+namespace _start
+{
+    struct _fn {
+        template(typename OpState)
+            (requires unifex::tag_invocable<_fn, OpState>)
+        auto operator()(OpState&& op) const noexcept
+            -> unifex::tag_invoke_result_t<_fn, OpState> {
+            static_assert(unifex::is_nothrow_tag_invocable_v<_fn, OpState>);
+            return unifex::tag_invoke(_fn{}, (OpState&&)op);
+        }
+    };
+}
+
+inline constexpr _start::_fn start{};
+
 template<typename Op>
 using start_result_t = unifex::callable_result_t<decltype(start), Op&>;
 
@@ -391,7 +448,213 @@ inline constexpr bool is_operation_state_v =
     std::is_nothrow_destructible_v<T> &&
     unifex::is_callable_v<decltype(start), T&>;
 
+// Check whether we can call start() on an rvalue-operation_state.
+// If so then this means we don't need to keep the operation_state
+// alive until the receiver completes and so we can place the
+// operation-state on the stack.
+template<typename T>
+inline constexpr bool is_stateless_operation_state_v =
+    is_operation_state_v<T> &&
+    unifex::is_callable_v<decltype(start), T&&>;
+
+/////////////////////////////
+// sender/algorithm interface
+//
+// TODO: Should connect() be named async_invoke()?
+
+namespace _connect
+{
+    struct _fn;
+}
+
+namespace _connect_from
+{
+    struct _fn {
+        template(
+            typename Algorithm,
+            typename Receiver,
+            typename... ValueFactories)
+            (requires
+                (unifex::invocable<ValueFactories&> && ...) AND
+                unifex::tag_invocable<_fn, Algorithm, Receiver, ValueFactories...>)
+        auto operator()(Algorithm alg, Receiver&& r, ValueFactories&&... valueFactories) const
+            noexcept(unifex::is_nothrow_tag_invocable_v<_fn, Algorithm, Receiver, ValueFactories...>)
+            -> unifex::tag_invoke_result_t<_fn, Algorithm, Receiver, ValueFactories...> {
+            return unifex::tag_invoke(_fn{}, alg, (Receiver&&)r, (ValueFactories&&)valueFactories...);
+        }
+
+        template(
+            typename Algorithm,
+            typename Receiver,
+            typename... ValueFactories,
+            typename Connect = _connect::_fn)
+            (requires
+                (unifex::invocable<ValueFactories&> && ...) AND
+                (!unifex::tag_invocable<_fn, Algorithm, Receiver, ValueFactories...>) AND
+                unifex::tag_invocable<Connect, Algorithm, Receiver, unifex::callable_result_t<ValueFactories&>...>)
+        auto operator()(Algorithm alg, Receiver&& r, ValueFactories&&... valueFactories) const
+            noexcept(
+                (unifex::is_nothrow_callable_v<ValueFactories&> && ...) &&
+                unifex::is_nothrow_tag_invocable_v<Connect, Algorithm, Receiver, unifex::callable_result_t<ValueFactories&>...>)
+            -> unifex::tag_invoke_result_t<Connect, Algorithm, Receiver, unifex::callable_result_t<ValueFactories&>...> {
+            return unifex::tag_invoke(Connect{}, alg, (Receiver&&)r, valueFactories()...);    
+        }
+    };
+}
+
+inline constexpr _connect_from::_fn connect_from{};
+
+namespace _connect
+{
+    struct _fn {
+        template(
+            typename Algorithm,
+            typename Receiver,
+            typename... Args)
+            (requires
+                unifex::tag_invocable<_fn, Algorithm, Receiver, Args...>)
+        auto operator()(Algorithm&& alg, Receiver&& r, Args&&... args) const
+            noexcept(unifex::is_nothrow_tag_invocable_v<_fn, Algorithm, Receiver, Args...>)
+            -> unifex::tag_invoke_result_t<_fn, Algorithm, Receiver, Args...> {
+            return unifex::tag_invoke(_fn{}, (Algorithm&&)alg, (Receiver&&)r, (Args&&)args...);
+        }
+
+        template(
+            typename Algorithm,
+            typename Receiver,
+            typename... Args)
+            (requires
+                (!unifex::tag_invocable<_fn, Algorithm, Receiver, Args...>) AND
+                unifex::tag_invocable<_connect_from::_fn, Algorithm, Receiver, value_factory<Args&&>...>)
+        auto operator()(Algorithm&& alg, Receiver&& r, Args&&... args) const
+            noexcept(
+                unifex::is_nothrow_tag_invocable_v<_connect_from::_fn, Algorithm, Receiver, value_factory<Args&&>...>)
+            -> unifex::tag_invoke_result_t<_connect_from::_fn, Algorithm, Receiver, value_factory<Args&&>...> {
+            return unifex::tag_invoke(_connect_from::_fn{}, (Algorithm&&)alg, (Receiver&&)r, value_factory<Args&&>{args}...);    
+        }
+    };
+}
+
+inline constexpr _connect::_fn connect{};
+
+template<typename... Args>
+using connect_result_t = unifex::callable_result_t<decltype(connect), Args&&...>;
+
+template<typename... Args>
+using connect_from_result_t = unifex::callable_result_t<decltype(connect_from), Args&&...>;
+
+/////////////////////////////////////////////////
+// typed operations
+//
+// operation_state types must have a OS::result_types type alias that describes
+// the set of possible completion-signals that the operation may complete with.
+//
+// Example:
+//   struct my_operation_state {
+//     using result_types = unifex::type_list<
+//       async_result_t<::set_value, my_cleanup_receiver, int, bool>,
+//       async_result_t<::set_error, my_cleanup_receiver, std::exception_ptr>>;
+//   };
+//
+// This type_list indicates the set of result-signals that the operation
+// may complete with and thus indicates the set of completion methods that
+// the receiver needs to be prepared to have instantiated.
+//
+// The types that are valid for the 'Signal' parameter are the three types:
+// - unifex::tag_t<::set_value>
+// - unifex::tag_t<::set_done>
+// - unifex::tag_t<::set_error>
+//
+// If your operation would complete with either ::set_value_from() or
+// ::set_error_from() then use the corresponding ::set_value/::set_error
+// signal and the types that would be produced by the value-factory.
+
+template<typename Signal, typename CleanupReceiver, typename... Values>
+struct async_result {
+    using signal_type = Signal;
+    using receiver_type = CleanupReceiver;
+    using values = unifex::type_list<Values...>;
+};
+
+template<auto& CPO, typename CleanupReceiver, typename... Args>
+using async_result_t = async_result<unifex::tag_t<CPO>, Args...>;
+
+template<typename... Overloads>
+using overload_set = unifex::concat_type_lists_unique_t<
+    unifex::type_list<Overloads>...>;
+
+// template<typename CPO, typename CleanupReceiver, typename... Args>
+// struct set_result_overload;
+
+// template<typename CleanupReceiver>
+// struct set_result_overload<unifex::tag_t<::set_done>, CleanupReceiver> {
+//     using type = overload<unifex::tag_t<::set_done>, CleanupReceiver>;
+// };
+
+// template<typename CleanupReceiver, typename... ValueFactories>
+// struct set_result_overload<unifex::tag_t<::set_value_from>, CleanupReceiver, ValueFactories...> {
+//     using type = overload<unifex::tag_t<::set_value>, CleanupReceiver, unifex::tag_invoke_result_t<ValueFactories&>...>;
+// };
+
+// template<typename CleanupReceiver, typename... Values>
+// struct set_result_overload<unifex::tag_t<::set_value>, CleanupReceiver, Values...> {
+//     using type = overload<unifex::tag_t<::set_value>, CleanupReceiver, Values...>;
+// };
+
+// template<typename CleanupReceiver, typename ErrorFactory>
+// struct set_result_overload<unifex::tag_t<::set_error_from>, CleanupReceiver, ErrorFactory> {
+//     using type = overload<unifex::tag_t<::set_error>, CleanupReceiver, unifex::tag_invoke_result_t<ErrorFactory&>>;
+// };
+
+// template<typename CleanupReceiver, typename Error>
+// struct set_result_overload<unifex::tag_t<::set_value>, CleanupReceiver, Error> {
+//     using type = overload<unifex::tag_t<::set_value>, CleanupReceiver, Error>;
+// };
+
+// template<typename CPO, typename CleanupReceiver, typename... Args>
+// using set_result_overload_t = typename set_result_overload<CPO, CleanupReceiver, Args...>::type;
+
+
+
+// template<typename CPO, typename Receiver>
+// struct _overload_invoke_result {
+//     template<typename... Args>
+//     using apply = unifex::callable_result_t<CPO, Receiver, Args...>;
+// };
+
+// template<typename Overload, typename Receiver>
+// using overload_invoke_result_t =
+//     typename Overload::argument_list::template apply<
+//         _overload_invoke_result<typename Overload::cpo_type, Receiver>::template apply>;
+
+// template<typename... CPOs>
+// struct _overloads_with_cpo {
+//     template<typename... Overloads>
+//     using apply = unifex::concat_type_lists_t<
+//         std::conditional_t<
+//             unifex::is_one_of_v<typename Overloads::cpo_type, CPOs...>,
+//             unifex::type_list<Overloads>,
+//             unifex::type_list<>>...>;
+// };
+
+// template<typename OverloadSet, auto&... CPOs>
+// using overloads_with_cpo_t =
+//     typename OverloadSet::template apply<
+//         _overloads_with_cpo<unifex::tag_t<CPOs>...>::template apply>;
+
+// template<typename OverloadSet>
+// using set_result_overloads_t =
+//     overloads_with_cpo_t<OverloadSet, ::set_done, ::set_error, ::set_error_from, ::set_value, ::set_value_from>;
+
 struct noop_cleanup_receiver {
+    // template<typename CleanupReceiver>
+    // using set_done_result_types = overload_set<
+    //     overload_t<::set_done, noop_cleanup_receiver>>;
+
+    // template<typename CleanupReceiver, typename Error>
+    // using set_error_result_types = overload_set<
+    //     overload_t<::set_error, noop_cleanup_receiver, Error>>;
+
     template(typename CleanupReceiver)
         (requires (!std::is_same_v<CleanupReceiver, noop_cleanup_receiver>))
     friend auto tag_invoke(
@@ -428,125 +691,21 @@ struct noop_cleanup_receiver {
 ///////////////////////////////////////////////////////////////////////
 // Helpers
 
-template<auto& CPO, typename ResultReceiver, typename CleanupReceiver, typename... Args>
-class stateless_set_result_operation_storage {
-public:
-    using continuation_type = unifex::callable_result_t<decltype(CPO), ResultReceiver, CleanupReceiver, Args...>;
-
-    void destroy() noexcept {}
-
-    continuation_type start(ResultReceiver&& r, CleanupReceiver&& cr, Args&&... args)
-        noexcept(unifex::is_nothrow_callable_v<decltype(CPO), ResultReceiver, CleanupReceiver, Args...>) {
-        return CPO((ResultReceiver&&)r, (CleanupReceiver&&)cr, (Args&&)args...);
-    }
-};
-
-template<auto& CPO, typename ResultReceiver, typename CleanupReceiver, typename... Args>
-class stateful_set_result_operation_storage {
-    using op_t = unifex::callable_result_t<decltype(CPO), ResultReceiver, CleanupReceiver, Args...>;
-    UNIFEX_NO_UNIQUE_ADDRESS unifex::manual_lifetime<op_t> opStorage_;
-
-public:
-    using continuation_type = start_result_t<op_t>;
-
-    void destroy() noexcept {
-        opStorage_.destruct();
-    }
-
-    continuation_type start(ResultReceiver&& r, CleanupReceiver&& cr, Args&&... args)
-            noexcept(unifex::is_nothrow_callable_v<decltype(CPO), ResultReceiver, CleanupReceiver, Args...>) {
-        auto& op = opStorage_.construct_from([&]() -> op_t {
-            return CPO((ResultReceiver&&)r, (CleanupReceiver&&)cr, (Args&&)args...);
-        });
-
-        // TODO: Do we need to handle this start() call potentialy throwing?
-        return ::start(op);
-    }
-};
-
-template<auto& CPO, typename ResultReceiver, typename CleanupReceiver, typename... Args>
-using set_result_operation_storage_t =
-    std::conditional_t<
-        is_operation_state_v<
-            unifex::callable_result_t<decltype(CPO), ResultReceiver, CleanupReceiver, Args...>>,
-        stateful_set_result_operation_storage<CPO, ResultReceiver, CleanupReceiver, Args...>,
-        stateless_set_result_operation_storage<CPO, ResultReceiver, CleanupReceiver, Args...>>;
-
-template<auto& CPO, typename ResultReceiver, typename CleanupReceiver, typename... Args>
-struct set_result_operation_storage {
-    using type = set_result_operation_storage_t<CPO, ResultReceiver, CleanupReceiver, Args...>;
-};
-
-template<auto& CPO, typename ResultReceiver, typename CleanupReceiver, typename... Args>
-using set_result_continuation_t = decltype(
-    UNIFEX_DECLVAL(set_result_operation_storage_t<CPO, ResultReceiver, CleanupReceiver, Args...>&).start(
-        UNIFEX_DECLVAL(ResultReceiver),
-        UNIFEX_DECLVAL(CleanupReceiver),
-        UNIFEX_DECLVAL(Args)...));
-
-template<auto& CPO, typename ResultReceiver, typename CleanupReceiver, typename... Args>
-inline constexpr bool is_set_result_nothrow_v =
-    noexcept(UNIFEX_DECLVAL(set_result_operation_storage_t<CPO, ResultReceiver, CleanupReceiver, Args...>&).start(
-        UNIFEX_DECLVAL(ResultReceiver),
-        UNIFEX_DECLVAL(CleanupReceiver),
-        UNIFEX_DECLVAL(Args)...));
-
-template<auto& CPO, typename ResultReceiver, typename... Args>
-struct set_result_no_cleanup_operation_storage {
-    struct cleanup_receiver {
-        set_result_no_cleanup_operation_storage* op_;
-
-        template<typename CleanupDoneReceiver>
-        friend auto tag_invoke(
-            unifex::tag_t<::set_done>,
-            cleanup_receiver&& r,
-            CleanupDoneReceiver&& cr) noexcept
-            -> set_done_result_t<CleanupDoneReceiver, noop_cleanup_receiver> {
-            r.op_->resultOp_.destroy();
-            return ::set_done(std::move(cr), noop_cleanup_receiver{});
-        }
-
-        template<typename CleanupDoneReceiver, typename Error>
-        friend auto tag_invoke(
-            unifex::tag_t<::set_error>,
-            cleanup_receiver&& r,
-            CleanupDoneReceiver&& cr,
-            Error&& e) noexcept
-            -> set_error_result_t<CleanupDoneReceiver, noop_cleanup_receiver, Error> {
-            r.op_->resultOp_.destroy();
-            return ::set_error((CleanupDoneReceiver&&)cr, noop_cleanup_receiver{}, (Error&&)e);
-        }
-
-        template<typename CleanupDoneReceiver, typename ErrorFactory>
-        friend auto tag_invoke(
-            unifex::tag_t<::set_error_from>,
-            cleanup_receiver&& r,
-            CleanupDoneReceiver&& cr,
-            ErrorFactory&& ef) noexcept
-            -> set_error_from_result_t<CleanupDoneReceiver, noop_cleanup_receiver, ErrorFactory> {
-            r.op_->resultOp_.destroy();
-            return ::set_error_from((CleanupDoneReceiver&&)cr, noop_cleanup_receiver{}, (ErrorFactory&&)ef);
-        }
-    };
-
-    using storage_t = set_result_operation_storage_t<CPO, ResultReceiver, cleanup_receiver, Args...>;
-    storage_t resultOp_;
-
-public:
-    using continuation_type = typename storage_t::continuation_type;
-
-    auto start(ResultReceiver&& r, Args&&... args)
-        noexcept(is_set_result_nothrow_v<CPO, ResultReceiver, cleanup_receiver, Args...>)
-        -> continuation_type {
-        return resultOp_.start((ResultReceiver&&)r, cleanup_receiver{this}, (Args&&)args...);
-    }
+template<typename CPO, typename... Args>
+struct _sender_for {
+    class type;
 };
 
 template<typename CPO, typename... Args>
-class _sender_for {
+using sender_for = typename _sender_for<CPO, Args...>::type;
+
+
+template<typename CPO, typename... Args>
+class _sender_for<CPO, Args...>::type {
+    using sender_for = type;
 public:
     template<typename... Args2>
-    _sender_for(std::in_place_t, Args2&&... args)
+    type(std::in_place_t, Args2&&... args)
     : curriedArgs_(static_cast<Args2&&>(args)...)
     {}
 
@@ -563,10 +722,10 @@ public:
 
     template(typename... ExtraArgs)
         (requires
-            unifex::invocable<CPO, unifex::member_t<const _sender_for&, Args>..., ExtraArgs...>)
+            unifex::invocable<CPO, unifex::member_t<const sender_for&, Args>..., ExtraArgs...>)
     auto operator()(ExtraArgs&&... extraArgs) const &
-            noexcept(std::is_nothrow_invocable_v<CPO, unifex::member_t<const _sender_for&, Args>..., ExtraArgs...>)
-            -> std::invoke_result_t<CPO, unifex::member_t<const _sender_for&, Args>..., ExtraArgs...> {
+            noexcept(std::is_nothrow_invocable_v<CPO, unifex::member_t<const type&, Args>..., ExtraArgs...>)
+            -> std::invoke_result_t<CPO, unifex::member_t<const sender_for&, Args>..., ExtraArgs...> {
         return std::apply([&](Args&&... curriedArgs) {
             return CPO{}(
                 static_cast<Args&&>(curriedArgs)...,
@@ -576,27 +735,59 @@ public:
 
     template(typename Self, typename Receiver, typename... ExtraArgs)
         (requires
-            unifex::same_as<std::remove_cvref_t<Self>, _sender_for> AND
-            unifex::tag_invocable<decltype(::set_value), CPO, Receiver, unifex::member_t<Self, Args>..., ExtraArgs...>)
-    friend auto tag_invoke(unifex::tag_t<::set_value>, Self&& self, Receiver&& r, ExtraArgs&&... extraArgs)
-        noexcept(unifex::is_nothrow_tag_invocable_v<
-            unifex::tag_t<::set_value>,
+            unifex::same_as<unifex::remove_cvref_t<Self>, sender_for> AND
+            unifex::invocable<decltype(::connect), CPO, Receiver, unifex::member_t<Self, Args>..., ExtraArgs...>)
+    friend auto tag_invoke(unifex::tag_t<::connect>, Self&& self, Receiver&& r, ExtraArgs&&... extraArgs)
+        noexcept(unifex::is_nothrow_callable_v<
+            decltype(::connect),
             CPO,
-            Receiver&&,
+            Receiver,
             unifex::member_t<Self, Args>...,
             ExtraArgs...>)
-        -> unifex::tag_invoke_result_t<
-                unifex::tag_t<::set_value>,
+        -> unifex::callable_result_if_t<
+                unifex::same_as<unifex::remove_cvref_t<Self>, sender_for>,
+                decltype(::connect),
                 CPO,
-                Receiver&&,
+                Receiver,
                 unifex::member_t<Self, Args>...,
                 ExtraArgs...> {
-        return std::apply([&](unifex::member_t<Self, Args>&&... curriedArgs) {
-            return ::set_value(
+        return std::apply([&](unifex::member_t<Self, Args>... curriedArgs) -> decltype(auto) {
+            return ::connect(
                 CPO{},
                 static_cast<Receiver&&>(r), 
-                static_cast<unifex::member_t<Self, Args>&&>(curriedArgs)...,
+                static_cast<unifex::member_t<Self, Args>>(curriedArgs)...,
                 static_cast<ExtraArgs&&>(extraArgs)...);
+        }, static_cast<Self&&>(self).curriedArgs_);
+    }
+
+    template(typename Self, typename Receiver, typename... ExtraArgFactories)
+        (requires
+            unifex::same_as<std::remove_cvref_t<Self>, sender_for> AND
+            unifex::invocable<
+                decltype(::connect_from), CPO, Receiver,
+                value_factory<unifex::member_t<Self, Args>>...,
+                ExtraArgFactories...>)
+    friend auto tag_invoke(unifex::tag_t<::connect_from>, Self&& self, Receiver&& r, ExtraArgFactories&&... extraArgs)
+        noexcept(unifex::is_nothrow_callable_v<
+            decltype(::connect_from),
+            CPO,
+            Receiver,
+            value_factory<unifex::member_t<Self, Args>>...,
+            ExtraArgFactories...>)
+        -> unifex::callable_result_if_t<
+                unifex::same_as<unifex::remove_cvref_t<Self>, sender_for>,
+                decltype(::connect_from),
+                CPO,
+                Receiver,
+                value_factory<unifex::member_t<Self, Args>>...,
+                ExtraArgFactories...> {
+        return std::apply([&](unifex::member_t<Self, Args>... curriedArgs) -> decltype(auto) {
+            return ::connect_from(
+                CPO{},
+                static_cast<Receiver&&>(r), 
+                value_factory<unifex::member_t<Self, Args>>(
+                    static_cast<unifex::member_t<Self, Args>>(curriedArgs))...,
+                static_cast<ExtraArgFactories&&>(extraArgs)...);
         }, static_cast<Self&&>(self).curriedArgs_);
     }
 
@@ -622,42 +813,15 @@ struct _sender_cpo_base {
     auto operator()(Args&&... args) const
         noexcept(
             (std::is_nothrow_constructible_v<std::decay_t<Args>, Args> && ...))
-        -> _sender_for<Derived, std::decay_t<Args>...> {
-        return _sender_for<Derived, std::decay_t<Args>...>{
+        -> sender_for<Derived, std::decay_t<Args>...> {
+        return sender_for<Derived, std::decay_t<Args>...>{
             std::in_place, static_cast<Args&&>(args)...
         };
-    }
-
-    template(typename Receiver, typename Error)
-        (requires
-            unifex::invocable<decltype(::set_error), Receiver, noop_cleanup_receiver, Error>)
-    friend auto tag_invoke(unifex::tag_t<::set_error>, Derived, Receiver&& r, Error&& e)
-        noexcept(std::is_nothrow_invocable_v<decltype(::set_error), Receiver, noop_cleanup_receiver, Error>)
-        -> std::invoke_result_t<decltype(::set_error), Receiver, noop_cleanup_receiver, Error> {
-        return ::set_error((Receiver&&)r, noop_cleanup_receiver{}, (Error&&)e);
-    }
-
-    template(typename Receiver, typename ErrorFactory)
-        (requires
-            unifex::invocable<decltype(::set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory>)
-    friend auto tag_invoke(unifex::tag_t<::set_error_from>, Derived, Receiver&& r, ErrorFactory&& ef)
-        noexcept(std::is_nothrow_invocable_v<decltype(::set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory>)
-        -> std::invoke_result_t<decltype(::set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory> {
-        return ::set_error_from((Receiver&&)r, noop_cleanup_receiver{}, (ErrorFactory&&)ef);
-    }
-
-    template(typename Receiver)
-        (requires
-            unifex::invocable<decltype(::set_done), Receiver, noop_cleanup_receiver>)
-    friend auto tag_invoke(unifex::tag_t<::set_done>, Derived, Receiver&& r)
-        noexcept(std::is_nothrow_invocable_v<decltype(::set_done), Receiver, noop_cleanup_receiver>)
-        -> std::invoke_result_t<decltype(::set_done), Receiver, noop_cleanup_receiver> {
-        return ::set_done((Receiver&&)r, noop_cleanup_receiver{});
     }
 };
 
 ///////////////////////////////////////////////////////////////////////
-// just()
+// just(values...)
 //
 // Equivalent of the following coroutines-v2 function:
 //
@@ -665,26 +829,308 @@ struct _sender_cpo_base {
 //   co_return...{ std::move(values), ... };
 // }
 
+template<typename Continuation>
+struct _just_op {
+    class type;
+};
+
+template<typename Continuation>
+using just_op = typename _just_op<Continuation>::type;
+
+
+template<typename Continuation>
+class _just_op<Continuation>::type {
+    using just_op = type;
+public:
+    explicit type(Continuation continuation) noexcept
+    : continuation_(continuation)
+    , started_(false)
+    {}
+
+    type(const type&) = delete;
+    type(type&&) = delete;
+    type& operator=(const type&) = delete;
+    type& operator=(type&&) = delete;
+
+    ~type() {
+        if (!started_) {
+            continuation_.destroy();
+        }
+    }
+
+private:
+
+    friend Continuation tag_invoke(
+        unifex::tag_t<::start>,
+        just_op& op) noexcept {
+        assert(!op.started_);
+        op.started_ = true;
+        return op.continuation_;
+    }
+
+    // Implement stateless_operation_state interface (rvalue start())
+    friend Continuation tag_invoke(
+        unifex::tag_t<::start>,
+        just_op&& op) noexcept {
+        assert(!op.started_);
+        op.started_ = true;
+        return op.continuation_;
+    }
+
+    Continuation continuation_;
+    bool started_;
+};
+
 struct _just_fn : _sender_cpo_base<_just_fn> {
     template(typename Receiver, typename... Values)
         (requires
-            unifex::invocable<decltype(set_value), Receiver, noop_cleanup_receiver, Values...>)
-    friend auto tag_invoke(unifex::tag_t<set_value>, _just_fn, Receiver&& r, Values&&... values)
+            unifex::invocable<decltype(::set_value), Receiver, noop_cleanup_receiver, Values...>)
+    friend auto tag_invoke(unifex::tag_t<::connect>, _just_fn, Receiver&& r, Values&&... values)
         noexcept(std::is_nothrow_invocable_v<decltype(set_value), Receiver, noop_cleanup_receiver, Values...>)
-        -> std::invoke_result_t<decltype(set_value), Receiver, noop_cleanup_receiver, Values...> {
-        return ::set_value(
-            static_cast<Receiver&&>(r),
-            noop_cleanup_receiver{},
-            static_cast<Values&&>(values)...);
+        -> just_op<
+            unifex::callable_result_t<decltype(::set_value), Receiver, noop_cleanup_receiver, Values...>> {
+        return just_op<
+                unifex::callable_result_t<decltype(::set_value), Receiver, noop_cleanup_receiver, Values...>>{
+            ::set_value(
+                static_cast<Receiver&&>(r),
+                noop_cleanup_receiver{},
+                static_cast<Values&&>(values)...)};
+    }
+
+    template(typename Receiver, typename... ValueFactories)
+        (requires
+            unifex::invocable<decltype(::set_value_from), Receiver, noop_cleanup_receiver, ValueFactories...>)
+    friend auto tag_invoke(unifex::tag_t<::connect_from>, _just_fn, Receiver&& r, ValueFactories&&... valueFactories)
+        noexcept(std::is_nothrow_invocable_v<decltype(set_value_from), Receiver, noop_cleanup_receiver, ValueFactories...>)
+        -> just_op<unifex::callable_result_t<decltype(::set_value_from), Receiver, noop_cleanup_receiver, ValueFactories...>> {
+        return just_op<unifex::callable_result_t<decltype(::set_value_from), Receiver, noop_cleanup_receiver, ValueFactories...>>{
+            ::set_value_from(
+                static_cast<Receiver&&>(r),
+                noop_cleanup_receiver{},
+                static_cast<ValueFactories&&>(valueFactories)...)};
     }
 };
 
 inline constexpr _just_fn just{};
 
-#include <unifex/detail/epilogue.hpp>
+/////////////////////////////////////////////////////////////////////
+// just_done()
+
+struct _just_done_fn : _sender_cpo_base<_just_done_fn> {
+    // template<typename Receiver>
+    // using invoke_results = overload_set<
+    //     overload_t<::set_done, noop_cleanup_receiver>>;
+
+    template(typename Receiver)
+        (requires
+            unifex::invocable<decltype(::set_done), Receiver, noop_cleanup_receiver>)
+    friend auto tag_invoke(unifex::tag_t<::connect>, _just_done_fn, Receiver&& r)
+        noexcept(std::is_nothrow_invocable_v<decltype(set_done), Receiver, noop_cleanup_receiver>)
+        -> just_op<std::invoke_result_t<decltype(set_done), Receiver, noop_cleanup_receiver>> {
+        return just_op<std::invoke_result_t<decltype(set_done), Receiver, noop_cleanup_receiver>>{
+            ::set_done(
+                static_cast<Receiver&&>(r),
+                noop_cleanup_receiver{})};
+    }
+};
+
+inline constexpr _just_done_fn just_done{};
+
+///////////////////////////////////////////////////////////////////
+// just_error(e)
+
+
+struct _just_error_fn : _sender_cpo_base<_just_error_fn> {
+    // template<typename Receiver, typename Error>
+    // using invoke_results = overload_set<
+    //     overload_t<::set_error, noop_cleanup_receiver, Error>>;
+
+    template(typename Receiver, typename Error)
+        (requires
+            unifex::invocable<decltype(::set_error), Receiver, noop_cleanup_receiver, Error>)
+    friend auto tag_invoke(unifex::tag_t<::connect>, _just_error_fn, Receiver&& r, Error&& error)
+        noexcept(std::is_nothrow_invocable_v<decltype(set_error), Receiver, noop_cleanup_receiver, Error>)
+        -> just_op<std::invoke_result_t<decltype(set_error), Receiver, noop_cleanup_receiver, Error>> {
+        return just_op<std::invoke_result_t<decltype(set_error), Receiver, noop_cleanup_receiver, Error>>{
+            ::set_error(
+                static_cast<Receiver&&>(r),
+                noop_cleanup_receiver{},
+                static_cast<Error&&>(error))};
+    }
+
+    template(typename Receiver, typename ErrorFactory)
+        (requires
+            unifex::invocable<decltype(::set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory>)
+    friend auto tag_invoke(unifex::tag_t<::connect_from>, _just_error_fn, Receiver&& r, ErrorFactory&& errorFactory)
+        noexcept(std::is_nothrow_invocable_v<decltype(set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory>)
+        -> just_op<std::invoke_result_t<decltype(set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory>> {
+        return just_op<std::invoke_result_t<decltype(set_error_from), Receiver, noop_cleanup_receiver, ErrorFactory>>{
+            ::set_error_from(
+                static_cast<Receiver&&>(r),
+                noop_cleanup_receiver{},
+                static_cast<ErrorFactory&&>(errorFactory))};
+    }
+};
+
+inline constexpr _just_error_fn just_error{};
 
 ////////////////////////////////////////////////////////////
 // async_cleanup_scope
+
+namespace _async_cleanup_scope {
+
+template<typename Source, typename Receiver>
+struct _op {
+    class type;
+};
+
+template<typename Source, typename Receiver>
+using async_cleanup_scope_op = typename _op<Source, Receiver>::type;
+
+template<typename Source, typename Receiver>
+struct _cleanup_done_receiver {
+    struct type {
+        template(typename SetError, typename Error)
+            (requires
+                is_set_error_cpo_v<SetError> AND
+                unifex::invocable<SetError, Receiver, noop_cleanup_receiver, Error>)
+        friend auto tag_invoke(
+            SetError setError, type&& r, noop_cleanup_receiver, Error&& error) noexcept
+            -> unifex::callable_result_t<SetError, Receiver, noop_cleanup_receiver, Error> {
+            r.op_->continuation_.destroy();
+            return setError(std::move(r.op_->receiver_), noop_cleanup_receiver{}, (Error&&)error);
+        }
+
+        friend unifex::any_continuation_handle tag_invoke(
+            unifex::tag_t<::set_done>,
+            type&& r,
+            noop_cleanup_receiver) noexcept {
+            return r.op_->continuation_;
+        }
+
+        async_cleanup_scope_op<Source, Receiver>* op_;
+    };
+};
+
+template<typename Source, typename Receiver>
+using cleanup_done_receiver = typename _cleanup_done_receiver<Source, Receiver>::type;
+
+
+template<typename Source, typename Receiver>
+struct _error_cleanup_done_receiver {
+    struct type {
+        template(typename SetError, typename Error)
+            (requires
+                is_set_error_cpo_v<SetError> AND
+                unifex::invocable<SetError, Receiver, noop_cleanup_receiver, Error>)
+        friend unifex::noop_continuation_handle tag_invoke(
+            SetError setError, type&&, noop_cleanup_receiver, Error&& error) noexcept {
+            // Error thrown during unwind while an existing error was in-flight.
+            std::terminate();
+        }
+
+        friend unifex::any_continuation_handle tag_invoke(
+            unifex::tag_t<::set_done>,
+            type&& r,
+            noop_cleanup_receiver) noexcept {
+            return r.op_->continuation_;
+        }
+
+        async_cleanup_scope_op<Source, Receiver>* op_;
+    };
+};
+
+template<typename Source, typename Receiver>
+using error_cleanup_done_receiver = typename _error_cleanup_done_receiver<Source, Receiver>::type;
+
+template<typename Source, typename Receiver>
+struct _source_receiver {
+    struct type {
+        async_cleanup_scope_op<Source, Receiver>* op_;
+
+        template(typename SetResult, typename CleanupReceiver, typename... Args)
+            (requires true
+                //(is_set_value_cpo_v<SetResult> || is_set_done_cpo_v<SetResult>)
+                //AND
+                //unifex::invocable<SetResult, Receiver, noop_cleanup_receiver, Args...>
+                )
+        friend auto tag_invoke(
+            SetResult setResult,
+            type&& r,
+            CleanupReceiver&& cr,
+            Args&&... args)
+                noexcept(unifex::is_nothrow_callable_v<SetResult, Receiver, noop_cleanup_receiver, Args...>)
+                -> unifex::callable_result_t<decltype(::set_done), CleanupReceiver, cleanup_done_receiver<Source, Receiver>> {
+            // TODO: Avoid the need to type-erase the continuation as an any_continuation_handle
+            // here by enumerating all of the possible completions and creating a manual_lifetime_union
+            // of them all instead of the current contination_ member.
+            r.op_->continuation_ = setResult(std::move(r.op_->receiver_), noop_cleanup_receiver{}, (Args&&)args...);
+            return ::set_done((CleanupReceiver&&)cr, cleanup_done_receiver<Source, Receiver>{r.op_});
+        }
+
+        template(typename SetError, typename CleanupReceiver, typename... Args)
+            (requires true
+                //is_set_error_cpo_v<SetError>
+                //AND
+                //unifex::invocable<SetError, Receiver, noop_cleanup_receiver, Args...>
+                )
+        friend auto tag_invoke(
+            SetError setError,
+            type&& r,
+            CleanupReceiver&& cr,
+            Args&&... args)
+                noexcept(unifex::is_nothrow_callable_v<SetError, Receiver, noop_cleanup_receiver, Args...>) 
+                -> unifex::callable_result_t<decltype(::set_done), CleanupReceiver, error_cleanup_done_receiver<Source, Receiver>> {
+            r.op_->continuation_ = setError(std::move(r.op_->receiver_), noop_cleanup_receiver{}, (Args&&)args...);
+            return ::set_done((CleanupReceiver&&)cr, error_cleanup_done_receiver<Source, Receiver>{r.op_});
+        }
+    };
+};
+
+template<typename Source, typename Receiver>
+using source_receiver = typename _source_receiver<Source, Receiver>::type;
+
+template<typename Source, typename Receiver>
+class _op<Source, Receiver>::type {
+    using async_cleanup_scope_op = type;
+public:
+    template<typename Receiver2>
+    explicit type(Source&& source, Receiver2&& receiver)
+    : receiver_((Receiver2&&)receiver)
+    , sourceOp_(::connect((Source&&)source, source_receiver<Source, Receiver>{this}))
+    {}
+
+    friend auto tag_invoke(
+        unifex::tag_t<::start>,
+        async_cleanup_scope_op& op) noexcept {
+        return ::start(op.sourceOp_);
+    }
+    
+    Receiver receiver_;
+    unifex::any_continuation_handle continuation_;
+    connect_result_t<Source, source_receiver<Source, Receiver>> sourceOp_;
+};
+
+struct _fn : _sender_cpo_base<_fn> {
+    template(typename Receiver, typename Source)
+        (requires
+            unifex::invocable<decltype(::connect), Source, source_receiver<Source, unifex::remove_cvref_t<Receiver>>>)
+    friend auto tag_invoke(
+        unifex::tag_t<::connect>,
+        _fn,
+        Receiver&& receiver,
+        Source&& source) noexcept {
+        return async_cleanup_scope_op<Source, unifex::remove_cvref_t<Receiver>>{
+            (Source&&)source,
+            (Receiver&&)receiver};
+    }
+};
+
+} // namespace _async_cleanup_scope
+
+inline constexpr _async_cleanup_scope::_fn async_cleanup_scope{};
+
+#include <unifex/detail/epilogue.hpp>
 
 struct suspend_on_cleanup_done {
     friend auto tag_invoke(
@@ -698,114 +1144,45 @@ struct suspend_on_cleanup_done {
 template<typename... Values>
 void output(const Values&... values) {}
 
-template<typename F>
-struct _invoke_on_conversion {
-    F f_;
-
-    operator unifex::callable_result_t<const F&>() const & {
-        return f_();
-    }
-    operator unifex::callable_result_t<F&>() & {
-        return f_();
-    }
-    operator unifex::callable_result_t<const F&&>() const && {
-        return static_cast<const F&&>(f_)();
-    }
-    operator unifex::callable_result_t<F&&>() && {
-        return static_cast<F&&>(f_)();
-    }
-};
-
-template<typename F>
-_invoke_on_conversion(F&&) -> _invoke_on_conversion<F&&>;
-
 struct simple_receiver {
     template<typename CleanupReceiver, typename... Values>
-    struct process_value_op {
-        std::tuple<Values...> values;
-        CleanupReceiver cr;
-
-        friend auto tag_invoke(
-                unifex::tag_t<::start>,
-                process_value_op& self) noexcept {
-            try {
-                std::printf("got values:\n");
-                std::apply([](auto&&... values) {
-                    (void)((std::printf("- %i\n", values), false) || ...);
-                }, self.values);
-            } catch (...) {
-                std::printf("error: error processing values.\n");
-            }
-
-            // Finished processing the values, start cleanup
-            return ::set_done(std::move(self.cr), suspend_on_cleanup_done{});
-        }
-    };
-
-    template<typename CleanupReceiver, typename... ValueFactories>
-    friend process_value_op<std::remove_cvref_t<CleanupReceiver>, unifex::callable_result_t<ValueFactories&>...> tag_invoke(
-        unifex::tag_t<::set_value_from>,
-        simple_receiver&& r,
-        CleanupReceiver&& cr,
-        ValueFactories&&... values) {
-        return process_value_op<std::remove_cvref_t<CleanupReceiver>, unifex::callable_result_t<ValueFactories>...>{
-            { _invoke_on_conversion{values}... },
-            (CleanupReceiver&&)cr
-        };
-    }
-
-    template<typename CleanupReceiver>
-    struct process_error_op {
-        std::exception_ptr ex;
-        CleanupReceiver r;
-
-        friend auto tag_invoke(
-            unifex::tag_t<::start>,
-            process_error_op& self) noexcept {
-            std::printf("error: unknown\n");
-            return ::set_done(std::move(self.r), suspend_on_cleanup_done{});
-        }
-    };
-
-    template<typename CleanupReceiver, typename... Values>
     friend auto tag_invoke(
-        unifex::tag_t<::set_error>,
+        unifex::tag_t<::set_value>,
         simple_receiver&& r,
         CleanupReceiver&& cr,
-        std::exception_ptr eptr) noexcept {
-        return process_error_op<CleanupReceiver>{std::move(eptr), std::move(cr)};
+        Values&&... values) {
+        std::printf("set_value(");
+        (void)((std::printf("%i, ", values), 0) || ...);
+        std::printf(")\n");
+        return unifex::noop_continuation;
     }
 };
 
-static void algorithm_as_a_receiver() {
-    auto op = ::set_value(just, simple_receiver{}, 42, 13, 99);
+static void algorithm_as_a_sender() {
+    auto op = ::connect(just, simple_receiver{}, 42, 13, 99);
     unifex::run_continuation(::start(op));
 }
 
 static void algorithm_as_a_sender_factory() {
     auto s = just(5, 6, 7);
-    auto op = ::set_value(s, simple_receiver{});
-    unifex::run_continuation(::start(op));
-}
-
-static void senders_as_argument_curriers() {
-    auto s = just(5, 6, 7);
-    auto op = ::set_value(s, simple_receiver{}, 8, 9, 10);
-    unifex::run_continuation(::start(op));
-}
-
-// Note that 'connect()' is now just spelled 'set_value()'
-inline constexpr auto connect = set_value;
-
-static void legacy_sender_api() {
-    auto s = just(5, 6, 7);
     auto op = ::connect(s, simple_receiver{});
     unifex::run_continuation(::start(op));
 }
 
+static void senders_as_argument_curriers() {
+    auto s = just(1, 2, 3);
+    auto op = ::connect(s, simple_receiver{}, 8, 9, 10);
+    unifex::run_continuation(::start(op));
+}
+
+static void async_cleanup_scope_test() {
+    auto s = async_cleanup_scope(just(1, 2, 3));
+    auto op = ::connect(s, simple_receiver{});
+}
+
 int main() {
-    algorithm_as_a_receiver();
+    algorithm_as_a_sender();
     algorithm_as_a_sender_factory();
     senders_as_argument_curriers();
-    legacy_sender_api();
+    return 0;
 }
