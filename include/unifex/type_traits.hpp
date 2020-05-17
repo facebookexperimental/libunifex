@@ -211,6 +211,26 @@ inline constexpr bool is_nothrow_callable_v =
 template <typename Fn, typename... As>
 struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
+template <bool Condition, typename Fn, typename... As>
+struct _callable_result_if {
+  using type = callable_result_t<Fn, As...>;
+};
+
+template <typename Fn, typename... As>
+struct _callable_result_if<false, Fn, As...> {};
+
+template <typename Fn, typename... As>
+struct callable_result : _callable_result_if<is_callable_v<Fn, As...>, Fn, As...> {};
+
+template <bool Condition, typename Fn, typename... As>
+struct callable_result_if : callable_result<Fn, As...> {};
+
+template <typename Fn, typename... As>
+struct callable_result_if<false, Fn, As...> {};
+
+template <bool Condition, typename Fn, typename... As>
+using callable_result_if_t = typename callable_result_if<Condition, Fn, As...>::type;
+
 template <typename T>
 struct type_always {
   template <typename...>
