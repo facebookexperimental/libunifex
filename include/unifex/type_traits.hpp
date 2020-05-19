@@ -131,8 +131,8 @@ Member Self::*_memptr(const Self&);
 
 template <typename Self, typename Member>
 using member_t = decltype(
-    (UNIFEX_DECLVAL(Self) .*
-        unifex::_memptr<Member>(UNIFEX_DECLVAL(Self))));
+    (UNIFEX_DECLVAL(Self&&) .*
+        unifex::_memptr<Member>(UNIFEX_DECLVAL(Self&&))));
 
 template <typename T>
 using decay_rvalue_t =
@@ -158,7 +158,7 @@ inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =
-    decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(As)...));
+    decltype(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...));
 
 namespace _is_callable {
   struct yes_type { char dummy; };
@@ -170,7 +170,7 @@ namespace _is_callable {
       typename... As,
       typename = callable_result_t<Fn, As...>>
   yes_type _try_call(Fn(*)(As...))
-      noexcept(noexcept(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(As)...)));
+      noexcept(noexcept(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...)));
   no_type _try_call(...) noexcept(false);
 } // namespace _is_callable
 
