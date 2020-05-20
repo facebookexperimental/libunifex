@@ -416,14 +416,17 @@ namespace unifex
               is_nothrow_callable_v<
                   _fn,
                   callable_result_t<_fn, First, Second>,
+                  Third,
                   Rest...>)
           -> callable_result_t<
               _fn,
               callable_result_t<_fn, First, Second>,
+              Third,
               Rest...> {
         // Fall-back to pair-wise invocation of the sequence() CPO.
         return (*this)(
             (*this)(static_cast<First&&>(first), static_cast<Second&&>(second)),
+            static_cast<Third&&>(third),
             static_cast<Rest&&>(rest)...);
       }
     } sequence{};
