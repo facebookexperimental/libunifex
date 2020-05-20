@@ -11,7 +11,8 @@ include(CheckSymbolExists)
 
 # Probe for coroutine TS support
 find_package(Coroutines COMPONENTS Experimental Final)
-if(CXX_COROUTINES_HAVE_COROUTINES)
+# MSVC's coroutines support is too broken to support here, sadly.
+if(CXX_COROUTINES_HAVE_COROUTINES AND NOT UNIFEX_CXX_COMPILER_MSVC)
   set(UNIFEX_NO_COROUTINES FALSE)
   set(UNIFEX_COROUTINES_HEADER ${CXX_COROUTINES_HEADER})
   set(UNIFEX_COROUTINES_NAMESPACE ${CXX_COROUTINES_NAMESPACE})

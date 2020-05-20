@@ -186,6 +186,7 @@ namespace unifex
 
       template(typename Self, typename Receiver)
           (requires same_as<remove_cvref_t<Self>, type> AND
+            receiver<Receiver> AND
             sender_to<member_t<Self, Source>, receiver_t<Receiver>>)
       friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
           is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&

@@ -84,6 +84,7 @@ class _sender<Values...>::type {
 
   template(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, type> AND
+        receiver<Receiver> AND
         constructible_from<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
       noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)

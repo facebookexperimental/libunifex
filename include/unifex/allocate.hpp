@@ -92,7 +92,8 @@ namespace _alloc {
     template <template <typename...> class Variant>
     using error_types = typename Sender::template error_types<Variant>;
 
-    template <typename Receiver>
+    template(typename Receiver)
+      (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, sender&& s, Receiver&& r)
         -> operation<
             connect_result_t<Sender, Receiver>,
@@ -103,7 +104,8 @@ namespace _alloc {
           (Sender &&) s.sender_, (Receiver &&) r};
     }
 
-    template <typename Receiver>
+    template(typename Receiver)
+      (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, sender& s, Receiver&& r)
         -> operation<
             connect_result_t<Sender&, Receiver>,
@@ -114,7 +116,8 @@ namespace _alloc {
           s.sender_, (Receiver &&) r};
     }
 
-    template <typename Receiver>
+    template(typename Receiver)
+      (requires receiver<Receiver>)
     friend auto
     tag_invoke(tag_t<connect>, const sender& s, Receiver&& r)
         -> operation<
