@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/tag_invoke.hpp>
+#include <unifex/sender_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/with_query_value.hpp>
 #include <unifex/sequence.hpp>
@@ -28,15 +29,18 @@ namespace unifex {
 namespace _on {
   inline const struct _fn {
     template(typename Sender, typename Scheduler)
-        (requires tag_invocable<_fn, Sender, Scheduler>)
+        (requires sender<Sender> AND scheduler<Scheduler> AND //
+          tag_invocable<_fn, Sender, Scheduler>)
     auto operator()(Sender&& sender, Scheduler&& scheduler) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>) {
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>)
+        -> tag_invoke_result_t<_fn, Sender, Scheduler> {
       return unifex::tag_invoke(
           _fn{}, (Sender &&) sender, (Scheduler &&) scheduler);
     }
 
     template(typename Sender, typename Scheduler)
-        (requires (!tag_invocable<_fn, Sender, Scheduler>))
+        (requires sender<Sender> AND scheduler<Scheduler> AND //
+          (!tag_invocable<_fn, Sender, Scheduler>))
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
       return with_query_value(
           sequence(schedule(), (Sender&&)sender),
