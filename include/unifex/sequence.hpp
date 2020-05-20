@@ -399,12 +399,13 @@ namespace unifex
         (requires sender<First> AND sender<Second> AND sender<Third> AND
           (sender<Rest> &&...) AND tag_invocable<_fn, First, Second, Third, Rest...>)
       auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, First, Second, Rest...>)
-          -> tag_invoke_result_t<_fn, First, Second, Rest...> {
+          noexcept(is_nothrow_tag_invocable_v<_fn, First, Second, Third, Rest...>)
+          -> tag_invoke_result_t<_fn, First, Second, Third, Rest...> {
         return unifex::tag_invoke(
             _fn{},
             static_cast<First&&>(first),
             static_cast<Second&&>(second),
+            static_cast<Third&&>(third),
             static_cast<Rest&&>(rest)...);
       }
 
