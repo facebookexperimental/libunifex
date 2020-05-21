@@ -83,7 +83,7 @@
 //    }
 // };
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
   typename NAME, \
   std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0

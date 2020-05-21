@@ -168,6 +168,15 @@ jobs:
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
           }
+        - {
+            name: "Windows ClangCl 2019 Optimised (C++20)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-latest,
+            build_type: RelWithDebInfo,
+            cc: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/bin/clang-cl.exe",
+            cxx: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Tools/Llvm/bin/clang-cl.exe",
+            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
+          }
 
     steps:
     - uses: actions/checkout@v1
