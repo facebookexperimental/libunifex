@@ -73,9 +73,10 @@ namespace _subschedule {
     auto operator()(Scheduler&& sched) const
         -> _result_t<Scheduler> {
       auto&& scheduleOp = schedule(sched);
-      return transform(
+      return _result_t<Scheduler>{
         static_cast<decltype(scheduleOp)>(scheduleOp),
-        _return_value<Scheduler>{(Scheduler &&) sched});
+        {(Scheduler &&) sched}
+      };
     }
   } schedule_with_subscheduler{};
 } // namespace _subschedule

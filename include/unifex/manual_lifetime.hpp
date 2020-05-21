@@ -86,7 +86,7 @@ class manual_lifetime<T&> {
   T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&>);
     value_ = std::addressof(((Func &&) func)());
-    return value_;
+    return get();
   }
 
   void destruct() noexcept {}
@@ -114,7 +114,7 @@ class manual_lifetime<T&&> {
   T&& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
     value_ = std::addressof(((Func &&) func)());
-    return (T &&) value_;
+    return get();
   }
 
   void destruct() noexcept {}

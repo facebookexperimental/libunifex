@@ -270,7 +270,7 @@ private:
   friend source_receiver_t;
 
   template <typename Source2, typename Func2, typename Receiver2, typename Trigger>
-  friend class _trigger_receiver;
+  friend struct _trigger_receiver;
 
   using source_op_t = connect_result_t<Source&, source_receiver_t>;
 
