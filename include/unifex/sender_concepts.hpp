@@ -43,7 +43,7 @@ namespace detail {
   template <template <template <typename...> class> class>
   struct _has_error_types;
 
-  template <typename, typename>
+  template <typename F, typename S>
   struct _as_receiver;
 
   template <typename R, typename E>
@@ -323,7 +323,7 @@ using is_nothrow_connectable = is_nothrow_callable<decltype(connect), Sender, Re
 namespace detail {
   template <typename S, typename F, typename>
   inline constexpr bool _can_submit =
-    sender_to<S, _as_receiver<remove_cvref_t<F>, S>>;
+      sender_to<S, _as_receiver<remove_cvref_t<F>, S>>;
 #if UNIFEX_CXX_CONCEPTS
   template <typename S1, typename R, typename S2>
     requires same_as<remove_cvref_t<S1>, remove_cvref_t<S2>>

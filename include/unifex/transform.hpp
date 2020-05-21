@@ -124,7 +124,6 @@ using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>>
 
 template <typename Predecessor, typename Func>
 struct _sender<Predecessor, Func>::type {
-  using sender = type;
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
@@ -155,12 +154,12 @@ public:
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, Func>;
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const sender& sender) {
+  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
     return blocking(sender.pred_);
   }
 
   template(typename Sender, typename Receiver)
-    (requires same_as<remove_cvref_t<Sender>, type>)
+    (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&

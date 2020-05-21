@@ -45,7 +45,7 @@ struct int_iterator {
   using iterator_category = std::random_access_iterator_tag;
 
   int operator[](size_t offset) const {
-    return base_+offset;
+    return base_ + static_cast<int>(offset);
   }
 
   int operator*() const {

@@ -104,7 +104,8 @@ private:
     template <typename Receiver>
     using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-    template <typename Receiver>
+    template(typename Receiver)
+      (requires receiver<Receiver>)
     friend operation<Receiver>
     tag_invoke(tag_t<connect>, lock_sender &&s, Receiver &&r) noexcept {
       return operation<Receiver>{s.mutex_, (Receiver &&) r};

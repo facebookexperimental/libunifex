@@ -159,7 +159,6 @@ jobs:
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
-            experimental: true
           }
         - {
             name: "Windows MSVC 2019 Optimised (C++20)", artifact: "Windows-MSVC.tar.xz",
@@ -168,7 +167,6 @@ jobs:
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
-            experimental: true
           }
 
     steps:
@@ -237,7 +235,7 @@ jobs:
             COMMAND "${{ matrix.config.environment_script }}" && set
             OUTPUT_FILE environment_script_output.txt
           )
-          set(ENV{CXXFLAGS} "/permissive-")
+          set(ENV{CXXFLAGS} "/permissive- /Zc:externConstexpr")
           file(STRINGS environment_script_output.txt output_lines)
           foreach(line IN LISTS output_lines)
             if (line MATCHES "^([a-zA-Z0-9_-]+)=(.*)$")

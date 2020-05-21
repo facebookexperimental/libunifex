@@ -24,7 +24,7 @@ namespace unifex {
     template <typename E, typename R, typename = void>
     extern const bool _can_execute;
 
-    template <typename Sender, typename Fn, typename = void>
+    template <typename S, typename F, typename = void>
     extern const bool _can_submit;
   } // detail
 

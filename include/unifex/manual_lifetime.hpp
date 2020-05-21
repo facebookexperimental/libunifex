@@ -40,7 +40,7 @@ class manual_lifetime {
   }
 
   template <typename Func>
-  T& construct_from(Func&& func) noexcept(noexcept(T(((Func &&) func)()))) {
+  T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(
         std::is_same_v<callable_result_t<Func>, T>,
         "Return type of func() must be exactly T to permit copy-elision.");
@@ -83,10 +83,10 @@ class manual_lifetime<T&> {
   }
 
   template <typename Func>
-  T& construct_from(Func&& func) noexcept(noexcept(((Func &&) func)())) {
+  T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&>);
     value_ = std::addressof(((Func &&) func)());
-    return value_;
+    return get();
   }
 
   void destruct() noexcept {}
@@ -111,10 +111,10 @@ class manual_lifetime<T&&> {
   }
 
   template <typename Func>
-  T&& construct_from(Func&& func) noexcept(noexcept(((Func &&) func)())) {
+  T&& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
     value_ = std::addressof(((Func &&) func)());
-    return (T &&) value_;
+    return get();
   }
 
   void destruct() noexcept {}
@@ -135,7 +135,7 @@ class manual_lifetime<void> {
 
   void construct() noexcept {}
   template <typename Func>
-  void construct_from(Func&& func) noexcept(noexcept(((Func &&) func)())) {
+  void construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_void_v<callable_result_t<Func>>);
     ((Func &&) func)();
   }

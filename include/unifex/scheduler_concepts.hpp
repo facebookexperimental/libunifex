@@ -178,11 +178,12 @@ struct _schedule::sender {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  template <
+  template(
     typename Receiver,
     typename Scheduler =
       std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
-    typename ScheduleSender = callable_result_t<decltype(schedule), Scheduler&>>
+    typename ScheduleSender = callable_result_t<decltype(schedule), Scheduler&>)
+    (requires receiver<Receiver>)
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
       -> connect_result_t<ScheduleSender, Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
@@ -253,12 +254,13 @@ namespace _schedule_after {
   private:
     friend _fn;
 
-    template <
+    template(
       typename Receiver,
       typename Scheduler =
         std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
       typename ScheduleAfterSender =
-        callable_result_t<_fn, Scheduler&, const Duration&>>
+        callable_result_t<_fn, Scheduler&, const Duration&>)
+      (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
         -> connect_result_t<ScheduleAfterSender, Receiver> {
       auto scheduler = get_scheduler(std::as_const(r));

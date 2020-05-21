@@ -28,10 +28,10 @@
 namespace unifex {
 /// \cond
 namespace detail {
-  template <typename, typename>
+  template <typename R, typename E>
   struct _as_invocable;
 
-  template <typename F, typename>
+  template <typename F, typename S>
   struct _as_receiver {
     F f_;
     void set_value() noexcept(is_nothrow_callable_v<F&>) {

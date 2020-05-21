@@ -270,7 +270,7 @@ private:
   friend source_receiver_t;
 
   template <typename Source2, typename Func2, typename Receiver2, typename Trigger>
-  friend class _trigger_receiver;
+  friend struct _trigger_receiver;
 
   using source_op_t = connect_result_t<Source&, source_receiver_t>;
 
@@ -339,6 +339,7 @@ public:
 
   template(typename Self, typename Receiver)
       (requires same_as<remove_cvref_t<Self>, type> AND
+          receiver<Receiver> AND
           constructible_from<Source, member_t<Self, Source>> AND
           constructible_from<Func, member_t<Self, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND

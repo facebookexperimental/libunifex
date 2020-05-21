@@ -83,7 +83,7 @@ namespace _static_thread_pool {
   }
 
   void context::enqueue(task_base* task) noexcept {
-    const std::uint32_t threadCount = threads_.size();
+    const std::uint32_t threadCount = static_cast<std::uint32_t>(threads_.size());
     const std::uint32_t startIndex =
         nextThread_.fetch_add(1, std::memory_order_relaxed) % threadCount;
 

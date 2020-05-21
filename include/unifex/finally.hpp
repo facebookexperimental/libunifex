@@ -664,6 +664,7 @@ namespace unifex
         (requires
           same_as<CPO, tag_t<connect>> AND
           same_as<remove_cvref_t<S>, sender> AND
+          receiver<Receiver> AND
           sender_to<
             member_t<S, SourceSender>,
             receiver_t<
