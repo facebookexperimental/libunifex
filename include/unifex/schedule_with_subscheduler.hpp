@@ -51,10 +51,9 @@ namespace _subschedule {
       typename _detail::_return_value<remove_cvref_t<T>>::type;
 
     template <typename Scheduler>
-    using _default_result_t =
-      decltype(transform(
-        UNIFEX_DECLVAL(callable_result_t<decltype(schedule), Scheduler&>),
-        UNIFEX_DECLVAL(_return_value<Scheduler>)));
+    using _default_result_t = _tfx::sender<
+        callable_result_t<decltype(schedule), Scheduler&>,
+        _return_value<Scheduler>>;
     template <typename Scheduler>
     using _result_t =
       typename conditional_t<
