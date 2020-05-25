@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-present Facebook, Inc.
+ * Copyright 2020-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,6 @@
 #include <cassert>
 #include <cstdio>
 
-// #define TP_LOG(X) std::puts(X)
-#define TP_LOG(X)
-
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -44,13 +41,21 @@ namespace win32 {
 class windows_thread_pool {
     class scheduler;
     class schedule_sender;
-    
+    class schedule_op_base;
     template<typename Receiver>
     struct _schedule_op {
         class type;
     };
     template<typename Receiver>
     using schedule_op = typename _schedule_op<Receiver>::type;
+
+
+    template<typename StopToken>
+    struct _cancellable_schedule_op_base {
+        class type;
+    };
+    template<typename StopToken>
+    using cancellable_schedule_op_base = typename _cancellable_schedule_op_base<StopToken>::type;
 
     template<typename Receiver>
     struct _cancellable_schedule_op {
@@ -60,15 +65,15 @@ class windows_thread_pool {
     using cancellable_schedule_op = typename _cancellable_schedule_op<Receiver>::type;
 
 public:
-    windows_thread_pool() {
-        threadPool_ = nullptr; // use default thread-pool
-    }
 
-    ~windows_thread_pool() {
-        if (threadPool_ != nullptr) {
-            ::CloseThreadpool(threadPool_);
-        }
-    }
+    // Initialise to use the process' default thread-pool.
+    windows_thread_pool() noexcept;
+
+    // Construct to an independend thread-pool with a dynamic number of
+    // threads that varies between a min and a max number of threads.
+    explicit windows_thread_pool(std::uint32_t minThreadCount, std::uint32_t maxThreadCount);
+
+    ~windows_thread_pool();
 
     scheduler get_scheduler() noexcept;
 
@@ -76,280 +81,37 @@ private:
     PTP_POOL threadPool_;
 };
 
-template<typename Receiver>
-class windows_thread_pool::_schedule_op<Receiver>::type {
+/////////////////////////
+// Non-cancellable schedule() operation
+
+class windows_thread_pool::schedule_op_base {
 public:
-    template<typename Receiver2>
-    explicit type(windows_thread_pool& pool, Receiver2&& r)
-    : receiver_((Receiver2&&)r) {
-        ::InitializeThreadpoolEnvironment(&environ_);
-        ::SetThreadpoolCallbackPool(&environ_, pool.threadPool_);
-        work_ = ::CreateThreadpoolWork(&work_callback, this, &environ_);
-        if (work_ == nullptr) {
-            // TODO: Should we just cache the error and deliver via set_error(receiver_, std::error_code{})
-            // upon start()?
-            DWORD errorCode = ::GetLastError();
-            ::DestroyThreadpoolEnvironment(&environ_);
-            throw std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolWork()"};
-        }
-    }
+    schedule_op_base(schedule_op_base&&) = delete;
+    schedule_op_base& operator=(schedule_op_base&&) = delete;
 
-    ~type() {
-        ::CloseThreadpoolWork(work_);
-        ::DestroyThreadpoolEnvironment(&environ_);
-    }
+    ~schedule_op_base();
 
-    void start() & noexcept {
-        ::SubmitThreadpoolWork(work_);
-    }
+    void start() & noexcept;
+
+protected:
+    schedule_op_base(windows_thread_pool& pool, PTP_WORK_CALLBACK workCallback);
 
 private:
-    static void CALLBACK work_callback(PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
-        auto& op = *static_cast<type*>(workContext);
-        if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
-            unifex::set_value(std::move(op.receiver_));
-        } else {
-            try {
-                unifex::set_value(std::move(op.receiver_));
-            } catch (...) {
-                unifex::set_error(std::move(op.receiver_), std::current_exception());
-            }
-        }
-    }
-
-    Receiver receiver_;
     TP_CALLBACK_ENVIRON environ_;
     PTP_WORK work_;
 };
 
 template<typename Receiver>
-class windows_thread_pool::_cancellable_schedule_op<Receiver>::type {
+class windows_thread_pool::_schedule_op<Receiver>::type final : public windows_thread_pool::schedule_op_base {
 public:
     template<typename Receiver2>
     explicit type(windows_thread_pool& pool, Receiver2&& r)
-    : receiver_((Receiver2&&)r) {
-        ::TpInitializeCallbackEnviron(&environ_);
-        ::SetThreadpoolCallbackPool(&environ_, pool.threadPool_);        
-
-        PTP_WORK_CALLBACK callback = &work_callback;
-        if (get_stop_token(receiver_).stop_possible()) {
-            TP_LOG("creating cleanup group");
-            cleanupGroup_ = ::CreateThreadpoolCleanupGroup();
-            if (cleanupGroup_ == NULL) {
-                DWORD errorCode = ::GetLastError();
-                ::DestroyThreadpoolEnvironment(&environ_);
-                TP_LOG("error creating cleanup group");
-                throw std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolCleanupGroup"};
-            }
-        
-            ::SetThreadpoolCallbackCleanupGroup(&environ_, cleanupGroup_, &cancelled_callback);
-
-            state_ = new (std::nothrow) std::atomic<std::uint32_t>(not_started);
-            if (state_ == nullptr) {
-                ::CloseThreadpoolCleanupGroup(cleanupGroup_);
-                ::DestroyThreadpoolEnvironment(&environ_);
-                TP_LOG("error allocating state");
-                throw std::bad_alloc{};
-            }
-
-            callback = &cancellable_work_callback;
-        }
-
-        work_ = ::CreateThreadpoolWork(callback, this, &environ_);
-        if (work_ == NULL) {
-            DWORD errorCode = ::GetLastError();
-            if (cleanupGroup_ != nullptr) {
-                ::CloseThreadpoolCleanupGroup(cleanupGroup_);
-            }            
-            delete state_;
-            ::DestroyThreadpoolEnvironment(&environ_);
-            TP_LOG("error threadpool work");
-            throw std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolWork"};
-        }
-    }
-
-    ~type() {
-        TP_LOG("in op state destructor");
-        if (work_ != nullptr) {
-            ::CloseThreadpoolWork(work_);
-        }
-        if (cleanupGroup_ != nullptr) {
-            ::CloseThreadpoolCleanupGroup(cleanupGroup_);
-        }
-        ::DestroyThreadpoolEnvironment(&environ_);
-        delete state_;
-    }
-
-    void start() & noexcept {
-        if (cleanupGroup_ != NULL) {
-            TP_LOG("starting cancellable");
-            start_cancellable();
-        } else {
-            TP_LOG("starting non-cancellable");
-            // Cancellation not possible
-            // Don't worry about the extra synchronisation needed to
-            // support cancellation of the work.
-            ::SubmitThreadpoolWork(work_);
-        }
-    }
+    : schedule_op_base(pool, &work_callback)
+    , receiver_((Receiver2&&)r)
+    {}
 
 private:
-    void start_cancellable() noexcept {
-        TP_LOG("register stop callback");
-            cancelCallback_.construct(get_stop_token(receiver_), request_cancel_callback{*this});
-
-            // Take a copy of the pointer to heap-allocated state prior
-            // to submitting the work as the operation-state may have
-            // already been destroyed on another thread by the time
-            // SubmitThreadpoolWork() returns.
-            auto* state = state_;
-
-        TP_LOG("submitting work");
-            ::SubmitThreadpoolWork(work_);
-        TP_LOG("submitted work");
-
-            // Now that we've finished calling SubmitThreadpoolWork() we can
-            // signal in the shared atomic state_ that the task is now started.
-            // Note that the cancellable_work_callback may have already started
-            // executing on a thread-pool thread.
-            auto oldState = state->fetch_add(submit_complete_flag, std::memory_order_acq_rel);
-            if ((oldState & (cancel_requested_flag | running_flag)) == cancel_requested_flag) {
-                // Cancellation was requested before SubmitThreadpoolWork() returned
-                // and so the cancellation callback has delegated responsibility for
-                // cancelling the work to the start() method.
-                //
-                // This will cause the cleanup_callback() to be run which will
-                // do the set_done() call once the cancellation of the PTP_WORK
-                // is complete.
-                TP_LOG("cancelling work from start()");
-
-                const BOOL cancelPending = TRUE;
-                ::CloseThreadpoolCleanupGroupMembers(cleanupGroup_, cancelPending, nullptr);
-            } else {
-                // Several other possibilities here.
-                // (starting / starting + running) x cancel_requested
-
-                // We don't need to worry about cancellation here, we only need
-                // to make sure that the 'state' allocation is freed.
-                // If the cancellable_work_callback has already set the 'running_flag'
-                // then this means it's finished with the 'state' and has delegated
-                // freeing the memory to us.
-                if ((oldState & running_flag) != 0) {
-                    TP_LOG("deleting state from start()");
-                    delete state;
-                }
-            }
-    }
-
-    void request_cancel() noexcept {
-        // Signal an intent to call CloseThreadpoolCleanupGroupMembers()
-        auto oldState = state_->fetch_add(cancel_requested_flag, std::memory_order_acq_rel);
-
-        TP_LOG("in stop callback");
-
-        // work_callback should have unsubscribed this callback before setting the running_flag.
-        assert((oldState & running_flag) == 0);
-
-        if (oldState == submit_complete_flag) {
-            // SubmitThreadpoolWork() has returned but the cancellable_work_callback has not
-            // yet started running. It is safe, therefore, to close the callback group
-            // members here. If this is racing with the cancellable_work_callback running
-            // on another thread then it will see our write to 'state' and will return immediately.
-            // Once it's returned (if it started) the cancelled_callback() will be run
-            // and this will do the actual handling of the cancellation.
-            TP_LOG("cancelling work from stop callback");
-            const BOOL cancelPending = TRUE;
-            ::CloseThreadpoolCleanupGroupMembers(cleanupGroup_, cancelPending, nullptr);
-        } else {
-            if ((oldState & starting_flag) == 0) {
-                TP_LOG("stop delegating call to close cleanup group to start()");
-            } else {
-                TP_LOG("work callback is already running, can't cancel");
-            }
-            // Otherwise there are two posible cases where we don't need to do anything:
-            // - not_started - the start() method is still executing and hasn't finished
-            //                 calling SubmitThreadpoolWork() yet, so it's not safe to
-            //                 call CloseThreadpoolCleanupGroupMembers(). In this case
-            //                 the start() method will see our write to 'state' and will
-            //                 close the cleanup group when it eventually returns from
-            //                 SubmitThreadpoolWork().
-            // - starting_flag / starting_flag + submit_complete_flag
-            //                 The cancellable_work_callback started executing before
-            //                 cancellation was requested.
-            //                 In this case it will be attempting to deregister this stop_callback
-            //                 and will be blocked waiting for this callback to return, so we
-            //                 don't want to close the cleanup group here as that will wait
-            //                 for the cancellable_work_callback to return which will deadlock.
-            //                 So we'll just return here and let the work_callback call pick
-            //                 up the fact that cancellation was requested after deregistering
-            //                 this stop-callback. Note that currently it will ignore such a
-            //                 cancellation request anyway, since it's a rare race and it was
-            //                 already running on a thread-pool thread.
-        }
-    }
-
-    static void CALLBACK cancellable_work_callback(PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
-        auto& op = *static_cast<type*>(workContext);
-
-        TP_LOG("in work callback, about to mark as starting");
-
-        // Signal that the work_callback has started executing.
-        auto oldState = op.state_->fetch_add(starting_flag, std::memory_order_acq_rel);
-        if ((oldState & cancel_requested_flag) != 0) {
-            // Some thread has requested cancellation and is calling or about to
-            // call CloseThreadpoolCleanupGroupMembers() which is going to block
-            // on the cancellable_work_callback function returning.
-            
-            // We'll return immediately to avoid deadlocking with the cancellation
-            // request and let the CloseThreadpoolCleanupGroupMembers()
-            // function call the cancelled_callback to do the remaining cleanup work.
-            TP_LOG("work already cancelled");
-            return;
-        }
-
-        TP_LOG("deregistering stop callback from work callback");
-
-        // Otherwise, we now deregister the cancellation callback before then
-        // signalling that we are calling the receiver. If cancellation is
-        // requested concurrently on another thread then this will block waiting
-        // for the callback to finish. This is safe from deadlock because we
-        // successfully set the 'starting' flag on the state before the cancel
-        // request set the 'cancel_requested' flag and so we're guaranteed that
-        // it will see our write of the 'starting' flag and so will not attempt
-        // to close the cleanup group (which would block on the work callback returning).
-        op.cancelCallback_.destruct();
-
-        TP_LOG("stop callback deregistered, about to mark as running");
-
-        // Signal that we're about to call the receiver.
-        oldState = op.state_->fetch_add(running_flag, std::memory_order_acq_rel);
-        if ((oldState & submit_complete_flag) == 0) {
-            // Not safe to delete the 'state' allocation as the start() method is
-            // still referencing it. We have now delegated responsibility for
-            // freeing this memory to start() and so we need to clear out the
-            // op.state_ pointer here so the op destructor doesn't destroy it.
-            TP_LOG("delegating deletion of state to start()");
-            op.state_ = nullptr;
-        }
-
-        // It's possible that cancellation might have been requested concurrently
-        // with deregistration of op.cancelCallback_, although this window is
-        // small. We could either ignore this case and just execute set_value()
-        // (we are alfter-all already running a callback on the thread-pool and
-        // so the 'schedule' operation really succeeded before cancellation was
-        // requested. Alternatively we could call set_done() here.
-        // Opting for not calling set_done() here as an arbitrary choice since
-        // it's less code-gen and one less branch and the likelihood of this
-        // eliminating running extra work is low.
-
-        // Do the work.
-        work_callback(instance, workContext, work);
-    }
-
     static void CALLBACK work_callback(PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
-        TP_LOG("running set_value");
-
-        // No cancellation to deal with so just call the receiver.
         auto& op = *static_cast<type*>(workContext);
         if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(op.receiver_));
@@ -362,68 +124,259 @@ private:
         }
     }
 
-    // This function is only called in the case that the work was successfully cancelled.
-    static void CALLBACK cancelled_callback(void* workContext, [[maybe_unused]] void* cleanupContext) noexcept {
+    Receiver receiver_;
+};
+
+///////////////////////////
+// Cancellable schedule() operation
+
+template<typename StopToken>
+class windows_thread_pool::_cancellable_schedule_op_base<StopToken>::type {
+public:
+    type(type&&) = delete;
+    type& operator=(type&&) = delete;
+
+    ~type() {
+        ::CloseThreadpoolWork(work_);
+        ::DestroyThreadpoolEnvironment(&environ_);
+        delete state_;
+    }
+
+protected:
+    explicit type(windows_thread_pool& pool, bool isStopPossible) {
+        ::InitializeThreadpoolEnvironment(&environ_);
+        ::SetThreadpoolCallbackPool(&environ_, pool.threadPool_);
+
+        work_ = ::CreateThreadpoolWork(
+            isStopPossible ? &stoppable_work_callback : &unstoppable_work_callback,
+            static_cast<void*>(this),
+            &environ_);
+        if (work_ == nullptr) {
+            DWORD errorCode = ::GetLastError();
+            ::DestroyThreadpoolEnvironment(&environ_);
+            throw std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolWork()"};
+        }
+
+        if (isStopPossible) {
+            state_ = new (std::nothrow) std::atomic<std::uint32_t>(not_started);
+            if (state_ == nullptr) {
+                ::CloseThreadpoolWork(work_);
+                ::DestroyThreadpoolEnvironment(&environ_);
+                throw std::bad_alloc{};
+            }
+        } else {
+            state_ = nullptr;
+        }
+    }
+
+    void start_impl(const StopToken& stopToken) & noexcept {
+        if (state_ != nullptr) {
+            // Short-circuit all of this if stopToken.stop_requested() is already true.
+            if (stopToken.stop_requested()) {
+                set_done_impl();
+                return;
+            }
+
+            stopCallback_.construct(stopToken, stop_requested_callback{*this});
+
+            // Take a copy of the 'state' pointer prior to submitting the
+            // work as the operation-state may have already been destroyed
+            // on another thread by the time SubmitThreadpoolWork() returns.
+            auto* state = state_;
+
+            ::SubmitThreadpoolWork(work_);
+
+            // Signal that SubmitThreadpoolWork() has returned and that it is
+            // now safe for the stop-request to request cancellation of the
+            // work items.
+            const auto prevState = state->fetch_add(submit_complete_flag, std::memory_order_acq_rel);
+            if ((prevState & stop_requested_flag) != 0) {
+                // stop was requested before the call to SubmitThreadpoolWork()
+                // returned and before the work started executing. It was not
+                // safe for the request_stop() method to cancel the work before
+                // it had finished being submitted so it has delegated responsibility
+                // for cancelling the just-submitted work to us to do once we
+                // finished submitting the work.
+                complete_with_done();
+            } else if ((prevState & running_flag) != 0) {
+                // Otherwise, it's possible that the work item may have started
+                // running on another thread already, prior to us returning.
+                // If this is the case then, to avoid leaving us with a
+                // dangling reference to the 'state' when the operation-state
+                // is destroyed, it will detach the 'state' from the operation-state
+                // and delegate the delete of the 'state' to us.
+                delete state;
+            }
+        } else {
+            // A stop-request is not possible so skip the extra
+            // synchronisation needed to support it.
+            ::SubmitThreadpoolWork(work_);
+        }
+    }
+
+private:
+    static void CALLBACK unstoppable_work_callback(
+        PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
+        auto& op = *static_cast<type*>(workContext);
+        op.set_value_impl();
+    }
+
+    static void CALLBACK stoppable_work_callback(
+            PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
         auto& op = *static_cast<type*>(workContext);
 
-        TP_LOG("in cancelled_callback, deregistering stop callback");
+        // Signal that the work callback has started executing.
+        auto prevState = op.state_->fetch_add(starting_flag, std::memory_order_acq_rel);
+        if ((prevState & stop_requested_flag) != 0) {
+            // request_stop() is already running and is waiting for this callback
+            // to finish executing. So we return immediately here without doing
+            // anything further so that we don't introduce a deadlock.
+            // In particular, we don't want to try to deregister the stop-callback
+            // which will block waiting for the request_stop() method to return.
+            return;
+        }
 
-        // ??? What context will this method be called on?
-        // Will it be called inside the call to CloseThreadpoolCleanupGroupMembers()?
-        // Or is it possible it might be called concurrently on some other thread?
-        // Docs aren't clear:
+        // Note that it's possible that stop might be requested after setting
+        // the 'starting' flag but before we deregister the stop callback.
+        // We're going to ignore these stop-requests as we already won the race
+        // in the fetch_add() above and ignoring them simplifies some of the
+        // cancellation logic.
 
-        // Deregister the callback before calling set_done() as the call to set_done()
-        // will potentially invalidate the stop_token it is registered against.
-        op.cancelCallback_.destruct();
+        op.stopCallback_.destruct();
 
-        TP_LOG("cancelled_callback flagging as running");
-
-        auto oldState = op.state_->fetch_add(running_flag, std::memory_order_acq_rel);
-        if ((oldState & submit_complete_flag) == 0) {
-            // start() method has not finished calling SubmitThreadpoolWork() and
-            // so we are delegating it the responsiblity to delete the state.
-            // Clear the state_ member variable so the op destructor won't free it.
-            TP_LOG("cancelled_callback delegated delete of state to start()");
+        prevState = op.state_->fetch_add(running_flag, std::memory_order_acq_rel);
+        if (prevState == starting_flag) {
+            // start() method has not yet finished submitting the work
+            // on another thread and so is still accessing the 'state'.
+            // This means we don't want to let the operation-state destructor
+            // free the state memory. Instead, we have just delegated
+            // responsibility for freeing this memory to the start() method
+            // and we clear the start_ member here to prevent the destructor
+            // from freeing it.
             op.state_ = nullptr;
         }
 
-        // PTP_WORK will be closed by the CloseThreadpoolCleanupGroupMembers()
-        // Clear the handle here so the destructor won't try to close the handle.
-        op.work_ = nullptr;
-
-        TP_LOG("calling set_done");
-
-        // Resume the receiver with done to signal that it was successfully cancelled. 
-        unifex::set_done(std::move(op.receiver_));
+        op.set_value_impl();
     }
 
-    struct request_cancel_callback {
+    void request_stop() noexcept {
+        auto prevState = state_->load(std::memory_order_relaxed);
+        do {
+            assert((prevState & running_flag) == 0);
+            if ((prevState & starting_flag) != 0) {
+                // Work callback won the race and will be waiting for
+                // us to return so it can deregister the stop-callback.
+                // Return immediately so we don't deadlock.
+                return;
+            }
+        } while (!state_->compare_exchange_weak(
+            prevState,
+            prevState | stop_requested_flag,
+            std::memory_order_acq_rel,
+            std::memory_order_relaxed));
+
+        assert((prevState & starting_flag) == 0);
+
+        if ((prevState & submit_complete_flag) != 0) {
+            // start() has finished calling SubmitThreadpoolWork() and the work has not
+            // yet started executing the work so it's safe for this method to now try
+            // and cancel the work. While it's possible that the work callback will start
+            // executing concurrently on a thread-pool thread, we are guaranteed that
+            // it will see our write of the stop_requested_flag and will promptly
+            // return without blocking.
+            complete_with_done();
+        } else {
+            // Otherwise, as the start() method has not yet finished calling
+            // SubmitThreadpoolWork() we can't safely call WaitForThreadpoolWorkCallbacks().
+            // In this case we are delegating responsibility for calling complete_with_done()
+            // to start() method when it eventually returns from SubmitThreadpoolWork().
+        }
+    }
+
+    void complete_with_done() noexcept {
+        const BOOL cancelPending = TRUE;
+        ::WaitForThreadpoolWorkCallbacks(work_, cancelPending);
+
+        // Destruct the stop-callback before calling set_done() as the call
+        // to set_done() will invalidate the stop-token and we need to 
+        // make sure that 
+        stopCallback_.destruct();
+
+        // Now that the work has been successfully cancelled we can
+        // call the receiver's set_done().
+        set_done_impl();
+    }
+
+    virtual void set_done_impl() noexcept = 0;
+    virtual void set_value_impl() noexcept = 0;
+
+    struct stop_requested_callback {
         type& op_;
 
         void operator()() noexcept {
-            op_.request_cancel();
+            op_.request_stop();
         }
     };
 
-    Receiver receiver_;
-    TP_CALLBACK_ENVIRON environ_;
-    PTP_CLEANUP_GROUP cleanupGroup_{nullptr};
-    PTP_WORK work_{nullptr};
-    manual_lifetime<typename stop_token_type_t<Receiver>::template callback_type<request_cancel_callback>> cancelCallback_;
+    /////////////////
+    // Flags to use for state_ member
 
-    // Flags set when each of the stages have passed.
-    // submit_complete  - set after start() method's call to SubmitThreadpoolWork() has returned
-    // cancel_requested - set when stop_requested() is true on the stop_token
-    // starting         - set by cancellable_work_callback when thread-pool executes the work
-
+    // Initial state. start() not yet called.
     static constexpr std::uint32_t not_started = 0;
+
+    // Flag set once start() has finished calling ThreadpoolSubmitWork()
     static constexpr std::uint32_t submit_complete_flag = 1;
-    static constexpr std::uint32_t cancel_requested_flag = 2;
-    static constexpr std::uint32_t starting_flag = 4; 
+
+    // Flag set by request_stop() 
+    static constexpr std::uint32_t stop_requested_flag = 2;
+
+    // Flag set by cancellable_work_callback() when it starts executing.
+    // This is before deregistering the stop-callback.
+    static constexpr std::uint32_t starting_flag = 4;
+
+    // Flag set by cancellable_work_callback() after having deregistered
+    // the stop-callback, just before it calls the receiver.
     static constexpr std::uint32_t running_flag = 8; 
-    
-    std::atomic<std::uint32_t>* state_{nullptr};
+
+    PTP_WORK work_;
+    TP_CALLBACK_ENVIRON environ_;
+    std::atomic<std::uint32_t>* state_;
+    manual_lifetime<typename StopToken::template callback_type<stop_requested_callback>> stopCallback_;
+};
+
+template<typename Receiver>
+class windows_thread_pool::_cancellable_schedule_op<Receiver>::type final
+    : public windows_thread_pool::cancellable_schedule_op_base<stop_token_type_t<Receiver>> {
+    using base = windows_thread_pool::cancellable_schedule_op_base<stop_token_type_t<Receiver>>;
+public:
+    template<typename Receiver2>
+    explicit type(windows_thread_pool& pool, Receiver2&& r)
+    : base(pool, unifex::get_stop_token(r).stop_possible())
+    , receiver_((Receiver2&&)r)
+    {}
+
+    void start() & noexcept {
+        this->start_impl(get_stop_token(receiver_));
+    }
+
+private:
+    void set_value_impl() noexcept override {
+        if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
+            unifex::set_value(std::move(receiver_));
+        } else {
+            try {
+                unifex::set_value(std::move(receiver_));
+            } catch (...) {
+                unifex::set_error(std::move(receiver_), std::current_exception());
+            }
+        }
+    }
+
+    void set_done_impl() noexcept override {
+        unifex::set_done(std::move(receiver_));
+    }
+
+    Receiver receiver_;
 };
 
 class windows_thread_pool::schedule_sender {
