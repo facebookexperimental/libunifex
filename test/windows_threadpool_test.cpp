@@ -27,11 +27,31 @@
 #include <unifex/materialize.hpp>
 
 #include <cassert>
+#include <chrono>
 
 #include <gtest/gtest.h>
 
+using namespace std::chrono_literals;
+
 TEST(windows_thread_pool, construct_destruct) {
     unifex::win32::windows_thread_pool tp;
+}
+
+TEST(windows_thread_pool, custom_thread_pool) {
+    unifex::win32::windows_thread_pool tp{2, 4};
+    auto s = tp.get_scheduler();
+
+    std::atomic<int> count = 0;
+
+    auto incrementCountOnTp = unifex::transform(unifex::schedule(s), [&] { ++count; });
+
+    unifex::sync_wait(unifex::when_all(
+        incrementCountOnTp,
+        incrementCountOnTp,
+        incrementCountOnTp,
+        incrementCountOnTp));
+
+    EXPECT_EQ(4, count.load());
 }
 
 TEST(windows_thread_pool, schedule) {
@@ -74,4 +94,79 @@ TEST(windows_thread_pool, schedule_cancellation_thread_safety) {
         [n=0]() mutable noexcept { return n++ == 1000; }));
 }
 
-#endif
+TEST(windows_thread_pool, schedule_after) {
+    unifex::win32::windows_thread_pool tp;
+    auto s = tp.get_scheduler();
+
+    auto start = s.now();
+
+    unifex::sync_wait(unifex::schedule_after(s, 50ms));
+
+    auto duration = s.now() - start;
+
+    EXPECT_TRUE(duration > 40ms);
+    EXPECT_TRUE(duration < 100ms);
+}
+
+TEST(windows_thread_pool, schedule_after_cancellation) {
+    unifex::win32::windows_thread_pool tp;
+    auto s = tp.get_scheduler();
+
+    auto start = s.now();
+
+    bool ranWork = false;
+
+    unifex::sync_wait(
+        unifex::transform_done(
+            unifex::stop_when(
+                unifex::transform(
+                    unifex::schedule_after(s, 5s),
+                    [&] { ranWork = true; }),
+                unifex::schedule_after(s, 5ms)),
+            [] { return unifex::just(); }));
+
+    auto duration = s.now() - start;
+
+    // Work should have been cancelled.
+    EXPECT_FALSE(ranWork);
+    EXPECT_LT(duration, 1s);
+}
+
+TEST(windows_thread_pool, schedule_at) {
+    unifex::win32::windows_thread_pool tp;
+    auto s = tp.get_scheduler();
+
+    auto start = s.now();
+
+    unifex::sync_wait(unifex::schedule_at(s, start + 100ms));
+
+    auto end = s.now();   
+    EXPECT_TRUE(end >= (start + 100ms));
+    EXPECT_TRUE(end < (start + 150ms));
+}
+
+TEST(windows_thread_pool, schedule_at_cancellation) {
+    unifex::win32::windows_thread_pool tp;
+    auto s = tp.get_scheduler();
+
+    auto start = s.now();
+
+    bool ranWork = false;
+
+    unifex::sync_wait(
+        unifex::transform_done(
+            unifex::stop_when(
+                unifex::transform(
+                    unifex::schedule_at(s, start + 5s),
+                    [&] { ranWork = true; }),
+                unifex::schedule_at(s, start + 5ms)),
+            [] { return unifex::just(); }));
+
+    auto duration = s.now() - start;
+
+    // Work should have been cancelled.
+    EXPECT_FALSE(ranWork);
+    EXPECT_LT(duration, 1s);
+}
+
+#endif // _WIN32

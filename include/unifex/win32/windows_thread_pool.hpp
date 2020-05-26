@@ -22,6 +22,8 @@
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 
+#include <unifex/win32/filetime_clock.hpp>
+
 #include <windows.h>
 #include <threadpoolapiset.h>
 
@@ -49,7 +51,6 @@ class windows_thread_pool {
     template<typename Receiver>
     using schedule_op = typename _schedule_op<Receiver>::type;
 
-
     template<typename StopToken>
     struct _cancellable_schedule_op_base {
         class type;
@@ -63,6 +64,45 @@ class windows_thread_pool {
     };
     template <typename Receiver>
     using cancellable_schedule_op = typename _cancellable_schedule_op<Receiver>::type;
+
+    template<typename StopToken>
+    struct _time_schedule_op_base {
+        class type;
+    };
+    template<typename StopToken>
+    using time_schedule_op_base = typename _time_schedule_op_base<StopToken>::type;
+
+    template<typename Receiver>
+    struct _time_schedule_op {
+        class type;
+    };
+    template<typename Receiver>
+    using time_schedule_op = typename _time_schedule_op<Receiver>::type;
+
+    template<typename Receiver>
+    struct _schedule_at_op {
+        class type;
+    };
+    template<typename Receiver>
+    using schedule_at_op = typename _schedule_at_op<Receiver>::type;
+
+    template<typename Duration, typename Receiver>
+    struct _schedule_after_op {
+        class type;
+    };
+    template<typename Duration, typename Receiver>
+    using schedule_after_op = typename _schedule_after_op<Duration, Receiver>::type;
+
+    class schedule_at_sender;
+
+    template<typename Duration>
+    struct _schedule_after_sender {
+        class type;
+    };
+    template<typename Duration>
+    using schedule_after_sender = typename _schedule_after_sender<Duration>::type;
+
+    using clock_type = filetime_clock;
 
 public:
 
@@ -373,11 +413,18 @@ private:
     }
 
     void set_done_impl() noexcept override {
-        unifex::set_done(std::move(receiver_));
+        if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
+            unifex::set_done(std::move(receiver_));
+        } else {
+            assert(false);
+        }
     }
 
     Receiver receiver_;
 };
+
+////////////////////////////////////////////////////
+// schedule() sender
 
 class windows_thread_pool::schedule_sender {
 public:
@@ -414,14 +461,365 @@ private:
     windows_thread_pool* pool_;
 };
 
+/////////////////////////////////
+// time_schedule_op
+
+template<typename StopToken>
+class windows_thread_pool::_time_schedule_op_base<StopToken>::type {
+protected:
+    explicit type(windows_thread_pool& pool, bool isStopPossible) {
+        ::InitializeThreadpoolEnvironment(&environ_);
+        ::SetThreadpoolCallbackPool(&environ_, pool.threadPool_);
+
+        // Give the optimiser a hand for cases where the parameter
+        // can never be true.
+        if constexpr (is_stop_never_possible_v<StopToken>) {
+            isStopPossible = false;
+        }
+
+        timer_ = ::CreateThreadpoolTimer(
+            isStopPossible ? &stoppable_timer_callback : &timer_callback, static_cast<void*>(this), &environ_);
+        if (timer_ == nullptr) {
+            DWORD errorCode = ::GetLastError();
+            ::DestroyThreadpoolEnvironment(&environ_);
+            throw std::system_error(static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolTimer()");
+        }
+
+        if (isStopPossible) {
+            state_ = new (std::nothrow) std::atomic<std::uint32_t>{not_started};
+            if (state_ == nullptr) {
+                ::CloseThreadpoolTimer(timer_);
+                ::DestroyThreadpoolEnvironment(&environ_);
+                throw std::bad_alloc{};
+            }
+        }
+    }
+
+public:
+    ~type() {
+        ::CloseThreadpoolTimer(timer_);
+        ::DestroyThreadpoolEnvironment(&environ_);
+        delete state_;
+    }
+
+protected:
+    void start_impl(const StopToken& stopToken, FILETIME dueTime) noexcept {
+        auto startTimer = [&]() noexcept {
+            const DWORD periodInMs = 0;   // Single-shot
+            const DWORD maxDelayInMs = 0; // Max delay to allow timer coalescing 
+            ::SetThreadpoolTimer(timer_, &dueTime, periodInMs, maxDelayInMs);
+        };
+
+        if constexpr (!is_stop_never_possible_v<StopToken>) {
+            auto* const state = state_;
+            if (state != nullptr) {
+                // Short-circuit extra work submitting the
+                // timer if stop has already been requested.
+                if (stopToken.stop_requested()) {
+                    set_done_impl();
+                    return;
+                }
+
+                stopCallback_.construct(stopToken, stop_requested_callback{*this});
+
+                startTimer();
+
+                const auto prevState = state->fetch_add(submit_complete_flag, std::memory_order_acq_rel);
+                if ((prevState & stop_requested_flag) != 0) {
+                    complete_with_done();
+                } else if ((prevState & running_flag) != 0) {
+                    delete state;
+                }
+
+                return;
+            }
+        }
+
+        startTimer();
+    }
+
+ private:
+    virtual void set_value_impl() noexcept = 0;
+    virtual void set_done_impl() noexcept = 0;
+
+    static void CALLBACK timer_callback(
+            [[maybe_unused]] PTP_CALLBACK_INSTANCE instance,
+            void* timerContext,
+            [[maybe_unused]] PTP_TIMER timer) noexcept {
+        type& op = *static_cast<type*>(timerContext);
+        op.set_value_impl();
+    }
+
+    static void CALLBACK stoppable_timer_callback(
+            [[maybe_unused]] PTP_CALLBACK_INSTANCE instance,
+            void* timerContext,
+            [[maybe_unused]] PTP_TIMER timer) noexcept {
+        type& op = *static_cast<type*>(timerContext);
+
+        auto prevState = op.state_->fetch_add(starting_flag, std::memory_order_acq_rel);
+        if ((prevState & stop_requested_flag) != 0) {
+            return;
+        }
+
+        op.stopCallback_.destruct();
+
+        prevState = op.state_->fetch_add(running_flag, std::memory_order_acq_rel);
+        if (prevState == starting_flag) {
+            op.state_ = nullptr;
+        }
+
+        op.set_value_impl();
+    }
+
+    void request_stop() noexcept {
+        auto prevState = state_->load(std::memory_order_relaxed);
+        do {
+            assert((prevState & running_flag) == 0);
+            if ((prevState & starting_flag) != 0) {
+                return;
+            }
+        } while (!state_->compare_exchange_weak(
+            prevState,
+            prevState | stop_requested_flag,
+            std::memory_order_acq_rel,
+            std::memory_order_relaxed));
+
+        assert((prevState & starting_flag) == 0);
+
+        if ((prevState & submit_complete_flag) != 0) {
+            complete_with_done();
+        }
+    }
+
+    void complete_with_done() noexcept {
+        const BOOL cancelPending = TRUE;
+        ::WaitForThreadpoolTimerCallbacks(timer_, cancelPending);
+
+        stopCallback_.destruct();
+
+        set_done_impl();
+    }
+
+    struct stop_requested_callback {
+        type& op_;
+        void operator()() noexcept {
+            op_.request_stop();
+        }
+    };
+
+    /////////////////
+    // Flags to use for state_ member
+
+    // Initial state. start() not yet called.
+    static constexpr std::uint32_t not_started = 0;
+
+    // Flag set once start() has finished calling ThreadpoolSubmitWork()
+    static constexpr std::uint32_t submit_complete_flag = 1;
+
+    // Flag set by request_stop() 
+    static constexpr std::uint32_t stop_requested_flag = 2;
+
+    // Flag set by cancellable_work_callback() when it starts executing.
+    // This is before deregistering the stop-callback.
+    static constexpr std::uint32_t starting_flag = 4;
+
+    // Flag set by cancellable_work_callback() after having deregistered
+    // the stop-callback, just before it calls the receiver.
+    static constexpr std::uint32_t running_flag = 8; 
+
+    PTP_TIMER timer_;
+    TP_CALLBACK_ENVIRON environ_;
+    std::atomic<std::uint32_t>* state_{nullptr};
+    manual_lifetime<typename StopToken::template callback_type<stop_requested_callback>> stopCallback_;
+};
+
+/////////////////////////////////
+// schedule_at() operation
+
+template<typename Receiver>
+class windows_thread_pool::_schedule_at_op<Receiver>::type final
+    : public windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>> {
+    using base = windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>>; 
+public:
+    template<typename Receiver2>
+    explicit type(windows_thread_pool& pool, windows_thread_pool::clock_type::time_point dueTime, Receiver2&& r)
+    : base(pool, get_stop_token(r).stop_possible())
+    , dueTime_(dueTime)
+    , receiver_((Receiver2&&)r) {}
+
+    void start() & noexcept {
+        ULARGE_INTEGER ticks;
+        ticks.QuadPart = dueTime_.get_ticks();
+
+        FILETIME ft;
+        ft.dwLowDateTime = ticks.LowPart;
+        ft.dwHighDateTime = ticks.HighPart;
+        
+        this->start_impl(get_stop_token(receiver_), ft);
+    }
+
+private:
+    void set_value_impl() noexcept override {
+        if constexpr (unifex::is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
+            unifex::set_value(std::move(receiver_));
+        } else {
+            try {
+                unifex::set_value(std::move(receiver_));
+            } catch (...) {
+                unifex::set_error(std::move(receiver_), std::current_exception());
+            }
+        }
+    }
+
+    void set_done_impl() noexcept {
+        unifex::set_done(std::move(receiver_));
+    }
+
+    windows_thread_pool::clock_type::time_point dueTime_;
+    Receiver receiver_;
+};
+
+class windows_thread_pool::schedule_at_sender {
+public:
+    template<template<typename...> class Variant, template<typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template<template<typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
+
+    explicit schedule_at_sender(windows_thread_pool& pool, filetime_clock::time_point dueTime)
+    : pool_(&pool)
+    , dueTime_(dueTime)
+    {}
+
+    template(typename Receiver)
+        (requires unifex::receiver_of<Receiver>)
+    schedule_at_op<unifex::remove_cvref_t<Receiver>> connect(Receiver&& r) const {
+        return schedule_at_op<unifex::remove_cvref_t<Receiver>>{
+            *pool_,
+            dueTime_,
+            (Receiver&&)r
+        };
+    }
+
+private:
+    windows_thread_pool* pool_;
+    filetime_clock::time_point dueTime_;
+};
+
+//////////////////////////////////
+// schedule_after()
+
+template<typename Duration, typename Receiver>
+class windows_thread_pool::_schedule_after_op<Duration, Receiver>::type final
+    : public windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>> {
+    using base = windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>>; 
+public:
+    template<typename Receiver2>
+    explicit type(windows_thread_pool& pool, Duration duration, Receiver2&& r)
+    : base(pool, get_stop_token(r).stop_possible())
+    , duration_(duration)
+    , receiver_((Receiver2&&)r) {}
+
+    void start() & noexcept {
+        auto dueTime = filetime_clock::now() + duration_;
+
+        ULARGE_INTEGER ticks;
+        ticks.QuadPart = dueTime.get_ticks();
+
+        FILETIME ft;
+        ft.dwLowDateTime = ticks.LowPart;
+        ft.dwHighDateTime = ticks.HighPart;
+        
+        this->start_impl(get_stop_token(receiver_), ft);
+    }
+
+private:
+    void set_value_impl() noexcept override {
+        if constexpr (unifex::is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
+            unifex::set_value(std::move(receiver_));
+        } else {
+            try {
+                unifex::set_value(std::move(receiver_));
+            } catch (...) {
+                unifex::set_error(std::move(receiver_), std::current_exception());
+            }
+        }
+    }
+
+    void set_done_impl() noexcept {
+        unifex::set_done(std::move(receiver_));
+    }
+
+    Duration duration_;
+    Receiver receiver_;
+};
+
+
+template<typename Duration>
+class windows_thread_pool::_schedule_after_sender<Duration>::type {
+public:
+    template<template<typename...> class Variant, template<typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template<template<typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
+
+    explicit type(windows_thread_pool& pool, Duration duration)
+    : pool_(&pool)
+    , duration_(duration)
+    {}
+
+    template(typename Receiver)
+        (requires unifex::receiver_of<Receiver>)
+    schedule_after_op<Duration, unifex::remove_cvref_t<Receiver>> connect(Receiver&& r) const {
+        return schedule_after_op<Duration, unifex::remove_cvref_t<Receiver>>{
+            *pool_,
+            duration_,
+            (Receiver&&)r
+        };
+    }
+
+private:
+    windows_thread_pool* pool_;
+    Duration duration_;
+};
+
+/////////////////////////////////
+// scheduler
+
 class windows_thread_pool::scheduler {
 public:
+    using time_point = filetime_clock::time_point;
+
     schedule_sender schedule() const noexcept {
         return schedule_sender{*pool_};
     }
 
+    time_point now() const noexcept {
+        return filetime_clock::now();
+    }
+
+    schedule_at_sender schedule_at(time_point tp) const noexcept {
+        return schedule_at_sender{*pool_, tp};
+    }
+
+    template<typename Duration>
+    schedule_after_sender<Duration> schedule_after(Duration d) const
+            noexcept(std::is_nothrow_move_constructible_v<Duration>) {
+        return schedule_after_sender<Duration>{*pool_, std::move(d)};
+    }
+
     friend bool operator==(scheduler a, scheduler b) noexcept {
         return a.pool_ == b.pool_;
+    }
+
+    friend bool operator!=(scheduler a, scheduler b) noexcept {
+        return a.pool_ != b.pool_;
     }
 
 private:
@@ -433,6 +831,9 @@ private:
 
     windows_thread_pool* pool_;
 };
+
+/////////////////////////
+// scheduler methods
 
 inline windows_thread_pool::scheduler windows_thread_pool::get_scheduler() noexcept {
     return scheduler{*this};
