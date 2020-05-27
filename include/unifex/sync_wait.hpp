@@ -96,6 +96,7 @@ struct _receiver {
 
     friend auto
     tag_invoke(tag_t<get_scheduler>, const type& r) noexcept {
+      assert(r.ctx_ != nullptr);
       return r.ctx_->get_scheduler();
     }
 
@@ -118,21 +119,20 @@ std::optional<Result> _impl(Sender&& sender) {
   auto blockingResult = blocking(sender);
   const bool completesInline = blockingResult == blocking_kind::always_inline;
 
-  manual_lifetime<manual_event_loop> ctx;
+  std::optional<manual_event_loop> ctx;
   if(!completesInline) {
-    ctx.construct();
+    ctx.emplace();
   }
 
   // Store state for the operation on the stack.
   auto operation = connect(
       (Sender&&)sender,
-      _sync_wait::receiver_t<Result>{promise, completesInline ? nullptr : &(ctx.get())});
+      _sync_wait::receiver_t<Result>{promise, completesInline ? nullptr : &(*ctx)});
 
   start(operation);
 
   if(!completesInline) {
-    ctx.get().run();
-    ctx.destruct();
+    ctx->run();
   }
 
   switch (promise.state_) {
