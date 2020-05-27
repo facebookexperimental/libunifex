@@ -67,12 +67,23 @@ class delegating_context {
   timed_single_thread_context single_thread_context_;
 };
 
+template<typename T>
+struct FuncWrapper {
+  T func_;
+  operator std::invoke_result_t<T&&>() {
+    return func_();
+  }
+};
+
 template <typename DelegatedOperationState, typename LocalOperationState>
 class delegating_operation final {
   public:
   template<class InitFunc>
   delegating_operation(InitFunc&& func, delegating_context* context) :
-    op_{std::in_place_type_t<remove_cvref_t<decltype(func())>>{}, func()}, context_{context} {
+    op_{
+      std::in_place_type_t<remove_cvref_t<decltype(func())>>{},
+      FuncWrapper<InitFunc>{std::forward<InitFunc>(func)}},
+    context_{context} {
   }
 
 
