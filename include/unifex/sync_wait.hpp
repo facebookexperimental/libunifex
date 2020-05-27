@@ -59,7 +59,7 @@ template <typename T>
 struct _receiver {
   struct type {
     promise<T>& promise_;
-    manual_event_loop& ctx_;
+    manual_event_loop* ctx_ = nullptr;
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
@@ -96,12 +96,14 @@ struct _receiver {
 
     friend auto
     tag_invoke(tag_t<get_scheduler>, const type& r) noexcept {
-      return r.ctx_.get_scheduler();
+      return r.ctx_->get_scheduler();
     }
 
   private:
     void signal_complete() noexcept {
-      ctx_.stop();
+      if(ctx_) {
+        ctx_->stop();
+      }
     }
   };
 };
@@ -113,16 +115,25 @@ template <typename Result, typename Sender>
 std::optional<Result> _impl(Sender&& sender) {
   using promise_t = _sync_wait::promise<Result>;
   promise_t promise;
-  manual_event_loop ctx;
+  auto blockingResult = blocking(sender);
+  const bool completesInline = blockingResult == blocking_kind::always_inline;
+
+  manual_lifetime<manual_event_loop> ctx;
+  if(!completesInline) {
+    ctx.construct();
+  }
 
   // Store state for the operation on the stack.
   auto operation = connect(
       (Sender&&)sender,
-      _sync_wait::receiver_t<Result>{promise, ctx});
+      _sync_wait::receiver_t<Result>{promise, completesInline ? &(ctx.get()) : nullptr});
 
   start(operation);
 
-  ctx.run();
+  if(!completesInline) {
+    ctx.get().run();
+    ctx.destruct();
+  }
 
   switch (promise.state_) {
     case promise_t::state::done:
