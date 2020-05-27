@@ -70,7 +70,7 @@ class delegating_context {
 template<typename T>
 struct FuncWrapper {
   T func_;
-  operator std::invoke_result_t<T&&>() {
+  operator std::invoke_result_t<T>() {
     return func_();
   }
 };
@@ -132,14 +132,14 @@ class delegating_sender {
           unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
         LC>;
     if(context_->reserve()) {
-      auto local_op = [receiver = (Receiver&&)receiver, context = context_]() mutable {
+      auto local_op = [&receiver, context = context_]() mutable {
         return LC{unifex::connect(
           unifex::schedule(context->single_thread_context_.get_scheduler()),
           (Receiver&&)receiver)};};
       return op{std::move(local_op), context_};
     }
 
-    auto target_op = [receiver = (Receiver&&)receiver]() mutable {
+    auto target_op = [&receiver]() mutable {
       return unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver);
     };
     return op{std::move(target_op), context_};
