@@ -126,7 +126,7 @@ std::optional<Result> _impl(Sender&& sender) {
   // Store state for the operation on the stack.
   auto operation = connect(
       (Sender&&)sender,
-      _sync_wait::receiver_t<Result>{promise, completesInline ? &(ctx.get()) : nullptr});
+      _sync_wait::receiver_t<Result>{promise, completesInline ? nullptr : &(ctx.get())});
 
   start(operation);
 
