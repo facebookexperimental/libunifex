@@ -63,30 +63,30 @@ namespace _rec_cpo {
   private:
     template <typename Receiver, typename... Values>
     using set_next_member_result_t =
-      decltype(UNIFEX_DECLVAL(Receiver).set_next(UNIFEX_DECLVAL(Values)...));
+      decltype(UNIFEX_DECLVAL(Receiver&).set_next(UNIFEX_DECLVAL(Values)...));
     template <typename Receiver, typename... Values>
     using _result_t =
       typename conditional_t<
-        tag_invocable<_set_next_fn, Receiver, Values...>,
+        tag_invocable<_set_next_fn, Receiver&, Values...>,
         meta_tag_invoke_result<_set_next_fn>,
         meta_quote1_<set_next_member_result_t>>::template apply<Receiver, Values...>;
   public:
     template(typename Receiver, typename... Values)
       (requires tag_invocable<_set_next_fn, Receiver, Values...>)
-    auto operator()(Receiver&& r, Values&&... values) const
+    auto operator()(Receiver& r, Values&&... values) const
         noexcept(
             is_nothrow_tag_invocable_v<_set_next_fn, Receiver, Values...>)
         -> _result_t<Receiver, Values...> {
       return unifex::tag_invoke(
-          _set_next_fn{}, (Receiver &&) r, (Values &&) values...);
+          _set_next_fn{}, r, (Values &&) values...);
     }
     template(typename Receiver, typename... Values)
-      (requires (!tag_invocable<_set_next_fn, Receiver, Values...>))
-    auto operator()(Receiver&& r, Values&&... values) const
+      (requires (!tag_invocable<_set_next_fn, Receiver&, Values...>))
+    auto operator()(Receiver& r, Values&&... values) const
         noexcept(noexcept(
-            static_cast<Receiver&&>(r).set_next((Values &&) values...)))
+            r.set_next((Values &&) values...)))
         -> _result_t<Receiver, Values...> {
-      return static_cast<Receiver&&>(r).set_next((Values &&) values...);
+      return r.set_next((Values &&) values...);
     }
   } set_next{};
 
@@ -246,6 +246,33 @@ UNIFEX_CONCEPT //
 template <typename R, typename... An>
   inline constexpr bool is_nothrow_receiver_of_v =
     receiver_of<R, An...> &&
+    is_nothrow_callable_v<decltype(set_value), R, An...>;
+
+//////////////////
+// Metafunctions for checking callability of specific receiver methods
+
+template <typename R, typename... An>
+inline constexpr bool is_next_receiver_v =
+    is_callable_v<decltype(set_next), R&, An...>;
+
+template <typename R, typename... An>
+inline constexpr bool is_value_receiver_v =
+    is_callable_v<decltype(set_value), R, An...>;
+
+template <typename R, typename E>
+inline constexpr bool is_error_receiver_v =
+    is_callable_v<decltype(set_error), R, E>;
+
+template <typename R>
+inline constexpr bool is_done_receiver_v =
+    is_callable_v<decltype(set_done), R>;
+
+template <typename R, typename... An>
+inline constexpr bool is_nothrow_next_receiver_v =
+    is_nothrow_callable_v<decltype(set_next), R, An...>;
+
+template <typename R, typename... An>
+inline constexpr bool is_nothrow_value_receiver_v =
     is_nothrow_callable_v<decltype(set_value), R, An...>;
 
 } // namespace unifex
