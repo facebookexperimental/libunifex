@@ -119,13 +119,13 @@ public:
 
     template(typename Self, typename BulkReceiver)
         (requires
-            same_as<std::remove_cvref_t<Self>, type> AND
+            same_as<remove_cvref_t<Self>, type> AND
             receiver_of<BulkReceiver> AND
             is_next_receiver_v<BulkReceiver, Integral>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, BulkReceiver&& r) {
         return unifex::connect(
             unifex::schedule(static_cast<Self&&>(s).scheduler_),
-            schedule_receiver<Integral, std::remove_cvref_t<BulkReceiver>>{
+            schedule_receiver<Integral, remove_cvref_t<BulkReceiver>>{
                 static_cast<Self&&>(s).count_,
                 static_cast<BulkReceiver&&>(r)});
     }
@@ -151,7 +151,7 @@ struct _fn {
             (!tag_invocable<_fn, Scheduler, Integral>))
     auto operator()(Scheduler&& s, Integral n) const
         noexcept(
-            std::is_nothrow_constructible_v<std::remove_cvref_t<Scheduler>, Scheduler> &&
+            std::is_nothrow_constructible_v<remove_cvref_t<Scheduler>, Scheduler> &&
             std::is_nothrow_move_constructible_v<Integral>)
         -> default_sender<remove_cvref_t<Scheduler>, Integral> {
         return default_sender<remove_cvref_t<Scheduler>, Integral>{(Scheduler&&)s, std::move(n)};
