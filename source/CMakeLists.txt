@@ -46,6 +46,15 @@ endif()
 
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+
+  target_sources(unifex
+    PRIVATE
+      win32/filetime_clock.cpp
+      win32/windows_thread_pool.cpp)
+
+endif()
+
 configure_file(
   ../include/unifex/config.hpp.in
   "${PROJECT_BINARY_DIR}/include/unifex/config.hpp")
