@@ -146,7 +146,7 @@ auto trampoline(Sender&& sender) {
 template<typename Sender>
 auto repeat_n(Sender&& sender, size_t count) {
     return unifex::repeat_effect_until(
-            trampoline((Sender&&)sender),
+            (Sender&&)sender,
             [count]() mutable {
                 if (count == 0) return true;
                 --count;

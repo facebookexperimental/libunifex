@@ -455,7 +455,8 @@ private:
 
         if (self.ioState->pendingCompletionNotifications == 0) {
             self.ioState->completed = true;
-            on_complete(op);
+            self.callback = &on_complete;
+            self.context.readyQueue_.push_front(op);
         } else {
             if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
                 self.stopCallback_.construct(get_stop_token(self.receiver_), cancel_callback{self});
@@ -620,7 +621,8 @@ private:
 
         if (self.ioState->pendingCompletionNotifications == 0) {
             self.ioState->completed = true;
-            on_complete(op);
+            self.callback = &on_complete;
+            self.context.readyQueue_.push_front(op);
         } else {
             if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
                 self.stopCallback_.construct(get_stop_token(self.receiver_), cancel_callback{self});
