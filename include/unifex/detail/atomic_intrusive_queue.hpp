@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/detail/intrusive_queue.hpp>
+#include <unifex/detail/intrusive_stack.hpp>
 
 #include <atomic>
 #include <cassert>
@@ -127,12 +128,22 @@ public:
         static_cast<Item*>(value));
   }
 
-  // Atomically either mark the producer as inactive if the queue was empty
-  // or dequeue pending items from the queue.
-  //
-  // Not valid to call if the producer is already marked as inactive.
-  [[nodiscard]] intrusive_queue<Item, Next>
-  try_mark_inactive_or_dequeue_all() noexcept {
+  [[nodiscard]] intrusive_stack<Item, Next> dequeue_all_reversed() noexcept {
+    void* value = head_.load(std::memory_order_relaxed);
+    if (value == nullptr) {
+      // Queue is empty, return empty queue.
+      return {};
+    }
+    assert(value != producer_inactive_value());
+
+    value = head_.exchange(nullptr, std::memory_order_acquire);
+    assert(value != producer_inactive_value());
+    assert(value != nullptr);
+
+    return intrusive_stack<Item, Next>::adopt(static_cast<Item*>(value));
+  }
+
+  [[nodiscard]] bool try_mark_inactive() noexcept {
     void* const inactive = producer_inactive_value();
     void* oldValue = head_.load(std::memory_order_relaxed);
     if (oldValue == nullptr) {
@@ -141,16 +152,30 @@ public:
               inactive,
               std::memory_order_release,
               std::memory_order_relaxed)) {
-        // Successfully marked as inactive, return the empty queue.
-        return {};
+        // Successfully marked as inactive
+        return true;
       }
     }
-    assert(oldValue != nullptr);
-    assert(oldValue != inactive);
 
-    oldValue = head_.exchange(nullptr, std::memory_order_acquire);
+    // The queue was 
     assert(oldValue != nullptr);
     assert(oldValue != inactive);
+    return false;
+  }
+
+  // Atomically either mark the producer as inactive if the queue was empty
+  // or dequeue pending items from the queue.
+  //
+  // Not valid to call if the producer is already marked as inactive.
+  [[nodiscard]] intrusive_queue<Item, Next>
+  try_mark_inactive_or_dequeue_all() noexcept {
+    if (try_mark_inactive()) {
+      return {};
+    }
+
+    void* oldValue = head_.exchange(nullptr, std::memory_order_acquire);
+    assert(oldValue != nullptr);
+    assert(oldValue != producer_inactive_value());
 
     return intrusive_queue<Item, Next>::make_reversed(
         static_cast<Item*>(oldValue));
