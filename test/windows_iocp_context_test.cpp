@@ -31,6 +31,8 @@
 #include <unifex/trampoline_scheduler.hpp>
 #include <unifex/typed_via.hpp>
 #include <unifex/let.hpp>
+#include <unifex/finally.hpp>
+#include <unifex/on.hpp>
 
 #include <cassert>
 #include <chrono>
@@ -166,6 +168,29 @@ auto discard_value(Sender&& sender) {
     return unifex::transform((Sender&&)sender, [](auto&&...) noexcept {});
 }
 
+template<typename Func>
+auto lazy(Func&& func) {
+    return unifex::transform(unifex::just(), (Func&&)func);
+}
+
+template<typename Sender>
+auto measure_time(Sender&& sender, std::string tag = {}) {
+    using namespace std::chrono;
+
+    return unifex::let(
+        lazy([] { return steady_clock::now(); }),
+        [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& start) {
+            return unifex::finally(
+                std::move(sender),
+                lazy([&]() noexcept {
+                    auto dur = steady_clock::now() - start;
+                    auto durUs = duration_cast<microseconds>(dur).count();
+                    std::printf("[%s] took %ius\n", tag.c_str(), (int)durUs);
+                }));
+        });
+}
+
+
 TEST(low_latency_iocp_context, loop_read_write_pipe) {
     unifex::win32::low_latency_iocp_context context{100};
 
@@ -187,17 +212,21 @@ TEST(low_latency_iocp_context, loop_read_write_pipe) {
     // and      1k writes of 100 bytes
     // and do this asynchronously, interleaving the two loops.
     unifex::sync_wait(
-        unifex::when_all(
-            repeat_n(
-                defer([&, &readPipe=readPipe] {
-                    return discard_value(
-                        unifex::async_read_some(readPipe, unifex::span{readBuffer}));
-                }), 10000),
-            repeat_n(
-                defer([&, &writePipe=writePipe] {
-                    return discard_value(
-                        unifex::async_write_some(writePipe, unifex::span{writeBuffer}));
-                }), 1000)));
+        measure_time(
+            unifex::on(
+                unifex::when_all(
+                    repeat_n(
+                        defer([&, &readPipe=readPipe] {
+                            return discard_value(
+                                unifex::async_read_some(readPipe, unifex::span{readBuffer}));
+                        }), 10'000),
+                    repeat_n(
+                        defer([&, &writePipe=writePipe] {
+                            return discard_value(
+                                unifex::async_write_some(writePipe, unifex::span{writeBuffer}));
+                        }), 1'000)),
+                s),
+            "read + write"));
 
     stopSource.request_stop();
     ioThread.join();
