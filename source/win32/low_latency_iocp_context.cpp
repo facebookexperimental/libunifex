@@ -55,8 +55,45 @@ low_latency_iocp_context::low_latency_iocp_context(std::size_t maxIoOperations)
 }
 
 low_latency_iocp_context::~low_latency_iocp_context() {
-    // Clear the free-list (to avoid hitting assertion in dtor)
-    ioFreeList_.release();
+    // Wait until the completion-event for every io-state has been 
+    // received before we free the memory for the io-states.
+    std::size_t remaining = ioPoolSize_;
+    while (!ioFreeList_.empty()) {
+        (void)ioFreeList_.pop_front();
+        --remaining;
+    }
+
+    if (remaining > 0) {
+        constexpr std::uint32_t completionBufferSize = 128;
+        OVERLAPPED_ENTRY completionBuffer[completionBufferSize];
+        std::memset(&completionBuffer, 0, sizeof(completionBuffer));
+
+        do {
+            DWORD numEntriesRemoved = 0;
+            BOOL ok = ::GetQueuedCompletionStatusEx(
+                iocp_.get(),
+                completionBuffer,
+                completionBufferSize,
+                &numEntriesRemoved,
+                INFINITE,
+                FALSE);
+            if (!ok) {
+                std::terminate();
+            }
+
+            for (std::uint32_t i = 0; i < numEntriesRemoved; ++i) {
+                auto& entry = completionBuffer[i];
+                if (entry.lpOverlapped != nullptr) {
+                    win32::overlapped* o = reinterpret_cast<win32::overlapped*>(entry.lpOverlapped);
+                    auto* state = to_io_state(o);
+                    --state->pendingCompletionNotifications;
+                    if (state->pendingCompletionNotifications == 0) {
+                        --remaining;
+                    }
+                }
+            }
+        } while (remaining > 0);
+    }
 }
 
 void low_latency_iocp_context::run_impl(bool& stopFlag) {
