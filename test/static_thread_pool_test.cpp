@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <unifex/just.hpp>
+#include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
@@ -53,6 +55,9 @@ TEST(StaticThreadPool, Smoke) {
         ++x;
         std::printf("task 3\n");
       })));
+
+  sync_wait(
+    on(just(), tp));
 
   EXPECT_EQ(x, 3);
 }

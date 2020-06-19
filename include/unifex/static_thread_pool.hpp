@@ -99,6 +99,13 @@ namespace _static_thread_pool {
       friend class context;
       explicit scheduler(context& pool) noexcept : pool_(pool) {}
 
+      friend bool operator==(scheduler a, scheduler b) noexcept {
+        return &a.pool_ == &b.pool_;
+      }
+      friend bool operator!=(scheduler a, scheduler b) noexcept {
+        return &a.pool_ != &b.pool_;
+      }
+
       context& pool_;
     };
 
