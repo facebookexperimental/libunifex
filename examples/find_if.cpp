@@ -44,8 +44,7 @@ int main() {
           just(begin(input), end(input), 3),
           [&](const int& v, int another_parameter) {
             return v == another_parameter;
-          },
-          unifex::seq),
+          }),
       [](std::vector<int>::iterator v, int another_parameter) {
         assert(another_parameter == 3);
         return v;
