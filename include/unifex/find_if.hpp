@@ -16,14 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-<<<<<<< HEAD
-<<<<<<< HEAD
 #include <unifex/execution_policy.hpp>
-=======
->>>>>>> Add basic find_if
-=======
-#include <unifex/execution_policy.hpp>
->>>>>>> Add execution policy
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
@@ -80,11 +73,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
 
   template<typename Iterator, typename... Values>
   auto find_if_helper(Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
-<<<<<<< HEAD
     // Sequential implementation
-=======
-    // Scalar implementation
->>>>>>> Add execution policy
     for(auto it = begin_it; it != end_it; ++it) {
       if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
         return it;
