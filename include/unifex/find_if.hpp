@@ -74,19 +74,21 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
 
-  template<typename Iterator, typename... Values>
-  auto find_if_helper(const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
+  template<typename ResultReceiver, typename Iterator, typename... Values>
+  void find_if_helper(ResultReceiver&& receiver, const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
     // Sequential implementation
     for(auto it = begin_it; it != end_it; ++it) {
       if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
-        return it;
+        unifex::set_value((ResultReceiver &&) receiver, std::move(it), (Values &&) values...);
+        return;
       }
     }
-    return end_it;
+
+    unifex::set_value((ResultReceiver &&) receiver, std::move(end_it), (Values &&) values...);
   }
 
-  template<typename Iterator, typename... Values>
-  auto find_if_helper(const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
+  template<typename ResultReceiver, typename Iterator, typename... Values>
+  void find_if_helper(ResultReceiver&& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
     auto sched = unifex::get_scheduler(receiver_);
 
     // func_ is safe to run concurrently so let's make use of that
@@ -115,12 +117,13 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
             return end_it;
           }));
       if(itResult && *itResult != end_it) {
-        return *itResult;
+        unifex::set_value((ResultReceiver &&) receiver, std::move(*itResult), (Values &&) values...);
+        return;
       }
 
       chunk_it = chunk_end_it;
     }
-    return end_it;
+    unifex::set_value((ResultReceiver &&) receiver, std::move(end_it), (Values &&) values...);
   }
 
   template <typename BeginIt, typename EndIt, typename... Values>
@@ -133,14 +136,10 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     if constexpr (noexcept(std::invoke(
                       (Func &&) func_, *begin_it, (Values &&) values...))) {
 
-      auto result = find_if_helper(funcPolicy_, begin_it, end_it, values...);
-
-      unifex::set_value((Receiver &&) receiver_, std::move(result), (Values &&) values...);
+      find_if_helper((Receiver &&) receiver_, funcPolicy_, begin_it, end_it, values...);
     } else {
       try {
-        auto result = find_if_helper(funcPolicy_, begin_it, end_it, values...);
-
-        unifex::set_value((Receiver &&) receiver_, std::move(result), (Values &&) values...);
+        find_if_helper((Receiver &&) receiver_, funcPolicy_, begin_it, end_it, values...);
       } catch (...) {
         unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
