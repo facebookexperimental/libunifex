@@ -62,7 +62,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
 
   template<typename Iterator, typename... Values>
   auto find_if_helper(Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
-    // Scalar implementation
+    // Sequential implementation
     for(auto it = begin_it; it != end_it; ++it) {
       if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
         return it;
