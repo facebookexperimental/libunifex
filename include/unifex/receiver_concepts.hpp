@@ -269,7 +269,7 @@ inline constexpr bool is_done_receiver_v =
 
 template <typename R, typename... An>
 inline constexpr bool is_nothrow_next_receiver_v =
-    is_nothrow_callable_v<decltype(set_next), R, An...>;
+    is_nothrow_callable_v<decltype(set_next), R&, An...>;
 
 template <typename R, typename... An>
 inline constexpr bool is_nothrow_value_receiver_v =
