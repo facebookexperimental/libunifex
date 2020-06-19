@@ -24,6 +24,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/transform.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 
@@ -33,6 +34,8 @@
 #include <utility>
 
 #include <unifex/detail/prologue.hpp>
+
+#include <iostream>
 
 namespace unifex {
 namespace _find_if {
@@ -72,12 +75,51 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
 
   template<typename Iterator, typename... Values>
-  auto find_if_helper(Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
+  auto find_if_helper(const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
     // Sequential implementation
     for(auto it = begin_it; it != end_it; ++it) {
       if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
         return it;
       }
+    }
+    return end_it;
+  }
+
+  template<typename Iterator, typename... Values>
+  auto find_if_helper(const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
+    auto sched = unifex::get_scheduler(receiver_);
+
+    // func_ is safe to run concurrently so let's make use of that
+    // NOTE: Assumes random access iterator for now
+    constexpr int chunk_size = 10;
+    auto chunk_it = begin_it;
+    while(chunk_it != end_it) {
+      auto chunk_end_it = end_it;
+      if((std::distance(chunk_it, end_it) >= chunk_size)) {
+        chunk_end_it = chunk_it;
+        std::advance(chunk_it, chunk_size);
+      }
+
+            std::cerr << "Before task\n";
+      // Use scheduler but block for now, make async in later step
+      auto itResult = sync_wait(
+        unifex::transform(
+          unifex::schedule(sched),
+          [this, chunk_it, chunk_end_it, end_it, &values...](){
+            std::cerr << "Start of task\n";
+            for(auto it = chunk_it; it != chunk_end_it; ++it) {
+              if(std::invoke(func_, *it, values...)) {
+                return it;
+              }
+            }
+            // If not found, return the very end value
+            return end_it;
+          }));
+      if(*itResult != end_it) {
+        return *itResult;
+      }
+
+      chunk_it = chunk_end_it;
     }
     return end_it;
   }
@@ -92,12 +134,12 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     if constexpr (noexcept(std::invoke(
                       (Func &&) func_, *begin_it, (Values &&) values...))) {
 
-      auto result = find_if_helper(begin_it, end_it, values...);
+      auto result = find_if_helper(funcPolicy_, begin_it, end_it, values...);
 
       unifex::set_value((Receiver &&) receiver_, std::move(result), (Values &&) values...);
     } else {
       try {
-        auto result = find_if_helper(begin_it, end_it, values...);
+        auto result = find_if_helper(funcPolicy_, begin_it, end_it, values...);
 
         unifex::set_value((Receiver &&) receiver_, std::move(result), (Values &&) values...);
       } catch (...) {
