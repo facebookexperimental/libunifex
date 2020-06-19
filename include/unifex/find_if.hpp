@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/execution_policy.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
@@ -46,21 +47,22 @@ namespace detail {
   };
 }
 
-template <typename Receiver, typename Func>
+template <typename Receiver, typename Func, typename FuncPolicy>
 struct _receiver {
   struct type;
 };
-template <typename Receiver, typename Func>
-using receiver_t = typename _receiver<Receiver, Func>::type;
+template <typename Receiver, typename Func, typename FuncPolicy>
+using receiver_t = typename _receiver<Receiver, Func, FuncPolicy>::type;
 
-template <typename Receiver, typename Func>
-struct _receiver<Receiver, Func>::type {
+template <typename Receiver, typename Func, typename FuncPolicy>
+struct _receiver<Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
 
   template<typename Iterator, typename... Values>
   auto find_if_helper(Iterator begin_it, Iterator end_it, const Values&... values) -> Iterator {
-    // Scalar implementation for now
+    // Scalar implementation
     for(auto it = begin_it; it != end_it; ++it) {
       if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
         return it;
@@ -111,17 +113,18 @@ struct _receiver<Receiver, Func>::type {
   }
 };
 
-template <typename Predecessor, typename Func>
+template <typename Predecessor, typename Func, typename FuncPolicy>
 struct _sender {
   struct type;
 };
-template <typename Predecessor, typename Func>
-using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>>::type;
+template <typename Predecessor, typename Func, typename FuncPolicy>
+using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>, FuncPolicy>::type;
 
-template <typename Predecessor, typename Func>
-struct _sender<Predecessor, Func>::type {
+template <typename Predecessor, typename Func, typename FuncPolicy>
+struct _sender<Predecessor, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
+  UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
 
 private:
 
@@ -144,7 +147,7 @@ public:
     type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename Receiver>
-  using receiver_t = receiver_t<Receiver, Func>;
+  using receiver_t = receiver_t<Receiver, Func, FuncPolicy>;
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
     return blocking(sender.pred_);
@@ -162,7 +165,8 @@ public:
       static_cast<Sender&&>(s).pred_,
       receiver_t<remove_cvref_t<Receiver>>{
         static_cast<Sender&&>(s).func_,
-        static_cast<Receiver&&>(r)});
+        static_cast<Receiver&&>(r),
+        static_cast<Sender&&>(s).funcPolicy_});
   }
 };
 } // namespace _find_if
@@ -170,27 +174,28 @@ public:
 namespace _find_if_cpo {
   inline const struct _fn {
   private:
-    template <typename Sender, typename Func>
+    template <typename Sender, typename Func, typename FuncPolicy>
     using _result_t =
       typename conditional_t<
         tag_invocable<_fn, Sender, Func>,
         meta_tag_invoke_result<_fn>,
-        meta_quote2<_find_if::sender>>::template apply<Sender, Func>;
+        meta_quote3<_find_if::sender>>::template apply<Sender, Func, FuncPolicy>;
   public:
-    template(typename Sender, typename Func)
-      (requires tag_invocable<_fn, Sender, Func>)
-    auto operator()(Sender&& predecessor, Func&& func) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
-        -> _result_t<Sender, Func> {
-      return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
+    template(typename Sender, typename Func, typename FuncPolicy)
+      (requires tag_invocable<_fn, Sender, Func, FuncPolicy>)
+    auto operator()(Sender&& predecessor, Func&& func, FuncPolicy policy) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func, FuncPolicy>)
+        -> _result_t<Sender, Func, FuncPolicy> {
+      return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func, (FuncPolicy&&)policy);
     }
-    template(typename Sender, typename Func)
-      (requires (!tag_invocable<_fn, Sender, Func>))
-    auto operator()(Sender&& predecessor, Func&& func) const
+    template(typename Sender, typename Func, typename FuncPolicy)
+      (requires (!tag_invocable<_fn, Sender, Func, FuncPolicy>))
+    auto operator()(Sender&& predecessor, Func&& func, FuncPolicy policy) const
         noexcept(std::is_nothrow_constructible_v<
-          _find_if::sender<Sender, Func>, Sender, Func>)
-        -> _result_t<Sender, Func> {
-      return _find_if::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
+          _find_if::sender<Sender, Func, FuncPolicy>, Sender, Func, FuncPolicy>)
+        -> _result_t<Sender, Func, FuncPolicy> {
+      return _find_if::sender<Sender, Func, FuncPolicy>{
+        (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};
     }
   } find_if{};
 } // namespace _find_if_cpo
