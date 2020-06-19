@@ -97,16 +97,15 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
       auto chunk_end_it = end_it;
       if((std::distance(chunk_it, end_it) >= chunk_size)) {
         chunk_end_it = chunk_it;
-        std::advance(chunk_it, chunk_size);
+        std::advance(chunk_end_it, chunk_size);
+
       }
 
-            std::cerr << "Before task\n";
       // Use scheduler but block for now, make async in later step
       auto itResult = sync_wait(
         unifex::transform(
           unifex::schedule(sched),
           [this, chunk_it, chunk_end_it, end_it, &values...](){
-            std::cerr << "Start of task\n";
             for(auto it = chunk_it; it != chunk_end_it; ++it) {
               if(std::invoke(func_, *it, values...)) {
                 return it;
@@ -115,7 +114,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
             // If not found, return the very end value
             return end_it;
           }));
-      if(*itResult != end_it) {
+      if(itResult && *itResult != end_it) {
         return *itResult;
       }
 

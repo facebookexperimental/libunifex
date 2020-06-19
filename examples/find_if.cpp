@@ -58,9 +58,12 @@ int main() {
   }
 
   {
-    std::vector<int> input{1, 2, 3, 4};
+    std::cerr << "Parallel phase\n";
+    std::vector<int> input;
+    for(int i = 2; i < 20; ++i) {
+      input.push_back(i);
+    }
     static_thread_pool ctx;
-
     // Apply linear find_if.
     // As for std::find_if it returns the first instance that matches the
     // predicate where the algorithm takes an iterator pair as the first
@@ -72,13 +75,13 @@ int main() {
       unifex::on(
         transform(
           find_if(
-              just(begin(input), end(input), 4),
+              just(begin(input), end(input), 7),
               [&](const int& v, int another_parameter) {
                 return v == another_parameter;
               },
               unifex::par),
           [](std::vector<int>::iterator v, int another_parameter) {
-            assert(another_parameter == 4);
+            assert(another_parameter == 7);
             return v;
           }),
         ctx.get_scheduler()));
