@@ -762,7 +762,7 @@ public:
 
     template(typename Self, typename Receiver, typename... ExtraArgFactories)
         (requires
-            unifex::same_as<std::remove_cvref_t<Self>, sender_for> AND
+            unifex::same_as<remove_cvref_t<Self>, sender_for> AND
             unifex::invocable<
                 decltype(::connect_from), CPO, Receiver,
                 value_factory<unifex::member_t<Self, Args>>...,
