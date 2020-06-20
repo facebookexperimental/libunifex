@@ -331,12 +331,12 @@ namespace unifex
 # ManySender/ManyReceiver
 
 A **ManySender** represents an operation that asynchronously produces zero or
-more values, produced by a call to `set_value()` for each value, terminated
-by a call to `set_done()` or `set_error()`.
+more values, produced by a call to `set_next()` for each value, terminated
+by a call to either `set_value()`, `set_done()` or `set_error()`.
 
 This is a general concept that encapsulates both sequences of values (where the calls to
-`set_value()` are non-overlapping) and parallel/bulk operations (where there may
-be concurrent/overlapping calls to `set_value()` on different threads
+`set_next()` are non-overlapping) and parallel/bulk operations (where there may
+be concurrent/overlapping calls to `set_next()` on different threads
 and/or SIMD lanes).
 
 A **ManySender** does not have a back-pressure mechanism. Once started, the delivery
@@ -347,32 +347,47 @@ the sender to stop sending values, e.g. by causing the StopToken to enter the
 Contrast this with the **Stream** concept (see below) that lazily produces the next
 value only when the consumer asks for it, providing a natural backpressure mechanism.
 
-> NOTE: Unifex does not currently contain any implementations of ManySender.
-> This section describes the current thinking about what would shape a
-> ManySender concept would take.
-
 ## Sender vs ManySender
 
 Whereas **Sender** produces a single result. ie. a single call to one of either
 `set_value()`, `set_done()` or `set_error()`, a **ManySender** produces multiple values
-via zero or more calls to `set_value()` followed by either a call to `set_done()` or
-`set_error()` to terminate the sequence.
+via zero or more calls to `set_next()` followed by a call to either `set_value()`,
+`set_done()` or `set_error()` to terminate the sequence.
 
-Note that terminal calls to a receiver must be passed an rvalue-reference to the
-receiver, while non-terminal calls to a receiver must be passed an lvalue-reference
-to the receiver.
+A **Sender** is a kind of **ManySender**, just a degenerate ManySender that never
+sends any elements via `set_next()`.
 
-We can use this to distinguish between a receiver that supports receiving a single
-value produced by a **Sender** and a receiver that supports receiving multiple
-values produced by a **ManySender** by looking at whether the `set_value()` CPO
-is callable with an lvalue-reference to the receiver or an rvalue-reference to
-the receiver.
+Also, a **ManyReceiver** is a kind of **Receiver**. You can pass a **ManyReceiver**
+to a **Sender**, it will just never have its `set_next()` method called on it.
 
-If the `set_value()` CPO is callable with an rvalue-reference to the receiver then
-it is usable as a receiver for a **Sender**.
+Note that terminal calls to a receiver (i.e. `set_value()`, `set_done()` or `set_error()`)
+must be passed an rvalue-reference to the receiver, while non-terminal calls to a receiver
+(i.e. `set_next()`) must be passed an lvalue-reference to the receiver.
 
-If the `set_value()` CPO is callable with an lvalue-reference to the receiver then
-it is usable as a receiver for a **ManySender**.
+The sender is responsible for ensuring that the return from any call to `set_next()`
+**strongly happens before** the call to deliver a terminal signal is made.
+ie. that any effects of calls to `set_next()` are visible within the terminal signal call.
+
+A terminal call to `set_value()` indicates that the full-set of `set_next()` calls were
+successfully delivered and that the operation as a whole completed successfully.
+
+Note that the `set_value()` can be considered as the sentinel value of the parallel
+tasks. Often this will be invoked with an empty pack of values, but it is also valid
+to pass values to this `set_value()` call.
+e.g. This can be used to produce the result of the reduce operation.
+
+A terminal call to `set_done()` or `set_error()` indicates that the operation may have
+completed early, either because the operation was asked to stop early (as in `set_done`)
+or because the operation was unable to satisfy its post-conditions due to some failure
+(as in `set_error`). In this case it is not guaranteed that the full set of values were
+delivered via `set_next()` calls.
+
+As with a **Sender** and **ManySender** you must call `connect()` to connect a sender
+to it. This returns an **OperationState** that holds state for the many-sender operation.
+
+The **ManySender** will not make any calls to `set_next()`, `set_value()`, `set_done()`
+or `set_error()` before calling `start()` on the operation-state returned from
+`connect()`.
 
 Thus, a **Sender** should usually constrain its `connect()` operation as follows:
 ```c++
@@ -388,7 +403,6 @@ struct some_sender_of_int {
     tag_t<connect>, some_many_sender&& s, Receiver&& r);
 };
 ```
-And a **Receiver** should define only an rvalue customisation of `set_value()`.
 
 While a **ManySender** should constrain its `connect()` opertation like this:
 ```c++
@@ -398,17 +412,13 @@ struct some_many_sender_of_ints {
 
   template<typename Receiver>
     requires
-      value_receiver<std::decay_t<Receiver>&, int> &&
-      done_receiver<std::decay_t<Receiver>
+      next_receiver<std::decay_t<Receiver>, int> &&
+      value_receiver<std::decay_t<Receiver>> &&
+      done_receiver<std::decay_t<Receiver>>
   friend operation<std::decay_t<Receiver>> tag_invoke(
     tag_t<connect>, some_many_sender&& s, Receiver&& r);
 };
 ```
-And a **ManyReceiver** should define only an lvalue customisation of `set_value()`.
-
-
-NOTE: The `set_done()` and `set_error()` CPOs always terminate an async operation
-and so must always be passed an rvalue reference to a the receiver.
 
 ## Sequential vs Parallel Execution
 
@@ -423,19 +433,20 @@ For other use-cases we want to process these values in parallel, allowing
 multiple threads, SIMD lanes, or GPU cores to process the values more
 quickly than would be possible normally.
 
-In both cases, we have a number of calls to `set_value`, followed by a
-call to `set_error` or `set_done`. So what is the difference between
-these cases?
+In both cases, we have a number of calls to `set_next`, followed by a
+call to `set_value`, `set_error` or `set_done`.
+So what is the difference between these cases?
 
-Firstly, the **ManySender** implementation needs to be *capable* of making
-overlapping calls to `set_value()` - it needs to have the necessary
+Firstly, the **ManySender** implementation needs to be _capable_ of making
+overlapping calls to `set_next()` - it needs to have the necessary
 execution resources available to be able to do this.
-Some senders may only be able to send a single value at a time.
+Some senders may only have access to a single execution agent and so
+are only able to send a single value at a time.
 
 Secondly, the receiver needs to be prepared to handle overlapping calls
-to `set_value()`. Some receiver implementations may update shared state
-with the each value without synchronisation and so would be undefined
-behaviour to make concurrent calls to `set_value()`. While other
+to `set_next()`. Some receiver implementations may update shared state
+with the each value without synchronisation and so it would be undefined
+behaviour to make concurrent calls to `set_next()`. While other
 receivers may have either implemented the required synchronisation or
 just not require synchronisation e.g. because they do not modify
 any shared state.
@@ -448,28 +459,59 @@ Note that the constraints that the receiver places on the valid
 execution patterns are analagous to the "execution policy" parameter
 of the standard library parallel algorithms.
 
-When you pass an execution policy, such as `std::execution::par` or
-`std::execution::seq`, to a parallel algorithm you are telling the
-implementation of that algorithm the constraints of how it is allowed
-to call the callback you passed to it.
+With existing parallel algorithms in the standard library, when you
+pass an execution policy, such as `std::execution::par`, you are telling
+the implementation of that algorithm the constraints of how it is
+allowed to call the callback you passed to it.
 
-If we allow a **ManySender** to query from the **ManyReceiver**
-what the execution constraints for calling the `set_value()` method
-is, then the sender can make a decision about the strategy to use
-when calling `set_value()`.
+For example:
+```c++
+std::vector<int> v = ...;
 
-For example, we can define a `get_execution_policy()` CPO that
-can be invoked, passing the receiver as the argument, and have it
-return the execution policy that specifies how the receiver's
-`set_value()` method is allowed to be called.
+int max = std::reduce(std::execution::par_unseq,
+                      v.begin(), v.end(),
+                      std::numeric_limits<int>::min(),
+                      [](int a, int b) { return std::max(a, b); });
+```
 
-A receiver that supports concurrent calls to `set_value()` would
-customise `get_execution_policy()` for its type to return
-`std::execution::par`.
+Passing `std::execution::par` is not saying that the algorithm
+implementation _must_ call the lambda concurrently, only that it _may_
+do so. It is always valid for the algorithm to call the lambda sequentially.
+
+We want to take the same approach with the **ManySender** / **ManyReceiver**
+contract to allow a **ManySender** to query from the **ManyReceiver**
+what the execution constraints for calling its `set_next()` method
+are. Then the sender can make a decision about the best strategy to
+use when calling `set_next()`.
+
+To do this, we define a `get_execution_policy()` CPO that can be invoked,
+passing the receiver as the argument, and have it return the execution
+policy that specifies how the receiver's `set_next()` method is allowed
+to be called.
+
+For example, a receiver that supports concurrent calls to `set_next()`
+would customise `get_execution_policy()` for its type to return
+either `unifex::par` or `unifex::par_unseq`.
 
 A sender that has multiple threads available can then call
-`get_execution_policy(receiver)` and choose how to invoke
-the `set_value()` methods based on this.
+`get_execution_policy(receiver)`, see that it allows concurrent execution
+and distribute the calls to `set_next()` across available threads.
+
+## TypedManySender
+
+With the **TypedSender** concept, the type exposes type-aliases that allow
+the consumer of the sender to query what types it is going to invoke a
+receiver's `set_value()` and `set_error()` methods with.
+
+A **TypedManySender** concept similarly extends the **ManySender**
+concept, requiring the sender to describe the types it will invoke `set_net()`,
+via a `next_types` type-alias, in addition to the `value_types` and `error_types`
+type-aliases required by **TypedSender**.
+
+Note that this requirement for a **TypedManySender** to provide the `next_types`
+type-alias means that the **TypedSender** concept, which only need to provide the
+`value_types` and `error_types` type-aliases, does not subsume the **TypedManySender**
+concept, even though **Sender** logically subsumes the **ManySender** concept. 
 
 # Streams
 
@@ -517,8 +559,8 @@ This has a number of differences compared with a **ManySender**.
 * The consumer of a stream may process the result asynchronously and can
   defer asking for the next value until it has finished processing the
   previous value.
-  * A **ManySender** can continue calling `set_value()` as soon as the
-    previous call to `set_value()` returns.
+  * A **ManySender** can continue calling `set_next()` as soon as the
+    previous call to `set_next()` returns.
   * A **ManySender** has no mechanism for flow-control. The **ManyReceiver**
     must be prepared to accept as many values as the **ManySender** sends
     to it.

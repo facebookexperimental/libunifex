@@ -82,6 +82,21 @@ namespace detail {
 
   template <typename S>
   UNIFEX_CONCEPT_FRAGMENT(  //
+    _has_bulk_sender_types_impl, //
+      requires() (          //
+        // BUGBUG TODO:
+        // typename (std::bool_constant<S::sends_done>),
+        typename (_has_value_types<S::template value_types>),
+        typename (_has_value_types<S::template next_types>),
+        typename (_has_error_types<S::template error_types>)
+      ));
+  template <typename S>
+  UNIFEX_CONCEPT        //
+    _has_bulk_sender_types = //
+      UNIFEX_FRAGMENT(detail::_has_bulk_sender_types_impl, S);
+
+  template <typename S>
+  UNIFEX_CONCEPT_FRAGMENT(  //
     _not_has_sender_traits, //
       requires() (          //
         typename (typename sender_traits<S>::_unspecialized)
@@ -117,13 +132,23 @@ namespace detail {
     // static constexpr bool sends_done = S::sends_done;
   };
 
+  template <typename S>
+  struct _typed_bulk_sender_traits : _typed_sender_traits<S> {
+    template <
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
+    using next_types = typename S::template next_types<Variant, Tuple>;
+  };
+
   struct _no_sender_traits {
     using _unspecialized = void;
   };
 
   template <typename S>
   constexpr auto _select_sender_traits() noexcept {
-    if constexpr (_has_sender_types<S>) {
+    if constexpr (_has_bulk_sender_types<S>) {
+      return _typed_bulk_sender_traits<S>{};
+    } else if constexpr (_has_sender_types<S>) {
       return _typed_sender_traits<S>{};
     } else if constexpr (_is_executor<S>) {
       return _void_sender_traits{};
@@ -149,6 +174,12 @@ UNIFEX_CONCEPT   //
   typed_sender = //
     sender<S> && //
     detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
+
+template <typename S>
+UNIFEX_CONCEPT        //
+  typed_bulk_sender = //
+    sender<S> &&      //
+    detail::_has_bulk_sender_types<sender_traits<remove_cvref_t<S>>>;
 
 namespace _start_cpo {
   inline const struct _fn {

@@ -4,6 +4,7 @@
   * `get_stop_token()`
   * `get_scheduler()`
   * `get_allocator()`
+  * `get_execution_policy()`
 * Sender Algorithms
   * `transform()`
   * `transform_done()`
@@ -28,6 +29,10 @@
   * `async_trace_sender`
 * Sender Queries
   * `blocking()`
+* Many Sender Algorithms
+  * `bulk_transform()`
+  * `bulk_join()`
+  * `bulk_schedule()`
 * Stream Algorithms
   * `adapt_stream()`
   * `next_adapt_stream()`
@@ -92,6 +97,41 @@ this stop-token to either poll or subscribe for notification of a request to sto
 If a receiver has not customised this it will default to return `unstoppable_token`.
 
 See the [Cancellation](cancellation.md) section for more details on cancellation.
+
+### `get_execution_policy(manyReceiver)`
+
+For a ManyReceiver, obtains the execution policy object that specifies the constraints
+on how a ManySender is allowed to call `set_next()`.
+
+The following execution policies are built-in and understood by the many-sender
+algorithms in libunifex.
+
+* `unifex::sequenced_policy` - Calls to `set_next()` on the receiver must be sequenced
+  and may not be executed concurrently on different threads or have their executions
+  interleaved on a single thread.
+
+* `unifex::unsequenced_policy` - Calls to `set_next()` are safe to be interleaved
+  with each other on the same thread but are not safe to be executed concurrently
+  on different threads. This typically allows vectorised execution of the calls using
+  SIMD instructions.
+
+* `unifex::parallel_policy` - Calls to `set_next()` are safe to be executed
+  concurrently on different threads, but are not safe to be interleaved on
+  a given thread. Use this if the forward-progress of one call to `set_next()`
+  may be dependent on another call to `set_next()` making forward progress.
+  e.g. if multiple calls attempt to acquire a lock on the same mutex.
+  
+* `unifex::parallel_unsequenced_policy` - Calls to `set_next()` are safe to
+  be executed concurrently on different threads and are also safe to have
+  their executions interleaved on a given thread.
+
+Note that, while it is possible to extend the set of execution policies with
+application-specific policies, builtin implementations of bulk algorithms
+will not necessarily understand them and will treat them as if they were
+the `sequenced_policy`.
+
+If a receiver does not customise the `get_execution_policy()` CPO then it
+will default to returning the `sequenced_policy`.
 
 # Sender Algorithms
 
@@ -464,6 +504,55 @@ Otherwise returns `blocking_kind::maybe`.
 
 Senders can customise this algorithm by providing an overload of
 `tag_invoke(tag_t<blocking>, const your_sender_type&)`.
+
+## Many Sender Algorithms
+
+### `bulk_transform(ManySender sender, Func func, FuncPolicy policy) -> ManySender`
+
+For each `set_next(values...)` result produced by `sender`, invokes
+`func(values...)` and produces the result of that call as its `set_next()`
+result.
+
+The `policy` argument is optional and if absent, defaults to `get_execution_policy(func)`.
+
+The resulting execution policy incorporates the union of the constraints
+placed on the execution of the function and the execution of the
+downstream receiver's `set_next()` method.
+
+i.e. both the down-stream ManyReceiver's execution policy and the function's
+execution policy must allow parallel execution for the bulk_transform
+operation to permit parallel execution. Same for unsequenced execution.
+
+This algorithm is transparent to `set_value()`, `set_error()` and `set_done()`
+completion signals.
+
+### `bulk_join(ManySender source) -> Sender`
+
+Joins a bulk operation on a ManySender and turns it into a SingleSender
+operation that completes once all of the `set_next()` calls have completed.
+
+The input `source` sender must be a ManySender of `void` (ie. no values passed
+to `set_next()`).
+
+The returned single-sender is transparent to the `set_value()`, `set_error()`
+and `set_done()` signals.
+
+### `bulk_schedule(Scheduler sched, Count n) -> ManySender`
+
+Returns a ManySender of type `Count` that sends the values `0 .. n-1`
+to the receiver's `set_next()` channel.
+
+The default implementation of this algorithm schedules a single
+task onto the specified scheduler using `schedule()` and then calls
+`set_next()` in a loop.
+
+Scheduler types are permitted to customise the `bulk_schedule()` operation
+to allow more efficient implementations. e.g. a thread-pool may choose to
+split the work up into M pieces to execute across M different threads.
+
+Note that customisations must still adhere to the constraints placed on
+valid executions of `set_next()` according to the execution policy returned
+from `get_execution_policy()`.
 
 ## Stream Algorithms
 
