@@ -95,7 +95,7 @@ public:
         constexpr bool allowParallel =
           is_one_of_v<receiver_policy, parallel_policy, parallel_unsequenced_policy> &&
           is_one_of_v<Policy, parallel_policy, parallel_unsequenced_policy>;
-        
+
         if constexpr (allowUnsequenced && allowParallel) {
             return unifex::par_unseq;
         } else if constexpr (allowUnsequenced) {
@@ -217,7 +217,7 @@ struct _fn {
     template(typename Source, typename Func, typename FuncPolicy)
         (requires
             typed_bulk_sender<Source> AND
-            (!tag_invocable<_fn, Source, FuncPolicy, FuncPolicy>))
+            (!tag_invocable<_fn, Source, Func, FuncPolicy>))
     auto operator()(Source&& s, Func&& f, FuncPolicy policy) const
         noexcept(
             std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source> &&
