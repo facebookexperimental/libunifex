@@ -92,7 +92,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
 
   template<typename ResultReceiver, typename Iterator, typename... Values>
   void find_if_helper(ResultReceiver&& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
-    auto sched = unifex::get_scheduler(receiver_);
+    auto sched = unifex::get_scheduler(receiver);
 
     // func_ is safe to run concurrently so let's make use of that
     // NOTE: Assumes random access iterator for now
