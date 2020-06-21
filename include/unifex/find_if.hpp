@@ -127,6 +127,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
 
         chunk_it = chunk_end_it;
       }
+      unifex::set_value((ResultReceiver &&) receiver, std::move(end_it), (Values &&) values...);
     } else {
       std::cerr << "Par find_if\n";
       constexpr int max_num_chunks = 16;
@@ -137,50 +138,52 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
       std::cerr << "\tnum_chunks: " << num_chunks << "\n";
       auto chunk_size = (distance+num_chunks)/num_chunks;
       std::cerr << "\tchunk_size: " << chunk_size << "\n";
-      std::vector<decltype(begin_it)> iterators(num_chunks);
+      std::vector<Iterator> iterators(num_chunks);
 
       // Use bulk_schedule to construct parallelism, but block and use local vector for now
-      sync_wait(
-        unifex::bulk_join(
-          unifex::bulk_transform(
-            unifex::bulk_schedule(sched, num_chunks),
-            [this, begin_it, chunk_size, end_it, num_chunks, &iterators, &values...](std::size_t index){
-            std::cerr << "\trunning index: " << index << "\n";
-              auto chunk_begin_it = begin_it + (chunk_size*index);
-              auto chunk_end_it = chunk_begin_it;
-              if(index < (num_chunks-1)) {
-                std::advance(chunk_end_it, chunk_size);
-              } else {
-                chunk_end_it = end_it;
-              }
-
-              for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                std::cerr << "\t\tIteration\n";
-                if(std::invoke(func_, *it, values...)) {
-                  std::cerr << "\t\t\tFound with value " << *it << "\n";
-                  iterators[index] = it;
-                  return;
+      auto result = sync_wait(
+        unifex::transform(
+          unifex::bulk_join(
+            unifex::bulk_transform(
+              unifex::bulk_schedule(sched, num_chunks),
+              [this, begin_it, chunk_size, end_it, num_chunks, &iterators, &values...](std::size_t index){
+              std::cerr << "\trunning index: " << index << "\n";
+                auto chunk_begin_it = begin_it + (chunk_size*index);
+                auto chunk_end_it = chunk_begin_it;
+                if(index < (num_chunks-1)) {
+                  std::advance(chunk_end_it, chunk_size);
+                } else {
+                  chunk_end_it = end_it;
                 }
+
+                for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
+                  std::cerr << "\t\tIteration\n";
+                  if(std::invoke(func_, *it, values...)) {
+                    std::cerr << "\t\t\tFound with value " << *it << "\n";
+                    iterators[index] = it;
+                    return;
+                  }
+                }
+                // If not found, return the very end value
+                iterators[index] = end_it;
+              },
+              unifex::par
+            )
+          ),
+          [&iterators, end_it]() -> Iterator {
+            for(auto it : iterators) {
+              if(it != end_it) {
+                return it;
               }
-              // If not found, return the very end value
-              iterators[index] = end_it;
-            },
-            unifex::par
-          )
+            }
+            return end_it;
+          }
         )
       );
-      for(auto it : iterators) {
-        if(it != end_it) {
-          std::cerr << "\tFound: " << *it << "\n";
-
-          unifex::set_value((ResultReceiver &&) receiver, std::move(it), (Values &&) values...);
-          return;
-        }
-      }
+      // Ignore failed optional for now as sync_wait is temporary
+      unifex::set_value((ResultReceiver &&) receiver, *std::move(result), (Values &&) values...);
     }
 
-    std::cerr << "\tNot found\n";
-    unifex::set_value((ResultReceiver &&) receiver, std::move(end_it), (Values &&) values...);
   }
 
   template <typename BeginIt, typename EndIt, typename... Values>
