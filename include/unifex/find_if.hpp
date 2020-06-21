@@ -96,94 +96,59 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
 
     // func_ is safe to run concurrently so let's make use of that
     // NOTE: Assumes random access iterator for now
-    if(0) {
-      constexpr int chunk_size = 10;
-      auto chunk_it = begin_it;
-      while(chunk_it != end_it) {
-        auto chunk_end_it = end_it;
-        if((std::distance(chunk_it, end_it) >= chunk_size)) {
-          chunk_end_it = chunk_it;
-          std::advance(chunk_end_it, chunk_size);
+    std::cerr << "Par find_if\n";
+    constexpr int max_num_chunks = 16;
+    constexpr int min_chunk_size = 8;
+    auto distance = std::distance(begin_it, end_it);
+    std::cerr << "\tdistance: " << distance << "\n";
+    auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
+    std::cerr << "\tnum_chunks: " << num_chunks << "\n";
+    auto chunk_size = (distance+num_chunks)/num_chunks;
+    std::cerr << "\tchunk_size: " << chunk_size << "\n";
+    std::vector<Iterator> iterators(num_chunks);
 
-        }
+    // Use bulk_schedule to construct parallelism, but block and use local vector for now
+    auto result = sync_wait(
+      unifex::transform(
+        unifex::bulk_join(
+          unifex::bulk_transform(
+            unifex::bulk_schedule(sched, num_chunks),
+            [this, begin_it, chunk_size, end_it, num_chunks, &iterators, &values...](std::size_t index){
+            std::cerr << "\trunning index: " << index << "\n";
+              auto chunk_begin_it = begin_it + (chunk_size*index);
+              auto chunk_end_it = chunk_begin_it;
+              if(index < (num_chunks-1)) {
+                std::advance(chunk_end_it, chunk_size);
+              } else {
+                chunk_end_it = end_it;
+              }
 
-        // Use scheduler but block for now, make async in later step
-        auto itResult = sync_wait(
-          unifex::transform(
-            unifex::schedule(sched),
-            [this, chunk_it, chunk_end_it, end_it, &values...](){
-              for(auto it = chunk_it; it != chunk_end_it; ++it) {
+              for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
+                std::cerr << "\t\tIteration\n";
                 if(std::invoke(func_, *it, values...)) {
-                  return it;
+                  std::cerr << "\t\t\tFound with value " << *it << "\n";
+                  iterators[index] = it;
+                  return;
                 }
               }
               // If not found, return the very end value
-              return end_it;
-            }));
-        if(itResult && *itResult != end_it) {
-          unifex::set_value((ResultReceiver &&) receiver, std::move(*itResult), (Values &&) values...);
-          return;
-        }
-
-        chunk_it = chunk_end_it;
-      }
-      unifex::set_value((ResultReceiver &&) receiver, std::move(end_it), (Values &&) values...);
-    } else {
-      std::cerr << "Par find_if\n";
-      constexpr int max_num_chunks = 16;
-      constexpr int min_chunk_size = 8;
-      auto distance = std::distance(begin_it, end_it);
-      std::cerr << "\tdistance: " << distance << "\n";
-      auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
-      std::cerr << "\tnum_chunks: " << num_chunks << "\n";
-      auto chunk_size = (distance+num_chunks)/num_chunks;
-      std::cerr << "\tchunk_size: " << chunk_size << "\n";
-      std::vector<Iterator> iterators(num_chunks);
-
-      // Use bulk_schedule to construct parallelism, but block and use local vector for now
-      auto result = sync_wait(
-        unifex::transform(
-          unifex::bulk_join(
-            unifex::bulk_transform(
-              unifex::bulk_schedule(sched, num_chunks),
-              [this, begin_it, chunk_size, end_it, num_chunks, &iterators, &values...](std::size_t index){
-              std::cerr << "\trunning index: " << index << "\n";
-                auto chunk_begin_it = begin_it + (chunk_size*index);
-                auto chunk_end_it = chunk_begin_it;
-                if(index < (num_chunks-1)) {
-                  std::advance(chunk_end_it, chunk_size);
-                } else {
-                  chunk_end_it = end_it;
-                }
-
-                for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                  std::cerr << "\t\tIteration\n";
-                  if(std::invoke(func_, *it, values...)) {
-                    std::cerr << "\t\t\tFound with value " << *it << "\n";
-                    iterators[index] = it;
-                    return;
-                  }
-                }
-                // If not found, return the very end value
-                iterators[index] = end_it;
-              },
-              unifex::par
-            )
-          ),
-          [&iterators, end_it]() -> Iterator {
-            for(auto it : iterators) {
-              if(it != end_it) {
-                return it;
-              }
+              iterators[index] = end_it;
+            },
+            unifex::par
+          )
+        ),
+        [&iterators, end_it]() -> Iterator {
+          for(auto it : iterators) {
+            if(it != end_it) {
+              return it;
             }
-            return end_it;
           }
-        )
-      );
-      // Ignore failed optional for now as sync_wait is temporary
-      unifex::set_value((ResultReceiver &&) receiver, *std::move(result), (Values &&) values...);
-    }
-
+          return end_it;
+        }
+      )
+    );
+    // Ignore failed optional for now as sync_wait is temporary
+    unifex::set_value((ResultReceiver &&) receiver, *std::move(result), (Values &&) values...);
   }
 
   template <typename BeginIt, typename EndIt, typename... Values>
