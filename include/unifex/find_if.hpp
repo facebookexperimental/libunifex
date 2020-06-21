@@ -80,14 +80,21 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
   template<typename ResultReceiver, typename Iterator, typename... Values>
   void find_if_helper(ResultReceiver&& receiver, const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
     // Sequential implementation
-    for(auto it = begin_it; it != end_it; ++it) {
-      if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
-        unifex::set_value((ResultReceiver &&) receiver, std::move(it), (Values &&) values...);
-        return;
-      }
-    }
-
-    unifex::set_value((ResultReceiver &&) receiver, std::move(end_it), (Values &&) values...);
+    auto result = sync_wait(
+      unifex::transform(
+        unifex::just(),
+        [this, begin_it, end_it, &receiver, &values...]() {
+          for(auto it = begin_it; it != end_it; ++it) {
+            if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
+              unifex::set_value((ResultReceiver &&) receiver, std::move(it), (Values &&) values...);
+              return it;
+            }
+          }
+          return end_it;
+        }
+      )
+    );
+    unifex::set_value((ResultReceiver &&) receiver, *std::move(result), (Values &&) values...);
   }
 
   template<typename ResultReceiver, typename Iterator, typename... Values>
