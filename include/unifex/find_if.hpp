@@ -78,27 +78,23 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
 
   template<typename ResultReceiver, typename Iterator, typename... Values>
-  void find_if_helper(ResultReceiver&& receiver, const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
+  auto find_if_helper(ResultReceiver&& /*receiver*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
     // Sequential implementation
-    auto result = sync_wait(
-      unifex::transform(
-        unifex::just(),
-        [this, begin_it, end_it, &receiver, &values...]() {
-          for(auto it = begin_it; it != end_it; ++it) {
-            if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
-              unifex::set_value((ResultReceiver &&) receiver, std::move(it), (Values &&) values...);
-              return it;
-            }
+    return unifex::transform(
+      unifex::just(),
+      [this, begin_it, end_it, &values...]() {
+        for(auto it = begin_it; it != end_it; ++it) {
+          if(std::invoke((Func &&) func_, *it, (Values &&) values...)) {
+            return it;
           }
-          return end_it;
         }
-      )
+        return end_it;
+      }
     );
-    unifex::set_value((ResultReceiver &&) receiver, *std::move(result), (Values &&) values...);
   }
 
   template<typename ResultReceiver, typename Iterator, typename... Values>
-  void find_if_helper(ResultReceiver&& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
+  auto find_if_helper(ResultReceiver&& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
     auto sched = unifex::get_scheduler(receiver);
 
     // func_ is safe to run concurrently so let's make use of that
@@ -112,15 +108,16 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     std::cerr << "\tnum_chunks: " << num_chunks << "\n";
     auto chunk_size = (distance+num_chunks)/num_chunks;
     std::cerr << "\tchunk_size: " << chunk_size << "\n";
-    std::vector<Iterator> iterators(num_chunks);
+
+    // Heap allocate for now, move into operation state later
+    auto iterators = std::shared_ptr<std::vector<Iterator>>{new std::vector<Iterator>(num_chunks)};
 
     // Use bulk_schedule to construct parallelism, but block and use local vector for now
-    auto result = sync_wait(
-      unifex::transform(
+    return unifex::transform(
         unifex::bulk_join(
           unifex::bulk_transform(
             unifex::bulk_schedule(sched, num_chunks),
-            [this, begin_it, chunk_size, end_it, num_chunks, &iterators, &values...](std::size_t index){
+            [this, iterators, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
             std::cerr << "\trunning index: " << index << "\n";
               auto chunk_begin_it = begin_it + (chunk_size*index);
               auto chunk_end_it = chunk_begin_it;
@@ -134,28 +131,28 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
                 std::cerr << "\t\tIteration\n";
                 if(std::invoke(func_, *it, values...)) {
                   std::cerr << "\t\t\tFound with value " << *it << "\n";
-                  iterators[index] = it;
+                  (*iterators)[index] = it;
                   return;
                 }
               }
               // If not found, return the very end value
-              iterators[index] = end_it;
+              (*iterators)[index] = end_it;
             },
             unifex::par
           )
         ),
-        [&iterators, end_it]() -> Iterator {
-          for(auto it : iterators) {
+        [iterators, end_it]() -> Iterator {
+          for(auto it : *iterators) {
+            std::cerr << "\t\tIt\n";
             if(it != end_it) {
+              std::cerr << "\t\tFound\n";
               return it;
             }
+            std::cerr << "\t\tNot Found\n";
           }
           return end_it;
         }
-      )
-    );
-    // Ignore failed optional for now as sync_wait is temporary
-    unifex::set_value((ResultReceiver &&) receiver, *std::move(result), (Values &&) values...);
+      );
   }
 
   template <typename BeginIt, typename EndIt, typename... Values>
@@ -168,10 +165,16 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     if constexpr (noexcept(std::invoke(
                       (Func &&) func_, *begin_it, (Values &&) values...))) {
 
-      find_if_helper((Receiver &&) receiver_, funcPolicy_, begin_it, end_it, values...);
+      auto result = sync_wait(
+        find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
+      // Ignore failed optional for now as sync_wait is temporary
+      unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
     } else {
       try {
-        find_if_helper((Receiver &&) receiver_, funcPolicy_, begin_it, end_it, values...);
+        auto result = sync_wait(
+          find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
+        // Ignore failed optional for now as sync_wait is temporary
+        unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
       } catch (...) {
         unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
