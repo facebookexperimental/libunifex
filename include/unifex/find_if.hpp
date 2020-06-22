@@ -73,7 +73,11 @@ template <typename Receiver, typename Func, typename FuncPolicy>
 using receiver_t = typename _receiver<Receiver, Func, FuncPolicy>::type;
 
 struct _operation_state_wrapper {
-  virtual ~_operation_state_wrapper();
+  inline virtual ~_operation_state_wrapper(){}
+};
+template<typename concrete_operation_state>
+struct concrete_operation_state_wrapper : public _operation_state_wrapper {
+  concrete_operation_state concrete_operation_state_;
 };
 
 template <typename Receiver, typename Func, typename FuncPolicy>
@@ -81,16 +85,8 @@ template <typename Receiver, typename Func, typename FuncPolicy>
 struct _receiver<Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
-
-
-  /*
-  template<typename concrete_operation_state>
-  struct concrete_operation_state_wrapper : public operation_state_wrapper {
-    concrete_operation_state concrete_operation_state_;
-  };*/
-  // TODO: Why does this cause an abort? a raw pointer causes a segfault but it isn't obvious why.
-  // Try running it that way under gdb.
+  // NO_UNIQUE_ADDRESS here triggers what appears to be a layout bug
+  /*UNIFEX_NO_UNIQUE_ADDRESS*/ FuncPolicy funcPolicy_;
   std::unique_ptr<_operation_state_wrapper> os_;
 
   template<typename ResultReceiver, typename Iterator, typename... Values>
@@ -109,15 +105,12 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     );
   }
 
-    // TODO: If 0 is just testing for why the unique_ptr in the receiver causes a problem
-    #if 0
   template<typename ResultReceiver, typename Iterator, typename... Values>
   auto find_if_helper(ResultReceiver&& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
     auto sched = unifex::get_scheduler(receiver);
 
     // func_ is safe to run concurrently so let's make use of that
     // NOTE: Assumes random access iterator for now
-    std::cerr << "Par find_if\n";
     constexpr int max_num_chunks = 16;
     constexpr int min_chunk_size = 8;
     auto distance = std::distance(begin_it, end_it);
@@ -172,7 +165,6 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
         }
       );
   }
-      #endif
 
   template <typename BeginIt, typename EndIt, typename... Values>
   void set_value(BeginIt begin_it, EndIt end_it, Values&&... values) && noexcept {
@@ -185,27 +177,19 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
                       (Func &&) func_, *begin_it, values...))) {
 
       //os_ = std::unique_ptr<concrete_operation_state_wrapper<connect_result_t<decltype(sender), Receiver>>>{};
-      std::cerr << "Noexcept\n";
-      //auto result = sync_wait(find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
+      auto result = sync_wait(find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
 
       // TODO: instead of sync_wait we actually connect receiver_ to os_ and start it. The result should pass through
 
       // Ignore failed optional for now as sync_wait is temporary
-      //unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
+      unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
     } else {
-      std::cerr << "Not Noexcept\n";
       try {
-      std::cerr << "Not Noexcept before run\n";
         //os_ = std::unique_ptr<concrete_operation_state_wrapper<connect_result_t<decltype(sender), Receiver>>>{};
-        ///auto result = sync_wait( find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
-        std::cerr << "Not Noexcept after run\n";
+        auto result = sync_wait( find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
         // Ignore failed optional for now as sync_wait is temporary
-        auto res = end_it;//*std::move(result);
-        std::cerr << "Not Noexcept after extract\n";
-        unifex::set_value((Receiver &&) receiver_, res, (Values &&) values...);
-        std::cerr << "Not Noexcept after set\n";
+        unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
       } catch (...) {
-        std::cerr << "set_error\n";
         unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
     }

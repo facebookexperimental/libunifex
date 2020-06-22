@@ -46,21 +46,17 @@ int main() {
         find_if(
             just(begin(input), end(input), 3),
             [&](const int& v, int another_parameter) {
-          std::cerr << "In find continuation\n";
               return v == another_parameter;
             },
             unifex::seq),
         [](std::vector<int>::iterator v, int another_parameter) noexcept {
-          std::cerr << "In transform continuation\n";
           assert(another_parameter == 3);
-          std::cerr << "In transform continuation after assert\n";
           return v;
         }));
 
-    std::cerr << "Just before the end\n";
     std::cout << "all done " << **result << "\n";
   }
-#if 0
+
   {
     std::cerr << "Parallel phase\n";
     std::vector<int> input;
@@ -68,13 +64,6 @@ int main() {
       input.push_back(i);
     }
     static_thread_pool ctx;
-    // Apply linear find_if.
-    // As for std::find_if it returns the first instance that matches the
-    // predicate where the algorithm takes an iterator pair as the first
-    // two arguments, and forwards all other arguments to the predicate and
-    // onwards to the result.
-    // Precise API shape for the data being passed through is TBD, this is
-    // one option only.
     std::optional<std::vector<int>::iterator> result = sync_wait(
       unifex::on(
         transform(
@@ -93,7 +82,6 @@ int main() {
     std::cout << "all done " << **result << "\n";
 
   }
-  #endif
 
   return 0;
 }
