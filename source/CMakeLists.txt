@@ -8,6 +8,7 @@ add_library(unifex "")
 target_sources(unifex
   PRIVATE
     async_mutex.cpp
+    find_if.cpp
     inplace_stop_token.cpp
     manual_event_loop.cpp
     static_thread_pool.cpp
@@ -37,7 +38,7 @@ if (NOT UNIFEX_NO_LIBURING)
   target_include_directories(unifex
     PUBLIC
       ${UNIFEX_URING_INCLUDE_DIRS})
-  
+
   target_link_libraries(unifex
     PRIVATE
       ${UNIFEX_URING_LIBRARY})
