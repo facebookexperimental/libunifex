@@ -45,7 +45,7 @@ int main() {
       transform(
         find_if(
             just(begin(input), end(input), 3),
-            [&](const int& v, int another_parameter) {
+            [&](const int& v, int another_parameter) noexcept {
               return v == another_parameter;
             },
             unifex::seq),
@@ -56,7 +56,7 @@ int main() {
 
     std::cout << "all done " << **result << "\n";
   }
-
+#if 0
   {
     std::cerr << "Parallel phase\n";
     std::vector<int> input;
@@ -69,11 +69,11 @@ int main() {
         transform(
           find_if(
               just(begin(input), end(input), 7),
-              [&](const int& v, int another_parameter) {
+              [&](const int& v, int another_parameter) noexcept {
                 return v == another_parameter;
               },
               unifex::par),
-          [](std::vector<int>::iterator v, int another_parameter) {
+          [](std::vector<int>::iterator v, int another_parameter) noexcept {
             assert(another_parameter == 7);
             return v;
           }),
@@ -82,6 +82,7 @@ int main() {
     std::cout << "all done " << **result << "\n";
 
   }
+  #endif
 
   return 0;
 }

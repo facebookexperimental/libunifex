@@ -64,8 +64,6 @@ namespace detail {
 }
 
 template <typename Receiver, typename Func, typename FuncPolicy>
-<<<<<<< HEAD
-=======
 struct _receiver {
   struct type;
 };
@@ -74,14 +72,21 @@ using receiver_t = typename _receiver<Receiver, Func, FuncPolicy>::type;
 
 struct _operation_state_wrapper {
   inline virtual ~_operation_state_wrapper(){}
+  virtual void start() noexcept = 0;
 };
 template<typename concrete_operation_state>
 struct concrete_operation_state_wrapper : public _operation_state_wrapper {
   concrete_operation_state concrete_operation_state_;
+  template<typename FactoryFunc>
+  concrete_operation_state_wrapper(FactoryFunc&& factory)
+      : concrete_operation_state_(factory()) {
+  }
+  virtual void start() noexcept {
+    concrete_operation_state_.start();
+  }
 };
 
 template <typename Receiver, typename Func, typename FuncPolicy>
->>>>>>> Add execution policy
 struct _receiver<Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -89,27 +94,60 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
   /*UNIFEX_NO_UNIQUE_ADDRESS*/ FuncPolicy funcPolicy_;
   std::unique_ptr<_operation_state_wrapper> os_;
 
-  template<typename ResultReceiver, typename Iterator, typename... Values>
-  auto find_if_helper(ResultReceiver&& /*receiver*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
+  // Helper receiver type to unpack a tuple
+  template<typename OutputReceiver>
+  struct unpack_receiver {
+    OutputReceiver receiver_;
+
+    template<typename Tuple, size_t... Idx>
+    void unpack_helper(Tuple&& t, std::index_sequence<Idx...>) {
+      unifex::set_value(
+        (OutputReceiver&&) receiver_,
+        std::move(std::get<Idx>(t))...);
+    }
+
+    template <typename Iterator, typename... Values>
+    void set_value(std::tuple<Iterator, Values...>&& packedResult) && noexcept {
+      try {
+        unpack_helper(
+          std::move(packedResult),
+          std::make_index_sequence<std::tuple_size_v<std::tuple<Iterator, Values...>>>{});
+      } catch(...) {
+        unifex::set_error((OutputReceiver&&)receiver_, std::current_exception());
+      }
+    }
+
+    template <typename Error>
+    void set_error(Error&& error) && noexcept {
+      unifex::set_error((OutputReceiver &&) receiver_, (Error &&) error);
+    }
+
+    void set_done() && noexcept {
+      unifex::set_done((OutputReceiver &&) receiver_);
+    }
+  };
+
+  template<typename Iterator, typename... Values>
+  auto find_if_helper(const Receiver& /*unused*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, Values&&... values) {
     // Sequential implementation
     return unifex::transform(
-      unifex::just(),
-      [this, begin_it, end_it, &values...]() {
-        for(auto it = begin_it; it != end_it; ++it) {
-          if(std::invoke((Func &&) func_, *it, values...)) {
-            return it;
+        unifex::just(std::forward<Values>(values)...),
+        [this, begin_it, end_it](auto... values) {
+          std::cerr << "In worker\n";
+          for(auto it = begin_it; it != end_it; ++it) {
+            if(std::invoke((Func &&) func_, *it, values...)) {
+              return std::tuple<Iterator, Values...>(it, std::move(values)...);
+            }
           }
+          return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
         }
-        return end_it;
-      }
-    );
+      );
   }
 
-  template<typename ResultReceiver, typename Iterator, typename... Values>
-  auto find_if_helper(ResultReceiver&& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, const Values&... values) {
-    auto sched = unifex::get_scheduler(receiver);
-
+  template<typename Iterator, typename... Values>
+  auto find_if_helper(const Receiver& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, Values&&... values) {
     // func_ is safe to run concurrently so let's make use of that
+
     // NOTE: Assumes random access iterator for now
     constexpr int max_num_chunks = 16;
     constexpr int min_chunk_size = 8;
@@ -124,75 +162,114 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     auto iterators = std::shared_ptr<std::vector<Iterator>>{new std::vector<Iterator>(num_chunks)};
 
     // Use bulk_schedule to construct parallelism, but block and use local vector for now
-    return unifex::transform(
-        unifex::bulk_join(
-          unifex::bulk_transform(
-            unifex::bulk_schedule(std::move(sched), num_chunks),
-            [this, iterators, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
-            std::cerr << "\trunning index: " << index << "\n";
-              auto chunk_begin_it = begin_it + (chunk_size*index);
-              auto chunk_end_it = chunk_begin_it;
-              if(index < (num_chunks-1)) {
-                std::advance(chunk_end_it, chunk_size);
-              } else {
-                chunk_end_it = end_it;
-              }
-
-              for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                std::cerr << "\t\tIteration\n";
-                if(std::invoke(func_, *it, values...)) {
-                  std::cerr << "\t\t\tFound with value " << *it << "\n";
-                  (*iterators)[index] = it;
-                  return;
+    return unifex::let(
+      unifex::just(std::forward<Values>(values)...),
+      [this, sched = unifex::get_scheduler(receiver), iterators, begin_it, chunk_size, end_it, num_chunks](Values&... values) {
+        return unifex::transform(
+          unifex::bulk_join(
+            unifex::bulk_transform(
+              unifex::bulk_schedule(std::move(sched), num_chunks),
+              [this, iterators, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
+              std::cerr << "\trunning index: " << index << "\n";
+                auto chunk_begin_it = begin_it + (chunk_size*index);
+                auto chunk_end_it = chunk_begin_it;
+                if(index < (num_chunks-1)) {
+                  std::advance(chunk_end_it, chunk_size);
+                } else {
+                  chunk_end_it = end_it;
                 }
+
+                for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
+                  std::cerr << "\t\tIteration\n";
+                  if(std::invoke(func_, *it, values...)) {
+                    std::cerr << "\t\t\tFound with value " << *it << "\n";
+                    (*iterators)[index] = it;
+                    return;
+                  }
+                }
+                // If not found, return the very end value
+                (*iterators)[index] = end_it;
+              },
+              unifex::par
+            )
+          ),
+          [iterators, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
+            for(auto it : *iterators) {
+              std::cerr << "\t\tIt\n";
+              if(it != end_it) {
+                std::cerr << "\t\tFound\n";
+                return std::tuple<Iterator, Values...>(it, std::move(values)...);
               }
-              // If not found, return the very end value
-              (*iterators)[index] = end_it;
-            },
-            unifex::par
-          )
-        ),
-        [iterators, end_it]() -> Iterator {
-          for(auto it : *iterators) {
-            std::cerr << "\t\tIt\n";
-            if(it != end_it) {
-              std::cerr << "\t\tFound\n";
-              return it;
+              std::cerr << "\t\tNot Found\n";
             }
-            std::cerr << "\t\tNot Found\n";
+            return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
           }
-          return end_it;
-        }
-      );
+        );
+      });
   }
 
-  template <typename BeginIt, typename EndIt, typename... Values>
-  void set_value(BeginIt begin_it, EndIt end_it, Values&&... values) && noexcept {
-    constexpr bool noexcept_func =
-      noexcept(std::invoke((Func &&) func_, *begin_it, (Values &&) values...));
-    constexpr bool noexcept_pp = noexcept(++begin_it);
-    constexpr bool noexcept_ne = noexcept(begin_it!=end_it);
-    if constexpr (noexcept_func && noexcept_pp && noexcept_ne) {
-    if constexpr (noexcept(std::invoke(
-                      (Func &&) func_, *begin_it, values...))) {
+  template <typename Iterator, typename... Values>
+  void set_value(Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
+    unpack_receiver<Receiver> unpack{(Receiver &&) receiver_};
+    try {
+      std::cerr << "set_value\n";
+      auto find_if_implementation_sender = find_if_helper(receiver_, funcPolicy_, begin_it, end_it, (Values&&) values...);
+      std::cerr << "Have sender\n";
 
-      //os_ = std::unique_ptr<concrete_operation_state_wrapper<connect_result_t<decltype(sender), Receiver>>>{};
-      auto result = sync_wait(find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
+      using os_t = connect_result_t<decltype(find_if_implementation_sender), unpack_receiver<Receiver>>;
+      using os_wrapper = concrete_operation_state_wrapper<os_t>;
 
-      // TODO: instead of sync_wait we actually connect receiver_ to os_ and start it. The result should pass through
+      //os_t os =
+       // unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));;
+      //os_wrapper osw{[&](){return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));}};
 
-      // Ignore failed optional for now as sync_wait is temporary
-      unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
-    } else {
-      try {
-        //os_ = std::unique_ptr<concrete_operation_state_wrapper<connect_result_t<decltype(sender), Receiver>>>{};
-        auto result = sync_wait( find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...));
-        // Ignore failed optional for now as sync_wait is temporary
-        unifex::set_value((Receiver &&) receiver_, *std::move(result), (Values &&) values...);
-      } catch (...) {
-        unifex::set_error((Receiver &&) receiver_, std::current_exception());
-      }
+      os_ = std::make_unique<os_wrapper>(
+        [&](){return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));}
+      );
+      std::cerr << "Constructed os\n";
+      os_->start();
+    } catch(...) {
+      unifex::set_error(std::move(unpack), std::current_exception());
     }
+
+#if 0
+    try {
+      //auto find_if_implementation_sender = find_if_helper(receiver_, funcPolicy_, begin_it, end_it, values...);
+
+
+
+      //auto os = unifex::connect(std::move(find_if_implementation_sender), (Receiver &&) receiver_);
+      /*using os = connect_result_t<decltype(find_if_implementation_sender), Receiver>;
+      using os_wrapper = concrete_operation_state_wrapper<os>;
+      os_ = std::make_unique<os_wrapper>(
+        [&](){return unifex::connect(std::move(find_if_implementation_sender), (Receiver &&) receiver_);}
+      );*/
+
+      if constexpr (noexcept(std::invoke(
+                        (Func &&) func_, *begin_it, values...))) {
+        //os_->start();
+
+
+
+
+
+          unifex::set_value((Receiver &&) receiver_, begin_it);
+
+      } else {
+        try {
+          //os_->start();
+
+
+          unifex::set_value((Receiver &&) receiver_, begin_it);
+        } catch (...) {
+          unifex::set_error((Receiver &&) receiver_, std::current_exception());
+        }
+      }
+
+    } catch(...) {
+      unifex::set_error((Receiver &&) receiver_, std::current_exception());
+    }
+    #endif
   }
 
   template <typename Error>
