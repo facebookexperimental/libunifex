@@ -32,6 +32,7 @@ using namespace std::chrono_literals;
 
 int main() {
   {
+    std::cerr << "Sequential phase\n";
     std::vector<int> input{1, 2, 3, 4};
 
     // Apply linear find_if.
@@ -56,7 +57,7 @@ int main() {
 
     std::cout << "all done " << **result << "\n";
   }
-#if 0
+
   {
     std::cerr << "Parallel phase\n";
     std::vector<int> input;
@@ -82,7 +83,6 @@ int main() {
     std::cout << "all done " << **result << "\n";
 
   }
-  #endif
 
   return 0;
 }
