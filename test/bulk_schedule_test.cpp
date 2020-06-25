@@ -19,6 +19,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_join.hpp>
+#include <unifex/bulk_with_stop_source.hpp>
 
 #include <gtest/gtest.h>
 
@@ -46,5 +47,35 @@ TEST(bulk, bulk_transform) {
 
     for (std::size_t i = 0; i < count; ++i) {
         EXPECT_EQ(i, output[i]);
+    }
+}
+
+TEST(bulk, cancellation) {
+    unifex::single_thread_context ctx;
+    auto sched = ctx.get_scheduler();
+
+    const std::size_t count = 1000;
+
+    std::vector<int> output(count, 0);
+    const std::size_t compare_index = 3;
+
+    unifex::sync_wait(
+        unifex::bulk_join(
+            unifex::bulk_transform(
+                unifex::bulk_with_stop_source(
+                    unifex::bulk_schedule(sched, count)),
+                [&](std::size_t index, auto& cancel_future_operations) noexcept {
+                    // Stop after third index
+                    if(index == compare_index) {
+                        cancel_future_operations.request_stop();
+                    }
+                    output[index] = index;
+                }, unifex::par_unseq)));
+
+    for (std::size_t i = 0; i <= compare_index; ++i) {
+        EXPECT_EQ(i, output[i]);
+    }
+    for (std::size_t i = compare_index+1; i < count; ++i) {
+        EXPECT_EQ(0, output[i]);
     }
 }

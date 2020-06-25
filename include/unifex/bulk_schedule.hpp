@@ -21,6 +21,8 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_execution_policy.hpp>
 #include <unifex/execution_policy.hpp>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/get_stop_token.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -48,6 +50,7 @@ public:
         noexcept(is_nothrow_value_receiver_v<Receiver> &&
                  is_nothrow_next_receiver_v<Receiver, Integral>) {
         using policy_t = decltype(get_execution_policy(receiver_));
+        auto stop_token = get_stop_token(receiver_);
         if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
             // Vectorisable version
 #if defined(__clang__)
@@ -58,11 +61,19 @@ public:
             #pragma loop(ivdep)
 #endif
             for (Integral i(0); i < count_; ++i) {
+                if(stop_token.stop_requested()) {
+                    unifex::set_done(std::move(receiver_));
+                    return;
+                }
                 unifex::set_next(receiver_, Integral(i));
             }
         } else {
             // Sequenced version
             for (Integral i(0); i < count_; ++i) {
+                if(stop_token.stop_requested()) {
+                    unifex::set_done(std::move(receiver_));
+                    return;
+                }
                 unifex::set_next(receiver_, Integral(i));
             }
         }
