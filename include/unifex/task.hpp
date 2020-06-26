@@ -30,12 +30,17 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
+namespace _task {
 
 template <typename T>
-struct task {
+struct _task {
+  struct type;
+};
+template <typename T>
+struct _task<T>::type {
   struct promise_type {
-    task get_return_object() noexcept {
-      return task{
+    type get_return_object() noexcept {
+      return type{
           coro::coroutine_handle<promise_type>::from_promise(*this)};
     }
 
@@ -119,17 +124,17 @@ struct task {
 
   coro::coroutine_handle<promise_type> coro_;
 
-  explicit task(coro::coroutine_handle<promise_type> h) noexcept
+  explicit type(coro::coroutine_handle<promise_type> h) noexcept
       : coro_(h) {}
 
-  ~task() {
+  ~type() {
     if (coro_)
       coro_.destroy();
   }
 
-  task(task&& t) noexcept : coro_(std::exchange(t.coro_, {})) {}
+  type(type&& t) noexcept : coro_(std::exchange(t.coro_, {})) {}
 
-  task& operator=(task t) noexcept {
+  type& operator=(type t) noexcept {
     std::swap(coro_, t.coro_);
     return *this;
   }
@@ -158,6 +163,10 @@ public:
     return awaiter{coro_};
   }
 };
+} // namespace _task
+
+template <typename T>
+using task = typename _task::_task<T>::type;
 
 } // namespace unifex
 
