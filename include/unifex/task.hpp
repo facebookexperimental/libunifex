@@ -18,6 +18,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/coroutine_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 
 #if UNIFEX_NO_COROUTINES
@@ -32,13 +33,157 @@
 namespace unifex {
 namespace _task {
 
+template <typename... Types>
+using _is_single_valued_tuple =
+    std::bool_constant<1 >= sizeof...(Types)>;
+
+template <typename... Types>
+using _is_single_valued_variant =
+    std::bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
+
+template <typename Sender>
+UNIFEX_CONCEPT_FRAGMENT(     //
+  _single_typed_sender_impl, //
+    requires()(0) &&         //
+    sender_traits<remove_cvref_t<Sender>>
+      ::template value_types<
+        _is_single_valued_variant,
+        _is_single_valued_tuple>::value);
+
+template <typename Sender>
+UNIFEX_CONCEPT _single_typed_sender =
+  typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
+
+enum class state {empty, value, exception, done};
+
+template <typename T>
+struct _res {
+  struct type {
+    state state_ = state::empty;
+    union {
+      manual_lifetime<T> value_;
+      manual_lifetime<std::exception_ptr> exception_;
+    };
+    coro::coroutine_handle<> continuation_ {};
+    type() {}
+    ~type() {
+      switch(state_) {
+      case state::value:
+        unifex::deactivate(value_);
+        break;
+      case state::exception:
+        unifex::deactivate(exception_);
+        break;
+      default:;
+      }
+    }
+  };
+};
+template <typename T>
+using _result = typename _res<T>::type;
+
+template <typename T>
+struct _rec {
+  static_assert(!std::is_void_v<T>);
+  struct type {
+    _result<T> *res_;
+
+    template(class... Us)
+      (requires constructible_from<T, Us...>)
+    void set_value(Us&&... us) &&
+        noexcept(std::is_nothrow_constructible_v<T, Us...>) {
+      unifex::activate(res_->value_, (Us&&) us...);
+      res_->state_ = state::value;
+      res_->continuation_.resume();
+    }
+    void set_error(std::exception_ptr eptr) && noexcept {
+      unifex::activate(res_->exception_, std::move(eptr));
+      res_->state_ = state::exception;
+      res_->continuation_.resume();
+    }
+    void set_done() && noexcept {
+      res_->state_ = state::done;
+      res_->continuation_.resume();
+    }
+  };
+};
+template <typename Sender>
+using _receiver_for = typename _rec<single_value_result_t<Sender>>::type;
+
+template <typename Sender>
+struct _as_await {
+  struct type {
+    using value_t = single_value_result_t<Sender>;
+    _result<value_t> res_;
+    connect_result_t<Sender, _receiver_for<Sender>> op_;
+
+    explicit type(Sender&& sender)
+      : res_{}
+      , op_{connect((Sender&&) sender, _receiver_for<Sender>{&res_})} {}
+
+    static constexpr bool await_ready() noexcept {
+      return false;
+    }
+
+    void await_suspend(coro::coroutine_handle<> continuation) noexcept {
+      res_.continuation_ = continuation;
+      start(op_);
+    }
+
+    std::optional<value_t> await_resume() {
+      switch (res_.state_) {
+      case state::value:
+        return std::move(res_.value_).get();
+      case state::done:
+        return std::nullopt;
+      default:
+        assert(res_.state_ == state::exception);
+        std::rethrow_exception(res_.exception_.get());
+      }
+    }
+  };
+};
+template <typename Sender>
+using _as_awaitable = typename _as_await<remove_cvref_t<Sender>>::type;
+
+struct with_awaitable_senders {
+  template <typename Sender>
+  decltype(auto) await_transform(Sender&& sender) {
+    if constexpr (detail::_awaitable<Sender>) {
+      return (Sender&&) sender;
+    } else if constexpr (_single_typed_sender<Sender>) {
+      if constexpr (sender_to<Sender, _receiver_for<Sender>>) {
+        // TODO inherit context from coroutine.
+        return _as_awaitable<Sender>{(Sender&&) sender};
+      } else {
+        return (Sender&&) sender;
+      }
+    } else {
+      return (Sender&&) sender;
+    }
+  }
+};
+
 template <typename T>
 struct _task {
   struct type;
 };
 template <typename T>
 struct _task<T>::type {
-  struct promise_type {
+  struct promise_type : with_awaitable_senders {
+    void reset_value() noexcept {
+      switch (std::exchange(state_, state::empty)) {
+        case state::value:
+          unifex::deactivate(value_);
+          break;
+        case state::exception:
+          unifex::deactivate(exception_);
+          break;
+        default:
+          break;
+      }
+    }
+
     type get_return_object() noexcept {
       return type{
           coro::coroutine_handle<promise_type>::from_promise(*this)};
@@ -81,19 +226,6 @@ struct _task<T>::type {
 
     ~promise_type() {
       reset_value();
-    }
-
-    void reset_value() noexcept {
-      switch (std::exchange(state_, state::empty)) {
-        case state::value:
-          unifex::deactivate(value_);
-          break;
-        case state::exception:
-          unifex::deactivate(exception_);
-          break;
-        default:
-          break;
-      }
     }
 
     decltype(auto) result() {

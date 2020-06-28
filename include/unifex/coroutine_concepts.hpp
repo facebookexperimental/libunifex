@@ -79,6 +79,19 @@ template <typename Awaitable>
 using await_result_t =
     typename detail::await_result_impl<awaiter_type_t<Awaitable>>::type;
 
+namespace detail {
+  template <typename Awaitable>
+  UNIFEX_CONCEPT_FRAGMENT( //
+    _awaitable_impl,         //
+      requires() (         //
+        typename(await_result_t<Awaitable>)
+      ));
+  template <typename Awaitable>
+  UNIFEX_CONCEPT //
+    _awaitable = //
+      UNIFEX_FRAGMENT(detail::_awaitable_impl, Awaitable);
+} // namespace detail
+
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
