@@ -57,7 +57,10 @@ TEST(bulk, cancellation) {
     const std::size_t count = 1000;
 
     std::vector<int> output(count, 0);
-    const std::size_t compare_index = 3;
+    // Cancel after two chunks
+    // For the serial implementation this will stop the third chunk onwards from
+    // being dispatched.
+    const std::size_t compare_index = unifex::bulk_cancellation_chunk_size*2 - 1;
 
     unifex::sync_wait(
         unifex::bulk_join(
