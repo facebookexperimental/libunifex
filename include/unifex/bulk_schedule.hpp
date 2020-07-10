@@ -15,6 +15,8 @@
  */
 #pragma once
 
+#include <algorithm>
+
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>

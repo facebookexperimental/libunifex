@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <algorithm>
-
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
