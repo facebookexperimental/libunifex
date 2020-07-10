@@ -62,6 +62,7 @@ TEST(bulk, cancellation) {
     // being dispatched.
     const std::size_t compare_index = unifex::bulk_cancellation_chunk_size*2 - 1;
 
+    // Bulk, but sequential to test strict cancellation of later work
     unifex::sync_wait(
         unifex::bulk_join(
             unifex::bulk_transform(
@@ -73,7 +74,7 @@ TEST(bulk, cancellation) {
                         cancel_future_operations.request_stop();
                     }
                     output[index] = index;
-                }, unifex::par_unseq)));
+                }, unifex::seq)));
 
     for (std::size_t i = 0; i <= compare_index; ++i) {
         EXPECT_EQ(i, output[i]);
