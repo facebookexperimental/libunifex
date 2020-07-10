@@ -36,19 +36,27 @@ with the following compilers:
 
 * GCC, 9.x and later
 * Clang, 9.x and later
+* MSVC 2019.6 and later
 
 This library also supports C++20 coroutines. You will need to compile with
 coroutine support enabled if you want to use the coroutine integrations.
 This generally means adding `-std=c++2a` or `-fcoroutines-ts` on Clang (see "Configuring" below).
 
+Note that MSVC 2019.6 support for C++20 coroutines has known issues and is not
+currently supported.
+
 ## Linux
 
-The io_uring support on Linux requires a bleeding edge kernel version
-that incorporates patches from recent io_uring development.
+The io_uring support on Linux requires a recent kernel version
+(5.6 or later).
 
 See http://git.kernel.dk/cgit/linux-block/log/?h=for-5.5/io_uring
 
 The io_uring support depends on liburing: https://github.com/axboe/liburing/
+
+## Windows
+
+`windows_thread_pool` executor requires Windows Vista or later.
 
 # Building
 
