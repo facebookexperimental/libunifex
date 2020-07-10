@@ -200,7 +200,7 @@ struct _stop_source_operation<Pred, Receiver>::type {
         unifex::start(predOp_);
     }
 
-    UNIFEX_NO_UNIQUE_ADDRESS Callback<std::remove_cvref_t<decltype(unifex::get_stop_token(std::declval<Receiver>()))>>
+    UNIFEX_NO_UNIQUE_ADDRESS Callback<remove_cvref_t<decltype(unifex::get_stop_token(std::declval<Receiver>()))>>
         stop_callback_;
     connect_result_t<
         Pred,
