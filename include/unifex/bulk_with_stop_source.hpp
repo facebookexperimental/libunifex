@@ -165,6 +165,24 @@ private:
     UNIFEX_NO_UNIQUE_ADDRESS Source source_;
 };
 
+template<typename Pred, typename Receiver, typename Token>
+struct _stop_source_operation_callback;
+template<typename Pred, typename Receiver, typename Token>
+struct _stop_source_operation_callback {
+    _stop_source_operation_callback(operation<Pred, Receiver>& op, Token&& token) :
+        op_{op}, token_{token} {}
+    void operator()() {
+        op_.stop_source_.request_stop();
+    }
+    operation<Pred, Receiver>& op_;
+    Token token_;
+};
+template<typename Pred, typename Receiver>
+struct _stop_source_operation_callback<Pred, Receiver, unstoppable_token> {
+    _stop_source_operation_callback(operation<Pred, Receiver>& /*op*/, unstoppable_token&& /*token*/)  {}
+    void operator()() {}
+};
+
 template<typename Pred, typename Receiver>
 struct _stop_source_operation<Pred, Receiver>::type {
     type(Pred&& pred, Receiver&& r) :
@@ -178,29 +196,12 @@ struct _stop_source_operation<Pred, Receiver>::type {
         stop_source_{} {
     }
 
-
-    template<typename Token>
-    struct Callback;
-    template<typename Token>
-    struct Callback {
-        Callback(operation<Pred, Receiver>& op, Token&& token) : op_{op}, token_{token} {}
-        void operator()() {
-            op_.stop_source_.request_stop();
-        }
-        operation<Pred, Receiver>& op_;
-        Token token_;
-    };
-    template<>
-    struct Callback<unstoppable_token> {
-        Callback(operation<Pred, Receiver>& /*op*/, unstoppable_token&& /*token*/)  {}
-        void operator()() {}
-    };
-
     void start() noexcept {
         unifex::start(predOp_);
     }
 
-    UNIFEX_NO_UNIQUE_ADDRESS Callback<remove_cvref_t<decltype(unifex::get_stop_token(std::declval<Receiver>()))>>
+    UNIFEX_NO_UNIQUE_ADDRESS _stop_source_operation_callback<
+            Pred, Receiver, remove_cvref_t<decltype(unifex::get_stop_token(std::declval<Receiver>()))>>
         stop_callback_;
     connect_result_t<
         Pred,
