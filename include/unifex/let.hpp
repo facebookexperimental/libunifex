@@ -125,19 +125,20 @@ struct _predecessor_receiver<Operation>::type {
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
     bool destroyedPredOp = false;
+    auto& op = op_;
     try {
       auto& valueTuple =
-          op_.values_.template get<decayed_tuple<Values...>>();
+          op.values_.template get<decayed_tuple<Values...>>();
       valueTuple.construct((Values &&) values...);
       destroyedPredOp = true;
-      op_.predOp_.destruct();
+      op.predOp_.destruct();
       try {
         auto& succOp =
-            op_.succOp_.template get<successor_operation<Values...>>()
+            op.succOp_.template get<successor_operation<Values...>>()
                 .construct_from([&] {
                   return unifex::connect(
-                      std::apply(std::move(op_.func_), valueTuple.get()),
-                      successor_receiver<Operation, Values...>{op_});
+                      std::apply(std::move(op.func_), valueTuple.get()),
+                      successor_receiver<Operation, Values...>{op});
                 });
         unifex::start(succOp);
       } catch (...) {
@@ -146,21 +147,23 @@ struct _predecessor_receiver<Operation>::type {
       }
     } catch (...) {
       if (!destroyedPredOp) {
-        op_.predOp_.destruct();
+        op.predOp_.destruct();
       }
-      unifex::set_error(std::move(op_.receiver_), std::current_exception());
+      unifex::set_error(std::move(op.receiver_), std::current_exception());
     }
   }
 
   void set_done() && noexcept {
-    op_.predOp_.destruct();
-    unifex::set_done(std::move(op_.receiver_));
+    auto& op = op_;
+    op.predOp_.destruct();
+    unifex::set_done(std::move(op.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    op_.predOp_.destruct();
-    unifex::set_error(std::move(op_.receiver_), (Error &&) error);
+    auto& op = op_;
+    op.predOp_.destruct();
+    unifex::set_error(std::move(op.receiver_), (Error &&) error);
   }
 
   template(typename CPO)
