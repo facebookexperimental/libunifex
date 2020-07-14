@@ -27,7 +27,7 @@ struct scope_guard {
 private:
   static_assert(std::is_nothrow_move_constructible_v<Func>);
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
-  bool dismissed_ = false;
+  bool released_ = false;
 
 public:
   scope_guard(Func&& func) noexcept
@@ -37,13 +37,13 @@ public:
     reset();
   }
 
-  void dismiss() {
-    dismissed_ = true;
+  void release() noexcept {
+    released_ = true;
   }
 
-  void reset() {
+  void reset() noexcept {
     static_assert(noexcept(((Func &&) func_)()));
-    if (!std::exchange(dismissed_, true)) {
+    if (!std::exchange(released_, true)) {
       ((Func &&) func_)();
     }
   }

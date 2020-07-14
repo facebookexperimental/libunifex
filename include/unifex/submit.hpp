@@ -189,7 +189,7 @@ namespace _submit_cpo {
             };
             rebind_traits_t<allocator_t, op_t>::construct(
                 typedAllocator, op, (Sender&&)sender, (Receiver&&)receiver);
-            freeOnError.dismiss();
+            freeOnError.release();
           }
           op->start();
         }

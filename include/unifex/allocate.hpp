@@ -53,7 +53,7 @@ namespace _alloc {
       };
       op_ = ::new (static_cast<void*>(op))
           Operation(connect((Sender &&) s, (Receiver &&) r));
-      freeOnError.dismiss();
+      freeOnError.release();
     }
 
     ~type() {
