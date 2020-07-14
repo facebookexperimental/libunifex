@@ -16,6 +16,7 @@
 #pragma once
 
 #include <type_traits>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -23,20 +24,33 @@ namespace unifex {
 
 template <typename Func>
 struct scope_guard {
+private:
+  static_assert(std::is_nothrow_move_constructible_v<Func>);
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
+  bool dismissed_ = false;
 
-  scope_guard(Func&& func) noexcept(
-      std::is_nothrow_move_constructible_v<Func>)
+public:
+  scope_guard(Func&& func) noexcept
       : func_((Func &&) func) {}
 
   ~scope_guard() {
+    reset();
+  }
+
+  void dismiss() {
+    dismissed_ = true;
+  }
+
+  void reset() {
     static_assert(noexcept(((Func &&) func_)()));
-    ((Func &&) func_)();
+    if (!std::exchange(dismissed_, true)) {
+      ((Func &&) func_)();
+    }
   }
 };
 
 template <typename Func>
-scope_guard(Func&& func)->scope_guard<Func>;
+scope_guard(Func&& func) -> scope_guard<Func>;
 
 } // namespace unifex
 

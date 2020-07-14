@@ -17,7 +17,6 @@
 #include <unifex/for_each.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/range_stream.hpp>
-#include <unifex/scope_guard.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>

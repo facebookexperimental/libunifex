@@ -184,15 +184,12 @@ namespace _submit_cpo {
 
             rebind_alloc_t<allocator_t, op_t> typedAllocator{allocator};
             op = rebind_traits_t<allocator_t, op_t>::allocate(typedAllocator, 1);
-            bool constructorSucceeded = false;
             scope_guard freeOnError = [&]() noexcept {
-              if (!constructorSucceeded) {
-                rebind_traits_t<allocator_t, op_t>::deallocate(typedAllocator, op, 1);
-              }
+              rebind_traits_t<allocator_t, op_t>::deallocate(typedAllocator, op, 1);
             };
             rebind_traits_t<allocator_t, op_t>::construct(
                 typedAllocator, op, (Sender&&)sender, (Receiver&&)receiver);
-            constructorSucceeded = true;
+            freeOnError.dismiss();
           }
           op->start();
         }
