@@ -347,11 +347,8 @@ public:
     explicit type(SuccessorFactory2&& func) : func_((SuccessorFactory2&&)func)
     {}
 
-    template<typename Self, typename Receiver>
-    //template(typename Self, typename Receiver)
-    //    (requires
-    //        same_as<remove_cvref_t<Self>, type> AND
-    //        stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>)
+    template(typename Self, typename Receiver)
+        (requires same_as<remove_cvref_t<Self>, type>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
             std::is_nothrow_constructible_v<SuccessorFactory, member_t<Self, SuccessorFactory>> &&
