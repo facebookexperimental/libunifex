@@ -64,7 +64,7 @@ struct _task<T>::type {
 
     void unhandled_exception() noexcept {
       reset_value();
-      exception_.construct(std::current_exception());
+      unifex::activate(exception_, std::current_exception());
       state_ = state::exception;
     }
 
@@ -73,7 +73,7 @@ struct _task<T>::type {
     void return_value(Value&& value) noexcept(
         std::is_nothrow_constructible_v<T, Value>) {
       reset_value();
-      value_.construct((Value &&) value);
+      unifex::activate(value_, (Value &&) value);
       state_ = state::value;
     }
 
@@ -86,10 +86,10 @@ struct _task<T>::type {
     void reset_value() noexcept {
       switch (std::exchange(state_, state::empty)) {
         case state::value:
-          value_.destruct();
+          unifex::deactivate(value_);
           break;
         case state::exception:
-          exception_.destruct();
+          unifex::deactivate(exception_);
           break;
         default:
           break;

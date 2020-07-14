@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/scope_guard.hpp>
 #include <unifex/type_traits.hpp>
 
 #include <type_traits>
@@ -28,6 +29,7 @@ namespace unifex {
 
 template <typename T>
 class manual_lifetime {
+  static_assert(std::is_nothrow_destructible_v<T>);
  public:
   manual_lifetime() noexcept {}
   ~manual_lifetime() {}
@@ -48,7 +50,7 @@ class manual_lifetime {
         T(((Func &&) func)());
   }
 
-  void destruct() noexcept(std::is_nothrow_destructible_v<T>) {
+  void destruct() noexcept {
     value_.~T();
   }
 
@@ -142,6 +144,37 @@ class manual_lifetime<void> {
   void destruct() noexcept {}
   void get() const noexcept {}
 };
+
+// For activating a manual_lifetime when it is in a union and initializing
+// its value from arguments to its constructor.
+template <typename T, typename... Args>
+T& activate(manual_lifetime<T>& box, Args&&... args) noexcept(
+    std::is_nothrow_constructible_v<T, Args...>) {
+  ::new (&box) manual_lifetime<T>{};
+  scope_guard guard = [&]() noexcept { box.~manual_lifetime(); };
+  auto& t = box.construct(static_cast<Args&&>(args)...);
+  guard.release();
+  return t;
+}
+
+// For activating a manual_lifetime when it is in a union and initializing
+// its value from the result of calling a function.
+template <typename T, typename Func>
+T& activate_from(manual_lifetime<T>& box, Func&& func) noexcept(
+    is_nothrow_callable_v<Func>) {
+  ::new (&box) manual_lifetime<T>{};
+  scope_guard guard = [&]() noexcept { box.~manual_lifetime(); };
+  auto& t = box.construct_from(static_cast<Func&&>(func));
+  guard.release();
+  return t;
+}
+
+// For deactivating a manual_lifetime when it is in a union
+template <typename T>
+void deactivate(manual_lifetime<T>& box) noexcept {
+  box.destruct();
+  box.~manual_lifetime();
+}
 
 } // namespace unifex
 

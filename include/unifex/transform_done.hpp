@@ -22,7 +22,6 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/manual_lifetime_union.hpp>
 #include <unifex/async_trace.hpp>
 
 #include <utility>
@@ -89,8 +88,8 @@ public:
       is_nothrow_callable_v<Done> &&
       is_nothrow_connectable_v<final_sender_t, final_receiver>) {
       op->startedOp_ = 0;
-      op->sourceOp_.destruct();
-      op->finalOp_.construct_from([&] {
+      unifex::deactivate(op->sourceOp_);
+      unifex::activate_from(op->finalOp_, [&] {
         return unifex::connect(std::move(op->done_)(), final_receiver{op});
       });
       op->startedOp_ = 0 - 1;
@@ -98,8 +97,8 @@ public:
     } else {
       try {
         op->startedOp_ = 0;
-        op->sourceOp_.destruct();
-        op->finalOp_.construct_from([&] {
+        unifex::deactivate(op->sourceOp_);
+        unifex::activate_from(op->finalOp_, [&] {
           return unifex::connect(std::move(op->done_)(), final_receiver{op});
         });
         op->startedOp_ = 0 - 1;
@@ -220,7 +219,7 @@ public:
   : done_((Done2&&)done)
   , receiver_((Receiver2&&)dest)
   {
-    sourceOp_.construct_from([&] {
+    unifex::activate_from(sourceOp_, [&] {
         return unifex::connect((Source&&)source, source_receiver{this});
       });
     startedOp_ = 0 + 1;
@@ -228,9 +227,9 @@ public:
 
   ~type() {
     if (startedOp_ < 0) {
-      finalOp_.destruct();
+      unifex::deactivate(finalOp_);
     } else if (startedOp_ > 0) {
-      sourceOp_.destruct();
+      unifex::deactivate(sourceOp_);
     }
     startedOp_ = 0;
   }

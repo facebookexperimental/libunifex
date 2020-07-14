@@ -41,9 +41,9 @@ struct promise {
 
   ~promise() {
     if (state_ == state::value) {
-      value_.destruct();
+      unifex::deactivate(value_);
     } else if (state_ == state::error) {
-      exception_.destruct();
+      unifex::deactivate(exception_);
     }
   }
   union {
@@ -64,18 +64,18 @@ struct _receiver {
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
       try {
-        promise_.value_.construct((Values&&)values...);
+        unifex::activate(promise_.value_, (Values&&)values...);
         promise_.state_ = promise<T>::state::value;
       }
       catch (...) {
-        promise_.exception_.construct(std::current_exception());
+        unifex::activate(promise_.exception_, std::current_exception());
         promise_.state_ = promise<T>::state::error;
       }
       signal_complete();
     }
 
     void set_error(std::exception_ptr err) && noexcept {
-      promise_.exception_.construct(std::move(err));
+      unifex::activate(promise_.exception_, std::move(err));
       promise_.state_ = promise<T>::state::error;
       signal_complete();
     }

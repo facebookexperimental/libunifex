@@ -158,22 +158,22 @@ struct _stream<Values...>::type {
             // state in case the values are references to objects stored in
             // the operation object.
             [&](Values... values) {
-              stream_.next_.destruct();
+              unifex::deactivate(stream_.next_);
               receiver_.set_value((Values &&) values...);
             }((Values &&) values...);
           } catch (...) {
-            stream_.next_.destruct();
+            unifex::deactivate(stream_.next_);
             receiver_.set_error(std::current_exception());
           }
         }
 
         void set_done() && noexcept {
-          stream_.next_.destruct();
+          unifex::deactivate(stream_.next_);
           receiver_.set_done();
         }
 
         void set_error(std::exception_ptr ex) && noexcept {
-          stream_.next_.destruct();
+          unifex::deactivate(stream_.next_);
           receiver_.set_error(std::move(ex));
         }
 
@@ -202,12 +202,12 @@ struct _stream<Values...>::type {
         stream& stream_;
 
         void set_done() && noexcept {
-          stream_.cleanup_.destruct();
+          unifex::deactivate(stream_.cleanup_);
           receiver_.set_done();
         }
 
         void set_error(std::exception_ptr ex) && noexcept {
-          stream_.cleanup_.destruct();
+          unifex::deactivate(stream_.cleanup_);
           receiver_.set_error(std::move(ex));
         }
 
@@ -242,12 +242,11 @@ struct _stream<Values...>::type {
           next_receiver_base& receiver,
           inplace_stop_token stopToken) noexcept override {
         try {
-          next_
-              .construct_from([&] {
-                return connect(
-                    next(stream_),
-                    next_receiver_wrapper{receiver, *this, std::move(stopToken)});
-              });
+          unifex::activate_from(next_, [&] {
+              return connect(
+                  next(stream_),
+                  next_receiver_wrapper{receiver, *this, std::move(stopToken)});
+            });
           start(next_.get());
         } catch (...) {
           receiver.set_error(std::current_exception());
@@ -256,12 +255,11 @@ struct _stream<Values...>::type {
 
       void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
         try {
-          cleanup_
-              .construct_from([&] {
-                return connect(
-                    cleanup(stream_),
-                    cleanup_receiver_wrapper{receiver, *this});
-              });
+          unifex::activate_from(cleanup_, [&] {
+              return connect(
+                  cleanup(stream_),
+                  cleanup_receiver_wrapper{receiver, *this});
+            });
           start(cleanup_.get());
         } catch (...) {
           receiver.set_error(std::current_exception());
