@@ -19,7 +19,6 @@
 #include <unifex/on_stream.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/scope_guard.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/trampoline_scheduler.hpp>

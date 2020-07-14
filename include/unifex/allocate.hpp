@@ -48,15 +48,12 @@ namespace _alloc {
       : allocator_(get_allocator(r)) {
       using allocator_traits = std::allocator_traits<allocator_t>;
       Operation* op = allocator_traits::allocate(allocator_, 1);
-      bool constructorSucceeded = false;
       scope_guard freeOnError = [&]() noexcept {
-        if (!constructorSucceeded) {
-          allocator_traits::deallocate(allocator_, op, 1);
-        }
+        allocator_traits::deallocate(allocator_, op, 1);
       };
       op_ = ::new (static_cast<void*>(op))
           Operation(connect((Sender &&) s, (Receiver &&) r));
-      constructorSucceeded = true;
+      freeOnError.release();
     }
 
     ~type() {

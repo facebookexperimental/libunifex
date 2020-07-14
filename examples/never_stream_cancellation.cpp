@@ -17,7 +17,6 @@
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/never.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/scope_guard.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/timed_single_thread_context.hpp>
