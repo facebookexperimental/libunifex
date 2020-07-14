@@ -19,7 +19,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_join.hpp>
-#include <unifex/bulk_with_stop_source.hpp>
+#include <unifex/let_with_stop_source.hpp>
 
 #include <gtest/gtest.h>
 
