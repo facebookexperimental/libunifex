@@ -63,41 +63,6 @@ TEST(bulk, cancellation) {
     const std::size_t compare_index = unifex::bulk_cancellation_chunk_size*2 - 1;
 
     // Bulk, but sequential to test strict cancellation of later work
-    unifex::sync_wait(
-        unifex::bulk_join(
-            unifex::bulk_transform(
-                unifex::bulk_with_stop_source(
-                    unifex::bulk_schedule(sched, count)),
-                [&](std::size_t index, auto& cancel_future_operations) noexcept {
-                    // Stop after third index
-                    if(index == compare_index) {
-                        cancel_future_operations.request_stop();
-                    }
-                    output[index] = index;
-                }, unifex::seq)));
-
-    for (std::size_t i = 0; i <= compare_index; ++i) {
-        EXPECT_EQ(i, output[i]);
-    }
-    for (std::size_t i = compare_index+1; i < count; ++i) {
-        EXPECT_EQ(0, output[i]);
-    }
-}
-
-
-TEST(bulk, cancellation2) {
-    unifex::single_thread_context ctx;
-    auto sched = ctx.get_scheduler();
-
-    const std::size_t count = 1000;
-
-    std::vector<int> output(count, 0);
-    // Cancel after two chunks
-    // For the serial implementation this will stop the third chunk onwards from
-    // being dispatched.
-    const std::size_t compare_index = unifex::bulk_cancellation_chunk_size*2 - 1;
-
-    // Bulk, but sequential to test strict cancellation of later work
 
     unifex::sync_wait(
         unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
@@ -105,7 +70,7 @@ TEST(bulk, cancellation2) {
                 unifex::bulk_transform(
                     unifex::bulk_schedule(sched, count),
                     [&](std::size_t index) noexcept {
-                        // Stop after third index
+                        // Stop after second chunk
                         if(index == compare_index) {
                             stopSource.request_stop();
                         }
