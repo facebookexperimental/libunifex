@@ -78,13 +78,7 @@ public:
     template(typename R = Receiver)
         (requires is_done_receiver_v<Receiver>)
     void set_done() noexcept {
-        // If the local stop token is set and the incoming one is not,
-        // switch back to set_value
-        if(op_.stop_source_.stop_requested() && !unifex::get_stop_token(receiver_).stop_requested()) {
-            unifex::set_value(std::move(receiver_));
-        } else {
-            unifex::set_done(std::move(receiver_));
-        }
+        unifex::set_done(std::move(receiver_));
     }
 
     friend auto tag_invoke(tag_t<get_execution_policy>, const type& r) noexcept {
