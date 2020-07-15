@@ -78,9 +78,9 @@ class manual_lifetime_union<> {};
 template <typename T, typename... Ts, typename... Args>
 [[maybe_unused]] T& activate(manual_lifetime_union<Ts...>& box, Args&&... args) //
     noexcept(std::is_nothrow_constructible_v<T, Args...>) {
-  ::new (&box) manual_lifetime_union<Ts...>{};
-  scope_guard guard = [&]() noexcept { box.~manual_lifetime_union(); };
-  auto& t = box.template construct<T>(static_cast<Args&&>(args)...);
+  auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
+  scope_guard guard = [=]() noexcept { p->~manual_lifetime_union(); };
+  auto& t = p->template construct<T>(static_cast<Args&&>(args)...);
   guard.release();
   return t;
 }
@@ -90,9 +90,9 @@ template <typename T, typename... Ts, typename... Args>
 template <typename T, typename... Ts, typename Func>
 [[maybe_unused]] T& activate_from(manual_lifetime_union<Ts...>& box, Func&& func)
     noexcept(is_nothrow_callable_v<Func>) {
-  ::new (&box) manual_lifetime_union<Ts...>{};
-  scope_guard guard = [&]() noexcept { box.~manual_lifetime_union(); };
-  auto& t = box.template construct_from<T>(static_cast<Func&&>(func));
+  auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
+  scope_guard guard = [=]() noexcept { p->~manual_lifetime_union(); };
+  auto& t = p->template construct_from<T>(static_cast<Func&&>(func));
   guard.release();
   return t;
 }

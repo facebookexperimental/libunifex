@@ -145,13 +145,16 @@ class manual_lifetime<void> {
   void get() const noexcept {}
 };
 
+template <>
+class manual_lifetime<void const> : public manual_lifetime<void> {};
+
 // For activating a manual_lifetime when it is in a union and initializing
 // its value from arguments to its constructor.
 template <typename T, typename... Args>
 [[maybe_unused]] T& activate(manual_lifetime<T>& box, Args&&... args) noexcept(
     std::is_nothrow_constructible_v<T, Args...>) {
-  ::new (&box) manual_lifetime<T>{};
-  scope_guard guard = [&]() noexcept { box.~manual_lifetime(); };
+  auto* p = ::new (&box) manual_lifetime<T>{};
+  scope_guard guard = [=]() noexcept { p->~manual_lifetime(); };
   auto& t = box.construct(static_cast<Args&&>(args)...);
   guard.release();
   return t;
@@ -162,9 +165,9 @@ template <typename T, typename... Args>
 template <typename T, typename Func>
 [[maybe_unused]] T& activate_from(manual_lifetime<T>& box, Func&& func) noexcept(
     is_nothrow_callable_v<Func>) {
-  ::new (&box) manual_lifetime<T>{};
-  scope_guard guard = [&]() noexcept { box.~manual_lifetime(); };
-  auto& t = box.construct_from(static_cast<Func&&>(func));
+  auto* p = ::new (&box) manual_lifetime<T>{};
+  scope_guard guard = [=]() noexcept { p->~manual_lifetime(); };
+  auto& t = p->construct_from(static_cast<Func&&>(func));
   guard.release();
   return t;
 }
