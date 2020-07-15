@@ -35,14 +35,14 @@ class manual_lifetime {
   ~manual_lifetime() {}
 
   template <typename... Args>
-  T& construct(Args&&... args) noexcept(
+  [[maybe_unused]] T& construct(Args&&... args) noexcept(
       std::is_nothrow_constructible_v<T, Args...>) {
     return *::new (static_cast<void*>(std::addressof(value_)))
         T((Args &&) args...);
   }
 
   template <typename Func>
-  T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(
         std::is_same_v<callable_result_t<Func>, T>,
         "Return type of func() must be exactly T to permit copy-elision.");
@@ -79,13 +79,13 @@ class manual_lifetime<T&> {
   manual_lifetime() noexcept : value_(nullptr) {}
   ~manual_lifetime() {}
 
-  T& construct(T& value) noexcept {
+  [[maybe_unused]] T& construct(T& value) noexcept {
     value_ = std::addressof(value);
     return value;
   }
 
   template <typename Func>
-  T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
@@ -107,13 +107,13 @@ class manual_lifetime<T&&> {
   manual_lifetime() noexcept : value_(nullptr) {}
   ~manual_lifetime() {}
 
-  T&& construct(T&& value) noexcept {
+  [[maybe_unused]] T&& construct(T&& value) noexcept {
     value_ = std::addressof(value);
     return (T &&) value;
   }
 
   template <typename Func>
-  T&& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T&& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
@@ -148,7 +148,7 @@ class manual_lifetime<void> {
 // For activating a manual_lifetime when it is in a union and initializing
 // its value from arguments to its constructor.
 template <typename T, typename... Args>
-T& activate(manual_lifetime<T>& box, Args&&... args) noexcept(
+[[maybe_unused]] T& activate(manual_lifetime<T>& box, Args&&... args) noexcept(
     std::is_nothrow_constructible_v<T, Args...>) {
   ::new (&box) manual_lifetime<T>{};
   scope_guard guard = [&]() noexcept { box.~manual_lifetime(); };
@@ -160,7 +160,7 @@ T& activate(manual_lifetime<T>& box, Args&&... args) noexcept(
 // For activating a manual_lifetime when it is in a union and initializing
 // its value from the result of calling a function.
 template <typename T, typename Func>
-T& activate_from(manual_lifetime<T>& box, Func&& func) noexcept(
+[[maybe_unused]] T& activate_from(manual_lifetime<T>& box, Func&& func) noexcept(
     is_nothrow_callable_v<Func>) {
   ::new (&box) manual_lifetime<T>{};
   scope_guard guard = [&]() noexcept { box.~manual_lifetime(); };
