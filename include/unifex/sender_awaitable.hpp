@@ -49,14 +49,14 @@ struct _sender_awaiter<Sender, Value>::type {
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
       if constexpr (std::is_nothrow_constructible_v<Value, Values...>) {
-        awaiter_.value_.construct((Values&&)values...);
+        unifex::activate(awaiter_.value_, (Values&&)values...);
         awaiter_.state_ = state::value;
       } else {
         try {
-            awaiter_.value_.construct((Values&&)values...);
+            unifex::activate(awaiter_.value_, (Values&&)values...);
             awaiter_.state_ = state::value;
         } catch (...) {
-            awaiter_.ex_.construct(std::current_exception());
+            unifex::activate(awaiter_.ex_, std::current_exception());
             awaiter_.state_ = state::error;
         }
       }
@@ -69,7 +69,7 @@ struct _sender_awaiter<Sender, Value>::type {
     }
 
     void set_error(std::exception_ptr ex) && noexcept {
-      awaiter_.ex_.construct(std::move(ex));
+      unifex::activate(awaiter_.ex_, std::move(ex));
       awaiter_.state_ = state::error;
       awaiter_.continuation_.resume();
     }
@@ -98,9 +98,14 @@ struct _sender_awaiter<Sender, Value>::type {
 
   ~type() {
     switch (state_) {
-      case state::value: value_.destruct(); break;
-      case state::error: ex_.destruct(); break;
-      default: break;
+      case state::value:
+        unifex::deactivate(value_);
+        break;
+      case state::error:
+        unifex::deactivate(ex_);
+        break;
+      default:
+        break;
     }
   }
 

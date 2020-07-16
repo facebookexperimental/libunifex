@@ -80,8 +80,8 @@ private:
   using successor_operation = typename Operation::template successor_operation<Values2...>;
 
   void cleanup() noexcept {
-    op_.succOp_.template get<successor_operation<Values...>>().destruct();
-    op_.values_.template get<decayed_tuple<Values...>>().destruct();
+    unifex::deactivate<successor_operation<Values...>>(op_.succOp_);
+    op_.values_.template destruct<decayed_tuple<Values...>>();
   }
 
   template(typename CPO)
@@ -124,45 +124,38 @@ struct _predecessor_receiver<Operation>::type {
 
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
-    bool destroyedPredOp = false;
     auto& op = op_;
     try {
+      scope_guard destroyPredOp = [&]() noexcept { unifex::deactivate(op.predOp_); };
       auto& valueTuple =
-          op.values_.template get<decayed_tuple<Values...>>();
-      valueTuple.construct((Values &&) values...);
-      destroyedPredOp = true;
-      op.predOp_.destruct();
-      try {
-        auto& succOp =
-            op.succOp_.template get<successor_operation<Values...>>()
-                .construct_from([&] {
-                  return unifex::connect(
-                      std::apply(std::move(op.func_), valueTuple.get()),
-                      successor_receiver<Operation, Values...>{op});
-                });
-        unifex::start(succOp);
-      } catch (...) {
-        valueTuple.destruct();
-        throw;
-      }
+        op.values_.template construct<decayed_tuple<Values...>>((Values &&) values...);
+      destroyPredOp.reset();
+      scope_guard destroyValues = [&]() noexcept {
+        op.values_.template destruct<decayed_tuple<Values...>>();
+      };
+      auto& succOp =
+          unifex::activate_from<successor_operation<Values...>>(op.succOp_, [&] {
+              return unifex::connect(
+                  std::apply(std::move(op.func_), valueTuple),
+                  successor_receiver<Operation, Values...>{op});
+            });
+      unifex::start(succOp);
+      destroyValues.release();
     } catch (...) {
-      if (!destroyedPredOp) {
-        op.predOp_.destruct();
-      }
       unifex::set_error(std::move(op.receiver_), std::current_exception());
     }
   }
 
   void set_done() && noexcept {
     auto& op = op_;
-    op.predOp_.destruct();
+    unifex::deactivate(op.predOp_);
     unifex::set_done(std::move(op.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
     auto& op = op_;
-    op.predOp_.destruct();
+    unifex::deactivate(op.predOp_);
     unifex::set_error(std::move(op.receiver_), (Error &&) error);
   }
 
@@ -217,14 +210,15 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
       Receiver2&& receiver)
       : func_((SuccessorFactory2 &&) func),
         receiver_((Receiver2 &&) receiver) {
-    predOp_.construct_from([&] {
-      return unifex::connect((Predecessor &&) pred, predecessor_receiver<operation>{*this});
+    unifex::activate_from(predOp_, [&] {
+      return unifex::connect(
+          (Predecessor &&) pred, predecessor_receiver<operation>{*this});
     });
   }
 
   ~type() {
     if (!started_) {
-      predOp_.destruct();
+      unifex::deactivate(predOp_);
     }
   }
 

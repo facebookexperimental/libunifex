@@ -287,16 +287,16 @@ namespace _thread_unsafe_event_loop {
       template <typename... Values>
       void set_value(Values&&... values) && noexcept {
         try {
-          promise_.value_.construct((Values &&) values...);
+          unifex::activate(promise_.value_, (Values &&) values...);
           promise_.state_ = state::value;
         } catch (...) {
-          promise_.exception_.construct(std::current_exception());
+          unifex::activate(promise_.exception_, std::current_exception());
           promise_.state_ = state::error;
         }
       }
 
       void set_error(std::exception_ptr ex) && noexcept {
-        promise_.exception_.construct(std::move(ex));
+        unifex::activate(promise_.exception_, std::move(ex));
         promise_.state_ = state::error;
       }
 
@@ -318,9 +318,9 @@ namespace _thread_unsafe_event_loop {
 
     ~type() {
       if (state_ == state::value) {
-        value_.destruct();
+        unifex::deactivate(value_);
       } else if (state_ == state::error) {
-        exception_.destruct();
+        unifex::deactivate(exception_);
       }
     }
 

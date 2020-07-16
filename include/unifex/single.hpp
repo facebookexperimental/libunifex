@@ -53,7 +53,7 @@ struct _next_op<Sender, Receiver>::type {
   explicit type(Sender&& sender, Receiver&& receiver)
     : done_(false)
   {
-    innerOp_.construct_from([&] {
+    unifex::activate_from(innerOp_, [&] {
       return unifex::connect(
           static_cast<Sender&&>(sender), (Receiver&&)receiver);
     });
@@ -63,7 +63,7 @@ struct _next_op<Sender, Receiver>::type {
     if (done_) {
       receiver_.~Receiver();
     } else {
-      innerOp_.destruct();
+      unifex::deactivate(innerOp_);
     }
   }
 

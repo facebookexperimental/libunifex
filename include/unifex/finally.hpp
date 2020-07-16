@@ -88,24 +88,23 @@ namespace unifex
       : op_(std::exchange(other.op_, nullptr)) {}
 
       void set_value() && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        auto& completionOp = op->completionValueOp_.template get<
-            connect_result_t<CompletionSender, value_receiver>>();
-        completionOp.destruct();
+        unifex::deactivate<connect_result_t<CompletionSender, value_receiver>>(
+            op->completionValueOp_);
 
-        auto& valueStorage = op->value_.template get<std::tuple<Values...>>();
         try {
           // Move the stored values onto the stack so that we can
           // destroy the ones stored in the operation-state. This
           // prevents the need to add a big switch to the operation
           // state destructor to determine which value-tuple type
           // destructor needs to be run.
-          auto values = [&]() -> std::tuple<Values...> {
-            scope_guard g{[&]() noexcept {
-              valueStorage.destruct();
+          auto values = [op]() -> std::tuple<Values...> {
+            scope_guard g{[op]() noexcept {
+              unifex::deactivate<std::tuple<Values...>>(op->value_);
             }};
-            return static_cast<std::tuple<Values...>&&>(valueStorage.get());
+            return static_cast<std::tuple<Values...>&&>(
+              op->value_.template get<std::tuple<Values...>>());
           }
           ();
 
@@ -124,15 +123,13 @@ namespace unifex
 
       template <typename Error>
       void set_error(Error&& error) && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        auto& completionOp = op->completionValueOp_.template get<
-            connect_result_t<CompletionSender, value_receiver>>();
-        completionOp.destruct();
+        unifex::deactivate<connect_result_t<CompletionSender, value_receiver>>(
+            op->completionValueOp_);
 
         // Discard the stored value.
-        auto& valueStorage = op->value_.template get<std::tuple<Values...>>();
-        valueStorage.destruct();
+        unifex::deactivate<std::tuple<Values...>>(op->value_);
 
         unifex::set_error(
             static_cast<Receiver&&>(op->receiver_),
@@ -140,15 +137,13 @@ namespace unifex
       }
 
       void set_done() && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        auto& completionOp = op->completionValueOp_.template get<
-            connect_result_t<CompletionSender, value_receiver>>();
-        completionOp.destruct();
+        unifex::deactivate<connect_result_t<CompletionSender, value_receiver>>(
+            op->completionValueOp_);
 
         // Discard the stored value.
-        auto& valueStorage = op->value_.template get<std::tuple<Values...>>();
-        valueStorage.destruct();
+        unifex::deactivate<std::tuple<Values...>>(op->value_);
 
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
@@ -218,15 +213,13 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
       void set_value() && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        auto& completionOp = op->completionErrorOp_.template get<
-            connect_result_t<CompletionSender, error_receiver>>();
-        completionOp.destruct();
+        unifex::deactivate<connect_result_t<CompletionSender, error_receiver>>(
+            op->completionErrorOp_);
 
-        auto& errorStorage = op->error_.template get<Error>();
-        Error errorCopy = static_cast<Error&&>(errorStorage.get());
-        errorStorage.destruct();
+        Error errorCopy = static_cast<Error&&>(op->error_.template get<Error>());
+        unifex::deactivate<Error>(op->error_);
 
         unifex::set_error(
             static_cast<Receiver&&>(op->receiver_),
@@ -236,15 +229,13 @@ namespace unifex
       template(typename OtherError)
           (requires receiver<Receiver, OtherError>)
       void set_error(OtherError otherError) && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        auto& completionOp = op->completionErrorOp_.template get<
-            connect_result_t<CompletionSender, error_receiver>>();
-        completionOp.destruct();
+        unifex::deactivate<connect_result_t<CompletionSender, error_receiver>>(
+            op->completionErrorOp_);
 
         // Discard existing stored error from source-sender.
-        auto& errorStorage = op->error_.template get<Error>();
-        errorStorage.destruct();
+        unifex::deactivate<Error>(op->error_);
 
         unifex::set_error(
             static_cast<Receiver&&>(op->receiver_),
@@ -252,15 +243,13 @@ namespace unifex
       }
 
       void set_done() && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        auto& completionOp = op->completionErrorOp_.template get<
-            connect_result_t<CompletionSender, error_receiver>>();
-        completionOp.destruct();
+        unifex::deactivate<connect_result_t<CompletionSender, error_receiver>>(
+            op->completionErrorOp_);
 
         // Discard existing stored error from source-sender.
-        auto& errorStorage = op->error_.template get<Error>();
-        errorStorage.destruct();
+        unifex::deactivate<Error>(op->error_);
 
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
@@ -314,24 +303,24 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
       void set_value() && noexcept {
-        auto* op = op_;
-        op->completionDoneOp_.destruct();
+        auto* const op = op_;
+        unifex::deactivate(op->completionDoneOp_);
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
 
       template(typename Error)
           (requires receiver<Receiver, Error>)
       void set_error(Error&& error) && noexcept {
-        auto* op = op_;
-        op->completionDoneOp_.destruct();
+        auto* const op = op_;
+        unifex::deactivate(op->completionDoneOp_);
         unifex::set_error(
             static_cast<Receiver&&>(op->receiver_),
             static_cast<Error&&>(error));
       }
 
       void set_done() && noexcept {
-        auto* op = op_;
-        op->completionDoneOp_.destruct();
+        auto* const op = op_;
+        unifex::deactivate(op->completionDoneOp_);
         unifex::set_done(static_cast<Receiver&&>(op->receiver_));
       }
 
@@ -384,17 +373,16 @@ namespace unifex
       template(typename... Values)
           (requires receiver_of<Receiver, Values...>)
       void set_value(Values&&... values) && noexcept {
-        auto* op = op_;
-        auto& valueStorage =
-            op->value_.template get<std::tuple<std::decay_t<Values>...>>();
+        auto* const op = op_;
         try {
-          valueStorage.construct(static_cast<Values&&>(values)...);
+          unifex::activate<std::tuple<std::decay_t<Values>...>>(
+            op->value_, static_cast<Values&&>(values)...);
         } catch (...) {
           std::move(*this).set_error(std::current_exception());
           return;
         }
 
-        op->sourceOp_.destruct();
+        unifex::deactivate(op->sourceOp_);
 
         try {
           using value_receiver = value_receiver<
@@ -403,16 +391,16 @@ namespace unifex
               Receiver,
               Values...>;
           auto& completionOp =
-              op->completionValueOp_
-                  .template get<connect_result_t<CompletionSender, value_receiver>>()
-                  .construct_from([&] {
+              unifex::activate_from<connect_result_t<CompletionSender, value_receiver>>(
+                  op->completionValueOp_,
+                  [&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
                         value_receiver{op});
                   });
           unifex::start(completionOp);
         } catch (...) {
-          valueStorage.destruct();
+          unifex::deactivate<std::tuple<std::decay_t<Values>...>>(op->value_);
           unifex::set_error(
               static_cast<Receiver&&>(op->receiver_), std::current_exception());
         }
@@ -423,11 +411,10 @@ namespace unifex
         static_assert(
             std::is_nothrow_constructible_v<std::decay_t<Error>, Error>);
 
-        auto* op = op_;
-        auto& errorStorage = op->error_.template get<std::decay_t<Error>>();
-        errorStorage.construct(static_cast<Error&&>(error));
+        auto* const op = op_;
+        unifex::activate<std::decay_t<Error>>(op->error_, static_cast<Error&&>(error));
 
-        op->sourceOp_.destruct();
+        unifex::deactivate(op->sourceOp_);
 
         try {
           using error_receiver_t = error_receiver<
@@ -436,30 +423,30 @@ namespace unifex
               Receiver,
               Error>;
           auto& completionOp =
-              op->completionErrorOp_
-                  .template get<connect_result_t<CompletionSender, error_receiver_t>>()
-                  .construct_from([&] {
+              unifex::activate_from<connect_result_t<CompletionSender, error_receiver_t>>(
+                  op->completionErrorOp_,
+                  [&] {
                     return unifex::connect(
                         static_cast<CompletionSender&&>(op->completionSender_),
                         error_receiver_t{op});
                   });
           unifex::start(completionOp);
         } catch (...) {
-          errorStorage.destruct();
+          unifex::deactivate<std::decay_t<Error>>(op->error_);
           unifex::set_error(
               static_cast<Receiver&&>(op->receiver_), std::current_exception());
         }
       }
 
       void set_done() && noexcept {
-        auto* op = op_;
+        auto* const op = op_;
 
-        op->sourceOp_.destruct();
+        unifex::deactivate(op->sourceOp_);
 
         try {
           using done_receiver =
               done_receiver<SourceSender, CompletionSender, Receiver>;
-          auto& completionOp = op->completionDoneOp_.construct_from([&] {
+          auto& completionOp = unifex::activate_from(op->completionDoneOp_, [&] {
             return unifex::connect(
                 static_cast<CompletionSender&&>(op->completionSender_),
                 done_receiver{op});
@@ -549,7 +536,8 @@ namespace unifex
           CompletionSender2&& completionSender,
           Receiver2&& r)
         : completionSender_(static_cast<CompletionSender2&&>(completionSender))
-        , receiver_(static_cast<Receiver2&&>(r)) {
+        , receiver_(static_cast<Receiver2&&>(r))
+        , sourceOp_{} {
         sourceOp_.construct_from([&] {
           return unifex::connect(
               static_cast<SourceSender&&>(sourceSender),
@@ -559,7 +547,7 @@ namespace unifex
 
       ~type() {
         if (!started_) {
-          sourceOp_.destruct();
+          unifex::deactivate(sourceOp_);
         }
       }
 
@@ -588,24 +576,29 @@ namespace unifex
             value_;
       };
 
+      using source_operation_t =
+          manual_lifetime<connect_result_t<
+            SourceSender,
+            receiver_t<SourceSender, CompletionSender, Receiver>>>;
+
+      using completion_value_union_t = typename remove_cvref_t<SourceSender>::
+          template value_types<manual_lifetime_union, value_operation>;
+
+      using completion_error_union_t = typename remove_cvref_t<SourceSender>::
+          template error_types<error_operation_union>;
+
       // Operation storage.
       union {
         // Storage for the source operation state.
-        manual_lifetime<connect_result_t<
-            SourceSender,
-            receiver_t<SourceSender, CompletionSender, Receiver>>>
-            sourceOp_;
+        source_operation_t sourceOp_;
 
         // Storage for the completion operation for the case where
         // the source operation completed with a value.
-        typename remove_cvref_t<SourceSender>::
-            template value_types<manual_lifetime_union, value_operation>
-                completionValueOp_;
+        completion_value_union_t completionValueOp_;
 
         // Storage for the completion operation for the case where the
         // source operation completed with an error.
-        typename remove_cvref_t<SourceSender>::template error_types<error_operation_union>
-            completionErrorOp_;
+        completion_error_union_t completionErrorOp_;
 
         // Storage for the completion operation for the case where the
         // source operation completed with 'done'.

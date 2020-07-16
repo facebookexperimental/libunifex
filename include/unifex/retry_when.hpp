@@ -72,20 +72,20 @@ public:
     assert(op_ != nullptr);
 
     // This signals to retry the operation.
-    auto* op = op_;
+    auto* const op = op_;
     destroy_trigger_op();
 
     using source_receiver_t = source_receiver<Source, Func, Receiver>;
 
     if constexpr (is_nothrow_connectable_v<Source&, source_receiver_t>) {
-      auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
+      auto& sourceOp = unifex::activate_from(op->sourceOp_, [&]() noexcept {
           return unifex::connect(op->source_, source_receiver_t{op});
         });
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
       try {
-        auto& sourceOp = op->sourceOp_.construct_from([&] {
+        auto& sourceOp = unifex::activate_from(op->sourceOp_, [&] {
             return unifex::connect(op->source_, source_receiver_t{op});
           });
         op->isSourceOpConstructed_ = true;
@@ -101,7 +101,7 @@ public:
   void set_done() && noexcept {
     assert(op_ != nullptr);
 
-    auto* op = op_;
+    auto* const op = op_;
     destroy_trigger_op();
     unifex::set_done((Receiver&&)op->receiver_);
   }
@@ -111,7 +111,7 @@ public:
   void set_error(Error error) && noexcept {
     assert(op_ != nullptr);
 
-    auto* op = op_;
+    auto* const op = op_;
 
     // Note, parameter taken by value so that its lifetime will continue
     // to be valid after we destroy the operation-state that sent it.
@@ -148,7 +148,7 @@ private:
 
   void destroy_trigger_op() noexcept {
     using trigger_op = connect_result_t<Trigger, trigger_receiver>;
-    op_->triggerOps_.template get<trigger_op>().destruct();
+    unifex::deactivate<trigger_op>(op_->triggerOps_);
   }
 
   operation<Source, Func, Receiver>* op_;
@@ -182,25 +182,31 @@ public:
     (requires std::is_invocable_v<Func&, Error>)
   void set_error(Error error) noexcept {
     assert(op_ != nullptr);
-    auto* op = op_;
+    auto* const op = op_;
 
     op->isSourceOpConstructed_ = false;
-    op->sourceOp_.destruct();
+    unifex::deactivate(op->sourceOp_);
 
     using trigger_sender_t = std::invoke_result_t<Func&, Error>;
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
     using trigger_op_t = unifex::connect_result_t<trigger_sender_t, trigger_receiver_t>;
-    auto& triggerOpStorage = op->triggerOps_.template get<trigger_op_t>();
+
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
-      auto& triggerOp = triggerOpStorage.construct_from([&]() noexcept {
-          return unifex::connect(std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
+      auto& triggerOp = unifex::activate_from<trigger_op_t>(
+        op->triggerOps_,
+        [&]() noexcept {
+          return unifex::connect(
+            std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
         });
       unifex::start(triggerOp);
     } else {
       try {
-        auto& triggerOp = triggerOpStorage.construct_from([&]() {
-            return unifex::connect(std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
+      auto& triggerOp = unifex::activate_from<trigger_op_t>(
+        op->triggerOps_,
+          [&]() {
+            return unifex::connect(
+              std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
           });
         unifex::start(triggerOp);
       } catch (...) {
@@ -251,14 +257,14 @@ public:
   : source_((Source2&&)source)
   , func_((Func2&&)func)
   , receiver_((Receiver&&)receiver) {
-    sourceOp_.construct_from([&] {
+    unifex::activate_from(sourceOp_, [&] {
         return unifex::connect(source_, source_receiver_t{this});
       });
   }
 
   ~type() {
     if (isSourceOpConstructed_) {
-      sourceOp_.destruct();
+      unifex::deactivate(sourceOp_);
     }
   }
 
