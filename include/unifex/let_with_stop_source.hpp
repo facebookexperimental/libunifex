@@ -126,7 +126,7 @@ public:
             std::is_nothrow_constructible_v<SuccessorFactory, member_t<Self, SuccessorFactory>> &&
             std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
 
-        return operation<SuccessorFactory, Receiver>(
+        return operation<member_t<Self, SuccessorFactory>, Receiver>(
             static_cast<Self&&>(self).func_, static_cast<Receiver&&>(r));
     }
 
