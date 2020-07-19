@@ -134,28 +134,24 @@ private:
     UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
 };
 
-template<typename SuccessorFactory, typename Receiver, typename Token>
-struct _stop_source_operation_callback;
-template<typename SuccessorFactory, typename Receiver, typename Token>
 struct _stop_source_operation_callback {
-    _stop_source_operation_callback(operation<SuccessorFactory, Receiver>& op, Token&& token) :
-        op_{op} {}
+    _stop_source_operation_callback(inplace_stop_source& source) :
+        source_{source} {}
     void operator()() noexcept {
-        op_.stop_source_.request_stop();
+        source_.request_stop();
     }
-    operation<SuccessorFactory, Receiver>& op_;
-};
-template<typename SuccessorFactory, typename Receiver>
-struct _stop_source_operation_callback<SuccessorFactory, Receiver, unstoppable_token> {
-    _stop_source_operation_callback(operation<SuccessorFactory, Receiver>& /*op*/, unstoppable_token&& /*token*/)  {}
-    void operator()() noexcept {}
+    inplace_stop_source& source_;
 };
 
 template<typename SuccessorFactory, typename Receiver>
 struct _stop_source_operation<SuccessorFactory, Receiver>::type {
     type(SuccessorFactory&& func, Receiver&& r) :
         stop_source_{},
-        stop_callback_(*this, unifex::get_stop_token(r)),
+        // Chain the stop token so that downstream cancellation also affects this
+        // operation
+        stop_callback_(
+            unifex::get_stop_token(r),
+            _stop_source_operation_callback(stop_source_)),
         innerOp_(
             unifex::connect(
                 func(stop_source_),
@@ -168,10 +164,10 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
         unifex::start(innerOp_);
     }
 
+    template<class F>
+    using callback_type = typename stop_token_type_t<Receiver>::template callback_type<F>;
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
-    UNIFEX_NO_UNIQUE_ADDRESS _stop_source_operation_callback<
-            SuccessorFactory, Receiver, remove_cvref_t<decltype(unifex::get_stop_token(std::declval<Receiver>()))>>
-        stop_callback_;
+    UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
         std::invoke_result_t<SuccessorFactory, unifex::inplace_stop_source&>,
         stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>>
