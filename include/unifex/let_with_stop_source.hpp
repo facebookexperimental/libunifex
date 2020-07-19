@@ -104,11 +104,6 @@ struct _stop_source_sender {
 template<typename SuccessorFactory>
 using stop_source_sender = typename _stop_source_sender<SuccessorFactory>::type;
 
-
-template <typename Result>
-struct result_overload {
-using type = type_list<Result>;
-};
 template<typename SuccessorFactory>
 class _stop_source_sender<SuccessorFactory>::type {
     template<typename... Values>
