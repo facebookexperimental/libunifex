@@ -139,12 +139,11 @@ struct _stop_source_operation_callback;
 template<typename SuccessorFactory, typename Receiver, typename Token>
 struct _stop_source_operation_callback {
     _stop_source_operation_callback(operation<SuccessorFactory, Receiver>& op, Token&& token) :
-        op_{op}, token_{token} {}
+        op_{op} {}
     void operator()() noexcept {
         op_.stop_source_.request_stop();
     }
     operation<SuccessorFactory, Receiver>& op_;
-    Token token_;
 };
 template<typename SuccessorFactory, typename Receiver>
 struct _stop_source_operation_callback<SuccessorFactory, Receiver, unstoppable_token> {
