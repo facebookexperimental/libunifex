@@ -55,14 +55,6 @@ public:
         op_(op), receiver_{std::forward<Receiver>(r)}
     {}
 
-    template<typename... Values>
-    void set_next(Values&&... values) &
-        noexcept(is_nothrow_next_receiver_v<Receiver, Values...,  unifex::inplace_stop_source&>) {
-
-        // Forward, injecting stop_source
-        unifex::set_next(receiver_, std::forward<Values>(values)..., op_.stop_source_);
-    }
-
     template(typename... Values)
         (requires is_value_receiver_v<Receiver, Values...>)
     void set_value(Values&&... values) noexcept(is_nothrow_value_receiver_v<Receiver, Values...>) {
