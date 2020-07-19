@@ -22,7 +22,6 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/execution_policy.hpp>
-#include <unifex/get_execution_policy.hpp>
 #include <unifex/type_list.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -71,10 +70,6 @@ public:
         (requires is_done_receiver_v<Receiver>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
-    }
-
-    friend auto tag_invoke(tag_t<get_execution_policy>, const type& r) noexcept {
-        return get_execution_policy(r.receiver_);
     }
 
     friend auto tag_invoke(tag_t<get_stop_token>, const type& r) noexcept {
