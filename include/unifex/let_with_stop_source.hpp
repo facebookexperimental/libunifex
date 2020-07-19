@@ -127,7 +127,7 @@ public:
             std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
 
         return operation<SuccessorFactory, Receiver>(
-            static_cast<Self&&>(self).func_, std::forward<Receiver>(r));
+            static_cast<Self&&>(self).func_, static_cast<Receiver&&>(r));
     }
 
 private:
