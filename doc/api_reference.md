@@ -13,6 +13,7 @@
   * `typed_via()`
   * `on()`
   * `let()`
+  * `let_with_stop_source()`
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
@@ -120,7 +121,7 @@ algorithms in libunifex.
   a given thread. Use this if the forward-progress of one call to `set_next()`
   may be dependent on another call to `set_next()` making forward progress.
   e.g. if multiple calls attempt to acquire a lock on the same mutex.
-  
+
 * `unifex::parallel_unsequenced_policy` - Calls to `set_next()` are safe to
   be executed concurrently on different threads and are also safe to have
   their executions interleaved on a given thread.
@@ -239,6 +240,34 @@ whole will complete with the result of the successor.
 If the predecessor completes with done/error then `func` is not invoked
 and the operation as a whole completes with that done/error signal.
 
+### `let_with_stop_source(Invocable func) -> Sender`
+
+The `let_with_stop_source()` algorithm constructs an
+`inplace_stop_token` that remains alive for the duration of an operation.
+
+`func` is invoked with an lvalue reference to an `inplace_stop_source`
+derived from the `inplace_stop_token`. This invocation must return a
+Sender.
+
+The `inplace_stop_token` is provided to the `Sender` returned by `func`
+via a call to `get_stop_token` on the provided `Receiver`.
+
+The reference passed to `func` remain valid until the returned sender
+completes, at which point the `inplace_stop_token` goes out of scope.
+
+For example:
+```c++
+let_with_stop_source(some_operation(),
+    [](unifex::inplace_stop_source& stop_source) {
+      return other_operation(stop_source);
+    });
+```
+
+If `request_stop` is called on `stop_source` this may cancel some or
+all of `other_operation`. By this mechanism `let_with_stop_source`
+provides the opportunity to cancel work, partially or completely,
+as part of some larger operation.
+
 ### `sequence(Sender... predecessors, Sender last) -> Sender`
 
 The `sequence()` algorithm takes a variadic pack of senders and executes
@@ -319,10 +348,10 @@ Any `set_error()` or `set_done()` signals are passed through unchanged.
 
 ### `repeat_effect_until(Sender source, Invocable predicate) -> Sender`
 
-The `repeat_effect_until()` algorithm repeats the source sender for as long as the 
+The `repeat_effect_until()` algorithm repeats the source sender for as long as the
 predicate returns false.
 
-The `source` sender must be lvalue connectable (ie. can be connected and started 
+The `source` sender must be lvalue connectable (ie. can be connected and started
 multiple times).
 
 The `source` sender must be an effect. It must produce void.
@@ -330,12 +359,12 @@ The `source` sender must be an effect. It must produce void.
 If the `source` sender completes with `set_error()` or `set_done()` then the
 `repeat_effect_until()` operation completes with that same signal.
 
-If the `source` sender completes with void then the `predicate` function is 
-invoked. The `predicate` function must return `false` to repeat the source and 
+If the `source` sender completes with void then the `predicate` function is
+invoked. The `predicate` function must return `false` to repeat the source and
 `true` to complete with void.
 
-If the invocation of the `predicate()` throws an exception then the 
-`repeat_effect_until()` operation immediately completes with 
+If the invocation of the `predicate()` throws an exception then the
+`repeat_effect_until()` operation immediately completes with
 `set_error(std::current_exception())`.
 
 Example usage: Repeat the operation forever - until the source is cancelled.
@@ -351,10 +380,10 @@ This is the default implementation for `repeat_effect()`.
 
 ### `repeat_effect(Sender source) -> Sender`
 
-The `repeat_effect()` algorithm repeats the source sender until the source is 
+The `repeat_effect()` algorithm repeats the source sender until the source is
 cancelled.
 
-The `source` sender must be lvalue connectable (ie. can be connected and started 
+The `source` sender must be lvalue connectable (ie. can be connected and started
 multiple times).
 
 The `source` sender must be an effect. It must produce void.
@@ -369,7 +398,7 @@ Example usage: Repeat the operation forever - until the source is cancelled.
 unifex::repeat_effect(some_operation());
 ```
 
-The default implementation uses `repeat_effect_until()` with a predicate that 
+The default implementation uses `repeat_effect_until()` with a predicate that
 always returns false.
 
 ### `retry_when(Sender source, Invocable<Error> handler) -> Sender`
