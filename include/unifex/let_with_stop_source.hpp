@@ -67,7 +67,7 @@ public:
     }
 
     template(typename R = Receiver)
-        (requires is_done_receiver_v<Receiver>)
+        (requires is_done_receiver_v<R>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
     }
@@ -123,7 +123,7 @@ public:
         (requires same_as<remove_cvref_t<Self>, type>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            std::is_nothrow_constructible_v<SuccessorFactory, member_t<Self, SuccessorFactory>> &&
+            std::is_nothrow_invocable_v<SuccessorFactory, inplace_stop_source&> &&
             std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
 
         return operation<member_t<Self, SuccessorFactory>, Receiver>(
@@ -135,7 +135,7 @@ private:
 };
 
 struct _stop_source_operation_callback {
-    _stop_source_operation_callback(inplace_stop_source& source) :
+    explicit _stop_source_operation_callback(inplace_stop_source& source) noexcept :
         source_{source} {}
     void operator()() noexcept {
         source_.request_stop();
@@ -153,8 +153,8 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
             unifex::get_stop_token(r),
             _stop_source_operation_callback(stop_source_)),
         innerOp_(
-            unifex::connect(
-                func(stop_source_),
+              unifex::connect(
+                static_cast<SuccessorFactory&&>(func)(stop_source_),
                 stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>{
                     *this,
                     static_cast<Receiver&&>(r)})) {

@@ -257,16 +257,16 @@ completes, at which point the `inplace_stop_token` goes out of scope.
 
 For example:
 ```c++
-let_with_stop_source(some_operation(),
+let_with_stop_source(
     [](unifex::inplace_stop_source& stop_source) {
       return other_operation(stop_source);
     });
 ```
 
-If `request_stop` is called on `stop_source` this may cancel some or
-all of `other_operation`. By this mechanism `let_with_stop_source`
-provides the opportunity to cancel work, partially or completely,
-as part of some larger operation.
+Calling `.request_stop()` on the stop-source passed to the function requests
+cancellation of the operation returned by the function. Note that cancellation
+may also be requested through the stop-token of the receiver that is connected
+to the sender returned by `let_with_stop_source()`.
 
 ### `sequence(Sender... predecessors, Sender last) -> Sender`
 
