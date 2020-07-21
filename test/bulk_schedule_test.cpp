@@ -19,6 +19,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_join.hpp>
+#include <unifex/let_with_stop_source.hpp>
 
 #include <gtest/gtest.h>
 
@@ -46,5 +47,41 @@ TEST(bulk, bulk_transform) {
 
     for (std::size_t i = 0; i < count; ++i) {
         EXPECT_EQ(i, output[i]);
+    }
+}
+
+TEST(bulk, cancellation) {
+    unifex::single_thread_context ctx;
+    auto sched = ctx.get_scheduler();
+
+    const std::size_t count = 1000;
+
+    std::vector<int> output(count, 0);
+    // Cancel after two chunks
+    // For the serial implementation this will stop the third chunk onwards from
+    // being dispatched.
+    const std::size_t compare_index = unifex::bulk_cancellation_chunk_size*2 - 1;
+
+    // Bulk, but sequential to test strict cancellation of later work
+
+    unifex::sync_wait(
+        unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
+            return unifex::bulk_join(
+                unifex::bulk_transform(
+                    unifex::bulk_schedule(sched, count),
+                    [&](std::size_t index) noexcept {
+                        // Stop after second chunk
+                        if(index == compare_index) {
+                            stopSource.request_stop();
+                        }
+                        output[index] = index;
+                    }, unifex::seq));
+        }));
+
+    for (std::size_t i = 0; i <= compare_index; ++i) {
+        EXPECT_EQ(i, output[i]);
+    }
+    for (std::size_t i = compare_index+1; i < count; ++i) {
+        EXPECT_EQ(0, output[i]);
     }
 }

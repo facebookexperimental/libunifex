@@ -15,16 +15,22 @@
  */
 #pragma once
 
+#include <algorithm>
+
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_execution_policy.hpp>
 #include <unifex/execution_policy.hpp>
+#include <unifex/get_stop_token.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
+// Size of chunk used for cancellation allowing for some vectorisation
+constexpr size_t bulk_cancellation_chunk_size = 16;
+
 namespace _bulk_schedule {
 
 template<typename Integral, typename Receiver>
@@ -48,22 +54,53 @@ public:
         noexcept(is_nothrow_value_receiver_v<Receiver> &&
                  is_nothrow_next_receiver_v<Receiver, Integral>) {
         using policy_t = decltype(get_execution_policy(receiver_));
-        if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
-            // Vectorisable version
+        auto stop_token = get_stop_token(receiver_);
+        const bool stop_possible = !is_stop_never_possible_v<decltype(stop_token)> && stop_token.stop_possible();
+
+        if(stop_possible) {
+            for (Integral chunk_start(0); chunk_start < count_; chunk_start += bulk_cancellation_chunk_size) {
+                if(stop_token.stop_requested()) {
+                    unifex::set_done(std::move(receiver_));
+                    return;
+                }
+                Integral chunk_end = std::min(chunk_start + bulk_cancellation_chunk_size, count_);
+                if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
+                    // Vectorisable version
 #if defined(__clang__)
-            #pragma clang loop vectorize(enable) interleave(enable)
+                    #pragma clang loop vectorize(enable) interleave(enable)
 #elif defined(__GNUC__)
-            #pragma GCC ivdep
+                    #pragma GCC ivdep
 #elif defined(_MSC_VER)
-            #pragma loop(ivdep)
+                    #pragma loop(ivdep)
 #endif
-            for (Integral i(0); i < count_; ++i) {
-                unifex::set_next(receiver_, Integral(i));
+                    for (Integral i(chunk_start); i < chunk_end; ++i) {
+                        unifex::set_next(receiver_, Integral(i));
+                    }
+                } else {
+                    // Sequenced version
+                    for (Integral i(chunk_start); i < chunk_end; ++i) {
+                        unifex::set_next(receiver_, Integral(i));
+                    }
+                }
             }
         } else {
-            // Sequenced version
-            for (Integral i(0); i < count_; ++i) {
-                unifex::set_next(receiver_, Integral(i));
+            if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
+                // Vectorisable version
+#if defined(__clang__)
+                #pragma clang loop vectorize(enable) interleave(enable)
+#elif defined(__GNUC__)
+                #pragma GCC ivdep
+#elif defined(_MSC_VER)
+                #pragma loop(ivdep)
+#endif
+                for (Integral i(0); i < count_; ++i) {
+                    unifex::set_next(receiver_, Integral(i));
+                }
+            } else {
+                // Sequenced version
+                for (Integral i(0); i < count_; ++i) {
+                    unifex::set_next(receiver_, Integral(i));
+                }
             }
         }
 
