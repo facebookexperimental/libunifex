@@ -123,7 +123,7 @@ public:
         (requires same_as<remove_cvref_t<Self>, type>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            std::is_nothrow_invocable_v<SuccessorFactory, inplace_stop_source&> &&
+            std::is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_source&> &&
             std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
 
         return operation<member_t<Self, SuccessorFactory>, Receiver>(
@@ -169,7 +169,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
     UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
-        std::invoke_result_t<SuccessorFactory&&, unifex::inplace_stop_source&>,
+        std::invoke_result_t<SuccessorFactory, unifex::inplace_stop_source&>,
         stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>>
         innerOp_;
 };
