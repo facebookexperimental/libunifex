@@ -74,8 +74,9 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
   template <typename BeginIt, typename EndIt, typename... Values>
   void set_value(BeginIt begin_it, EndIt end_it, Values&&... values) && noexcept {
     if constexpr (noexcept(std::invoke(
-                      (Func &&) func_, *begin_it, (Values &&) values...))) {
-
+                      (Func &&) func_, *begin_it, (Values &&) values...)) &&
+                  noexcept(++begin_it) &&
+                  noexcept(operator!=(begin_it, end_it))) {
       auto result = find_if_helper(begin_it, end_it, values...);
 
       unifex::set_value((Receiver &&) receiver_, std::move(result), (Values &&) values...);
@@ -147,7 +148,7 @@ public:
     type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename Receiver>
-  using receiver_t = receiver_t<Receiver, Func, FuncPolicy>;
+  using receiver_type = receiver_t<Receiver, Func, FuncPolicy>;
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
     return blocking(sender.pred_);
@@ -159,11 +160,11 @@ public:
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
-      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>>)
-      -> connect_result_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>> {
+      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_type<remove_cvref_t<Receiver>>>)
+      -> connect_result_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_type<remove_cvref_t<Receiver>>> {
     return unifex::connect(
       static_cast<Sender&&>(s).pred_,
-      receiver_t<remove_cvref_t<Receiver>>{
+      receiver_type<remove_cvref_t<Receiver>>{
         static_cast<Sender&&>(s).func_,
         static_cast<Receiver&&>(r),
         static_cast<Sender&&>(s).funcPolicy_});
