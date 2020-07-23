@@ -36,16 +36,6 @@
 
 namespace unifex {
 namespace _find_if {
-namespace detail {
-  template <typename Result, typename = void>
-  struct result_overload {
-    using type = type_list<Result>;
-  };
-  template <typename Result>
-  struct result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
-    using type = type_list<>;
-  };
-}
 
 template <typename Receiver, typename Func, typename FuncPolicy>
 struct _receiver {
@@ -119,7 +109,7 @@ struct _sender {
   struct type;
 };
 template <typename Predecessor, typename Func, typename FuncPolicy>
-using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>, FuncPolicy>::type;
+using sender_t = typename _sender<Predecessor, Func, FuncPolicy>::type;
 
 template <typename Predecessor, typename Func, typename FuncPolicy>
 struct _sender<Predecessor, Func, FuncPolicy>::type {
@@ -174,28 +164,23 @@ public:
 
 namespace _find_if_cpo {
   inline const struct _fn {
-  private:
-    template <typename Sender, typename Func, typename FuncPolicy>
-    using _result_t =
-      typename conditional_t<
-        tag_invocable<_fn, Sender, Func>,
-        meta_tag_invoke_result<_fn>,
-        meta_quote3<_find_if::sender>>::template apply<Sender, Func, FuncPolicy>;
   public:
     template(typename Sender, typename Func, typename FuncPolicy)
       (requires tag_invocable<_fn, Sender, Func, FuncPolicy>)
     auto operator()(Sender&& predecessor, Func&& func, FuncPolicy policy) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func, FuncPolicy>)
-        -> _result_t<Sender, Func, FuncPolicy> {
+        -> tag_invoke_result_t<_fn, Sender, Func, FuncPolicy> {
       return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func, (FuncPolicy&&)policy);
     }
     template(typename Sender, typename Func, typename FuncPolicy)
       (requires (!tag_invocable<_fn, Sender, Func, FuncPolicy>))
     auto operator()(Sender&& predecessor, Func&& func, FuncPolicy policy) const
-        noexcept(std::is_nothrow_constructible_v<
-          _find_if::sender<Sender, Func, FuncPolicy>, Sender, Func, FuncPolicy>)
-        -> _result_t<Sender, Func, FuncPolicy> {
-      return _find_if::sender<Sender, Func, FuncPolicy>{
+        noexcept(
+        std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<Func>, Func> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<FuncPolicy>, FuncPolicy>)
+        -> _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
+      return _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
         (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};
     }
   } find_if{};
