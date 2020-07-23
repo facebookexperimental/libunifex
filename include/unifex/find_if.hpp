@@ -66,7 +66,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     if constexpr (noexcept(std::invoke(
                       (Func &&) func_, *begin_it, (Values &&) values...)) &&
                   noexcept(++begin_it) &&
-                  noexcept(operator!=(begin_it, end_it))) {
+                  noexcept(begin_it != end_it)) {
       auto result = find_if_helper(begin_it, end_it, values...);
 
       unifex::set_value((Receiver &&) receiver_, std::move(result), (Values &&) values...);
