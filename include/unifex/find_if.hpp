@@ -45,12 +45,12 @@
 namespace unifex {
 namespace _find_if {
 
-template <typename Receiver, typename Func, typename FuncPolicy>
+template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
 struct _receiver {
   struct type;
 };
-template <typename Receiver, typename Func, typename FuncPolicy>
-using receiver_t = typename _receiver<Receiver, Func, FuncPolicy>::type;
+template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
+using receiver_t = typename _receiver<Predecessor, Receiver, Func, FuncPolicy>::type;
 
 struct _operation_state_wrapper {
   inline virtual ~_operation_state_wrapper(){}
@@ -69,18 +69,25 @@ struct concrete_operation_state_wrapper : public _operation_state_wrapper {
   }
 };
 
-template <typename Receiver, typename Func, typename FuncPolicy>
-struct _receiver<Receiver, Func, FuncPolicy>::type {
+template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
+struct _operation_state;
+
+template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
+struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   // NO_UNIQUE_ADDRESS here triggers what appears to be a layout bug
   /*UNIFEX_NO_UNIQUE_ADDRESS*/ FuncPolicy funcPolicy_;
   std::unique_ptr<_operation_state_wrapper> os_;
+  _operation_state<Predecessor, Receiver, Func, FuncPolicy>& operation_state_;
 
   // Helper receiver type to unpack a tuple
   template<typename OutputReceiver>
   struct unpack_receiver {
     OutputReceiver output_receiver_;
+    _operation_state<Predecessor, Receiver, Func, FuncPolicy>& operation_state_;
+
+    ~unpack_receiver() noexcept {}
 
     template<typename Tuple, size_t... Idx>
     void unpack_helper(Tuple&& t, std::index_sequence<Idx...>) {
@@ -98,15 +105,18 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
       } catch(...) {
         unifex::set_error((OutputReceiver&&)output_receiver_, std::current_exception());
       }
+      operation_state_.cleanup();
     }
 
     template <typename Error>
     void set_error(Error&& error) && noexcept {
       unifex::set_error((OutputReceiver &&) output_receiver_, (Error &&) error);
+      operation_state_.cleanup();
     }
 
     void set_done() && noexcept {
       unifex::set_done((OutputReceiver &&) output_receiver_);
+      operation_state_.cleanup();
     }
 
     template(typename CPO, typename R)
@@ -118,93 +128,81 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     }
   };
 
-  template<typename Iterator, typename... Values>
-  auto find_if_helper(const unpack_receiver<Receiver>& /*unused*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, Values&&... values) {
-    // Sequential implementation
-    return unifex::transform(
-        unifex::just(std::forward<Values>(values)...),
-        [this, begin_it, end_it](auto... values) {
-          for(auto it = begin_it; it != end_it; ++it) {
-            if(std::invoke((Func &&) func_, *it, values...)) {
-              return std::tuple<Iterator, Values...>(it, std::move(values)...);
-            }
-          }
-          return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
-        }
-      );
-  }
+  struct find_if_helper {
+    Func& func_;
 
-  template<typename Iterator, typename... Values>
-  auto find_if_helper(const unpack_receiver<Receiver>& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, Values&&... values) {
-    // func_ is safe to run concurrently so let's make use of that
-
-    // NOTE: Assumes random access iterator for now, on the assumption that the policy was accurate
-    constexpr int max_num_chunks = 16;
-    constexpr int min_chunk_size = 8;
-    auto distance = std::distance(begin_it, end_it);
-    auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
-    auto chunk_size = (distance+num_chunks)/num_chunks;
-
-    // Use bulk_schedule to construct parallelism, but block and use local vector for now
-    return unifex::let(
-      unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
-      [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks](
-          std::vector<Iterator>& perChunkState, Values&... values) {
-        return unifex::transform(
-          unifex::bulk_join(
-            unifex::bulk_transform(
-              unifex::bulk_schedule(std::move(sched), num_chunks),
-              [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
-                auto chunk_begin_it = begin_it + (chunk_size*index);
-                auto chunk_end_it = chunk_begin_it;
-                if(index < (num_chunks-1)) {
-                  std::advance(chunk_end_it, chunk_size);
-                } else {
-                  chunk_end_it = end_it;
-                }
-
-                for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                  if(std::invoke(func_, *it, values...)) {
-                    perChunkState[index] = it;
-                    return;
-                  }
-                }
-                // If not found, return the very end value
-                perChunkState[index] = end_it;
-              },
-              unifex::par
-            )
-          ),
-          [&perChunkState, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
-            for(auto it : perChunkState) {
-              if(it != end_it) {
+    template<typename Iterator, typename... Values>
+    auto operator()(const unpack_receiver<Receiver>& /*unused*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, Values&&... values) noexcept {
+      // Sequential implementation
+      return unifex::transform(
+          unifex::just(std::forward<Values>(values)...),
+          [this, begin_it, end_it](auto... values) {
+            for(auto it = begin_it; it != end_it; ++it) {
+              if(std::invoke((Func &&) func_, *it, values...)) {
                 return std::tuple<Iterator, Values...>(it, std::move(values)...);
               }
             }
             return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
           }
         );
-      });
-  }
+    }
+
+    template<typename Iterator, typename... Values>
+    auto operator()(const unpack_receiver<Receiver>& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, Values&&... values) noexcept {
+      // func_ is safe to run concurrently so let's make use of that
+
+      // NOTE: Assumes random access iterator for now, on the assumption that the policy was accurate
+      constexpr int max_num_chunks = 16;
+      constexpr int min_chunk_size = 8;
+      auto distance = std::distance(begin_it, end_it);
+      auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
+      auto chunk_size = (distance+num_chunks)/num_chunks;
+
+      // Use bulk_schedule to construct parallelism, but block and use local vector for now
+      return unifex::let(
+        unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
+        [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks](
+            std::vector<Iterator>& perChunkState, Values&... values) {
+          return unifex::transform(
+            unifex::bulk_join(
+              unifex::bulk_transform(
+                unifex::bulk_schedule(std::move(sched), num_chunks),
+                [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
+                  auto chunk_begin_it = begin_it + (chunk_size*index);
+                  auto chunk_end_it = chunk_begin_it;
+                  if(index < (num_chunks-1)) {
+                    std::advance(chunk_end_it, chunk_size);
+                  } else {
+                    chunk_end_it = end_it;
+                  }
+
+                  for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
+                    if(std::invoke(func_, *it, values...)) {
+                      perChunkState[index] = it;
+                      return;
+                    }
+                  }
+                  // If not found, return the very end value
+                  perChunkState[index] = end_it;
+                },
+                unifex::par
+              )
+            ),
+            [&perChunkState, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
+              for(auto it : perChunkState) {
+                if(it != end_it) {
+                  return std::tuple<Iterator, Values...>(it, std::move(values)...);
+                }
+              }
+              return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
+            }
+          );
+        });
+    }
+  };
 
   template <typename Iterator, typename... Values>
-  void set_value(Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
-    unpack_receiver<Receiver> unpack{(Receiver &&) receiver_};
-    try {
-      auto find_if_implementation_sender = find_if_helper(unpack, funcPolicy_, begin_it, end_it, (Values&&) values...);
-
-      using os_t = connect_result_t<decltype(find_if_implementation_sender), unpack_receiver<Receiver>>;
-      using os_wrapper = concrete_operation_state_wrapper<os_t>;
-
-      // TODO: use typed sender to compute space for this and remove the heap allocation
-      os_ = std::make_unique<os_wrapper>(
-        [&](){return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));}
-      );
-      os_->start();
-    } catch(...) {
-      unifex::set_error(std::move(unpack), std::current_exception());
-    }
-  }
+  void set_value(Iterator begin_it, Iterator end_it, Values&&... values) && noexcept;
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
@@ -228,6 +226,66 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
     std::invoke(visit, r.receiver_);
   }
 };
+
+template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
+struct _operation_state {
+  using receiver_type = receiver_t<Predecessor, Receiver, Func, FuncPolicy>;
+
+  template <typename... Ts>
+  struct find_if_apply {
+    using type = connect_result_t<
+      std::invoke_result_t<
+        typename receiver_type::find_if_helper,
+        typename receiver_type::template unpack_receiver<Receiver>,
+        FuncPolicy,
+        Ts&&...>,
+      typename receiver_type::template unpack_receiver<Receiver>>;
+  };
+  using operation_state_t =
+      typename Predecessor::template value_types<concat_type_lists_unique_t, find_if_apply>;
+
+  template<typename InPlaceConstruct>
+  _operation_state(InPlaceConstruct f) : predOp_{f(*this)} {
+  }
+
+  ~_operation_state() noexcept {
+    if (!started_) {
+      unifex::deactivate(innerOp_);
+    }
+  }
+
+  void start() noexcept {
+    started_ = true;
+    unifex::start(innerOp_.get());
+  }
+
+  void cleanup() noexcept {
+    unifex::deactivate(innerOp_.get);
+  }
+
+  connect_result_t<Predecessor, receiver_type> predOp_;
+  manual_lifetime<operation_state_t> innerOp_;
+  bool started_ = false;
+};
+
+
+template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
+template <typename Iterator, typename... Values>
+void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
+    Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
+  unpack_receiver<Receiver> unpack{(Receiver &&) receiver_, operation_state_};
+  try {
+    auto find_if_implementation_sender = find_if_helper{func_}(unpack, funcPolicy_, begin_it, end_it, (Values&&) values...);
+
+    // Store nested operation state inside find_if's operation state
+    unifex::activate_from(operation_state_.innerOp_, [&] {
+      return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));
+    });
+    operation_state_.start();
+  } catch(...) {
+    unifex::set_error(std::move(unpack), std::current_exception());
+  }
+}
 
 template <typename Predecessor, typename Func, typename FuncPolicy>
 struct _sender {
@@ -253,13 +311,14 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
     Variant,
     Tuple>;
 
+
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
     typename Predecessor::template error_types<type_list>,
     type_list<std::exception_ptr>>::template apply<Variant>;
 
   template <typename Receiver>
-  using receiver_type = receiver_t<Receiver, Func, FuncPolicy>;
+  using receiver_type = receiver_t<Predecessor, Receiver, Func, FuncPolicy>;
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
     return blocking(sender.pred_);
@@ -272,14 +331,22 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
       is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_type<remove_cvref_t<Receiver>>>)
-      -> connect_result_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_type<remove_cvref_t<Receiver>>> {
-    return unifex::connect(
-      static_cast<Sender&&>(s).pred_,
-      receiver_type<remove_cvref_t<Receiver>>{
-        static_cast<Sender&&>(s).func_,
-        static_cast<Receiver&&>(r),
-        static_cast<Sender&&>(s).funcPolicy_,
-        nullptr});
+      -> _operation_state<Predecessor, Receiver, Func, FuncPolicy> {
+
+
+    return _operation_state<Predecessor, Receiver, Func, FuncPolicy>{
+      [&](_operation_state<Predecessor, Receiver, Func, FuncPolicy>& os){
+        return unifex::connect(
+          static_cast<Sender&&>(s).pred_,
+          receiver_type<remove_cvref_t<Receiver>>{
+            static_cast<Sender&&>(s).func_,
+            static_cast<Receiver&&>(r),
+            static_cast<Sender&&>(s).funcPolicy_,
+            nullptr,
+            os
+        });
+      }
+    };
   }
 };
 } // namespace _find_if
