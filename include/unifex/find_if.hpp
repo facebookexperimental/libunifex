@@ -52,24 +52,6 @@ struct _receiver {
 template <typename Receiver, typename Func, typename FuncPolicy>
 using receiver_t = typename _receiver<Receiver, Func, FuncPolicy>::type;
 
-namespace detail {
-  template <typename Result, typename = void>
-  struct result_overload {
-    using type = type_list<Result>;
-  };
-  template <typename Result>
-  struct result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
-    using type = type_list<>;
-  };
-}
-
-template <typename Receiver, typename Func, typename FuncPolicy>
-struct _receiver {
-  struct type;
-};
-template <typename Receiver, typename Func, typename FuncPolicy>
-using receiver_t = typename _receiver<Receiver, Func, FuncPolicy>::type;
-
 struct _operation_state_wrapper {
   inline virtual ~_operation_state_wrapper(){}
   virtual void start() noexcept = 0;
@@ -214,6 +196,7 @@ struct _receiver<Receiver, Func, FuncPolicy>::type {
       using os_t = connect_result_t<decltype(find_if_implementation_sender), unpack_receiver<Receiver>>;
       using os_wrapper = concrete_operation_state_wrapper<os_t>;
 
+      // TODO: use typed sender to compute space for this and remove the heap allocation
       os_ = std::make_unique<os_wrapper>(
         [&](){return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));}
       );
@@ -259,25 +242,8 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
 
-template <typename Predecessor, typename Func, typename FuncPolicy>
-struct _sender {
-  struct type;
-};
-template <typename Predecessor, typename Func, typename FuncPolicy>
-using sender = typename _sender<remove_cvref_t<Predecessor>, std::decay_t<Func>, FuncPolicy>::type;
-
-template <typename Predecessor, typename Func, typename FuncPolicy>
-struct _sender<Predecessor, Func, FuncPolicy>::type {
-  UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
-  UNIFEX_NO_UNIQUE_ADDRESS Func func_;
-  UNIFEX_NO_UNIQUE_ADDRESS FuncPolicy funcPolicy_;
-
-private:
-
   template <typename BeginIt, typename EndIt, typename... Args>
   using result = type_list<type_list<BeginIt, Args...>>;
-
-public:
 
   template <
       template <typename...> class Variant,
@@ -338,6 +304,7 @@ namespace _find_if_cpo {
         -> _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
       return _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
         (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};
+    }
   } find_if{};
 } // namespace _find_if_cpo
 using _find_if_cpo::find_if;
