@@ -59,7 +59,7 @@ int main() {
   {
     std::cerr << "Parallel phase\n";
     std::vector<int> input;
-    for(int i = 2; i < 20; ++i) {
+    for(int i = 2; i < 128; ++i) {
       input.push_back(i);
     }
     static_thread_pool ctx;
@@ -69,6 +69,7 @@ int main() {
           find_if(
               just(begin(input), end(input), 7),
               [&](const int& v, int another_parameter) noexcept {
+                std::cout << "val: " << v << "\n";
                 return v == another_parameter;
               },
               unifex::par),

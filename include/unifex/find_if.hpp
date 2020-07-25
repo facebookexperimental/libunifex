@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
+#include <unifex/let_with_stop_source.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -26,6 +27,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/transform.hpp>
+#include <unifex/transform_done.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bulk_join.hpp>
@@ -132,51 +134,73 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // func_ is safe to run concurrently so let's make use of that
 
       // NOTE: Assumes random access iterator for now, on the assumption that the policy was accurate
-      constexpr int max_num_chunks = 16;
-      constexpr int min_chunk_size = 8;
+      constexpr int max_num_chunks = 32;
+      constexpr int min_chunk_size = 4;
       auto distance = std::distance(begin_it, end_it);
       auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
       auto chunk_size = (distance+num_chunks)/num_chunks;
+
+      std::cout << "num_chunks: " << num_chunks << "\n";
 
       // Use bulk_schedule to construct parallelism, but block and use local vector for now
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
         [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks](
             std::vector<Iterator>& perChunkState, Values&... values) {
-          return unifex::transform(
-            unifex::bulk_join(
-              unifex::bulk_transform(
-                unifex::bulk_schedule(std::move(sched), num_chunks),
-                [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
-                  auto chunk_begin_it = begin_it + (chunk_size*index);
-                  auto chunk_end_it = chunk_begin_it;
-                  if(index < (num_chunks-1)) {
-                    std::advance(chunk_end_it, chunk_size);
-                  } else {
-                    chunk_end_it = end_it;
-                  }
+          return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
+            auto map_phase = unifex::bulk_join(
+                unifex::bulk_transform(
+                  unifex::bulk_schedule(std::move(sched), num_chunks),
+                  [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &stopSource, &values...](std::size_t index){
+                    std::cout << "Chunk\n";
+                    auto chunk_begin_it = begin_it + (chunk_size*index);
+                    auto chunk_end_it = chunk_begin_it;
+                    if(index < (num_chunks-1)) {
+                      std::advance(chunk_end_it, chunk_size);
+                    } else {
+                      chunk_end_it = end_it;
+                    }
 
-                  for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                    if(std::invoke(func_, *it, values...)) {
-                      perChunkState[index] = it;
-                      return;
+                    for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
+                      if(std::invoke(func_, *it, values...)) {
+                        perChunkState[index] = it;
+                        std::cout << "Requested stop\n";
+                        stopSource.request_stop();
+                        return;
+                      }
+                    }
+                    // If not found, return the very end value
+                    perChunkState[index] = end_it;
+                  },
+                  unifex::par
+                )
+              );
+            return
+              unifex::transform(
+                //unifex::transform_done(
+                  std::move(map_phase),
+                 /* [&stopSource](){
+                    std::cout <<  "transform done, requested? " << stopSource.stop_requested() << "\n";
+                    if(stopSource.stop_requested()) {
+                      // If the stop was requested by the algorithm, undo it
+                      return just();
+                    } else {
+                      // Otherwise, propagate, cancellation was external
+                      return just_done();
                     }
                   }
-                  // If not found, return the very end value
-                  perChunkState[index] = end_it;
-                },
-                unifex::par
-              )
-            ),
-            [&perChunkState, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
-              for(auto it : perChunkState) {
-                if(it != end_it) {
-                  return std::tuple<Iterator, Values...>(it, std::move(values)...);
+                ),*/
+                [&perChunkState, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
+                  std::cout << "In transform\n";
+                  for(auto it : perChunkState) {
+                    if(it != end_it) {
+                      return std::tuple<Iterator, Values...>(it, std::move(values)...);
+                    }
+                  }
+                  return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
                 }
-              }
-              return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
-            }
-          );
+              );
+          });
         });
     }
   };
