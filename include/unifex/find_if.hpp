@@ -52,23 +52,6 @@ struct _receiver {
 template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
 using receiver_t = typename _receiver<Predecessor, Receiver, Func, FuncPolicy>::type;
 
-struct _operation_state_wrapper {
-  inline virtual ~_operation_state_wrapper(){}
-  virtual void start() noexcept = 0;
-};
-template<typename concrete_operation_state>
-struct concrete_operation_state_wrapper : public _operation_state_wrapper {
-  concrete_operation_state concrete_operation_state_;
-
-  template<typename FactoryFunc>
-  concrete_operation_state_wrapper(FactoryFunc&& factory)
-      : concrete_operation_state_(factory()) {
-  }
-  virtual void start() noexcept {
-    concrete_operation_state_.start();
-  }
-};
-
 template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
 struct _operation_state;
 
@@ -78,7 +61,6 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   // NO_UNIQUE_ADDRESS here triggers what appears to be a layout bug
   /*UNIFEX_NO_UNIQUE_ADDRESS*/ FuncPolicy funcPolicy_;
-  std::unique_ptr<_operation_state_wrapper> os_;
   _operation_state<Predecessor, Receiver, Func, FuncPolicy>& operation_state_;
 
   // Helper receiver type to unpack a tuple
@@ -86,8 +68,6 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   struct unpack_receiver {
     OutputReceiver output_receiver_;
     _operation_state<Predecessor, Receiver, Func, FuncPolicy>& operation_state_;
-
-    ~unpack_receiver() noexcept {}
 
     template<typename Tuple, size_t... Idx>
     void unpack_helper(Tuple&& t, std::index_sequence<Idx...>) {
@@ -129,7 +109,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   };
 
   struct find_if_helper {
-    Func& func_;
+    Func func_;
 
     template<typename Iterator, typename... Values>
     auto operator()(const unpack_receiver<Receiver>& /*unused*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, Values&&... values) noexcept {
@@ -242,7 +222,7 @@ struct _operation_state {
       typename receiver_type::template unpack_receiver<Receiver>>;
   };
   using operation_state_t =
-      typename Predecessor::template value_types<concat_type_lists_unique_t, find_if_apply>;
+      typename Predecessor::template value_types<concat_type_lists_unique_t, find_if_apply>::type;
 
   template<typename InPlaceConstruct>
   _operation_state(InPlaceConstruct f) : predOp_{f(*this)} {
@@ -250,7 +230,7 @@ struct _operation_state {
 
   ~_operation_state() noexcept {
     if (!started_) {
-      unifex::deactivate(innerOp_);
+      innerOp_.destruct();
     }
   }
 
@@ -260,7 +240,7 @@ struct _operation_state {
   }
 
   void cleanup() noexcept {
-    unifex::deactivate(innerOp_.get);
+    innerOp_.destruct();
   }
 
   connect_result_t<Predecessor, receiver_type> predOp_;
@@ -275,10 +255,10 @@ void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
     Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
   unpack_receiver<Receiver> unpack{(Receiver &&) receiver_, operation_state_};
   try {
-    auto find_if_implementation_sender = find_if_helper{func_}(unpack, funcPolicy_, begin_it, end_it, (Values&&) values...);
+    auto find_if_implementation_sender = find_if_helper{std::move(func_)}(unpack, funcPolicy_, begin_it, end_it, (Values&&) values...);
 
     // Store nested operation state inside find_if's operation state
-    unifex::activate_from(operation_state_.innerOp_, [&] {
+    operation_state_.innerOp_.construct_from([&]() mutable {
       return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));
     });
     operation_state_.start();
@@ -342,7 +322,6 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
             static_cast<Sender&&>(s).func_,
             static_cast<Receiver&&>(r),
             static_cast<Sender&&>(s).funcPolicy_,
-            nullptr,
             os
         });
       }
