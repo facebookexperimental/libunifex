@@ -235,6 +235,10 @@ struct _operation_state {
   }
 
   void start() noexcept {
+    unifex::start(predOp_);
+  }
+
+  void startInner() noexcept {
     started_ = true;
     unifex::start(innerOp_.get());
   }
@@ -256,12 +260,12 @@ void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
   unpack_receiver<Receiver> unpack{(Receiver &&) receiver_, operation_state_};
   try {
     auto find_if_implementation_sender = find_if_helper{std::move(func_)}(unpack, funcPolicy_, begin_it, end_it, (Values&&) values...);
-
     // Store nested operation state inside find_if's operation state
     operation_state_.innerOp_.construct_from([&]() mutable {
       return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));
     });
-    operation_state_.start();
+
+    operation_state_.startInner();
   } catch(...) {
     unifex::set_error(std::move(unpack), std::current_exception());
   }

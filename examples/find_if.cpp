@@ -34,7 +34,6 @@ int main() {
   {
     std::cerr << "Sequential phase\n";
     std::vector<int> input{1, 2, 3, 4};
-
     // Apply linear find_if.
     // As for std::find_if it returns the first instance that matches the
     // predicate where the algorithm takes an iterator pair as the first
@@ -42,8 +41,7 @@ int main() {
     // onwards to the result.
     // Precise API shape for the data being passed through is TBD, this is
     // one option only.
-    std::optional<std::vector<int>::iterator> result = sync_wait(
-      transform(
+    std::optional<std::vector<int>::iterator> result = sync_wait(transform(
         find_if(
             just(begin(input), end(input), 3),
             [&](const int& v, int another_parameter) noexcept {
