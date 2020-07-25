@@ -79,7 +79,11 @@ int main() {
           }),
         ctx.get_scheduler()));
 
-    std::cout << "all done " << **result << "\n";
+    if(result) {
+      std::cout << "all done " << **result << "\n";
+    } else {
+      std::cout << "Cancelled\n";
+    }
 
   }
 

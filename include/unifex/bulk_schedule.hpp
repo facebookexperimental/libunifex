@@ -64,6 +64,7 @@ public:
             for (Integral chunk_start(0); chunk_start < count_; chunk_start += bulk_cancellation_chunk_size) {
                 std::cout << "\tIn chunl\n";
                 if(stop_token.stop_requested()) {
+                    std::cout << "Setting done\n";
                     unifex::set_done(std::move(receiver_));
                     return;
                 }
