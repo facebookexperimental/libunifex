@@ -40,8 +40,6 @@
 
 #include <unifex/detail/prologue.hpp>
 
-#include <iostream>
-
 namespace unifex {
 namespace _find_if {
 
