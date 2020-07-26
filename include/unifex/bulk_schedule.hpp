@@ -27,8 +27,6 @@
 
 #include <unifex/detail/prologue.hpp>
 
-#include <iostream>
-
 namespace unifex {
 // Size of chunk used for cancellation allowing for some vectorisation
 constexpr size_t bulk_cancellation_chunk_size = 16;

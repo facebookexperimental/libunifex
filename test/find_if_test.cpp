@@ -28,7 +28,6 @@
 TEST(find_if, find_if_sequential) {
     using namespace unifex;
 
-    std::cerr << "Sequential phase\n";
     std::vector<int> input{1, 2, 3, 4};
     // Apply linear find_if.
     // As for std::find_if it returns the first instance that matches the
@@ -56,9 +55,9 @@ TEST(find_if, find_if_sequential) {
 TEST(find_if, find_if_parallel) {
     using namespace unifex;
 
-    std::cerr << "Parallel phase\n";
     std::vector<int> input;
     std::atomic<int> countOfTasksRun = 0;
+    constexpr int checkValue = 7;
 
     for(int i = 2; i < 128; ++i) {
       input.push_back(i);
@@ -68,25 +67,33 @@ TEST(find_if, find_if_parallel) {
       unifex::on(
         transform(
           find_if(
-              just(begin(input), end(input), 7),
+              just(begin(input), end(input), checkValue),
               [&](const int& v, int another_parameter) noexcept {
                 // Count to make sure that cancellation is triggered
-                //std::cerr << "Task " << v << "\n";
-                //countOfTasksRun++;
+                countOfTasksRun++;
                 return v == another_parameter;
               },
               unifex::par),
           [](std::vector<int>::iterator v, int another_parameter) noexcept {
-            assert(another_parameter == 7);
+            assert(another_parameter == checkValue);
             return v;
           }),
         ctx.get_scheduler()));
 
-    EXPECT_EQ(**result, 7);
-    // Expect 64 iterations to run to validate cancellation
+    EXPECT_EQ(**result, checkValue);
+    // Expect 62 iterations to run to validate cancellation
     // This is based on some implementation details:
     //  * bulk_schedule's bulk_cancellation_chunk_size
     //  * find_if's max_num_chunks and min_chunk_size
-    // in general cancellation is best effort.
-    //EXPECT_EQ(countOfTasksRun, 64);
+    // find_if tries to launch 32 chunks of 4 elements each.
+    // bulk_schedule then chunks those into 16 element cancellation chunks.
+    // bulk_schedule launches a whole 16 element chunk.
+    // Most of them run to completion without finding the element.
+    // The second finds element 7 half way through and terminates early in
+    // the find_if algorithm.
+    // It ends up running the comparison operator 62 times.
+    // In general cancellation is best effort.
+    // Note though that the current implementation launches tasks in-order, so it
+    // cannot cancel earlier tasks, which makes find_if's find-fist rule safe.
+    EXPECT_EQ(countOfTasksRun, 62);
 }
