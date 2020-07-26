@@ -153,7 +153,11 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // as atomics are not moveable.
       auto found = std::make_unique<std::atomic<bool>>(false);
 
-      // Use bulk_schedule to construct parallelism, but block and use local vector for now
+      // The outer let keeps the vector of found results and the found flag
+      // alive for the duration.
+      // Once we implement it, replace this with let_with which would allocate data
+      // into the operation state directly to avoid the heap allocation.
+      // Use a two phase process largely to demonstrate a simple multi-phase algorithm.
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
         [this, sched = unifex::get_scheduler(receiver), begin_it,
