@@ -152,7 +152,6 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                 unifex::bulk_transform(
                   unifex::bulk_schedule(std::move(sched), num_chunks),
                   [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &stopSource, &values...](std::size_t index){
-                    std::cout << "Chunk\n";
                     auto chunk_begin_it = begin_it + (chunk_size*index);
                     auto chunk_end_it = chunk_begin_it;
                     if(index < (num_chunks-1)) {
@@ -164,7 +163,6 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                     for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
                       if(std::invoke(func_, *it, values...)) {
                         perChunkState[index] = it;
-                        std::cout << "Requested stop\n";
                         stopSource.request_stop();
                         return;
                       }
@@ -177,10 +175,9 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
               );
             return
               unifex::transform(
-                //unifex::transform_done(
+                unifex::transform_done(
                   std::move(map_phase),
-                 /* [&stopSource](){
-                    std::cout <<  "transform done, requested? " << stopSource.stop_requested() << "\n";
+                  [&stopSource](){
                     if(stopSource.stop_requested()) {
                       // If the stop was requested by the algorithm, undo it
                       return just();
@@ -189,9 +186,8 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                       return just_done();
                     }
                   }
-                ),*/
+                ),
                 [&perChunkState, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
-                  std::cout << "In transform\n";
                   for(auto it : perChunkState) {
                     if(it != end_it) {
                       return std::tuple<Iterator, Values...>(it, std::move(values)...);

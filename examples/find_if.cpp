@@ -69,7 +69,6 @@ int main() {
           find_if(
               just(begin(input), end(input), 7),
               [&](const int& v, int another_parameter) noexcept {
-                std::cout << "val: " << v << "\n";
                 return v == another_parameter;
               },
               unifex::par),
