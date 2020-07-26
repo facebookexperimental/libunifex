@@ -112,7 +112,12 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     Func func_;
 
     template<typename Iterator, typename... Values>
-    auto operator()(const unpack_receiver<Receiver>& /*unused*/, const sequenced_policy&, Iterator begin_it, Iterator end_it, Values&&... values) noexcept {
+    auto operator()(
+        const unpack_receiver<Receiver>& /*unused*/,
+        const sequenced_policy&,
+        Iterator begin_it,
+        Iterator end_it,
+        Values&&... values) noexcept {
       // Sequential implementation
       return unifex::transform(
           unifex::just(std::forward<Values>(values)...),
@@ -128,14 +133,20 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     }
 
     template<typename Iterator, typename... Values>
-    auto operator()(const unpack_receiver<Receiver>& receiver, const parallel_policy&, Iterator begin_it, Iterator end_it, Values&&... values) noexcept {
+    auto operator()(
+        const unpack_receiver<Receiver>& receiver,
+        const parallel_policy&,
+        Iterator begin_it,
+        Iterator end_it,
+        Values&&... values) noexcept {
       // func_ is safe to run concurrently so let's make use of that
 
       // NOTE: Assumes random access iterator for now, on the assumption that the policy was accurate
       constexpr int max_num_chunks = 32;
       constexpr int min_chunk_size = 4;
       auto distance = std::distance(begin_it, end_it);
-      auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
+      auto num_chunks = (distance/max_num_chunks) > min_chunk_size ?
+        max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
       auto chunk_size = (distance+num_chunks)/num_chunks;
       // Found flag on the heap
       // We can store this in the operation state with a let_with algorithm
@@ -145,13 +156,15 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // Use bulk_schedule to construct parallelism, but block and use local vector for now
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
-        [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks, found_flag = std::move(found)](
+        [this, sched = unifex::get_scheduler(receiver), begin_it,
+         chunk_size, end_it, num_chunks, found_flag = std::move(found)](
             std::vector<Iterator>& perChunkState, Values&... values) mutable {
           return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
-            auto map_phase = unifex::bulk_join(
+            auto bulk_phase = unifex::bulk_join(
                 unifex::bulk_transform(
                   unifex::bulk_schedule(std::move(sched), num_chunks),
-                  [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &stopSource, &found_flag, &values...](std::size_t index){
+                  [this, &perChunkState, begin_it, chunk_size, end_it,
+                   num_chunks, &stopSource, &found_flag, &values...](std::size_t index){
                     auto chunk_begin_it = begin_it + (chunk_size*index);
                     auto chunk_end_it = chunk_begin_it;
                     if(index < (num_chunks-1)) {
@@ -177,7 +190,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
             return
               unifex::transform(
                 unifex::transform_done(
-                  std::move(map_phase),
+                  std::move(bulk_phase),
                   [&stopSource, &found_flag](){
                     if(*found_flag == true) {
                       // If the item was found, then continue as if not cancelled
