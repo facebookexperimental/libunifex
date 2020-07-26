@@ -157,12 +157,17 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // alive for the duration.
       // Once we implement it, replace this with let_with which would allocate data
       // into the operation state directly to avoid the heap allocation.
-      // Use a two phase process largely to demonstrate a simple multi-phase algorithm.
+      // Use a two phase process largely to demonstrate a simple multi-phase algorithm
+      // and to avoid using a cmpexch loop on an intermediate iterator.
       return unifex::let(
-        unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
+        unifex::just(std::vector<Iterator>(num_chunks, end_it), std::forward<Values>(values)...),
         [this, sched = unifex::get_scheduler(receiver), begin_it,
          chunk_size, end_it, num_chunks, found_flag = std::move(found)](
             std::vector<Iterator>& perChunkState, Values&... values) mutable {
+          // Inject a stop source and make it available for inner operations.
+          // This stop source propagates into the algorithm through the receiver,
+          // such that it will cancel the bulk_schedule operation.
+          // It is also triggered if the downstream stop source is triggered.
           return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
             auto bulk_phase = unifex::bulk_join(
                 unifex::bulk_transform(
@@ -179,14 +184,18 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
 
                     for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
                       if(std::invoke(func_, *it, values...)) {
+                        // On success, store the value in the output array
+                        // and cancel future work.
+                        // This works on the assumption that bulk_schedule will launch
+                        // tasks (or at least, test for cancellation) in
+                        // iteration-space order, and hence only cancel future work,
+                        // to maintain the find-first property.
                         perChunkState[index] = it;
                         *found_flag = true;
                         stopSource.request_stop();
                         return;
                       }
                     }
-                    // If not found, return the very end value
-                    perChunkState[index] = end_it;
                   },
                   unifex::par
                 )
