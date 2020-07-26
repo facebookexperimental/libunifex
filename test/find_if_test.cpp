@@ -23,15 +23,11 @@
 #include <unifex/when_all.hpp>
 #include <unifex/on.hpp>
 
-#include <chrono>
-#include <iostream>
+#include <gtest/gtest.h>
 
-using namespace unifex;
-using namespace std::chrono;
-using namespace std::chrono_literals;
+TEST(find_if, find_if_sequential) {
+    using namespace unifex;
 
-int main() {
-  {
     std::cerr << "Sequential phase\n";
     std::vector<int> input{1, 2, 3, 4};
     // Apply linear find_if.
@@ -53,12 +49,17 @@ int main() {
           return v;
         }));
 
-    std::cout << "all done " << **result << "\n";
-  }
+    EXPECT_EQ(**result, 3);
+}
 
-  {
+
+TEST(find_if, find_if_parallel) {
+    using namespace unifex;
+
     std::cerr << "Parallel phase\n";
     std::vector<int> input;
+    std::atomic<int> countOfTasksRun = 0;
+
     for(int i = 2; i < 128; ++i) {
       input.push_back(i);
     }
@@ -68,7 +69,10 @@ int main() {
         transform(
           find_if(
               just(begin(input), end(input), 7),
-              [&](const int& v, int another_parameter) mutable noexcept {
+              [&](const int& v, int another_parameter) noexcept {
+                // Count to make sure that cancellation is triggered
+                //std::cerr << "Task " << v << "\n";
+                //countOfTasksRun++;
                 return v == another_parameter;
               },
               unifex::par),
@@ -78,13 +82,11 @@ int main() {
           }),
         ctx.get_scheduler()));
 
-    if(result) {
-      std::cout << "all done " << **result << "\n";
-    } else {
-      std::cout << "Cancelled\n";
-    }
-
-  }
-
-  return 0;
+    EXPECT_EQ(**result, 7);
+    // Expect 64 iterations to run to validate cancellation
+    // This is based on some implementation details:
+    //  * bulk_schedule's bulk_cancellation_chunk_size
+    //  * find_if's max_num_chunks and min_chunk_size
+    // in general cancellation is best effort.
+    //EXPECT_EQ(countOfTasksRun, 64);
 }

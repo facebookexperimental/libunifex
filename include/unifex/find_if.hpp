@@ -139,19 +139,21 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       auto distance = std::distance(begin_it, end_it);
       auto num_chunks = (distance/max_num_chunks) > min_chunk_size ? max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
       auto chunk_size = (distance+num_chunks)/num_chunks;
-
-      std::cout << "num_chunks: " << num_chunks << "\n";
+      // Found flag on the heap
+      // We can store this in the operation state with a let_with algorithm
+      // as atomics are not moveable.
+      auto found = std::make_unique<std::atomic<bool>>(false);
 
       // Use bulk_schedule to construct parallelism, but block and use local vector for now
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
-        [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks](
-            std::vector<Iterator>& perChunkState, Values&... values) {
+        [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks, found_flag = std::move(found)](
+            std::vector<Iterator>& perChunkState, Values&... values) mutable {
           return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
             auto map_phase = unifex::bulk_join(
                 unifex::bulk_transform(
                   unifex::bulk_schedule(std::move(sched), num_chunks),
-                  [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &stopSource, &values...](std::size_t index){
+                  [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &stopSource, &found_flag, &values...](std::size_t index){
                     auto chunk_begin_it = begin_it + (chunk_size*index);
                     auto chunk_end_it = chunk_begin_it;
                     if(index < (num_chunks-1)) {
@@ -163,6 +165,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                     for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
                       if(std::invoke(func_, *it, values...)) {
                         perChunkState[index] = it;
+                        *found_flag = true;
                         stopSource.request_stop();
                         return;
                       }
@@ -177,12 +180,13 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
               unifex::transform(
                 unifex::transform_done(
                   std::move(map_phase),
-                  [&stopSource](){
-                    if(stopSource.stop_requested()) {
-                      // If the stop was requested by the algorithm, undo it
+                  [&stopSource, &found_flag](){
+                    if(*found_flag == true) {
+                      // If the item was found, then continue as if not cancelled
                       return just();
                     } else {
-                      // Otherwise, propagate, cancellation was external
+                      // If there was cancellation and we did not find the item
+                      // then propagate the cancellation and assume failure
                       return just_done();
                     }
                   }
