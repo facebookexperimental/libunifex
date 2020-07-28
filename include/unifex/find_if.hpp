@@ -70,33 +70,35 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     _operation_state<Predecessor, Receiver, Func, FuncPolicy>& operation_state_;
 
     template<typename Tuple, size_t... Idx>
-    void unpack_helper(Tuple&& t, std::index_sequence<Idx...>) {
+    void unpack_helper(OutputReceiver&& output_receiver, Tuple&& t, std::index_sequence<Idx...>) {
       unifex::set_value(
-        (OutputReceiver&&) output_receiver_,
+        (OutputReceiver&&) output_receiver,
         std::move(std::get<Idx>(t))...);
     }
 
     template <typename Iterator, typename... Values>
     void set_value(std::tuple<Iterator, Values...>&& packedResult) && noexcept {
+      operation_state_.cleanup();
       try {
         unpack_helper(
+          (OutputReceiver&&) output_receiver_,
           std::move(packedResult),
           std::make_index_sequence<std::tuple_size_v<std::tuple<Iterator, Values...>>>{});
       } catch(...) {
         unifex::set_error((OutputReceiver&&)output_receiver_, std::current_exception());
       }
-      operation_state_.cleanup();
     }
 
     template <typename Error>
     void set_error(Error&& error) && noexcept {
-      unifex::set_error((OutputReceiver &&) output_receiver_, (Error &&) error);
       operation_state_.cleanup();
+      unifex::set_error((OutputReceiver &&) output_receiver_, (Error &&) error);
     }
 
     void set_done() && noexcept {
-      unifex::set_done((OutputReceiver &&) output_receiver_);
+      auto output_receiver = (OutputReceiver&&) output_receiver_;
       operation_state_.cleanup();
+      unifex::set_done((OutputReceiver &&) output_receiver);
     }
 
     template(typename CPO, typename R)
@@ -277,9 +279,6 @@ struct _operation_state {
   }
 
   ~_operation_state() noexcept {
-    if (!started_) {
-      innerOp_.destruct();
-    }
   }
 
   void start() noexcept {
