@@ -280,8 +280,16 @@ struct _operation_state {
   using operation_state_t =
       typename Predecessor::template value_types<concat_type_lists_unique_t, find_if_apply>::type;
 
-  template<typename InPlaceConstruct>
-  _operation_state(InPlaceConstruct f) : predOp_{f(*this)} {
+  template<typename Sender>
+  _operation_state(Sender&& s, Receiver&& r) :
+    predOp_{unifex::connect(
+          static_cast<Sender&&>(s).pred_,
+          receiver_type{
+            static_cast<Sender&&>(s).func_,
+            static_cast<Receiver&&>(r),
+            static_cast<Sender&&>(s).funcPolicy_,
+            *this
+          })} {
   }
 
   ~_operation_state() noexcept {
@@ -369,22 +377,14 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
-      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_type<remove_cvref_t<Receiver>>>)
+      is_nothrow_connectable_v<
+        decltype((static_cast<Sender&&>(s).pred_)),
+        receiver_type<remove_cvref_t<Receiver>>>)
       -> _operation_state<Predecessor, Receiver, Func, FuncPolicy> {
 
 
     return _operation_state<Predecessor, Receiver, Func, FuncPolicy>{
-      [&](_operation_state<Predecessor, Receiver, Func, FuncPolicy>& os){
-        return unifex::connect(
-          static_cast<Sender&&>(s).pred_,
-          receiver_type<remove_cvref_t<Receiver>>{
-            static_cast<Sender&&>(s).func_,
-            static_cast<Receiver&&>(r),
-            static_cast<Sender&&>(s).funcPolicy_,
-            os
-        });
-      }
-    };
+      static_cast<Sender&&>(s), static_cast<Receiver&&>(r)};
   }
 };
 } // namespace _find_if
