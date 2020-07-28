@@ -140,13 +140,14 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // Use bulk_schedule to construct parallelism, but block and use local vector for now
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks), std::forward<Values>(values)...),
-        [this, sched = unifex::get_scheduler(receiver), begin_it, chunk_size, end_it, num_chunks](
+        [func = std::move(func_), sched = unifex::get_scheduler(receiver), begin_it,
+         chunk_size, end_it, num_chunks](
             std::vector<Iterator>& perChunkState, Values&... values) {
           return unifex::transform(
             unifex::bulk_join(
               unifex::bulk_transform(
                 unifex::bulk_schedule(std::move(sched), num_chunks),
-                [this, &perChunkState, begin_it, chunk_size, end_it, num_chunks, &values...](std::size_t index){
+                [&](std::size_t index){
                   auto chunk_begin_it = begin_it + (chunk_size*index);
                   auto chunk_end_it = chunk_begin_it;
                   if(index < (num_chunks-1)) {
@@ -156,7 +157,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                   }
 
                   for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                    if(std::invoke(func_, *it, values...)) {
+                    if(std::invoke(func, *it, values...)) {
                       perChunkState[index] = it;
                       return;
                     }
