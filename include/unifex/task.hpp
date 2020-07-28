@@ -69,10 +69,10 @@ struct _res {
     ~type() {
       switch(state_) {
       case state::value:
-        unifex::deactivate(value_);
+        unifex::deactivate_union_member(value_);
         break;
       case state::exception:
-        unifex::deactivate(exception_);
+        unifex::deactivate_union_member(exception_);
         break;
       default:;
       }
@@ -92,12 +92,12 @@ struct _rec {
       (requires constructible_from<T, Us...>)
     void set_value(Us&&... us) &&
         noexcept(std::is_nothrow_constructible_v<T, Us...>) {
-      unifex::activate(res_->value_, (Us&&) us...);
+      unifex::activate_union_member(res_->value_, (Us&&) us...);
       res_->state_ = state::value;
       res_->continuation_.resume();
     }
     void set_error(std::exception_ptr eptr) && noexcept {
-      unifex::activate(res_->exception_, std::move(eptr));
+      unifex::activate_union_member(res_->exception_, std::move(eptr));
       res_->state_ = state::exception;
       res_->continuation_.resume();
     }
@@ -174,10 +174,10 @@ struct _task<T>::type {
     void reset_value() noexcept {
       switch (std::exchange(state_, state::empty)) {
         case state::value:
-          unifex::deactivate(value_);
+          unifex::deactivate_union_member(value_);
           break;
         case state::exception:
-          unifex::deactivate(exception_);
+          unifex::deactivate_union_member(exception_);
           break;
         default:
           break;
@@ -209,7 +209,7 @@ struct _task<T>::type {
 
     void unhandled_exception() noexcept {
       reset_value();
-      unifex::activate(exception_, std::current_exception());
+      unifex::activate_union_member(exception_, std::current_exception());
       state_ = state::exception;
     }
 
@@ -218,7 +218,7 @@ struct _task<T>::type {
     void return_value(Value&& value) noexcept(
         std::is_nothrow_constructible_v<T, Value>) {
       reset_value();
-      unifex::activate(value_, (Value &&) value);
+      unifex::activate_union_member(value_, (Value &&) value);
       state_ = state::value;
     }
 

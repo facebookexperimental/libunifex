@@ -158,22 +158,22 @@ struct _stream<Values...>::type {
             // state in case the values are references to objects stored in
             // the operation object.
             [&](Values... values) {
-              unifex::deactivate(stream_.next_);
+              unifex::deactivate_union_member(stream_.next_);
               receiver_.set_value((Values &&) values...);
             }((Values &&) values...);
           } catch (...) {
-            unifex::deactivate(stream_.next_);
+            unifex::deactivate_union_member(stream_.next_);
             receiver_.set_error(std::current_exception());
           }
         }
 
         void set_done() && noexcept {
-          unifex::deactivate(stream_.next_);
+          unifex::deactivate_union_member(stream_.next_);
           receiver_.set_done();
         }
 
         void set_error(std::exception_ptr ex) && noexcept {
-          unifex::deactivate(stream_.next_);
+          unifex::deactivate_union_member(stream_.next_);
           receiver_.set_error(std::move(ex));
         }
 
@@ -202,12 +202,12 @@ struct _stream<Values...>::type {
         stream& stream_;
 
         void set_done() && noexcept {
-          unifex::deactivate(stream_.cleanup_);
+          unifex::deactivate_union_member(stream_.cleanup_);
           receiver_.set_done();
         }
 
         void set_error(std::exception_ptr ex) && noexcept {
-          unifex::deactivate(stream_.cleanup_);
+          unifex::deactivate_union_member(stream_.cleanup_);
           receiver_.set_error(std::move(ex));
         }
 
@@ -242,7 +242,7 @@ struct _stream<Values...>::type {
           next_receiver_base& receiver,
           inplace_stop_token stopToken) noexcept override {
         try {
-          unifex::activate_from(next_, [&] {
+          unifex::activate_union_member_from(next_, [&] {
               return connect(
                   next(stream_),
                   next_receiver_wrapper{receiver, *this, std::move(stopToken)});
@@ -255,7 +255,7 @@ struct _stream<Values...>::type {
 
       void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
         try {
-          unifex::activate_from(cleanup_, [&] {
+          unifex::activate_union_member_from(cleanup_, [&] {
               return connect(
                   cleanup(stream_),
                   cleanup_receiver_wrapper{receiver, *this});

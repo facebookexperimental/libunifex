@@ -80,7 +80,7 @@ private:
   using successor_operation = typename Operation::template successor_operation<Values2...>;
 
   void cleanup() noexcept {
-    unifex::deactivate<successor_operation<Values...>>(op_.succOp_);
+    unifex::deactivate_union_member<successor_operation<Values...>>(op_.succOp_);
     op_.values_.template destruct<decayed_tuple<Values...>>();
   }
 
@@ -126,7 +126,8 @@ struct _predecessor_receiver<Operation>::type {
   void set_value(Values&&... values) && noexcept {
     auto& op = op_;
     try {
-      scope_guard destroyPredOp = [&]() noexcept { unifex::deactivate(op.predOp_); };
+      scope_guard destroyPredOp =
+        [&]() noexcept { unifex::deactivate_union_member(op.predOp_); };
       auto& valueTuple =
         op.values_.template construct<decayed_tuple<Values...>>((Values &&) values...);
       destroyPredOp.reset();
@@ -134,7 +135,9 @@ struct _predecessor_receiver<Operation>::type {
         op.values_.template destruct<decayed_tuple<Values...>>();
       };
       auto& succOp =
-          unifex::activate_from<successor_operation<Values...>>(op.succOp_, [&] {
+          unifex::activate_union_member_from<successor_operation<Values...>>(
+            op.succOp_,
+            [&] {
               return unifex::connect(
                   std::apply(std::move(op.func_), valueTuple),
                   successor_receiver<Operation, Values...>{op});
@@ -148,14 +151,14 @@ struct _predecessor_receiver<Operation>::type {
 
   void set_done() && noexcept {
     auto& op = op_;
-    unifex::deactivate(op.predOp_);
+    unifex::deactivate_union_member(op.predOp_);
     unifex::set_done(std::move(op.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
     auto& op = op_;
-    unifex::deactivate(op.predOp_);
+    unifex::deactivate_union_member(op.predOp_);
     unifex::set_error(std::move(op.receiver_), (Error &&) error);
   }
 
@@ -210,7 +213,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
       Receiver2&& receiver)
       : func_((SuccessorFactory2 &&) func),
         receiver_((Receiver2 &&) receiver) {
-    unifex::activate_from(predOp_, [&] {
+    unifex::activate_union_member_from(predOp_, [&] {
       return unifex::connect(
           (Predecessor &&) pred, predecessor_receiver<operation>{*this});
     });
@@ -218,7 +221,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
 
   ~type() {
     if (!started_) {
-      unifex::deactivate(predOp_);
+      unifex::deactivate_union_member(predOp_);
     }
   }
 

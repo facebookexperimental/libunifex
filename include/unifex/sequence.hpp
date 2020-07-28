@@ -152,9 +152,9 @@ namespace unifex
 
         auto* op = op_;
         op->status_ = operation_type::status::empty;
-        unifex::deactivate(op->predOp_);
+        unifex::deactivate_union_member(op->predOp_);
         if constexpr (is_nothrow_connectable_v<Successor, successor_receiver_t>) {
-          unifex::activate_from(op->succOp_, [&]() noexcept {
+          unifex::activate_union_member_from(op->succOp_, [&]() noexcept {
             return unifex::connect(
                 static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
           });
@@ -162,7 +162,7 @@ namespace unifex
           unifex::start(op->succOp_.get());
         } else {
           try {
-            unifex::activate_from(op->succOp_, [&] {
+            unifex::activate_union_member_from(op->succOp_, [&] {
               return unifex::connect(
                   static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
             });
@@ -229,7 +229,7 @@ namespace unifex
         : successor_(static_cast<Successor2&&>(successor))
         , receiver_(static_cast<Receiver&&>(receiver))
         , status_(status::predecessor_operation_constructed) {
-        unifex::activate_from(predOp_, [&] {
+        unifex::activate_union_member_from(predOp_, [&] {
           return unifex::connect(
               static_cast<Predecessor&&>(predecessor),
               predecessor_receiver<Predecessor, Successor, Receiver>{this});
@@ -239,10 +239,10 @@ namespace unifex
       ~type() {
         switch (status_) {
           case status::predecessor_operation_constructed:
-            unifex::deactivate(predOp_);
+            unifex::deactivate_union_member(predOp_);
             break;
           case status::successor_operation_constructed:
-            unifex::deactivate(succOp_);
+            unifex::deactivate_union_member(succOp_);
             break;
           case status::empty: break;
         }

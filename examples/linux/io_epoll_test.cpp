@@ -118,7 +118,8 @@ int main() {
     std::printf("error: %s\n", ex.what());
   }
 
-  auto pipe_bench = [](auto& rPipeRef, auto& buffer, auto scheduler, int seconds, auto& data, auto& reps, auto& offset) {
+  auto pipe_bench = [](auto& rPipeRef, auto& buffer, auto scheduler, int seconds,
+                       auto& data, auto& reps, auto& offset) {
     return defer(
       [&, scheduler, seconds] {
         return
@@ -131,7 +132,9 @@ int main() {
                     [&] {
                       return transform(
                         discard(
-                          async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))),
+                          async_read_some(
+                            rPipeRef,
+                            as_writable_bytes(span{buffer.data() + 0, 1}))),
                         [&]{
                           assert(data[(reps + offset)%sizeof(data)] == buffer[0]);
                           ++reps;

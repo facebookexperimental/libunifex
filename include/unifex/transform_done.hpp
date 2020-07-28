@@ -88,8 +88,8 @@ public:
       is_nothrow_callable_v<Done> &&
       is_nothrow_connectable_v<final_sender_t, final_receiver>) {
       op->startedOp_ = 0;
-      unifex::deactivate(op->sourceOp_);
-      unifex::activate_from(op->finalOp_, [&] {
+      unifex::deactivate_union_member(op->sourceOp_);
+      unifex::activate_union_member_from(op->finalOp_, [&] {
         return unifex::connect(std::move(op->done_)(), final_receiver{op});
       });
       op->startedOp_ = 0 - 1;
@@ -97,8 +97,8 @@ public:
     } else {
       try {
         op->startedOp_ = 0;
-        unifex::deactivate(op->sourceOp_);
-        unifex::activate_from(op->finalOp_, [&] {
+        unifex::deactivate_union_member(op->sourceOp_);
+        unifex::activate_union_member_from(op->finalOp_, [&] {
           return unifex::connect(std::move(op->done_)(), final_receiver{op});
         });
         op->startedOp_ = 0 - 1;
@@ -219,7 +219,7 @@ public:
   : done_((Done2&&)done)
   , receiver_((Receiver2&&)dest)
   {
-    unifex::activate_from(sourceOp_, [&] {
+    unifex::activate_union_member_from(sourceOp_, [&] {
         return unifex::connect((Source&&)source, source_receiver{this});
       });
     startedOp_ = 0 + 1;
@@ -227,9 +227,9 @@ public:
 
   ~type() {
     if (startedOp_ < 0) {
-      unifex::deactivate(finalOp_);
+      unifex::deactivate_union_member(finalOp_);
     } else if (startedOp_ > 0) {
-      unifex::deactivate(sourceOp_);
+      unifex::deactivate_union_member(sourceOp_);
     }
     startedOp_ = 0;
   }

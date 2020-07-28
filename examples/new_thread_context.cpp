@@ -57,7 +57,8 @@ int main() {
             unifex::schedule(ctx.get_scheduler()),
             [i] {
                 std::stringstream s;
-                s << "Task " << i << " running on thread " << std::this_thread::get_id() << "\n";
+                s << "Task " << i << " running on thread " << std::this_thread::get_id()
+                  << "\n";
                 std::cout << s.str();
 
                 thread_local trace_construction_destruction t;

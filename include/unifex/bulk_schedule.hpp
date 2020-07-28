@@ -134,7 +134,8 @@ using default_sender = typename _default_sender<Scheduler, Integral>::type;
 
 template<typename Scheduler, typename Integral>
 class _default_sender<Scheduler, Integral>::type {
-    using schedule_sender_t = decltype(unifex::schedule(UNIFEX_DECLVAL(const Scheduler&)));
+    using schedule_sender_t =
+        decltype(unifex::schedule(UNIFEX_DECLVAL(const Scheduler&)));
 
 public:
     template<template<typename...> class Variant, template<typename...> class Tuple>
