@@ -114,8 +114,6 @@ namespace detail {
 
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
-
-    static constexpr bool sends_done = true;
   };
 
   template <typename S>
