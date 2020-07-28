@@ -96,9 +96,8 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     }
 
     void set_done() && noexcept {
-      auto output_receiver = (OutputReceiver&&) output_receiver_;
       operation_state_.cleanup();
-      unifex::set_done((OutputReceiver &&) output_receiver);
+      unifex::set_done((OutputReceiver &&) output_receiver_);
     }
 
     template(typename CPO, typename R)
