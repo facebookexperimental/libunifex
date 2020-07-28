@@ -101,7 +101,10 @@ inline constexpr bool instance_of_v<T, T<Args...>> = true;
 template <template <typename...> class T, typename X>
 using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
+namespace _unit {
 struct unit {};
+}
+using _unit::unit;
 
 template <bool B>
 struct _conditional {

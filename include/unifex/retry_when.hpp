@@ -78,14 +78,14 @@ public:
     using source_receiver_t = source_receiver<Source, Func, Receiver>;
 
     if constexpr (is_nothrow_connectable_v<Source&, source_receiver_t>) {
-      auto& sourceOp = unifex::activate_from(op->sourceOp_, [&]() noexcept {
+      auto& sourceOp = unifex::activate_union_member_from(op->sourceOp_, [&]() noexcept {
           return unifex::connect(op->source_, source_receiver_t{op});
         });
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
       try {
-        auto& sourceOp = unifex::activate_from(op->sourceOp_, [&] {
+        auto& sourceOp = unifex::activate_union_member_from(op->sourceOp_, [&] {
             return unifex::connect(op->source_, source_receiver_t{op});
           });
         op->isSourceOpConstructed_ = true;
@@ -148,7 +148,7 @@ private:
 
   void destroy_trigger_op() noexcept {
     using trigger_op = connect_result_t<Trigger, trigger_receiver>;
-    unifex::deactivate<trigger_op>(op_->triggerOps_);
+    unifex::deactivate_union_member<trigger_op>(op_->triggerOps_);
   }
 
   operation<Source, Func, Receiver>* op_;
@@ -185,7 +185,7 @@ public:
     auto* const op = op_;
 
     op->isSourceOpConstructed_ = false;
-    unifex::deactivate(op->sourceOp_);
+    unifex::deactivate_union_member(op->sourceOp_);
 
     using trigger_sender_t = std::invoke_result_t<Func&, Error>;
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
@@ -193,7 +193,7 @@ public:
 
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
-      auto& triggerOp = unifex::activate_from<trigger_op_t>(
+      auto& triggerOp = unifex::activate_union_member_from<trigger_op_t>(
         op->triggerOps_,
         [&]() noexcept {
           return unifex::connect(
@@ -202,7 +202,7 @@ public:
       unifex::start(triggerOp);
     } else {
       try {
-      auto& triggerOp = unifex::activate_from<trigger_op_t>(
+      auto& triggerOp = unifex::activate_union_member_from<trigger_op_t>(
         op->triggerOps_,
           [&]() {
             return unifex::connect(
@@ -257,14 +257,14 @@ public:
   : source_((Source2&&)source)
   , func_((Func2&&)func)
   , receiver_((Receiver&&)receiver) {
-    unifex::activate_from(sourceOp_, [&] {
+    unifex::activate_union_member_from(sourceOp_, [&] {
         return unifex::connect(source_, source_receiver_t{this});
       });
   }
 
   ~type() {
     if (isSourceOpConstructed_) {
-      unifex::deactivate(sourceOp_);
+      unifex::deactivate_union_member(sourceOp_);
     }
   }
 

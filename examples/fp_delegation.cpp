@@ -126,10 +126,12 @@ class delegating_sender {
     // Attempt to reserve a slot otherwise delegate to the downstream scheduler
 
     using LC = LocalContextType<remove_cvref_t<decltype(unifex::connect(
-      unifex::schedule(context_->single_thread_context_.get_scheduler()), (Receiver&&)receiver))>>;
+      unifex::schedule(context_->single_thread_context_.get_scheduler()),
+      (Receiver&&)receiver))>>;
     using op = delegating_operation<
         remove_cvref_t<decltype(unifex::connect(
-          unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver))>,
+          unifex::schedule(unifex::get_scheduler(std::as_const(receiver))),
+          (Receiver&&)receiver))>,
         LC>;
     if(context_->reserve()) {
       auto local_op = [&receiver, context = context_]() mutable {
@@ -140,7 +142,10 @@ class delegating_sender {
     }
 
     auto target_op = [&receiver]() mutable {
-      return unifex::connect(unifex::schedule(unifex::get_scheduler(std::as_const(receiver))), (Receiver&&)receiver);
+      return unifex::connect(
+        unifex::schedule(
+          unifex::get_scheduler(std::as_const(receiver))),
+          (Receiver&&)receiver);
     };
     return op{std::move(target_op), context_};
  }
@@ -169,16 +174,17 @@ int main() {
   // Try inner context, then outer context, delegating to ctx if necessary
   sync_wait(
       transform(
-          for_each(via_stream(outer_delegating_ctx.get_scheduler(),
-                              transform_stream(via_stream(inner_delegating_ctx.get_scheduler(),
-                                                transform_stream(range_stream{0, 10},
-                                                                [](int value) {
-                                                                  return value + 1;
-                                                                })),
-                                               [](int value) {
-                                                 return value * value;
-                                               })),
-                   [](int value) { std::printf("got %i\n", value); }),
+          for_each(
+              via_stream(
+                  outer_delegating_ctx.get_scheduler(),
+                  transform_stream(
+                      via_stream(
+                          inner_delegating_ctx.get_scheduler(),
+                          transform_stream(
+                              range_stream{0, 10},
+                              [](int value) { return value + 1; })),
+                          [](int value) { return value * value; })),
+              [](int value) { std::printf("got %i\n", value); }),
           []() { std::printf("done\n"); }));
 
   std::printf("inner_delegating_ctx operations: %d\n", inner_delegating_ctx.get_count());
