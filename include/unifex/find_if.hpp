@@ -112,9 +112,9 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   struct find_if_helper {
     Func func_;
 
-    template<typename Iterator, typename... Values>
+    template<typename Scheduler, typename Iterator, typename... Values>
     auto operator()(
-        const unpack_receiver<Receiver>& /*unused*/,
+        Scheduler&&  /*unused*/,
         const sequenced_policy&,
         Iterator begin_it,
         Iterator end_it,
@@ -141,9 +141,9 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     // It could also be simplified by making more of the code custom, but I wanted
     // to demonstrate reuse of internal algorithms to build something more compelex
     // and cancellable.
-    template<typename Iterator, typename... Values>
+    template<typename Scheduler, typename Iterator, typename... Values>
     auto operator()(
-        const unpack_receiver<Receiver>& receiver,
+        Scheduler&& sched,
         const parallel_policy&,
         Iterator begin_it,
         Iterator end_it,
@@ -170,7 +170,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // and to avoid using a cmpexch loop on an intermediate iterator.
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks, end_it), std::forward<Values>(values)...),
-        [func = std::move(func_), sched = unifex::get_scheduler(receiver), begin_it,
+        [func = std::move(func_), sched = std::move(sched), begin_it,
          chunk_size, end_it, num_chunks, found_flag = std::move(found)](
             std::vector<Iterator>& perChunkState, Values&... values) mutable {
           // Inject a stop source and make it available for inner operations.
@@ -272,7 +272,7 @@ struct _operation_state {
     using type = connect_result_t<
       std::invoke_result_t<
         typename receiver_type::find_if_helper,
-        typename receiver_type::template unpack_receiver<Receiver>,
+        std::decay_t<std::invoke_result_t<decltype(unifex::get_scheduler), const Receiver&>>&&,
         FuncPolicy,
         Ts&&...>,
       typename receiver_type::template unpack_receiver<Receiver>>;
@@ -310,9 +310,11 @@ template <typename Predecessor, typename Receiver, typename Func, typename FuncP
 template <typename Iterator, typename... Values>
 void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
     Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
+  auto sched = unifex::get_scheduler(receiver_);
   unpack_receiver<Receiver> unpack{(Receiver &&) receiver_, operation_state_};
   try {
-    auto find_if_implementation_sender = find_if_helper{std::move(func_)}(unpack, funcPolicy_, begin_it, end_it, (Values&&) values...);
+    auto find_if_implementation_sender = find_if_helper{std::move(func_)}(
+        std::move(sched), funcPolicy_, begin_it, end_it, (Values&&) values...);
     // Store nested operation state inside find_if's operation state
     operation_state_.innerOp_.construct_from([&]() mutable {
       return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));
