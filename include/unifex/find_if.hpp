@@ -133,6 +133,14 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
         );
     }
 
+    // Cancellable parallel algorithm.
+    // This version is two phase to avoid a non-trivial atomic in the middle.
+    // With more built-in algorithms it can be simplified:
+    //  * let_with to allocate non-movable state in the operation state.
+    //  * unpack to deal with tuple to pack conversion
+    // It could also be simplified by making more of the code custom, but I wanted
+    // to demonstrate reuse of internal algorithms to build something more compelex
+    // and cancellable.
     template<typename Iterator, typename... Values>
     auto operator()(
         const unpack_receiver<Receiver>& receiver,
