@@ -162,19 +162,18 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // and to avoid using a cmpexch loop on an intermediate iterator.
       return unifex::let(
         unifex::just(std::vector<Iterator>(num_chunks, end_it), std::forward<Values>(values)...),
-        [this, sched = unifex::get_scheduler(receiver), begin_it,
+        [func = std::move(func_), sched = unifex::get_scheduler(receiver), begin_it,
          chunk_size, end_it, num_chunks, found_flag = std::move(found)](
             std::vector<Iterator>& perChunkState, Values&... values) mutable {
           // Inject a stop source and make it available for inner operations.
           // This stop source propagates into the algorithm through the receiver,
           // such that it will cancel the bulk_schedule operation.
           // It is also triggered if the downstream stop source is triggered.
-          return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
+          return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) mutable {
             auto bulk_phase = unifex::bulk_join(
                 unifex::bulk_transform(
                   unifex::bulk_schedule(std::move(sched), num_chunks),
-                  [this, &perChunkState, begin_it, chunk_size, end_it,
-                   num_chunks, &stopSource, &found_flag, &values...](std::size_t index){
+                  [&](std::size_t index){
                     auto chunk_begin_it = begin_it + (chunk_size*index);
                     auto chunk_end_it = chunk_begin_it;
                     if(index < (num_chunks-1)) {
@@ -184,7 +183,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                     }
 
                     for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                      if(std::invoke(func_, *it, values...)) {
+                      if(std::invoke(func, *it, values...)) {
                         // On success, store the value in the output array
                         // and cancel future work.
                         // This works on the assumption that bulk_schedule will launch
