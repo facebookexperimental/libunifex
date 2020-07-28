@@ -113,8 +113,6 @@ public:
     template<template<typename...> class Variant>
     using error_types = typename InnerOp::template error_types<Variant>;
 
-    static constexpr bool sends_done = InnerOp::sends_done;
-
     template<typename SuccessorFactory2>
     explicit type(SuccessorFactory2&& func) : func_((SuccessorFactory2&&)func)
     {}
