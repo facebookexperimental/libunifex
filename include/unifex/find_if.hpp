@@ -158,7 +158,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
         max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
       auto chunk_size = (distance+num_chunks)/num_chunks;
       // Found flag on the heap
-      // We can store this in the operation state with a let_with algorithm
+      // TODO: We can store this in the operation state with a let_with algorithm
       // as atomics are not moveable.
       auto found = std::make_unique<std::atomic<bool>>(false);
 
@@ -219,7 +219,10 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                     } else {
                       // If there was cancellation and we did not find the item
                       // then propagate the cancellation and assume failure
-                      return just_done();
+                      // TODO: We are temporarily always recovering from cancellation
+                      // until a variant sender is implemented to unify the two
+                      // algorithms
+                      return just();
                     }
                   }
                 ),

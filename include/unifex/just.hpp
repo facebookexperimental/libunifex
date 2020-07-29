@@ -31,8 +31,6 @@
 namespace unifex {
 namespace _just {
 
-struct done_t{};
-
 template <typename Receiver, typename... Values>
 struct _op {
   struct type;
@@ -44,14 +42,8 @@ template <typename Receiver, typename... Values>
 struct _op<Receiver, Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  bool done_;
 
   void start() & noexcept {
-    if(done_) {
-      unifex::set_done((Receiver &&) receiver_);
-      return;
-    }
-
     try {
       std::apply(
           [&](Values&&... values) {
@@ -74,7 +66,6 @@ using sender = typename _sender<std::decay_t<Values>...>::type;
 template <typename... Values>
 class _sender<Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
-  bool done_;
 
   public:
   template <
@@ -89,10 +80,7 @@ class _sender<Values...>::type {
     (requires (sizeof...(Values2) == sizeof...(Values)))
   explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
-    : values_((Values2 &&) values...), done_(false) {}
-
-  explicit type(_just::done_t) noexcept
-    : values_(), done_(true) {}
+    : values_((Values2 &&) values...) {}
 
   template(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, type> AND
@@ -101,7 +89,7 @@ class _sender<Values...>::type {
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
       noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
       -> operation<Receiver, Values...> {
-    return {static_cast<This&&>(that).values_, static_cast<Receiver&&>(r), static_cast<This&&>(that).done_};
+    return {static_cast<This&&>(that).values_, static_cast<Receiver&&>(r)};
   }
 
   friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {
@@ -121,18 +109,6 @@ namespace _just_cpo {
   } just{};
 } // namespace _just_cpo
 using _just_cpo::just;
-
-namespace _just_done_cpo {
-  inline const struct just_done_fn {
-    template <typename... Values>
-    constexpr auto operator()(Values&&... values) const
-      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
-      -> _just::sender<std::decay_t<Values>...> {
-      return _just::sender<Values...>{_just::done_t{}};
-    }
-  } just_done{};
-} // namespace _just_done_cpo
-using _just_done_cpo::just_done;
 
 } // namespace unifex
 
