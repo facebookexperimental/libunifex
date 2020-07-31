@@ -66,6 +66,8 @@ namespace _static_thread_pool {
         template <template <typename...> class Variant>
         using error_types = Variant<>;
 
+        static constexpr bool sends_done = true;
+
       private:
         template <typename Receiver>
         operation<Receiver> make_operation_(Receiver&& r) const {

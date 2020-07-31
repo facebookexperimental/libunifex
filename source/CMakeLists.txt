@@ -37,7 +37,7 @@ if (NOT UNIFEX_NO_LIBURING)
   target_include_directories(unifex
     PUBLIC
       ${UNIFEX_URING_INCLUDE_DIRS})
-  
+
   target_link_libraries(unifex
     PRIVATE
       ${UNIFEX_URING_LIBRARY})

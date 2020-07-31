@@ -63,7 +63,7 @@ public:
                     unifex::set_done(std::move(receiver_));
                     return;
                 }
-                Integral chunk_end = std::min(chunk_start + bulk_cancellation_chunk_size, count_);
+                Integral chunk_end = std::min(chunk_start + static_cast<Integral>(bulk_cancellation_chunk_size), count_);
                 if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
                     // Vectorisable version
 #if defined(__clang__)
