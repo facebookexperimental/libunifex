@@ -15,6 +15,7 @@
  */
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
+#include <unifex/let_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
@@ -83,7 +84,22 @@ int main() {
                   << std::get<0>(std::get<0>(b)) << "]\n";
       }));
 
-  std::cout << "all done " << *result << "\n";
+  std::cout << "let done " << *result << "\n";
+
+  // Simple usage of 'let_with()'
+  // - defines an async scope in which the result of a passed invocable
+  //   is in-scope for the duration of an operation.
+  std::optional<int> let_with_result =
+      sync_wait(let_with([] { return 42; }, [&](int& x) {
+        printf("addressof x = %p, val = %i\n", (void*)&x, x);
+        return async([&]() -> int {
+          printf("successor tranform\n");
+          printf("addressof x = %p, val = %i\n", (void*)&x, x);
+          return x;
+        });
+      }));
+
+  std::cout << "let_with done " << *let_with_result << "\n";
 
   return 0;
 }
