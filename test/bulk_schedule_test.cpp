@@ -37,7 +37,7 @@ TEST(bulk, bulk_transform) {
             unifex::bulk_transform(
                 unifex::bulk_transform(
                     unifex::bulk_schedule(sched, count),
-                    [count](std::size_t index) noexcept {
+                    [](std::size_t index) noexcept {
                         // Reverse indices
                         return count - 1 - index;
                     }, unifex::par_unseq),
