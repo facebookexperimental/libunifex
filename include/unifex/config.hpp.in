@@ -104,6 +104,28 @@
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
+#  if defined(_CPPRTTI)
+#    define UNIFEX_NO_RTTI 0
+#  else
+#    define UNIFEX_NO_RTTI 1
+#  endif
+#elif defined(__clang__)
+#  if __has_feature(cxx_rtti)
+#    define UNIFEX_NO_RTTI 0
+#  else
+#    define UNIFEX_NO_RTTI 1
+#  endif
+#elif defined(__GNUC__)
+#  if defined(__GXX_RTTI)
+#    define UNIFEX_NO_RTTI 0
+#  else
+#    define UNIFEX_NO_RTTI 1
+#  endif
+#else
+#  define UNIFEX_NO_RTTI 0
+#endif
+
+#if defined(_MSC_VER) && !defined(__clang__)
   #define UNIFEX_DIAGNOSTIC_PUSH __pragma(warning(push))
   #define UNIFEX_DIAGNOSTIC_POP __pragma(warning(pop))
   #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
