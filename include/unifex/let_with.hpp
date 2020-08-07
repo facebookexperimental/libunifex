@@ -43,49 +43,6 @@ template <typename StateFactory, typename InnerOp, typename Receiver>
 using operation =  typename _let_with_operation<
     StateFactory, InnerOp, remove_cvref_t<Receiver>>::type;
 
-
-template<typename Operation, typename Receiver>
-using let_with_receiver = typename _let_with_receiver<Operation, Receiver>::type;
-
-template<typename Operation, typename Receiver>
-class _let_with_receiver<Operation, Receiver>::type {
-public:
-    explicit type(Receiver&& r) :
-        receiver_{std::forward<Receiver>(r)}
-    {}
-
-    template(typename... Values)
-        (requires is_value_receiver_v<Receiver, Values...>)
-    void set_value(Values&&... values) noexcept(is_nothrow_value_receiver_v<Receiver, Values...>) {
-        unifex::set_value(std::move(receiver_), (Values&&)values...);
-    }
-
-    template(typename Error)
-        (requires is_error_receiver_v<Receiver, Error>)
-    void set_error(Error&& error) noexcept {
-        unifex::set_error(std::move(receiver_), (Error&&)error);
-    }
-
-    template(typename R = Receiver)
-        (requires is_done_receiver_v<R>)
-    void set_done() noexcept {
-        unifex::set_done(std::move(receiver_));
-    }
-
-    template(typename CPO, typename Self)
-        (requires
-            is_receiver_query_cpo_v<CPO> AND
-            same_as<Self, type>)
-    friend auto tag_invoke(CPO cpo, const Self& self)
-        noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-        -> callable_result_t<CPO, const Receiver&> {
-        return cpo(self.receiver_);
-    }
-
-private:
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-};
-
 template<typename StateFactory, typename SuccessorFactory>
 struct _let_with_sender {
     class type;
@@ -140,10 +97,7 @@ struct _let_with_operation<StateFactory, SuccessorFactory, Receiver>::type {
         innerOp_(
               unifex::connect(
                 static_cast<SuccessorFactory&&>(func)(state_),
-                let_with_receiver<
-                        operation<StateFactory, SuccessorFactory, Receiver>,
-                        remove_cvref_t<Receiver>>{
-                    static_cast<Receiver&&>(r)})) {
+                static_cast<Receiver&&>(r))) {
     }
 
     void start() & noexcept {
@@ -153,9 +107,7 @@ struct _let_with_operation<StateFactory, SuccessorFactory, Receiver>::type {
     std::invoke_result_t<StateFactory> state_;
     connect_result_t<
         std::invoke_result_t<SuccessorFactory, std::invoke_result_t<StateFactory>&>,
-        let_with_receiver<
-            operation<StateFactory, SuccessorFactory, Receiver>,
-            remove_cvref_t<Receiver>>>
+        remove_cvref_t<Receiver>>
         innerOp_;
 };
 
