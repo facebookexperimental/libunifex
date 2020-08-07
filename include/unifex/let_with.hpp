@@ -50,8 +50,8 @@ using let_with_receiver = typename _let_with_receiver<Operation, Receiver>::type
 template<typename Operation, typename Receiver>
 class _let_with_receiver<Operation, Receiver>::type {
 public:
-    explicit type(Operation& op, Receiver&& r) :
-        op_(op), receiver_{std::forward<Receiver>(r)}
+    explicit type(Receiver&& r) :
+        receiver_{std::forward<Receiver>(r)}
     {}
 
     template(typename... Values)
@@ -83,7 +83,6 @@ public:
     }
 
 private:
-    UNIFEX_NO_UNIQUE_ADDRESS Operation& op_;
     UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 };
 
@@ -137,18 +136,17 @@ private:
 template<typename StateFactory, typename SuccessorFactory, typename Receiver>
 struct _let_with_operation<StateFactory, SuccessorFactory, Receiver>::type {
     type(StateFactory&& state_factory, SuccessorFactory&& func, Receiver&& r) :
-        state_{state_factory()},
+        state_(static_cast<StateFactory&&>(state_factory)()),
         innerOp_(
               unifex::connect(
                 static_cast<SuccessorFactory&&>(func)(state_),
                 let_with_receiver<
                         operation<StateFactory, SuccessorFactory, Receiver>,
                         remove_cvref_t<Receiver>>{
-                    *this,
                     static_cast<Receiver&&>(r)})) {
     }
 
-    void start() noexcept {
+    void start() & noexcept {
         unifex::start(innerOp_);
     }
 

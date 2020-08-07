@@ -247,6 +247,9 @@ you want remain alive for the duration of a successor operation.
 
 When the `let_with` sender is connected the invocable is called to construct
 the result in-place in the operation state.
+In-place construction of the result is where `let_with` differs from `let`
+in that the result of `state_factory` can be a non-moveable type, such as
+`std::atomic` that will be constructed in-place in the operation state.
 
 The references passed to `func` remain valid until the returned sender
 completes, at which point the variables go out of scope.
@@ -270,7 +273,7 @@ is roughly equivalent to the following coroutine code:
 If `state_factory` returns successfully then the `let_with()` operation
 as a whole will complete with the result of the successor.
 
-If the predecessor completes with an exception then the exception will
+If `state_factory()` completes with an exception then the exception will
 propagate out of the `connect` operation.
 
 ### `let_with_stop_source(Invocable func) -> Sender`

@@ -101,5 +101,23 @@ int main() {
 
   std::cout << "let_with done " << *let_with_result << "\n";
 
+   // let_with example showing use with a non-moveable type and
+   // in-place construction.
+  std::optional<int> let_with_atomic_result =
+      sync_wait(let_with([] { return std::atomic<int>{42}; },
+        [&](std::atomic<int>& x) {
+          ++x;
+          printf("addressof x = %p, val = %i\n", (void*)&x, x.load());
+          return async([&]() -> int {
+            ++x;
+            printf("successor tranform\n");
+            printf("addressof x = %p, val = %i\n", (void*)&x, x.load());
+            return x.load();
+          });
+      }));
+
+  std::cout <<
+    "let_with on atomic type " << *let_with_atomic_result << "\n";
+
   return 0;
 }
