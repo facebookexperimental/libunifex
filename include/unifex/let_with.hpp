@@ -41,7 +41,7 @@ struct _let_with_operation {
 
 template <typename StateFactory, typename InnerOp, typename Receiver>
 using operation =  typename _let_with_operation<
-    StateFactory, InnerOp, remove_cvref_t<Receiver>>::type;
+    StateFactory, InnerOp, Receiver>::type;
 
 template<typename StateFactory, typename SuccessorFactory>
 struct _let_with_sender {
