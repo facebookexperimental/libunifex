@@ -82,11 +82,6 @@ public:
                     member_t<Self, SuccessorFactory>,
                     std::invoke_result_t<member_t<Self, StateFactory>>&>,
                 remove_cvref_t<Receiver>>) {
-        //noexcept(
-        //    std::is_nothrow_invocable_v<
-         //       member_t<Self, SuccessorFactory>,
-          //      std::invoke_result_t<StateFactory>&> &&
-           // std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
 
         return operation<
                 member_t<Self, StateFactory>, member_t<Self, SuccessorFactory>, Receiver>(
