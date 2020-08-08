@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
+    UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<SuccessorFactory> func_;
 };
 
 struct _stop_source_operation_callback {
@@ -144,6 +144,7 @@ struct _stop_source_operation_callback {
 template<typename SuccessorFactory, typename Receiver>
 struct _stop_source_operation<SuccessorFactory, Receiver>::type {
     type(SuccessorFactory&& func, Receiver&& r) :
+        func_{(SuccessorFactory&&)func},
         stop_source_{},
         // Chain the stop token so that downstream cancellation also affects this
         // operation
@@ -152,7 +153,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
             _stop_source_operation_callback(stop_source_)),
         innerOp_(
               unifex::connect(
-                static_cast<SuccessorFactory&&>(func)(stop_source_),
+                func_(stop_source_),
                 stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>{
                     *this,
                     static_cast<Receiver&&>(r)})) {
@@ -164,6 +165,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
 
     template<class F>
     using callback_type = typename stop_token_type_t<Receiver>::template callback_type<F>;
+    UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<SuccessorFactory> func_;
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
     UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
