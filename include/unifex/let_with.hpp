@@ -29,11 +29,6 @@ namespace unifex {
 
 namespace _let_with {
 
-template<typename Operation, typename Receiver>
-struct _let_with_receiver {
-    class type;
-};
-
 template<typename StateFactory, typename InnerOp, typename Receiver>
 struct _let_with_operation {
   struct type;
