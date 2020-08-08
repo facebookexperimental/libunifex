@@ -29,27 +29,30 @@ namespace unifex {
 
 namespace _let_with {
 
-template<typename StateFactory, typename InnerOp, typename Receiver>
+template <typename InnerOp, typename Receiver, typename... StateFactories>
 struct _operation {
   struct type;
 };
 
-template <typename StateFactory, typename InnerOp, typename Receiver>
+template <typename InnerOp, typename Receiver, typename... StateFactories>
 using operation =  typename _operation<
-    StateFactory, InnerOp, Receiver>::type;
+    InnerOp, Receiver, StateFactories...>::type;
 
-template<typename StateFactory, typename SuccessorFactory>
+template<typename SuccessorFactory, typename... StateFactory>
 struct _sender {
     class type;
 };
 
-template<typename StateFactory, typename SuccessorFactory>
-using let_with_sender = typename _sender<StateFactory, SuccessorFactory>::type;
+template<typename SuccessorFactory, typename... StateFactories>
+using let_with_sender = typename _sender<SuccessorFactory, StateFactories...>::type;
 
-template<typename StateFactory, typename SuccessorFactory>
-class _sender<StateFactory, SuccessorFactory>::type {
+ template<bool...Bs>
+inline constexpr bool and_v = (Bs &&...);
+
+template<typename SuccessorFactory, typename... StateFactories>
+class _sender<SuccessorFactory, StateFactories...>::type {
 public:
-    using InnerOp = std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>;
+    using InnerOp = std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactories>&...>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
     using value_types = typename InnerOp::template value_types<Variant, Tuple>;
@@ -57,9 +60,9 @@ public:
     template<template<typename...> class Variant>
     using error_types = typename InnerOp::template error_types<Variant>;
 
-    template<typename StateFactory2, typename SuccessorFactory2>
-    explicit type(StateFactory2&& stateFactory, SuccessorFactory2&& func) :
-        stateFactory_((StateFactory2&&)stateFactory),
+    template<typename StateFactoryTuple, typename SuccessorFactory2>
+    explicit type(StateFactoryTuple&& stateFactoryTuple, SuccessorFactory2&& func) :
+        stateFactories_((StateFactoryTuple&&)stateFactoryTuple),
         func_((SuccessorFactory2&&)func)
     {}
 
@@ -67,38 +70,56 @@ public:
         (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            is_nothrow_callable_v<member_t<Self, StateFactory>> &&
+            (and_v<is_nothrow_callable_v<member_t<Self, StateFactories>> ...> ) &&
             std::is_nothrow_invocable_v<
                 member_t<Self, SuccessorFactory>,
-                callable_result_t<member_t<Self, StateFactory>>&> &&
+                std::invoke_result_t<member_t<Self, StateFactories>>& ...> &&
             is_nothrow_connectable_v<
                 callable_result_t<
                     member_t<Self, SuccessorFactory>,
-                    callable_result_t<member_t<Self, StateFactory>>&>,
+                    std::invoke_result_t<member_t<Self, StateFactories>>& ...>,
                 remove_cvref_t<Receiver>>) {
-
-        return operation<
-                StateFactory, SuccessorFactory, Receiver>(
-            static_cast<Self&&>(self).stateFactory_,
+        return operation<SuccessorFactory, Receiver, StateFactories...>(
+            static_cast<Self&&>(self).stateFactories_,
             static_cast<Self&&>(self).func_,
             static_cast<Receiver&&>(r));
     }
 
 private:
-    UNIFEX_NO_UNIQUE_ADDRESS StateFactory stateFactory_;
+    UNIFEX_NO_UNIQUE_ADDRESS std::tuple<StateFactories...> stateFactories_;
     UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
 };
 
+// Conversion helper to support in-place construction via RVO
+template<typename Func>
+struct in_place_construction_converter {
+    operator callable_result_t<Func>() {
+        return func_();
+    }
+    Func& func_;
+};
+template<typename T>
+auto in_place_construction_helper(T& stateFactory) {
+    return in_place_construction_converter<remove_cvref_t<T>>{stateFactory};
+}
 
-template<typename StateFactory, typename SuccessorFactory, typename Receiver>
-struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
-    type(StateFactory&& stateFactory, SuccessorFactory&& func, Receiver&& r) :
-        stateFactory_(static_cast<StateFactory&&>(stateFactory)),
+template<typename SuccessorFactory, typename Receiver, typename... StateFactories>
+struct _operation<SuccessorFactory, Receiver, StateFactories...>::type {
+    using StateTupleT = std::tuple<remove_cvref_t<callable_result_t<StateFactories>>...>;
+    type(std::tuple<StateFactories...>&& stateFactories, SuccessorFactory&& func, Receiver&& r) :
+        stateFactories_((std::tuple<StateFactories...>&&)stateFactories),
         func_(static_cast<SuccessorFactory&&>(func)),
-        state_(static_cast<StateFactory&&>(stateFactory_)()),
+        // Construct the tuple of state from the tuple of factories
+        // using in-place construction via RVO
+        state_(std::apply([](auto&&... stateFactory){
+            return StateTupleT{
+                in_place_construction_helper(stateFactory)...
+            };
+        },
+        stateFactories_)),
         innerOp_(
               unifex::connect(
-                static_cast<SuccessorFactory&&>(func_)(state_),
+                std::apply(func_, state_),
                 static_cast<Receiver&&>(r))) {
     }
 
@@ -106,11 +127,11 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
         unifex::start(innerOp_);
     }
 
-    StateFactory stateFactory_;
-    SuccessorFactory func_;
-    callable_result_t<StateFactory> state_;
+    UNIFEX_NO_UNIQUE_ADDRESS std::tuple<StateFactories...> stateFactories_;
+    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
+    StateTupleT state_;
     connect_result_t<
-        callable_result_t<SuccessorFactory, callable_result_t<StateFactory>&>,
+        callable_result_t<SuccessorFactory, callable_result_t<StateFactories>&...>,
         remove_cvref_t<Receiver>>
         innerOp_;
 };
@@ -118,19 +139,40 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
 } // namespace _let_with
 
 namespace _let_with_cpo {
-    struct _fn {
 
-        template<typename StateFactory, typename SuccessorFactory>
-        auto operator()(StateFactory&& stateFactory, SuccessorFactory&& successor_factory) const
-            noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory> &&
-                    std::is_nothrow_constructible_v<std::decay_t<StateFactory>, StateFactory>)
-            -> _let_with::let_with_sender<
-                 std::decay_t<StateFactory>, std::decay_t<SuccessorFactory>> {
-            return _let_with::let_with_sender<
-                std::decay_t<StateFactory>, std::decay_t<SuccessorFactory>>{
-                (StateFactory&&)stateFactory, (SuccessorFactory&&)successor_factory};
-        }
-    };
+struct _fn {
+private:
+    template<typename SuccessorFactory, typename... StateFactories>
+    auto let_with_builder(std::tuple<StateFactories...>&& stateFactories, SuccessorFactory&& successorFactory) const {
+        return _let_with::let_with_sender<std::decay_t<SuccessorFactory>, std::decay_t<StateFactories>...>{
+            (std::tuple<StateFactories...>&&)stateFactories, (SuccessorFactory&&)successorFactory};
+    }
+
+    template<typename StateFactory, typename SuccessorFactory>
+    auto let_with_helper(StateFactory&& stateFactory, SuccessorFactory&& successorFactory) const {
+        return std::pair<std::tuple<StateFactory>, SuccessorFactory>(
+            std::tuple<StateFactory>{(StateFactory&&)stateFactory},
+            (SuccessorFactory&&)successorFactory);
+    }
+
+    template<typename Factory, typename... Factories>
+    auto let_with_helper(Factory&& factory, Factories&&... factories) const {
+        auto p = let_with_helper((Factories&&)factories...);
+        return make_pair(
+            std::tuple_cat(
+                std::make_tuple((Factory&&)factory),
+                std::move(p.first)),
+            std::move(p.second)
+        );
+    }
+
+public:
+    template<typename... Factories>
+    auto operator()(Factories&&... factories) const {
+        auto p = let_with_helper((Factories&&)factories...);
+        return let_with_builder(std::move(p.first), std::move(p.second));
+    }
+};
 } // namespace _let_with_cpo
 
 inline constexpr _let_with_cpo::_fn let_with{};

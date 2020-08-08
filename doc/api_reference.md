@@ -240,16 +240,17 @@ whole will complete with the result of the successor.
 If the predecessor completes with done/error then `func` is not invoked
 and the operation as a whole completes with that done/error signal.
 
-### `let_with(Invocable state_factory, Invocable func) -> Sender`
+### `let_with(Invocable state_factory1... Invocable state_factoryN, Invocable func) -> Sender`
 
-The `let_with()` algorithm accepts an invocable that produces a value that
-you want remain alive for the duration of a successor operation.
+The `let_with()` algorithm accepts a list of invocables that produce values
+that you want remain alive for the duration of a successor operation.
 
 When the `let_with` sender is connected the invocable is called to construct
 the result in-place in the operation state.
 In-place construction of the result is where `let_with` differs from `let`
-in that the result of `state_factory` can be a non-moveable type, such as
-`std::atomic` that will be constructed in-place in the operation state.
+in that the result of each of `state_factory1` to `state_factoryN` can be a
+non-moveable type, such as `std::atomic` that will be constructed in-place
+in the operation state.
 
 The references passed to `func` remain valid until the returned sender
 completes, at which point the variables go out of scope.
@@ -258,22 +259,24 @@ For example:
 ```c++
 let_with(
     some_factory,
-    [](auto& x) {
-      return other_operation(x);
+    some_other_factory,
+    [](auto& x, auto& x2) {
+      return other_operation(x, x2);
     });
 ```
 is roughly equivalent to the following coroutine code:
 ```c++
 {
   auto x = some_factory();
-  co_await other_operation(x);
+  auto x2 = some_other_factory();
+  co_await other_operation(x, x2);
 }
 ```
 
-If `state_factory` returns successfully then the `let_with()` operation
+If `state_factoryX` returns successfully then the `let_with()` operation
 as a whole will complete with the result of the successor.
 
-If `state_factory()` completes with an exception then the exception will
+If `state_factoryX()` completes with an exception then the exception will
 propagate out of the `connect` operation.
 
 ### `let_with_stop_source(Invocable func) -> Sender`
