@@ -20,9 +20,9 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/config.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/type_index.hpp>
 
 #include <functional>
-#include <typeindex>
 #include <vector>
 
 #include <unifex/detail/prologue.hpp>
@@ -74,7 +74,7 @@ class continuation_info {
     return c;
   }
 
-  std::type_index type() const noexcept {
+  type_index type() const noexcept {
     return vtable_->typeIndexGetter_();
   }
 
@@ -96,7 +96,7 @@ class continuation_info {
  private:
   using callback_t = void(const continuation_info&, void*);
   using visitor_t = void(const void*, callback_t*, void*);
-  using type_index_getter_t = std::type_index() noexcept;
+  using type_index_getter_t = type_index() noexcept;
 
   struct vtable_t {
     type_index_getter_t* typeIndexGetter_;
@@ -117,8 +117,8 @@ template <typename Continuation>
 inline continuation_info continuation_info::from_continuation(
     const Continuation& r) noexcept {
   static constexpr vtable_t vtable{
-      []() noexcept -> std::type_index {
-        return typeid(remove_cvref_t<Continuation>);
+      []() noexcept -> type_index {
+        return type_id<remove_cvref_t<Continuation>>();
       },
       [](const void* address, callback_t* cb, void* data) {
         visit_continuations(
