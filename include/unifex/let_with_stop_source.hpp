@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<SuccessorFactory> func_;
+    UNIFEX_NO_UNIQUE_ADDRESS remove_cvref_t<SuccessorFactory> func_;
 };
 
 struct _stop_source_operation_callback {
@@ -165,7 +165,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
 
     template<class F>
     using callback_type = typename stop_token_type_t<Receiver>::template callback_type<F>;
-    UNIFEX_NO_UNIQUE_ADDRESS std::remove_cvref_t<SuccessorFactory> func_;
+    UNIFEX_NO_UNIQUE_ADDRESS remove_cvref_t<SuccessorFactory> func_;
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
     UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
