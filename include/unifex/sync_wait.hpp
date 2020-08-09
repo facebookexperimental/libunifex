@@ -21,6 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/compose_with_target.hpp>
 
 #include <condition_variable>
 #include <exception>
@@ -145,6 +146,12 @@ namespace _sync_wait_cpo {
         -> std::optional<single_value_result_t<remove_cvref_t<Sender>>> {
       using Result = single_value_result_t<remove_cvref_t<Sender>>;
       return _sync_wait::_impl<Result>((Sender&&) sender);
+    }
+    auto operator()() const
+        noexcept(std::is_nothrow_invocable_v<
+          tag_t<compose_with_target>, _fn>)
+        -> std::invoke_result_t<tag_t<compose_with_target>, _fn> {
+      return compose_with_target(*this);
     }
   };
 } // namespace _sync_wait_cpo

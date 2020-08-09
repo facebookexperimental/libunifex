@@ -25,6 +25,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/compose_with_target.hpp>
 
 #include <exception>
 #include <functional>
@@ -199,6 +200,13 @@ namespace _tfx_cpo {
           _tfx::sender<Sender, Func>, Sender, Func>)
         -> _result_t<Sender, Func> {
       return _tfx::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
+    }
+    template <typename Func>
+    auto operator()(Func&& func) const
+        noexcept(std::is_nothrow_invocable_v<
+          tag_t<compose_with_target>, _fn, Func>)
+        -> std::invoke_result_t<tag_t<compose_with_target>, _fn, Func> {
+      return compose_with_target(*this, (Func &&) func);
     }
   } transform{};
 } // namespace _tfx_cpo
