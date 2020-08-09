@@ -17,6 +17,7 @@
 #include <unifex/executor_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/fifo_context.hpp>
+#include <unifex/fifo_support.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/bulk_schedule.hpp>
 #include <unifex/bulk_transform.hpp>
@@ -40,6 +41,7 @@ int main() {
     auto fifo_sched = fctx.get_scheduler();
 
     std::cout << "On normal single thread context\n";
+    std::cout << "Fifo context: " << unifex::get_fifo_context(sched) << "\n";
     sync_wait(
         sequence(
           bulk_join(
@@ -51,8 +53,8 @@ int main() {
               bulk_schedule(sched, 2),
               [](int idx){std::cout << "Transform 2 at " << idx << "\n";}))));
 
-
     std::cout << "On normal single thread context with eager fifo scheduling\n";
+    std::cout << "Fifo context: " << unifex::get_fifo_context(fifo_sched) << "\n";
     // The renamed algorithms here are for simplicity
     // We should actually have each algorithm being called via tag_invoke against
     // the previous sender, with the current implementation as the default.

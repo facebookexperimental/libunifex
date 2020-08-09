@@ -19,6 +19,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/fifo_support.hpp>
 
 #include <condition_variable>
 #include <mutex>
@@ -122,6 +123,11 @@ class context {
     }
     friend bool operator!=(scheduler a, scheduler b) noexcept {
       return a.loop_ != b.loop_;
+    }
+
+    // This is a fifo context, return its loop_ as an id
+    friend uintptr_t tag_invoke(tag_t<get_fifo_context>, scheduler& sched) noexcept {
+      return reinterpret_cast<uintptr_t>(sched.loop_);
     }
 
    private:
