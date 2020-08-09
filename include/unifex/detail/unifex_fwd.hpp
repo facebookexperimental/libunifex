@@ -42,4 +42,6 @@ namespace unifex {
     extern const struct _fn connect;
   } // namespace _connect_cpo
   using _connect_cpo::connect;
+
+  struct enable_operator_composition;
 } // namespace unifex
