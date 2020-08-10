@@ -18,6 +18,7 @@
 #include <unifex/fifo_manual_event_loop.hpp>
 
 #include <thread>
+#include <chrono>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -28,7 +29,13 @@ class context {
   std::thread thread_;
 
 public:
-  context() : loop_(), thread_([this] { loop_.run(); }) {}
+  context() : loop_(), thread_([this] {
+      using namespace std::chrono_literals;
+      // FIFO_CHANGES: Delay the start to ensure eager
+      // enqueue is happening
+      std::this_thread::sleep_for(2s);
+      loop_.run();
+    }) {}
 
   ~context() {
     loop_.stop();

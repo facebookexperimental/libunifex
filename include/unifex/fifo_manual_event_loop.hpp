@@ -15,6 +15,10 @@
  */
 #pragma once
 
+// TODO: At the moment I don't think this is necessary.
+// fifo_bulk_schedule should be removed and collapsed into this
+// as the result of a tag_invoke call to bulk_schedule
+
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -26,6 +30,8 @@
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
+
+#include <iostream>
 
 namespace unifex {
 namespace _fifo_manual_event_loop {
@@ -96,7 +102,13 @@ class context {
 
       template <typename Receiver>
       operation<Receiver> connect(Receiver&& receiver) const& {
+        std::cout << "Connecting fifo_manual_event_loop to a receiver. get_fifo_context(receiver): " << unifex::get_fifo_context(receiver) << "\n";
         return operation<Receiver>{(Receiver &&) receiver, loop_};
+      }
+
+      // FIFO_CHANGES: This is a fifo context, return its loop_ as an id
+      friend void* tag_invoke(tag_t<get_fifo_context>, schedule_task& task) noexcept {
+        return task.loop_;
       }
 
     private:
@@ -125,9 +137,9 @@ class context {
       return a.loop_ != b.loop_;
     }
 
-    // This is a fifo context, return its loop_ as an id
-    friend uintptr_t tag_invoke(tag_t<get_fifo_context>, scheduler& sched) noexcept {
-      return reinterpret_cast<uintptr_t>(sched.loop_);
+    // FIFO_CHANGES: This is a fifo context, return its loop_ as an id
+    friend void* tag_invoke(tag_t<get_fifo_context>, scheduler& sched) noexcept {
+      return sched.loop_;
     }
 
    private:
@@ -154,7 +166,18 @@ class context {
 
 template <typename Receiver>
 inline void _op<Receiver>::type::start() noexcept {
+  std::cout << "start() on manual event loop operation\n";
   loop_->enqueue(this);
+  std::cout << "After enqueue\n";
+  // FIFO_CHANGES: If the work is due to be submitted on this context,
+  // enqueue it as well
+  if(get_fifo_context(receiver_) == loop_) {
+    std::cout << "start() trying eager enqueue\n";
+    auto started = start_eagerly(receiver_);
+    if(started) {
+      std::cout << "Work started eagerly\n";
+    }
+  }
 }
 
 } // namespace _fifo_manual_event_loop

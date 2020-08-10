@@ -28,10 +28,8 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
-// Size of chunk used for cancellation allowing for some vectorisation
-constexpr size_t bulk_cancellation_chunk_size = 16;
 
-namespace _bulk_schedule {
+namespace _fifo_bulk_schedule {
 
 template<typename Integral, typename Receiver>
 struct _schedule_receiver {
@@ -53,57 +51,20 @@ public:
     void set_value()
         noexcept(is_nothrow_value_receiver_v<Receiver> &&
                  is_nothrow_next_receiver_v<Receiver, Integral>) {
+        std::cout << "bulk_schedule set_value\n";
         using policy_t = decltype(get_execution_policy(receiver_));
         auto stop_token = get_stop_token(receiver_);
         const bool stop_possible = !is_stop_never_possible_v<decltype(stop_token)> && stop_token.stop_possible();
 
-        if(stop_possible) {
-            for (Integral chunk_start(0); chunk_start < count_; chunk_start += bulk_cancellation_chunk_size) {
-                if(stop_token.stop_requested()) {
-                    unifex::set_done(std::move(receiver_));
-                    return;
-                }
-                Integral chunk_end = std::min(chunk_start + static_cast<Integral>(bulk_cancellation_chunk_size), count_);
-                if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
-                    // Vectorisable version
-#if defined(__clang__)
-                    #pragma clang loop vectorize(enable) interleave(enable)
-#elif defined(__GNUC__)
-                    #pragma GCC ivdep
-#elif defined(_MSC_VER)
-                    #pragma loop(ivdep)
-#endif
-                    for (Integral i(chunk_start); i < chunk_end; ++i) {
-                        unifex::set_next(receiver_, Integral(i));
-                    }
-                } else {
-                    // Sequenced version
-                    for (Integral i(chunk_start); i < chunk_end; ++i) {
-                        unifex::set_next(receiver_, Integral(i));
-                    }
-                }
-            }
-        } else {
-            if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
-                // Vectorisable version
-#if defined(__clang__)
-                #pragma clang loop vectorize(enable) interleave(enable)
-#elif defined(__GNUC__)
-                #pragma GCC ivdep
-#elif defined(_MSC_VER)
-                #pragma loop(ivdep)
-#endif
-                for (Integral i(0); i < count_; ++i) {
-                    unifex::set_next(receiver_, Integral(i));
-                }
-            } else {
-                // Sequenced version
-                for (Integral i(0); i < count_; ++i) {
-                    unifex::set_next(receiver_, Integral(i));
-                }
-            }
+        // Sequenced version
+        for (Integral i(0); i < count_; ++i) {
+            unifex::set_next(receiver_, Integral(i));
         }
 
+        // FIFO_CHANGES TODO: Drop this set_value call on eager start
+        // which probably means moving the eagerness in here from
+        // the manual event loop, which is easier once
+        // this merges in.
         unifex::set_value(std::move(receiver_));
     }
 
@@ -117,6 +78,16 @@ public:
         (requires is_done_receiver_v<Receiver>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
+    }
+
+    // FIFO_CHANGES: This is a fifo context if its successor is
+    friend void* tag_invoke(tag_t<get_fifo_context>, type& rec) noexcept {
+        return get_fifo_context(rec.receiver_);
+    }
+
+    // FIFO_CHANGES: Forward through start eagerly requests
+    friend bool tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+        return start_eagerly(rec.receiver_);
     }
 
 private:
@@ -169,8 +140,7 @@ public:
     }
 
     // FIFO_CHANGES: This is a fifo context, return its loop_ as an id
-    friend uintptr_t tag_invoke(tag_t<get_fifo_context>, type& send) noexcept {
-        std::cout << "get_fifo_context on fifo_bulk_schedule\n";
+    friend void* tag_invoke(tag_t<get_fifo_context>, type& send) noexcept {
         return get_fifo_context(send.scheduler_);
     }
 
@@ -202,9 +172,9 @@ struct _fn {
     }
 };
 
-} // namespace _bulk_schedule
+} // namespace _fifo_bulk_schedule
 
-inline constexpr _bulk_schedule::_fn bulk_schedule{};
+inline constexpr _fifo_bulk_schedule::_fn fifo_bulk_schedule{};
 
 } // namespace unifex
 

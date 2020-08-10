@@ -25,12 +25,14 @@ void context::run() {
       if (stop_) return;
       cv_.wait(lock);
     }
+    std::cout << "Run loop iteration\n";
     auto* task = head_;
     head_ = task->next_;
     if (head_ == nullptr) {
       tail_ = nullptr;
     }
     lock.unlock();
+    std::cout << "\tExecute in loop " << task << "\n";
     task->execute();
     lock.lock();
   }
@@ -44,9 +46,12 @@ void context::stop() {
 
 void context::enqueue(task_base* task) {
   std::unique_lock lock{mutex_};
+  std::cout << "Enqueue " << task << "\n";
   if (head_ == nullptr) {
+  std::cout << "\tEnqueue as head" << task << "\n";
     head_ = task;
   } else {
+    std::cout << "\tEnqueue as tail" << task << "\n";
     tail_->next_ = task;
   }
   tail_ = task;

@@ -145,6 +145,76 @@ namespace unifex
         : op_(std::exchange(other.op_, nullptr)) {}
 
       void set_value() && noexcept {
+        // FIFO_CHANGES: If this work was eagerly started we do not need
+        // to start it now.
+        // The FIFO queue will handle this.
+        bool expectedNotStarted = false;
+        if(op_ && op_->started_.compare_exchange_strong(expectedNotStarted, true)) {
+          std::cout << "\tTraditional start\n";
+          startWork();
+        }
+      }
+
+      template(typename Error)
+          (requires receiver<Receiver, Error>)
+      void set_error(Error&& error) && noexcept {
+        unifex::set_error(
+            static_cast<Receiver&&>(op_->receiver_),
+            static_cast<Error&&>(error));
+      }
+
+      void set_done() && noexcept {
+        unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
+      }
+
+      // FIFO_CHANGES: This is a fifo receiver if the sender it is going to dispatch
+      // is also on a fifo context
+      friend void* tag_invoke(tag_t<get_fifo_context>, type& rec) noexcept {
+        return unifex::get_fifo_context(rec.op_->successor_);
+      }
+
+      // FIFO_CHANGES: Connect and start the sender and flag it sao that
+      // set_value does not start it.
+      friend bool tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+        // FIFO_CHANGES: If this work is to be started eagerly, ensure that
+        // set_value will not also start it and then start it.
+        bool expectedNotStarted = false;
+        if(rec.op_ &&
+           rec.op_->started_.compare_exchange_strong(expectedNotStarted, true)) {
+          std::cout << "\tEager start\n";
+          rec.startWork();
+          return true;
+        }
+        return false;
+      }
+
+    private:
+      template(typename CPO, typename R)
+          (requires is_receiver_query_cpo_v<CPO> AND
+            same_as<R, predecessor_receiver> AND
+            is_callable_v<CPO, const Receiver&>)
+      friend auto tag_invoke(
+          CPO cpo,
+          const R& r) noexcept(is_nothrow_callable_v<
+                                           CPO,
+                                           const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return static_cast<CPO&&>(cpo)(r.get_const_receiver());
+      }
+
+      template <typename Func>
+      friend void tag_invoke(
+          tag_t<visit_continuations>,
+          const predecessor_receiver& r,
+          Func&& func) {
+        std::invoke(func, r.get_const_receiver());
+      }
+
+      const Receiver& get_const_receiver() const noexcept {
+        return op_->receiver_;
+      }
+
+      void startWork() {
         // Take a copy of op_ before destroying predOp_ as this may end up
         // destroying *this.
         using successor_receiver_t =
@@ -176,44 +246,6 @@ namespace unifex
         }
       }
 
-      template(typename Error)
-          (requires receiver<Receiver, Error>)
-      void set_error(Error&& error) && noexcept {
-        unifex::set_error(
-            static_cast<Receiver&&>(op_->receiver_),
-            static_cast<Error&&>(error));
-      }
-
-      void set_done() && noexcept {
-        unifex::set_done(static_cast<Receiver&&>(op_->receiver_));
-      }
-
-    private:
-      template(typename CPO, typename R)
-          (requires is_receiver_query_cpo_v<CPO> AND
-            same_as<R, predecessor_receiver> AND
-            is_callable_v<CPO, const Receiver&>)
-      friend auto tag_invoke(
-          CPO cpo,
-          const R& r) noexcept(is_nothrow_callable_v<
-                                           CPO,
-                                           const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
-        return static_cast<CPO&&>(cpo)(r.get_const_receiver());
-      }
-
-      template <typename Func>
-      friend void tag_invoke(
-          tag_t<visit_continuations>,
-          const predecessor_receiver& r,
-          Func&& func) {
-        std::invoke(func, r.get_const_receiver());
-      }
-
-      const Receiver& get_const_receiver() const noexcept {
-        return op_->receiver_;
-      }
-
       operation_type* op_;
     };
 
@@ -228,7 +260,8 @@ namespace unifex
           Receiver2&& receiver)
         : successor_(static_cast<Successor2&&>(successor))
         , receiver_(static_cast<Receiver&&>(receiver))
-        , status_(status::predecessor_operation_constructed) {
+        , status_(status::predecessor_operation_constructed)
+        , started_{false} {
         unifex::activate_union_member_from(predOp_, [&] {
           return unifex::connect(
               static_cast<Predecessor&&>(predecessor),
@@ -281,6 +314,7 @@ namespace unifex
             successor_receiver<Predecessor, Successor, Receiver>>>
             succOp_;
       };
+      std::atomic<bool> started_;
     };
 
     template <typename Predecessor, typename Successor>

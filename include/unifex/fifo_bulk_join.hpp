@@ -78,6 +78,16 @@ public:
         return cpo(self.receiver_);
     }
 
+    // FIFO_CHANGES: This is a fifo receiver if its successor is
+    friend void* tag_invoke(tag_t<get_fifo_context>, type& rec) noexcept {
+        return get_fifo_context(rec.receiver_);
+    }
+
+    // FIFO_CHANGES: Forward through start eagerly requests
+    friend bool tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+        return start_eagerly(rec.receiver_);
+    }
+
 private:
     Receiver receiver_;
 };
@@ -120,6 +130,11 @@ public:
         return unifex::connect(
             static_cast<Self&&>(self).source_,
             join_receiver<remove_cvref_t<Receiver>>{static_cast<Receiver&&>(r)});
+    }
+
+    // FIFO_CHANGES: This is a fifo context if its predecessor is
+    friend void* tag_invoke(tag_t<get_fifo_context>, type& s) noexcept {
+      return get_fifo_context(s.source_);
     }
 
 private:

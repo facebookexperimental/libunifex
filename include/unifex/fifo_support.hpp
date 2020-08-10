@@ -19,6 +19,8 @@
 
 #include <unifex/detail/prologue.hpp>
 
+#include <iostream>
+
 namespace unifex {
 
 namespace _fifo_support {
@@ -27,22 +29,40 @@ namespace _fifo_support {
 struct _get_fifo_context_fn {
     template(typename Entity)
         (requires tag_invocable<_get_fifo_context_fn, Entity>)
-    auto operator()(Entity&& e) const
-        noexcept(is_nothrow_tag_invocable_v<_get_fifo_context_fn, Entity>)
-        -> uintptr_t {
+    void* operator()(Entity&& e) const
+        noexcept(is_nothrow_tag_invocable_v<_get_fifo_context_fn, Entity>) {
         return tag_invoke(_get_fifo_context_fn{}, (Entity&&)e);
     }
 
     template(typename Entity)
         (requires !tag_invocable<_get_fifo_context_fn, Entity>)
-    uintptr_t operator()(Entity&& s) const {
-        return reinterpret_cast<uintptr_t>(nullptr);
+    void* operator()(Entity&& s) const {
+        return nullptr;
     }
 };
+
+// Ask the receiver to start its work early if this is practical
+struct _start_eagerly_fn {
+    template(typename Entity)
+        (requires tag_invocable<_start_eagerly_fn, Entity>)
+    bool operator()(Entity&& e) const
+        noexcept(is_nothrow_tag_invocable_v<_get_fifo_context_fn, Entity>) {
+        return tag_invoke(_start_eagerly_fn{}, (Entity&&)e);
+    }
+
+    template(typename Entity)
+        (requires !tag_invocable<_start_eagerly_fn, Entity>)
+    bool operator()(Entity&& s) const {
+      std::cout << "\tDefault start_eagerly returning false\n";
+      return false;
+    }
+};
+
 
 } // namespace _fifo_support
 
 inline constexpr _fifo_support::_get_fifo_context_fn get_fifo_context{};
+inline constexpr _fifo_support::_start_eagerly_fn start_eagerly{};
 
 } // namespace unifex
 
