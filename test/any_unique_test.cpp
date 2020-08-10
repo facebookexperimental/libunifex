@@ -16,31 +16,28 @@
 #include <unifex/any_unique.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/memory_resource.hpp>
+#include <unifex/type_index.hpp>
 
 #include <cassert>
 #include <string>
-#include <typeindex>
 #include <atomic>
 
 #include <gtest/gtest.h>
 
-template <typename T>
-using is_type_index = std::is_same<std::type_index, T>;
-
 inline constexpr struct get_typeid_cpo {
   using type_erased_signature_t =
-      std::type_index(const unifex::this_&) noexcept;
+      unifex::type_index(const unifex::this_&) noexcept;
 
   template <typename T>
-  friend std::type_index tag_invoke(get_typeid_cpo, const T& x) {
-    return typeid(x);
+  friend unifex::type_index tag_invoke(get_typeid_cpo, const T& x) {
+    return unifex::type_id<T>();
   }
 
   template <typename T>
   auto operator()(const T& x) const noexcept ->
       unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
     static_assert(
-      std::is_same_v<std::type_index, unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
+      std::is_same_v<unifex::type_index, unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);
   }
 } get_typeid;
@@ -92,20 +89,20 @@ using B = unifex::any_unique_t<>;
 TEST(AnyUniqueTest, WithTypeid) {
   const ::A a = std::string{"hello"};
   auto id = get_typeid(a);
-  EXPECT_EQ(id, typeid(std::string));
+  EXPECT_EQ(id, unifex::type_id<std::string>());
 }
 
 TEST(AnyUniqueTest, WithoutTypeid) {
   const ::B b = std::string{"hello"};
   auto id = get_typeid(b);
-  EXPECT_EQ(id, typeid(B));
+  EXPECT_EQ(id, unifex::type_id<B>());
 }
 
 TEST(AnyUniqueTest, TestDestructor) {
   bool hasDestructorRun = false;
   {
     const A a{std::in_place_type<destructor>, hasDestructorRun};
-    EXPECT_EQ(get_typeid(a), typeid(destructor));
+    EXPECT_EQ(get_typeid(a), unifex::type_id<destructor>());
     EXPECT_FALSE(hasDestructorRun);
   }
   EXPECT_TRUE(hasDestructorRun);
