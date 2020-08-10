@@ -103,26 +103,10 @@
 #endif
 #endif
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#  if defined(_CPPRTTI)
-#    define UNIFEX_NO_RTTI 0
-#  else
-#    define UNIFEX_NO_RTTI 1
-#  endif
-#elif defined(__clang__)
-#  if __has_feature(cxx_rtti)
-#    define UNIFEX_NO_RTTI 0
-#  else
-#    define UNIFEX_NO_RTTI 1
-#  endif
-#elif defined(__GNUC__)
-#  if defined(__GXX_RTTI)
-#    define UNIFEX_NO_RTTI 0
-#  else
-#    define UNIFEX_NO_RTTI 1
-#  endif
-#else
+#if __cpp_rtti >= 199711
 #  define UNIFEX_NO_RTTI 0
+#else
+#  define UNIFEX_NO_RTTI 1
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
