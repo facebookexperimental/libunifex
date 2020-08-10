@@ -149,8 +149,12 @@ namespace unifex
         // to start it now.
         // The FIFO queue will handle this.
         bool expectedNotStarted = false;
-        if(op_ && op_->started_.compare_exchange_strong(expectedNotStarted, true)) {
+        if(op_ && op_->succStarted_.compare_exchange_strong(expectedNotStarted, true)) {
           std::cout << "\tTraditional start\n";
+
+          // End lifetime of predecessor
+          op_->predOp_.destruct();
+          op_->predecessor_operation_constructed = false;
           startWork();
         }
       }
@@ -180,7 +184,7 @@ namespace unifex
         // set_value will not also start it and then start it.
         bool expectedNotStarted = false;
         if(rec.op_ &&
-           rec.op_->started_.compare_exchange_strong(expectedNotStarted, true)) {
+           rec.op_->succStarted_.compare_exchange_strong(expectedNotStarted, true)) {
           std::cout << "\tEager start\n";
           rec.startWork();
           return true;
@@ -219,28 +223,24 @@ namespace unifex
         // destroying *this.
         using successor_receiver_t =
             successor_receiver<Predecessor, Successor, Receiver>;
-
-        auto* op = op_;
-        op->status_ = operation_type::status::empty;
-        unifex::deactivate_union_member(op->predOp_);
         if constexpr (is_nothrow_connectable_v<Successor, successor_receiver_t>) {
-          unifex::activate_union_member_from(op->succOp_, [&]() noexcept {
+          op_->succOp_.construct_from([&]() noexcept {
             return unifex::connect(
-                static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
+                static_cast<Successor&&>(op_->successor_), successor_receiver_t{op_});
           });
-          op->status_ = operation_type::status::successor_operation_constructed;
-          unifex::start(op->succOp_.get());
+          op_->successor_operation_constructed = true;
+          unifex::start(op_->succOp_.get());
         } else {
           try {
-            unifex::activate_union_member_from(op->succOp_, [&] {
+            op_->succOp_.construct_from([&] {
               return unifex::connect(
-                  static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
+                  static_cast<Successor&&>(op_->successor_), successor_receiver_t{op_});
             });
-            op->status_ = operation_type::status::successor_operation_constructed;
-            unifex::start(op->succOp_.get());
+            op_->successor_operation_constructed = true;
+            unifex::start(op_->succOp_.get());
           } catch (...) {
             unifex::set_error(
-                static_cast<Receiver&&>(op->receiver_),
+                static_cast<Receiver&&>(op_->receiver_),
                 std::current_exception());
           }
         }
@@ -260,9 +260,10 @@ namespace unifex
           Receiver2&& receiver)
         : successor_(static_cast<Successor2&&>(successor))
         , receiver_(static_cast<Receiver&&>(receiver))
-        , status_(status::predecessor_operation_constructed)
-        , started_{false} {
-        unifex::activate_union_member_from(predOp_, [&] {
+        , predecessor_operation_constructed{true}
+        , successor_operation_constructed{false}
+        , succStarted_{false} {
+        predOp_.construct_from([&] {
           return unifex::connect(
               static_cast<Predecessor&&>(predecessor),
               predecessor_receiver<Predecessor, Successor, Receiver>{this});
@@ -270,19 +271,16 @@ namespace unifex
       }
 
       ~type() {
-        switch (status_) {
-          case status::predecessor_operation_constructed:
-            unifex::deactivate_union_member(predOp_);
-            break;
-          case status::successor_operation_constructed:
-            unifex::deactivate_union_member(succOp_);
-            break;
-          case status::empty: break;
+        if(predecessor_operation_constructed) {
+          predOp_.destruct();
+        }
+        if(successor_operation_constructed) {
+          succOp_.destruct();
         }
       }
 
       void start() & noexcept {
-        assert(status_ == status::predecessor_operation_constructed);
+        assert(predecessor_operation_constructed);
         unifex::start(predOp_.get());
       }
 
@@ -298,23 +296,20 @@ namespace unifex
 
       Successor successor_;
       Receiver receiver_;
-      enum class status {
-        empty,
-        predecessor_operation_constructed,
-        successor_operation_constructed
-      };
-      status status_;
-      union {
-        manual_lifetime<connect_result_t<
-            Predecessor,
-            predecessor_receiver<Predecessor, Successor, Receiver>>>
-            predOp_;
-        manual_lifetime<connect_result_t<
-            Successor,
-            successor_receiver<Predecessor, Successor, Receiver>>>
-            succOp_;
-      };
-      std::atomic<bool> started_;
+      bool predecessor_operation_constructed;
+      bool successor_operation_constructed;
+
+      // FIFO_CHANGES: No union as to allow eager starting both
+      // must be alive simultaneously.
+      manual_lifetime<connect_result_t<
+          Predecessor,
+          predecessor_receiver<Predecessor, Successor, Receiver>>>
+          predOp_;
+      manual_lifetime<connect_result_t<
+          Successor,
+          successor_receiver<Predecessor, Successor, Receiver>>>
+          succOp_;
+      std::atomic<bool> succStarted_;
     };
 
     template <typename Predecessor, typename Successor>
