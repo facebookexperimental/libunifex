@@ -56,7 +56,7 @@ public:
         _compose_with_target_fn{}, (Cpo &&) cpo, (ArgN &&) argN...);
   }
   template(typename Cpo, typename... ArgN)
-    (requires !tag_invocable<_compose_with_target_fn, Cpo, ArgN...>)
+    (requires (!tag_invocable<_compose_with_target_fn, Cpo, ArgN...>))
   auto operator()(Cpo&& cpo, ArgN&&... argN) const 
       noexcept(
           std::is_nothrow_constructible_v<std::tuple<remove_cvref_t<ArgN>...>, ArgN...> &&
