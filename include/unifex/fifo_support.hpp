@@ -45,16 +45,15 @@ struct _get_fifo_context_fn {
 struct _start_eagerly_fn {
     template(typename Entity)
         (requires tag_invocable<_start_eagerly_fn, Entity>)
-    bool operator()(Entity&& e) const
+    void operator()(Entity&& e) const
         noexcept(is_nothrow_tag_invocable_v<_get_fifo_context_fn, Entity>) {
-        return tag_invoke(_start_eagerly_fn{}, (Entity&&)e);
+        tag_invoke(_start_eagerly_fn{}, (Entity&&)e);
     }
 
     template(typename Entity)
         (requires !tag_invocable<_start_eagerly_fn, Entity>)
-    bool operator()(Entity&& s) const {
-      std::cout << "\tDefault start_eagerly returning false\n";
-      return false;
+    void operator()(Entity&& s) const {
+      std::cout << "\tDefault start_eagerly is a no-op\n";
     }
 };
 

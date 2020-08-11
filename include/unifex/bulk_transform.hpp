@@ -125,8 +125,8 @@ public:
     }
 
     // FIFO_CHANGES: Forward through start eagerly requests
-    friend bool tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
-        return start_eagerly(rec.receiver_);
+    friend void tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+        start_eagerly(rec.receiver_);
     }
 
 private:

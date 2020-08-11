@@ -93,8 +93,8 @@ public:
     }
 
     // FIFO_CHANGES: Forward through start eagerly requests
-    friend bool tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
-        return start_eagerly(rec.receiver_);
+    friend void tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+        start_eagerly(rec.receiver_);
     }
 
 private:
@@ -238,9 +238,11 @@ class _bulk_op<Receiver, Integral>::type final : task_base {
   using stop_token_type = stop_token_type_t<Receiver&>;
 
  public:
+  // If eager is true assume that downstream work will have been submitted in a queue
+  // and set_value need not be called
   template <typename Receiver2>
-  explicit type(Receiver2&& receiver, Integral count, context* loop)
-    : receiver_((Receiver2 &&) receiver), count_(count), loop_(loop) {}
+  explicit type(Receiver2&& receiver, Integral count, context* loop, bool eager)
+    : receiver_((Receiver2 &&) receiver), count_(count), loop_(loop), eager_(eager) {}
 
   void start() noexcept;
 
@@ -257,11 +259,16 @@ class _bulk_op<Receiver, Integral>::type final : task_base {
           unifex::set_next(receiver_, Integral(i));
       }
 
-      // FIFO_CHANGES TODO: Drop this set_value call on eager start
-      // which probably means moving the eagerness in here from
-      // the manual event loop, which is easier once
-      // this merges in.
-      unifex::set_value(std::move(receiver_));
+      // FIFO_CHANGES TODO: If this task is eager the downstream work was submitted in the same
+      // queue so no need to call set_value.
+      // Note that this could be handled in other ways. We could separate set_value into a different
+      // task that shares state and where one owns and the other references the receiver,
+      // and either enqueue the set_value task it or not, for example.
+      // With a separate enqueue it could run on a CPU queue, dependent on the GPU task, only at the
+      // end of the chain, for example.
+      if(!eager_) {
+        unifex::set_value(std::move(receiver_));
+      }
     } else {
       if (get_stop_token(receiver_).stop_requested()) {
         unifex::set_done(std::move(receiver_));
@@ -276,11 +283,16 @@ class _bulk_op<Receiver, Integral>::type final : task_base {
             unifex::set_next(receiver_, Integral(i));
         }
 
-        // FIFO_CHANGES TODO: Drop this set_value call on eager start
-        // which probably means moving the eagerness in here from
-        // the manual event loop, which is easier once
-        // this merges in.
-        unifex::set_value(std::move(receiver_));
+        // FIFO_CHANGES TODO: If this task is eager the downstream work was submitted in the same
+        // queue so no need to call set_value.
+        // Note that this could be handled in other ways. We could separate set_value into a different
+        // task that shares state and where one owns and the other references the receiver,
+        // and either enqueue the set_value task it or not, for example.
+        // With a separate enqueue it could run on a CPU queue, dependent on the GPU task, only at the
+        // end of the chain, for example.
+        if(!eager_) {
+          unifex::set_value(std::move(receiver_));
+        }
       }
     }
   }
@@ -288,6 +300,7 @@ class _bulk_op<Receiver, Integral>::type final : task_base {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   Integral count_;
   context* const loop_;
+  bool eager_;
 };
 
 class context {
@@ -361,7 +374,10 @@ class context {
       template <typename Receiver>
       bulk_operation<Receiver, Integral> connect(Receiver&& receiver) const& {
         std::cout << "Connecting fifo_manual_event_loop to a receiver. get_fifo_context(receiver): " << unifex::get_fifo_context(receiver) << "\n";
-        return bulk_operation<Receiver, Integral>{(Receiver &&) receiver, count_, loop_};
+
+        // Construct the bulk operation with eager start if possible
+        bool isEager = get_fifo_context(receiver) == loop_;
+        return bulk_operation<Receiver, Integral>{(Receiver &&) receiver, count_, loop_, isEager};
       }
 
       // FIFO_CHANGES: This is a fifo context, return its loop_ as an id
@@ -442,12 +458,9 @@ inline void _bulk_op<Receiver, Integral>::type::start() noexcept {
   std::cout << "After enqueue\n";
   // FIFO_CHANGES: If the work is due to be submitted on this context,
   // enqueue it as well
-  if(get_fifo_context(receiver_) == loop_) {
+  if(eager_) {
     std::cout << "start() trying eager enqueue\n";
-    auto started = start_eagerly(receiver_);
-    if(started) {
-      std::cout << "Work started eagerly\n";
-    }
+    start_eagerly(receiver_);
   }
 }
 

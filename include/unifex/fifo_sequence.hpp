@@ -179,7 +179,7 @@ namespace unifex
 
       // FIFO_CHANGES: Connect and start the sender and flag it sao that
       // set_value does not start it.
-      friend bool tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+      friend void tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
         // FIFO_CHANGES: If this work is to be started eagerly, ensure that
         // set_value will not also start it and then start it.
         bool expectedNotStarted = false;
@@ -187,9 +187,7 @@ namespace unifex
            rec.op_->succStarted_.compare_exchange_strong(expectedNotStarted, true)) {
           std::cout << "\tEager start\n";
           rec.startWork();
-          return true;
         }
-        return false;
       }
 
     private:
