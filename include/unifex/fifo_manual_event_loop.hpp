@@ -103,15 +103,15 @@ private:
 };
 
 template<typename Scheduler, typename Integral>
-struct _default_sender {
+struct _fifo_bulk_sender {
     class type;
 };
 
 template<typename Scheduler, typename Integral>
-using default_sender = typename _default_sender<Scheduler, Integral>::type;
+using fifo_bulk_sender = typename _fifo_bulk_sender<Scheduler, Integral>::type;
 
 template<typename Scheduler, typename Integral>
-class _default_sender<Scheduler, Integral>::type {
+class _fifo_bulk_sender<Scheduler, Integral>::type {
     using schedule_sender_t =
         decltype(unifex::schedule(UNIFEX_DECLVAL(const Scheduler&)));
 
@@ -174,13 +174,14 @@ struct _fn {
         noexcept(
             std::is_nothrow_constructible_v<remove_cvref_t<Scheduler>, Scheduler> &&
             std::is_nothrow_move_constructible_v<Integral>)
-        -> default_sender<remove_cvref_t<Scheduler>, Integral> {
-        return default_sender<remove_cvref_t<Scheduler>, Integral>{(Scheduler&&)s, std::move(n)};
+        -> fifo_bulk_sender<remove_cvref_t<Scheduler>, Integral> {
+        return fifo_bulk_sender<remove_cvref_t<Scheduler>, Integral>{(Scheduler&&)s, std::move(n)};
     }
 };
 
 } // namespace _fifo_bulk_schedule
 
+// TODO: FIlling in bulk below
 
 namespace _fifo_manual_event_loop {
 class context;
@@ -225,9 +226,75 @@ class _op<Receiver>::type final : task_base {
   context* const loop_;
 };
 
+template <typename Receiver, typename Integral>
+struct _bulk_op {
+  class type;
+};
+template <typename Receiver, typename Integral>
+using bulk_operation = typename _bulk_op<remove_cvref_t<Receiver>, remove_cvref_t<Integral>>::type;
+
+template <typename Receiver, typename Integral>
+class _bulk_op<Receiver, Integral>::type final : task_base {
+  using stop_token_type = stop_token_type_t<Receiver&>;
+
+ public:
+  template <typename Receiver2>
+  explicit type(Receiver2&& receiver, Integral count, context* loop)
+    : receiver_((Receiver2 &&) receiver), count_(count), loop_(loop) {}
+
+  void start() noexcept;
+
+ private:
+  void execute() noexcept override {
+    if constexpr (is_stop_never_possible_v<stop_token_type>) {
+      std::cout << "bulk_execute\n";
+      using policy_t = decltype(get_execution_policy(receiver_));
+      auto stop_token = get_stop_token(receiver_);
+      const bool stop_possible = !is_stop_never_possible_v<decltype(stop_token)> && stop_token.stop_possible();
+
+      // Sequenced version
+      for (Integral i(0); i < count_; ++i) {
+          unifex::set_next(receiver_, Integral(i));
+      }
+
+      // FIFO_CHANGES TODO: Drop this set_value call on eager start
+      // which probably means moving the eagerness in here from
+      // the manual event loop, which is easier once
+      // this merges in.
+      unifex::set_value(std::move(receiver_));
+    } else {
+      if (get_stop_token(receiver_).stop_requested()) {
+        unifex::set_done(std::move(receiver_));
+      } else {
+        std::cout << "bulk_execute\n";
+        using policy_t = decltype(get_execution_policy(receiver_));
+        auto stop_token = get_stop_token(receiver_);
+        const bool stop_possible = !is_stop_never_possible_v<decltype(stop_token)> && stop_token.stop_possible();
+
+        // Sequenced version
+        for (Integral i(0); i < count_; ++i) {
+            unifex::set_next(receiver_, Integral(i));
+        }
+
+        // FIFO_CHANGES TODO: Drop this set_value call on eager start
+        // which probably means moving the eagerness in here from
+        // the manual event loop, which is easier once
+        // this merges in.
+        unifex::set_value(std::move(receiver_));
+      }
+    }
+  }
+
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  Integral count_;
+  context* const loop_;
+};
+
 class context {
   template <class Receiver>
   friend struct _op;
+  template <class Receiver, class Integral>
+  friend struct _bulk_op;
  public:
   class scheduler {
     class schedule_task {
@@ -269,6 +336,50 @@ class context {
       context* const loop_;
     };
 
+    template<typename Integral>
+    class bulk_schedule_task {
+      friend constexpr blocking_kind tag_invoke(
+          tag_t<blocking>,
+          const bulk_schedule_task&) noexcept {
+        return blocking_kind::never;
+      }
+
+     public:
+      template <
+          template <typename...> class Variant,
+          template <typename...> class Tuple>
+      using value_types = Variant<Tuple<>>;
+
+      template<template<typename...> class Variant, template<typename...> class Tuple>
+      using next_types = Variant<Tuple<Integral>>;
+
+      template <template <typename...> class Variant>
+      using error_types = Variant<>;
+
+      static constexpr bool sends_done = true;
+
+      template <typename Receiver>
+      bulk_operation<Receiver, Integral> connect(Receiver&& receiver) const& {
+        std::cout << "Connecting fifo_manual_event_loop to a receiver. get_fifo_context(receiver): " << unifex::get_fifo_context(receiver) << "\n";
+        return bulk_operation<Receiver, Integral>{(Receiver &&) receiver, count_, loop_};
+      }
+
+      // FIFO_CHANGES: This is a fifo context, return its loop_ as an id
+      friend void* tag_invoke(tag_t<get_fifo_context>, bulk_schedule_task& task) noexcept {
+        return task.loop_;
+      }
+
+    private:
+      friend scheduler;
+
+      explicit bulk_schedule_task(Integral count, context* loop) noexcept
+        : count_(count), loop_(loop)
+      {}
+
+      Integral count_;
+      context* const loop_;
+    };
+
     friend context;
 
     explicit scheduler(context* loop) noexcept : loop_(loop) {}
@@ -290,10 +401,10 @@ class context {
       return sched.loop_;
     }
 
+    // FIFO_CHANGES: Customise for bulk_schedule
     template<typename Integral>
     friend auto tag_invoke(tag_t<bulk_schedule>, scheduler& s, Integral n) noexcept {
-      return _fifo_bulk_schedule::default_sender<scheduler, Integral>{
-        s, std::move(n)};
+      return bulk_schedule_task<remove_cvref_t<Integral>>{n, s.loop_};
     }
 
    private:
@@ -320,6 +431,12 @@ class context {
 
 template <typename Receiver>
 inline void _op<Receiver>::type::start() noexcept {
+  std::cout << "start() on manual event loop operation\n";
+  loop_->enqueue(this);
+}
+
+template <typename Receiver, typename Integral>
+inline void _bulk_op<Receiver, Integral>::type::start() noexcept {
   std::cout << "start() on manual event loop operation\n";
   loop_->enqueue(this);
   std::cout << "After enqueue\n";
