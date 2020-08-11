@@ -25,6 +25,8 @@
 #include <cstdio>
 #include <chrono>
 
+#include <gtest/gtest.h>
+
 using namespace std::chrono_literals;
 
 class some_error : public std::exception {
@@ -33,7 +35,7 @@ class some_error : public std::exception {
     }
 };
 
-int main() {
+TEST(retry_when, WorksAsExpected) {
   unifex::timed_single_thread_context ctx;
   auto scheduler = ctx.get_scheduler();
 
@@ -46,7 +48,7 @@ int main() {
 
   int operationCount = 0;
 
-  try {
+  EXPECT_THROW(
     unifex::sync_wait(
       unifex::retry_when(
         unifex::transform(unifex::schedule_after(scheduler, 10ms), [&] {
@@ -62,33 +64,20 @@ int main() {
 
           // Simulate some back-off strategy that increases the timeout.
           return unifex::schedule_after(scheduler, count * 100ms);
-        }));
+        })), some_error);
 
-    // Should have thrown an exception.
-    std::printf("error: operation should have failed with an exception\n");
-    return 1;
-  } catch (const some_error&) {
-    std::printf("[%d] caught some_error in main()\n", (int)timeSinceStartInMs());
-  }
-
-  const int expectedDurationInMs = 
+  const int expectedDurationInMs =
     10 +
     (100 + 10) +
     (200 + 10) +
     (300 + 10) +
-    (400 + 10) + 
+    (400 + 10) +
     (500 + 10);
 
   const auto elapsedDurationInMs = timeSinceStartInMs();
-  if (elapsedDurationInMs < expectedDurationInMs) {
-      std::printf("error: operation completed sooner than expected\n");
-      return 2;
-  }
+  EXPECT_GE(elapsedDurationInMs, expectedDurationInMs)
+      << "error: operation completed sooner than expected";
 
-  if (operationCount != 6) {
-      std::printf("error: operation should have executed 6 times\n");
-      return 3;
-  }
-
-  return 0;
+  EXPECT_EQ(operationCount, 6)
+      << "error: operation should have executed 6 times";
 }
