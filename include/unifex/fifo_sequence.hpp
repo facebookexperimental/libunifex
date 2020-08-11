@@ -118,6 +118,17 @@ namespace unifex
         return op_->receiver_;
       }
 
+      // FIFO_CHANGES: This is a fifo receiver if the next operation is too
+      friend void* tag_invoke(tag_t<get_fifo_context>, type& rec) noexcept {
+        std::cout << "get_fifo_context\n";
+        return unifex::get_fifo_context(rec.op_->receiver_);
+      }
+
+      // FIFO_CHANGES: Propagate eager start to the downstream receiver
+      friend void tag_invoke(tag_t<start_eagerly>, type& rec) noexcept {
+        start_eagerly(rec.op_->receiver_);
+      }
+
       operation_type* op_;
     };
 
@@ -174,6 +185,7 @@ namespace unifex
       // FIFO_CHANGES: This is a fifo receiver if the sender it is going to dispatch
       // is also on a fifo context
       friend void* tag_invoke(tag_t<get_fifo_context>, type& rec) noexcept {
+        std::cout << "get_fifo_context\n";
         return unifex::get_fifo_context(rec.op_->successor_);
       }
 

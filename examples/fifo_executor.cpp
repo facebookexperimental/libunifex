@@ -49,7 +49,15 @@ int main() {
           bulk_join(
             bulk_transform(
               bulk_schedule(sched, 2),
-              [](int idx){std::cout << "Transform 2 at " << idx << "\n";}))));
+              [](int idx){std::cout << "Transform 2 at " << idx << "\n";})),
+          bulk_join(
+            bulk_transform(
+              bulk_schedule(sched, 2),
+              [](int idx){std::cout << "Transform 3 at " << idx << "\n";})),
+          bulk_join(
+            bulk_transform(
+              bulk_schedule(sched, 2),
+              [](int idx){std::cout << "Transform 4 at " << idx << "\n";}))));
 
     std::cout << "On normal single thread context with eager fifo scheduling\n";
     std::cout << "Fifo context: " << unifex::get_fifo_context(fifo_sched) << "\n";
@@ -65,11 +73,19 @@ int main() {
           bulk_join(
             bulk_transform(
               bulk_schedule(fifo_sched, 2),
-              [](int idx){std::cout << "Transform 3 at " << idx << "\n";})),
+              [](int idx){std::cout << "Transform 5 at " << idx << "\n";})),
           bulk_join(
             bulk_transform(
               bulk_schedule(fifo_sched, 2),
-              [](int idx){std::cout << "Transform 4 at " << idx << "\n";}))));
+              [](int idx){std::cout << "Transform 6 at " << idx << "\n";})),
+          bulk_join(
+            bulk_transform(
+              bulk_schedule(fifo_sched, 2),
+              [](int idx){std::cout << "Transform 7 at " << idx << "\n";})),
+          bulk_join(
+            bulk_transform(
+              bulk_schedule(fifo_sched, 2),
+              [](int idx){std::cout << "Transform 8 at " << idx << "\n";}))));
 
     {
       auto compound_sender =
