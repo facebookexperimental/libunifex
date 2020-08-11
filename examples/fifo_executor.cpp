@@ -61,13 +61,18 @@ int main() {
 
     std::cout << "On normal single thread context with eager fifo scheduling\n";
     std::cout << "Fifo context: " << unifex::get_fifo_context(fifo_sched) << "\n";
-    // The renamed algorithms here are for simplicity
-    // We should actually have each algorithm being called via tag_invoke against
-    // the previous sender, with the current implementation as the default.
-    // That way each customised algorithm is just a tag_invoke hook point
-    // on each other fifo algorithm from the initial sender.
-    // These will be replaced with tag_invokes and the public CPO be hidden once
-    // this works.
+    // This enqueues eagerly by making an internal decision based on matching fifo
+    // contexts, and then takes into account the fifo assumption to not call set_next.
+    // bulk_schedule is customised for fifo_sched.
+    // fifo_sequence is a customisation of sequence that I've called out explicitly here
+    // to avoid noisily adding tag_invoke calls throughout.
+    // I think what we would actually want to do here is implement tag_invoke for each
+    // bulk algorithm to trivially wrap the returned sender in a wrapper that can
+    // be used to trigger the next customisation.
+    // That way we can call "sequence" here instead of fifo sequence and use the
+    // customisation underneath.
+    // That's the customisation machinery though, independent of the point about
+    // creating a fifo operation.
     sync_wait(
         fifo_sequence(
           bulk_join(
