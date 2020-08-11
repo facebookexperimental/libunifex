@@ -54,10 +54,12 @@ namespace {
     template <typename Receiver>
     struct _op {
       Receiver r_;
-      void start() & noexcept try {
-        set_value((Receiver&&) r_);
-      } catch(...) {
-        set_error((Receiver&&) r_, std::current_exception());
+      void start() & noexcept {
+        try {
+          set_value((Receiver&&) r_);
+        } catch(...) {
+          set_error((Receiver&&) r_, std::current_exception());
+        }
       }
     };
   public:
