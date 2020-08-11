@@ -20,7 +20,6 @@
 #include <unifex/fifo_support.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/bulk_schedule.hpp>
-#include <unifex/fifo_bulk_schedule.hpp>
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_join.hpp>
 #include <unifex/sync_wait.hpp>
@@ -65,18 +64,18 @@ int main() {
         fifo_sequence(
           bulk_join(
             bulk_transform(
-              fifo_bulk_schedule(fifo_sched, 2),
+              bulk_schedule(fifo_sched, 2),
               [](int idx){std::cout << "Transform 3 at " << idx << "\n";})),
           bulk_join(
             bulk_transform(
-              fifo_bulk_schedule(fifo_sched, 2),
+              bulk_schedule(fifo_sched, 2),
               [](int idx){std::cout << "Transform 4 at " << idx << "\n";}))));
 
     {
       auto compound_sender =
         bulk_join(
           bulk_transform(
-            fifo_bulk_schedule(fifo_sched, 2),
+            bulk_schedule(fifo_sched, 2),
             [](int idx){std::cout << "Transform 3 at " << idx << "\n";}));
       std::cout <<
         "Fifo context of a compound fifo sender: " <<
