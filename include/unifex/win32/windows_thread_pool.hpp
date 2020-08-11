@@ -156,11 +156,17 @@ private:
         if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(op.receiver_));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
             try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
                 unifex::set_value(std::move(op.receiver_));
+
+#if !UNIFEX_NO_EXCEPTIONS
             } catch (...) {
                 unifex::set_error(std::move(op.receiver_), std::current_exception());
             }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
     }
 
@@ -404,11 +410,17 @@ private:
         if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(receiver_));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
             try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
                 unifex::set_value(std::move(receiver_));
+
+#if !UNIFEX_NO_EXCEPTIONS
             } catch (...) {
                 unifex::set_error(std::move(receiver_), std::current_exception());
             }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
     }
 
@@ -663,11 +675,17 @@ private:
         if constexpr (unifex::is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(receiver_));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
             try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
                 unifex::set_value(std::move(receiver_));
+
+#if !UNIFEX_NO_EXCEPTIONS
             } catch (...) {
                 unifex::set_error(std::move(receiver_), std::current_exception());
             }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
     }
 
@@ -741,11 +759,17 @@ private:
         if constexpr (unifex::is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(receiver_));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
             try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
                 unifex::set_value(std::move(receiver_));
+
+#if !UNIFEX_NO_EXCEPTIONS
             } catch (...) {
                 unifex::set_error(std::move(receiver_), std::current_exception());
             }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
     }
 

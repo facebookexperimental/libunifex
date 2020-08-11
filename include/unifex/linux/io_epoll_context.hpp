@@ -211,12 +211,18 @@ class io_epoll_context::schedule_sender {
   class operation : private operation_base {
    public:
     void start() noexcept {
+#if !UNIFEX_NO_EXCEPTIONS
       try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
         context_.schedule_impl(this);
+
+#if !UNIFEX_NO_EXCEPTIONS
       } catch (...) {
         unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
+#endif // !UNIFEX_NO_EXCEPTIONS
     }
 
    private:
@@ -239,12 +245,18 @@ class io_epoll_context::schedule_sender {
       if constexpr (is_nothrow_receiver_of_v<Receiver>) {
         unifex::set_value(static_cast<Receiver&&>(op.receiver_));
       } else {
+#if !UNIFEX_NO_EXCEPTIONS
         try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
           unifex::set_value(static_cast<Receiver&&>(op.receiver_));
+
+#if !UNIFEX_NO_EXCEPTIONS
         } catch (...) {
           unifex::set_error(
               static_cast<Receiver&&>(op.receiver_), std::current_exception());
         }
+#endif // !UNIFEX_NO_EXCEPTIONS
       }
     }
 
@@ -332,11 +344,17 @@ class io_epoll_context::schedule_at_sender {
       if constexpr (is_nothrow_receiver_of_v<Receiver>) {
         unifex::set_value(std::move(timerOp).receiver_);
       } else {
+#if !UNIFEX_NO_EXCEPTIONS
         try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
           unifex::set_value(std::move(timerOp).receiver_);
+
+#if !UNIFEX_NO_EXCEPTIONS
         } catch (...) {
           unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
         }
+#endif // !UNIFEX_NO_EXCEPTIONS
       }
     }
 
@@ -578,11 +596,17 @@ class io_epoll_context::read_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(receiver_), ssize_t(result));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             unifex::set_value(std::move(receiver_), ssize_t(result));
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
       } else {
         unifex::set_error(
@@ -619,11 +643,17 @@ class io_epoll_context::read_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(self).receiver_, ssize_t(result));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             unifex::set_value(std::move(self).receiver_, ssize_t(result));
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             unifex::set_error(std::move(self).receiver_, std::current_exception());
           }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
       } else {
         unifex::set_error(
@@ -789,11 +819,17 @@ class io_epoll_context::write_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(receiver_), ssize_t(result));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             unifex::set_value(std::move(receiver_), ssize_t(result));
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
       } else {
         unifex::set_error(
@@ -830,11 +866,17 @@ class io_epoll_context::write_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(self).receiver_, ssize_t(result));
         } else {
+#if !UNIFEX_NO_EXCEPTIONS
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             unifex::set_value(std::move(self).receiver_, ssize_t(result));
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             unifex::set_error(std::move(self).receiver_, std::current_exception());
           }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
       } else {
         unifex::set_error(

@@ -95,7 +95,10 @@ public:
       op->startedOp_ = 0 - 1;
       unifex::start(op->finalOp_.get());
     } else {
+#if !UNIFEX_NO_EXCEPTIONS
       try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
         op->startedOp_ = 0;
         unifex::deactivate_union_member(op->sourceOp_);
         unifex::activate_union_member_from(op->finalOp_, [&] {
@@ -103,9 +106,12 @@ public:
         });
         op->startedOp_ = 0 - 1;
         unifex::start(op->finalOp_.get());
+
+#if !UNIFEX_NO_EXCEPTIONS
       } catch (...) {
         unifex::set_error(std::move(op->receiver_), std::current_exception());
       }
+#endif // !UNIFEX_NO_EXCEPTIONS
     }
   }
 

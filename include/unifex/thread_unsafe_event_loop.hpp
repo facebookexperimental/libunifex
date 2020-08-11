@@ -286,13 +286,19 @@ namespace _thread_unsafe_event_loop {
      public:
       template <typename... Values>
       void set_value(Values&&... values) && noexcept {
+#if !UNIFEX_NO_EXCEPTIONS
         try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
           unifex::activate_union_member(promise_.value_, (Values &&) values...);
           promise_.state_ = state::value;
+
+#if !UNIFEX_NO_EXCEPTIONS
         } catch (...) {
           unifex::activate_union_member(promise_.exception_, std::current_exception());
           promise_.state_ = state::error;
         }
+#endif // !UNIFEX_NO_EXCEPTIONS
       }
 
       void set_error(std::exception_ptr ex) && noexcept {

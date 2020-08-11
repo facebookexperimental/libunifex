@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#include <unifex/config.hpp>
+
+#if !UNIFEX_NO_EXCEPTIONS
+
 #include <unifex/retry_when.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
@@ -81,3 +85,5 @@ TEST(retry_when, WorksAsExpected) {
   EXPECT_EQ(operationCount, 6)
       << "error: operation should have executed 6 times";
 }
+
+#endif // !UNIFEX_NO_EXCEPTIONS

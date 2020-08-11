@@ -164,16 +164,23 @@ struct _stream<SourceStream, TriggerStream>::type {
         void start() noexcept {
           if (!stream_.triggerNextStarted_) {
             stream_.triggerNextStarted_ = true;
+
+#if !UNIFEX_NO_EXCEPTIONS
             try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
               stream_.triggerNextOp_.construct_from([&] {
                 return unifex::connect(
                   next(stream_.trigger_),
                   trigger_next_receiver{stream_});
               });
               unifex::start(stream_.triggerNextOp_.get());
+
+#if !UNIFEX_NO_EXCEPTIONS
             } catch (...) {
               stream_.trigger_next_done();
             }
+#endif // !UNIFEX_NO_EXCEPTIONS
           }
 
           stopCallback_.construct(
@@ -286,16 +293,22 @@ struct _stream<SourceStream, TriggerStream>::type {
         {}
 
         void start() noexcept {
+#if !UNIFEX_NO_EXCEPTIONS
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             sourceOp_.construct_from([&] {
               return unifex::connect(
                 cleanup(stream_.source_),
                 source_receiver{*this});
             });
             unifex::start(sourceOp_.get());
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             source_cleanup_error(std::current_exception());
           }
+#endif // !UNIFEX_NO_EXCEPTIONS
 
           if (!stream_.cleanupReady_.load(std::memory_order_acquire)) {
             stream_.cleanupOperation_ = this;
@@ -312,17 +325,23 @@ struct _stream<SourceStream, TriggerStream>::type {
         }
 
         void start_trigger_cleanup() noexcept final {
+#if !UNIFEX_NO_EXCEPTIONS
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             triggerOp_.construct_from([&] {
               return unifex::connect(
                 cleanup(stream_.trigger_),
                 trigger_receiver{*this});
             });
             unifex::start(triggerOp_.get());
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             trigger_cleanup_error(std::current_exception());
             return;
           }
+#endif // !UNIFEX_NO_EXCEPTIONS
         }
 
         void source_cleanup_done() noexcept {

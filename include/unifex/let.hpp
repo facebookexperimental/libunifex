@@ -56,12 +56,18 @@ struct _successor_receiver<Operation, Values...>::type {
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
     cleanup();
+#if !UNIFEX_NO_EXCEPTIONS
     try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
       unifex::set_value(
           std::move(op_.receiver_), (SuccessorValues &&) values...);
+
+#if !UNIFEX_NO_EXCEPTIONS
     } catch (...) {
       unifex::set_error(std::move(op_.receiver_), std::current_exception());
     }
+#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   void set_done() && noexcept {
@@ -125,7 +131,10 @@ struct _predecessor_receiver<Operation>::type {
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
     auto& op = op_;
+#if !UNIFEX_NO_EXCEPTIONS
     try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
       scope_guard destroyPredOp =
         [&]() noexcept { unifex::deactivate_union_member(op.predOp_); };
       auto& valueTuple =
@@ -144,9 +153,12 @@ struct _predecessor_receiver<Operation>::type {
             });
       unifex::start(succOp);
       destroyValues.release();
+
+#if !UNIFEX_NO_EXCEPTIONS
     } catch (...) {
       unifex::set_error(std::move(op.receiver_), std::current_exception());
     }
+#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   void set_done() && noexcept {

@@ -232,7 +232,10 @@ namespace unifex
       }
 
       void deliver_result() noexcept {
+#if !UNIFEX_NO_EXCEPTIONS
         try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
           std::visit(
               [this](auto&& tuple) {
                 if constexpr (
@@ -251,9 +254,12 @@ namespace unifex
                 }
               },
               std::move(result_));
+
+#if !UNIFEX_NO_EXCEPTIONS
         } catch (...) {
           unifex::set_error(std::move(receiver_), std::current_exception());
         }
+#endif // !UNIFEX_NO_EXCEPTIONS
       }
 
       template <typename... Values>

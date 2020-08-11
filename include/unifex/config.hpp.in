@@ -125,6 +125,12 @@
 #  define UNIFEX_NO_RTTI 0
 #endif
 
+#if __cpp_exceptions >= 199711
+#  define UNIFEX_NO_EXCEPTIONS 0
+#else
+#  define UNIFEX_NO_EXCEPTIONS 1
+#endif
+
 #if defined(_MSC_VER) && !defined(__clang__)
   #define UNIFEX_DIAGNOSTIC_PUSH __pragma(warning(push))
   #define UNIFEX_DIAGNOSTIC_POP __pragma(warning(pop))

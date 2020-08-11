@@ -176,12 +176,18 @@ namespace _async_trace {
       Receiver receiver_;
 
       void start() noexcept {
+#if !UNIFEX_NO_EXCEPTIONS
         try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
           auto trace = async_trace(receiver_);
           unifex::set_value(std::move(receiver_), std::move(trace));
+
+#if !UNIFEX_NO_EXCEPTIONS
         } catch (...) {
           unifex::set_error(std::move(receiver_), std::current_exception());
         }
+#endif // !UNIFEX_NO_EXCEPTIONS
       }
     };
   };
