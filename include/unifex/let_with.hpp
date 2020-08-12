@@ -111,21 +111,25 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
         innerOp_;
 };
 
-struct _fn {
-
-    template<typename StateFactory, typename SuccessorFactory>
-    auto operator()(StateFactory&& stateFactory, SuccessorFactory&& successor_factory) const
-        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<SuccessorFactory>, SuccessorFactory> &&
-                 std::is_nothrow_constructible_v<remove_cvref_t<StateFactory>, StateFactory>)
-        -> let_with_sender<remove_cvref_t<StateFactory>, remove_cvref_t<SuccessorFactory>> {
-        return let_with_sender<remove_cvref_t<StateFactory>, remove_cvref_t<SuccessorFactory>>{
-            (StateFactory&&)stateFactory, (SuccessorFactory&&)successor_factory};
-    }
-};
-
 } // namespace _let_with
 
-inline constexpr _let_with::_fn let_with{};
+namespace _let_with_cpo {
+    struct _fn {
+
+        template<typename StateFactory, typename SuccessorFactory>
+        auto operator()(StateFactory&& stateFactory, SuccessorFactory&& successor_factory) const
+            noexcept(std::is_nothrow_constructible_v<remove_cvref_t<SuccessorFactory>, SuccessorFactory> &&
+                    std::is_nothrow_constructible_v<remove_cvref_t<StateFactory>, StateFactory>)
+            -> _let_with::let_with_sender<
+                 remove_cvref_t<StateFactory>, remove_cvref_t<SuccessorFactory>> {
+            return _let_with::let_with_sender<
+                remove_cvref_t<StateFactory>, remove_cvref_t<SuccessorFactory>>{
+                (StateFactory&&)stateFactory, (SuccessorFactory&&)successor_factory};
+        }
+    };
+} // namespace _let_with_cpo
+
+inline constexpr _let_with_cpo::_fn let_with{};
 
 
 } // namespace unifex
