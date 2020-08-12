@@ -30,26 +30,26 @@ namespace unifex {
 namespace _let_with {
 
 template<typename StateFactory, typename InnerOp, typename Receiver>
-struct _let_with_operation {
+struct _operation {
   struct type;
 };
 
 template <typename StateFactory, typename InnerOp, typename Receiver>
-using operation =  typename _let_with_operation<
+using operation =  typename _operation<
     StateFactory, InnerOp, Receiver>::type;
 
 template<typename StateFactory, typename SuccessorFactory>
-struct _let_with_sender {
+struct _sender {
     class type;
 };
 
 template<typename StateFactory, typename SuccessorFactory>
-using let_with_sender = typename _let_with_sender<StateFactory, SuccessorFactory>::type;
+using let_with_sender = typename _sender<StateFactory, SuccessorFactory>::type;
 
 template<typename StateFactory, typename SuccessorFactory>
-class _let_with_sender<StateFactory, SuccessorFactory>::type {
+class _sender<StateFactory, SuccessorFactory>::type {
 public:
-    using InnerOp = std::invoke_result_t<SuccessorFactory, std::invoke_result_t<StateFactory>&>;
+    using InnerOp = std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
     using value_types = typename InnerOp::template value_types<Variant, Tuple>;
@@ -92,7 +92,7 @@ private:
 
 
 template<typename StateFactory, typename SuccessorFactory, typename Receiver>
-struct _let_with_operation<StateFactory, SuccessorFactory, Receiver>::type {
+struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
     type(StateFactory&& stateFactory, SuccessorFactory&& func, Receiver&& r) :
         state_(static_cast<StateFactory&&>(stateFactory)()),
         innerOp_(
