@@ -105,7 +105,7 @@ class _stop_source_sender<SuccessorFactory>::type {
     using additional_arguments = type_list<type_list<Values...>>;
 
 public:
-    using InnerOp = std::invoke_result_t<SuccessorFactory, inplace_stop_source&>;
+    using InnerOp = std::invoke_result_t<SuccessorFactory&&, inplace_stop_source&>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
     using value_types = typename InnerOp::template value_types<Variant, Tuple>;
@@ -153,7 +153,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
             _stop_source_operation_callback(stop_source_)),
         innerOp_(
               unifex::connect(
-                std::move(func_)(stop_source_),
+                ((SuccessorFactory&&)func_)(stop_source_),
                 stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>{
                     *this,
                     static_cast<Receiver&&>(r)})) {
@@ -169,7 +169,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
     UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
-        std::invoke_result_t<SuccessorFactory, unifex::inplace_stop_source&>,
+        std::invoke_result_t<SuccessorFactory&&, unifex::inplace_stop_source&>,
         stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>>
         innerOp_;
 };
