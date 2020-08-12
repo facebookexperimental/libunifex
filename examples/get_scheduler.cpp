@@ -28,20 +28,6 @@
 using namespace unifex;
 using namespace std::chrono_literals;
 
-namespace {
-  struct current_scheduler {
-    auto schedule() const noexcept {
-      return unifex::schedule();
-    }
-    friend bool operator==(current_scheduler, current_scheduler) noexcept {
-      return true;
-    }
-    friend bool operator!=(current_scheduler, current_scheduler) noexcept {
-      return false;
-    }
-  };
-}
-
 int main() {
   timed_single_thread_context ctx;
 
@@ -59,7 +45,7 @@ int main() {
   // composed operations.
   sync_wait(with_query_value(
       transform(
-          for_each(via_stream(current_scheduler{},
+          for_each(via_stream(current_scheduler,
                               transform_stream(range_stream{0, 10},
                                                [](int value) {
                                                  return value * value;

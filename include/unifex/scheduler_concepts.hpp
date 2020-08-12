@@ -337,6 +337,21 @@ namespace _now {
 } // namespace _now
 using _now::now;
 
+namespace _current {
+  inline constexpr struct _scheduler {
+    auto schedule() const noexcept {
+        return unifex::schedule();
+    }
+    friend constexpr bool operator==(_scheduler, _scheduler) noexcept {
+        return true;
+    }
+    friend constexpr bool operator!=(_scheduler, _scheduler) noexcept {
+        return false;
+    }
+  } current_scheduler{};
+}
+using _current::current_scheduler;
+
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
