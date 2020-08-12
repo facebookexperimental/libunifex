@@ -67,15 +67,14 @@ public:
         (requires same_as<remove_cvref_t<Self>, type>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            std::is_nothrow_invocable_v<member_t<Self, StateFactory>> &&
+            is_nothrow_callable_v<member_t<Self, StateFactory>> &&
             std::is_nothrow_invocable_v<
                 member_t<Self, SuccessorFactory>,
-                std::invoke_result_t<member_t<Self, StateFactory>>&> &&
-            std::is_nothrow_invocable_v<
-                decltype(unifex::connect),
+                callable_result_t<member_t<Self, StateFactory>>&> &&
+            is_nothrow_connectable_v<
                 std::invoke_result_t<
                     member_t<Self, SuccessorFactory>,
-                    std::invoke_result_t<member_t<Self, StateFactory>>&>,
+                    callable_result_t<member_t<Self, StateFactory>>&>,
                 remove_cvref_t<Receiver>>) {
 
         return operation<
@@ -105,9 +104,9 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
         unifex::start(innerOp_);
     }
 
-    std::invoke_result_t<StateFactory> state_;
+    callable_result_t<StateFactory> state_;
     connect_result_t<
-        std::invoke_result_t<SuccessorFactory, std::invoke_result_t<StateFactory>&>,
+        std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>,
         remove_cvref_t<Receiver>>
         innerOp_;
 };
