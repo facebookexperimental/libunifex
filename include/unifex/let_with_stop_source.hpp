@@ -153,7 +153,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
             _stop_source_operation_callback(stop_source_)),
         innerOp_(
               unifex::connect(
-                func_(stop_source_),
+                std::move(func_)(stop_source_),
                 stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>{
                     *this,
                     static_cast<Receiver&&>(r)})) {
