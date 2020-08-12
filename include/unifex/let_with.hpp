@@ -64,7 +64,7 @@ public:
     {}
 
     template(typename Self, typename Receiver)
-        (requires same_as<remove_cvref_t<Self>, type>)
+        (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
             is_nothrow_callable_v<member_t<Self, StateFactory>> &&
