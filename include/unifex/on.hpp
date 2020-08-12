@@ -42,10 +42,11 @@ namespace _on {
         (requires sender<Sender> AND scheduler<Scheduler> AND //
           (!tag_invocable<_fn, Sender, Scheduler>))
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
-      return with_query_value(
-          sequence(schedule(), (Sender&&)sender),
+      return sequence(schedule(scheduler),
+        with_query_value(
+          (Sender&&)sender,
           get_scheduler,
-          (Scheduler&&)scheduler);
+          (Scheduler&&)scheduler));
     }
   } on{};
 } // namespace _on
