@@ -42,7 +42,9 @@ namespace _on {
         (requires sender<Sender> AND scheduler<Scheduler> AND //
           (!tag_invocable<_fn, Sender, Scheduler>))
     auto operator()(Sender&& sender, Scheduler&& scheduler) const {
-      return sequence(schedule(scheduler),
+      auto sndr = schedule(scheduler);
+      return sequence(
+        std::move(sndr),
         with_query_value(
           (Sender&&)sender,
           get_scheduler,
