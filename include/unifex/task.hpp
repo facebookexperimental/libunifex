@@ -19,6 +19,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/coroutine_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 
 #if UNIFEX_NO_COROUTINES
