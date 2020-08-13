@@ -24,12 +24,12 @@
 namespace unifex {
   struct enable_operator_composition {
     template (typename Target, typename TargetComposeFn)
-        (requires invocable<TargetComposeFn, Target>)
+        (requires callable<TargetComposeFn, Target>)
     friend auto operator|(Target&& target, TargetComposeFn&& fn) 
       noexcept(
-        std::is_nothrow_invocable_v<TargetComposeFn, Target>) 
-      -> std::invoke_result_t<TargetComposeFn, Target> {
-        return fn((Target&&) target);
+        is_nothrow_callable_v<TargetComposeFn, Target>) 
+      -> callable_result_t<TargetComposeFn, Target> {
+        return ((TargetComposeFn&&)fn)((Target&&) target);
     }
   };
 } // namespace unifex

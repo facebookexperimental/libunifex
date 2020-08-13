@@ -27,6 +27,7 @@ namespace unifex {
 
 inline const struct _compose_with_target_fn {
 private:
+
   template <typename Cpo, typename... ArgN>
   struct apply_target : enable_operator_composition {
     private:
@@ -35,23 +36,32 @@ private:
     template <typename... CN>
     explicit apply_target(CN&&... cn) : argN_((CN&&) cn...) {}
     template(typename Target)
-      (requires invocable<Cpo, Target, ArgN...>)
-    auto operator()(Target&& target) 
+      (requires callable<Cpo, Target, ArgN...>)
+    auto operator()(Target&& target) &&
       noexcept(
-        is_nothrow_tag_invocable_v<Cpo, Target, ArgN...>) 
-      -> std::invoke_result_t<Cpo, Target, ArgN...> {
+        is_nothrow_callable_v<Cpo, Target, ArgN...>) 
+      -> callable_result_t<Cpo, Target, ArgN...> {
       return std::apply([&](auto&&... argN){
         return Cpo{}((Target&&) target, (ArgN&&) argN...);
       }, std::move(argN_));
     }
   };
+
+  template <typename Cpo, typename... ArgN>
+  using _result_t =
+    typename conditional_t<
+      tag_invocable<_compose_with_target_fn, Cpo, ArgN...>,
+      meta_tag_invoke_result<_compose_with_target_fn>,
+      meta_quote1_<apply_target>>::template apply<Cpo, ArgN...>;
+
 public:
+
   template(typename Cpo, typename... ArgN)
     (requires tag_invocable<_compose_with_target_fn, Cpo, ArgN...>)
   auto operator()(Cpo&& cpo, ArgN&&... argN) const
       noexcept(
           is_nothrow_tag_invocable_v<_compose_with_target_fn, Cpo, ArgN...>)
-      -> tag_invoke_result_t<_compose_with_target_fn, Cpo, ArgN...> {
+      -> _result_t<Cpo, ArgN...> {
     return unifex::tag_invoke(
         _compose_with_target_fn{}, (Cpo &&) cpo, (ArgN &&) argN...);
   }
@@ -61,7 +71,7 @@ public:
       noexcept(
           std::is_nothrow_constructible_v<std::tuple<remove_cvref_t<ArgN>...>, ArgN...> &&
           std::is_nothrow_constructible_v<apply_target<Cpo, ArgN...>, std::tuple<remove_cvref_t<ArgN>...>>) 
-      -> apply_target<remove_cvref_t<Cpo>, remove_cvref_t<ArgN>...> {
+      -> _result_t<remove_cvref_t<Cpo>, remove_cvref_t<ArgN>...> {
     return apply_target<remove_cvref_t<Cpo>, remove_cvref_t<ArgN>...>{(ArgN &&) argN...};
   }
 } compose_with_target{};
