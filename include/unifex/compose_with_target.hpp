@@ -47,32 +47,15 @@ private:
     }
   };
 
-  template <typename Cpo, typename... ArgN>
-  using _result_t =
-    typename conditional_t<
-      tag_invocable<_compose_with_target_fn, Cpo, ArgN...>,
-      meta_tag_invoke_result<_compose_with_target_fn>,
-      meta_quote1_<apply_target>>::template apply<Cpo, ArgN...>;
-
 public:
 
-  template(typename Cpo, typename... ArgN)
-    (requires tag_invocable<_compose_with_target_fn, Cpo, ArgN...>)
-  auto operator()(Cpo&& cpo, ArgN&&... argN) const
-      noexcept(
-          is_nothrow_tag_invocable_v<_compose_with_target_fn, Cpo, ArgN...>)
-      -> _result_t<Cpo, ArgN...> {
-    return unifex::tag_invoke(
-        _compose_with_target_fn{}, (Cpo &&) cpo, (ArgN &&) argN...);
-  }
-  template(typename Cpo, typename... ArgN)
-    (requires (!tag_invocable<_compose_with_target_fn, Cpo, ArgN...>))
+  template <typename Cpo, typename... ArgN>
   auto operator()(Cpo&& cpo, ArgN&&... argN) const 
       noexcept(
           std::is_nothrow_constructible_v<std::tuple<remove_cvref_t<ArgN>...>, ArgN...> &&
-          std::is_nothrow_constructible_v<apply_target<Cpo, ArgN...>, std::tuple<remove_cvref_t<ArgN>...>>) 
-      -> _result_t<remove_cvref_t<Cpo>, remove_cvref_t<ArgN>...> {
-    return apply_target<remove_cvref_t<Cpo>, remove_cvref_t<ArgN>...>{(ArgN &&) argN...};
+          std::is_nothrow_constructible_v<apply_target<remove_cvref_t<Cpo>, ArgN...>, std::tuple<remove_cvref_t<ArgN>...>>) 
+      -> apply_target<remove_cvref_t<Cpo>, ArgN...> {
+    return apply_target<remove_cvref_t<Cpo>, ArgN...>{(ArgN &&) argN...};
   }
 } compose_with_target{};
 
