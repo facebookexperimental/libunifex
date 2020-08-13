@@ -72,7 +72,7 @@ public:
                 member_t<Self, SuccessorFactory>,
                 callable_result_t<member_t<Self, StateFactory>>&> &&
             is_nothrow_connectable_v<
-                std::invoke_result_t<
+                callable_result_t<
                     member_t<Self, SuccessorFactory>,
                     callable_result_t<member_t<Self, StateFactory>>&>,
                 remove_cvref_t<Receiver>>) {
@@ -93,10 +93,12 @@ private:
 template<typename StateFactory, typename SuccessorFactory, typename Receiver>
 struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
     type(StateFactory&& stateFactory, SuccessorFactory&& func, Receiver&& r) :
-        state_(static_cast<StateFactory&&>(stateFactory)()),
+        stateFactory_(static_cast<StateFactory&&>(stateFactory)),
+        func_(static_cast<SuccessorFactory&&>(func)),
+        state_(static_cast<StateFactory&&>(stateFactory_)()),
         innerOp_(
               unifex::connect(
-                static_cast<SuccessorFactory&&>(func)(state_),
+                static_cast<SuccessorFactory&&>(func_)(state_),
                 static_cast<Receiver&&>(r))) {
     }
 
@@ -104,9 +106,11 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
         unifex::start(innerOp_);
     }
 
+    StateFactory stateFactory_;
+    SuccessorFactory func_;
     callable_result_t<StateFactory> state_;
     connect_result_t<
-        std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>,
+        callable_result_t<SuccessorFactory, callable_result_t<StateFactory>&>,
         remove_cvref_t<Receiver>>
         innerOp_;
 };
@@ -118,12 +122,12 @@ namespace _let_with_cpo {
 
         template<typename StateFactory, typename SuccessorFactory>
         auto operator()(StateFactory&& stateFactory, SuccessorFactory&& successor_factory) const
-            noexcept(std::is_nothrow_constructible_v<remove_cvref_t<SuccessorFactory>, SuccessorFactory> &&
-                    std::is_nothrow_constructible_v<remove_cvref_t<StateFactory>, StateFactory>)
+            noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory> &&
+                    std::is_nothrow_constructible_v<std::decay_t<StateFactory>, StateFactory>)
             -> _let_with::let_with_sender<
-                 remove_cvref_t<StateFactory>, remove_cvref_t<SuccessorFactory>> {
+                 std::decay_t<StateFactory>, std::decay_t<SuccessorFactory>> {
             return _let_with::let_with_sender<
-                remove_cvref_t<StateFactory>, remove_cvref_t<SuccessorFactory>>{
+                std::decay_t<StateFactory>, std::decay_t<SuccessorFactory>>{
                 (StateFactory&&)stateFactory, (SuccessorFactory&&)successor_factory};
         }
     };
