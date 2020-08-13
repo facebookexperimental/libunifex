@@ -196,7 +196,7 @@ struct _task<T>::type {
 
     auto final_suspend() noexcept {
       struct awaiter {
-        bool await_ready() {
+        bool await_ready() noexcept {
           return false;
         }
         auto await_suspend(
