@@ -129,7 +129,7 @@ public:
     }
 
 private:
-    UNIFEX_NO_UNIQUE_ADDRESS remove_cvref_t<SuccessorFactory> func_;
+    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
 };
 
 struct _stop_source_operation_callback {
@@ -165,7 +165,7 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
 
     template<class F>
     using callback_type = typename stop_token_type_t<Receiver>::template callback_type<F>;
-    UNIFEX_NO_UNIQUE_ADDRESS remove_cvref_t<SuccessorFactory> func_;
+    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
     UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
@@ -178,9 +178,9 @@ struct _fn {
 
     template<typename SuccessorFactory>
     auto operator()(SuccessorFactory&& factory) const
-        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<SuccessorFactory>, SuccessorFactory>)
-        -> stop_source_sender<remove_cvref_t<SuccessorFactory>> {
-        return stop_source_sender<remove_cvref_t<SuccessorFactory>>{(SuccessorFactory&&)factory};
+        noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory>)
+        -> stop_source_sender<std::decay_t<SuccessorFactory>> {
+        return stop_source_sender<std::decay_t<SuccessorFactory>>{(SuccessorFactory&&)factory};
     }
 };
 
