@@ -143,7 +143,10 @@ struct _stop_source_operation_callback {
 
 template<typename SuccessorFactory, typename Receiver>
 struct _stop_source_operation<SuccessorFactory, Receiver>::type {
-    type(SuccessorFactory&& func, Receiver&& r) :
+
+    template <typename SuccessorFactory2, typename Receiver2>
+    type(SuccessorFactory2&& func, Receiver2&& r) :
+        func_{(SuccessorFactory2&&)func},
         stop_source_{},
         // Chain the stop token so that downstream cancellation also affects this
         // operation
@@ -152,10 +155,10 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
             _stop_source_operation_callback(stop_source_)),
         innerOp_(
               unifex::connect(
-                static_cast<SuccessorFactory&&>(func)(stop_source_),
-                stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>{
+                ((SuccessorFactory&&)func_)(stop_source_),
+                stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver2>>{
                     *this,
-                    static_cast<Receiver&&>(r)})) {
+                    static_cast<Receiver2&&>(r)})) {
     }
 
     void start() noexcept {
@@ -164,10 +167,11 @@ struct _stop_source_operation<SuccessorFactory, Receiver>::type {
 
     template<class F>
     using callback_type = typename stop_token_type_t<Receiver>::template callback_type<F>;
+    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
     UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
     UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
     connect_result_t<
-        std::invoke_result_t<SuccessorFactory, unifex::inplace_stop_source&>,
+        callable_result_t<SuccessorFactory, unifex::inplace_stop_source&>,
         stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>>
         innerOp_;
 };
@@ -176,9 +180,9 @@ struct _fn {
 
     template<typename SuccessorFactory>
     auto operator()(SuccessorFactory&& factory) const
-        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<SuccessorFactory>, SuccessorFactory>)
-        -> stop_source_sender<remove_cvref_t<SuccessorFactory>> {
-        return stop_source_sender<remove_cvref_t<SuccessorFactory>>{(SuccessorFactory&&)factory};
+        noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory>)
+        -> stop_source_sender<std::decay_t<SuccessorFactory>> {
+        return stop_source_sender<std::decay_t<SuccessorFactory>>{(SuccessorFactory&&)factory};
     }
 };
 
