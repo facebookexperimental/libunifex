@@ -148,9 +148,9 @@ namespace _sync_wait_cpo {
       return _sync_wait::_impl<Result>((Sender&&) sender);
     }
     auto operator()() const
-        noexcept(std::is_nothrow_invocable_v<
+        noexcept(is_nothrow_callable_v<
           tag_t<compose_with_target>, _fn>)
-        -> std::invoke_result_t<tag_t<compose_with_target>, _fn> {
+        -> compose_with_target_result_t<_fn> {
       return compose_with_target(*this);
     }
   };
