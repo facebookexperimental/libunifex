@@ -78,7 +78,7 @@ public:
                 remove_cvref_t<Receiver>>) {
 
         return operation<
-                member_t<Self, StateFactory>, member_t<Self, SuccessorFactory>, Receiver>(
+                StateFactory, SuccessorFactory, Receiver>(
             static_cast<Self&&>(self).stateFactory_,
             static_cast<Self&&>(self).func_,
             static_cast<Receiver&&>(r));
