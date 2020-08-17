@@ -59,17 +59,11 @@ namespace {
     struct _op {
       Receiver r_;
       void start() & noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-        try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+        UNIFEX_TRY {
           set_value((Receiver&&) r_);
-
-#if !UNIFEX_NO_EXCEPTIONS
-        } catch(...) {
+        } UNIFEX_CATCH(...) {
           set_error((Receiver&&) r_, std::current_exception());
         }
-#endif // !UNIFEX_NO_EXCEPTIONS
       }
     };
   public:

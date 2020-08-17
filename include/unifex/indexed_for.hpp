@@ -77,18 +77,12 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
       apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
       unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
     } else {
-#if !UNIFEX_NO_EXCEPTIONS
-      try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+      UNIFEX_TRY {
         apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
         unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
-
-#if !UNIFEX_NO_EXCEPTIONS
-      } catch (...) {
+      } UNIFEX_CATCH (...) {
         unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
-#endif // !UNIFEX_NO_EXCEPTIONS
     }
   }
 

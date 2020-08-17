@@ -119,17 +119,11 @@ struct _stream<SourceStream, Values...>::type {
     // destroying before passing the values along to the next receiver.
     void set_value(Values... values) && noexcept {
       handle_signal([&](next_receiver_base* receiver) noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-        try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+        UNIFEX_TRY {
           std::move(*receiver).set_value((Values&&)values...);
-
-#if !UNIFEX_NO_EXCEPTIONS
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           std::move(*receiver).set_error(std::current_exception());
         }
-#endif // !UNIFEX_NO_EXCEPTIONS
       });
     }
 
@@ -268,10 +262,7 @@ struct _stream<SourceStream, Values...>::type {
           static_assert(
             std::is_same_v<decltype(stopToken), ST>);
 
-#if !UNIFEX_NO_EXCEPTIONS
-          try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+          UNIFEX_TRY {
             stream_.nextOp_.construct_from([&] {
               return unifex::connect(
                 next(stream_.source_),
@@ -280,33 +271,23 @@ struct _stream<SourceStream, Values...>::type {
             stream_.nextReceiver_ = &concreteReceiver_;
             stream_.state_.store(
               state::source_next_active, std::memory_order_relaxed);
-
-#if !UNIFEX_NO_EXCEPTIONS
-            try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+            UNIFEX_TRY {
               stopCallback_.construct(
                 std::move(stopToken),
                 cancel_next_callback{stream_});
               unifex::start(stream_.nextOp_.get());
-
-#if !UNIFEX_NO_EXCEPTIONS
-            } catch (...) {
+            } UNIFEX_CATCH (...) {
               stream_.nextReceiver_ = nullptr;
               stream_.nextOp_.destruct();
               stream_.state_.store(
                 state::source_next_completed, std::memory_order_relaxed);
               unifex::set_error(std::move(receiver_), std::current_exception());
             }
-#endif // !UNIFEX_NO_EXCEPTIONS
-
-#if !UNIFEX_NO_EXCEPTIONS
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             stream_.state_.store(
               state::source_next_completed, std::memory_order_relaxed);
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
-#endif // !UNIFEX_NO_EXCEPTIONS
         }
       };
     };
@@ -410,19 +391,14 @@ struct _stream<SourceStream, Values...>::type {
         }
 
         void start_cleanup() noexcept final {
-#if !UNIFEX_NO_EXCEPTIONS
-          try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+          UNIFEX_TRY {
             cleanupOp_.construct_from([&] {
               return unifex::connect(
                 cleanup(stream_.source_),
                 receiver_wrapper{*this});
             });
             unifex::start(cleanupOp_.get());
-
-#if !UNIFEX_NO_EXCEPTIONS
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             // Prefer to send the error from next(source_) over the error
             // from cleanup(source_) if there was one.
             if (stream_.nextError_) {
@@ -431,7 +407,6 @@ struct _stream<SourceStream, Values...>::type {
               unifex::set_error(std::move(receiver_), std::current_exception());
             }
           }
-#endif // !UNIFEX_NO_EXCEPTIONS
         }
       };
     };

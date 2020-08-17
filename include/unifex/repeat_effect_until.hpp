@@ -84,10 +84,7 @@ public:
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
-#if !UNIFEX_NO_EXCEPTIONS
-      try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+      UNIFEX_TRY {
         // call predicate and complete with void if it returns true
         if(op->predicate_()) {
           unifex::set_value(std::move(op->receiver_));
@@ -98,12 +95,9 @@ public:
           });
         op->isSourceOpConstructed_ = true;
         unifex::start(sourceOp);
-
-#if !UNIFEX_NO_EXCEPTIONS
-      } catch (...) {
+      } UNIFEX_CATCH (...) {
         unifex::set_error(std::move(op->receiver_), std::current_exception());
       }
-#endif // !UNIFEX_NO_EXCEPTIONS
     }
   }
 

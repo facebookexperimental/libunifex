@@ -59,19 +59,13 @@ namespace detail {
     }
 
     void operator()() & noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-      try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+      UNIFEX_TRY {
         unifex::set_value((R&&) *r_);
         r_ = nullptr;
-
-#if !UNIFEX_NO_EXCEPTIONS
-      } catch(...) {
+      } UNIFEX_CATCH(...) {
         unifex::set_error((R&&) *r_, std::current_exception());
         r_ = nullptr;
       }
-#endif // !UNIFEX_NO_EXCEPTIONS
     }
   };
 
@@ -249,20 +243,14 @@ namespace _connect_cpo {
         remove_cvref_t<Receiver> r_;
 
         void start() noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-          try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+          UNIFEX_TRY {
             using _as_invocable =
               detail::_as_invocable<remove_cvref_t<Receiver>, Executor>;
             unifex::execute(std::move(e_), _as_invocable{r_});
-
-#if !UNIFEX_NO_EXCEPTIONS
-          } catch(...) {
+          } UNIFEX_CATCH(...) {
             // BUGBUG: see https://github.com/executors/executors/issues/463
             // unifex::set_error(std::move(r_), std::current_exception());
           }
-#endif // !UNIFEX_NO_EXCEPTIONS
         }
       };
     };

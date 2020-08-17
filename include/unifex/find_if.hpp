@@ -79,20 +79,14 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     template <typename Iterator, typename... Values>
     void set_value(std::tuple<Iterator, Values...>&& packedResult) && noexcept {
       operation_state_.cleanup();
-#if !UNIFEX_NO_EXCEPTIONS
-      try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+      UNIFEX_TRY {
         unpack_helper(
           (OutputReceiver&&) output_receiver_,
           std::move(packedResult),
           std::make_index_sequence<std::tuple_size_v<std::tuple<Iterator, Values...>>>{});
-
-#if !UNIFEX_NO_EXCEPTIONS
-      } catch(...) {
+      } UNIFEX_CATCH(...) {
         unifex::set_error((OutputReceiver&&)output_receiver_, std::current_exception());
       }
-#endif // !UNIFEX_NO_EXCEPTIONS
     }
 
     template <typename Error>
@@ -329,10 +323,7 @@ void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
     Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
   auto sched = unifex::get_scheduler(receiver_);
   unpack_receiver<Receiver> unpack{(Receiver &&) receiver_, operation_state_};
-#if !UNIFEX_NO_EXCEPTIONS
-  try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+  UNIFEX_TRY {
     auto find_if_implementation_sender = find_if_helper{std::move(func_)}(
         std::move(sched), funcPolicy_, begin_it, end_it, (Values&&) values...);
     // Store nested operation state inside find_if's operation state
@@ -341,12 +332,9 @@ void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
     });
 
     operation_state_.startInner();
-
-#if !UNIFEX_NO_EXCEPTIONS
-  } catch(...) {
+  } UNIFEX_CATCH(...) {
     unifex::set_error(std::move(unpack), std::current_exception());
   }
-#endif // !UNIFEX_NO_EXCEPTIONS
 }
 
 template <typename Predecessor, typename Func, typename FuncPolicy>

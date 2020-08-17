@@ -138,21 +138,15 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
 
   template <typename... Values>
   void set_value(Values&&... values) noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       std::get<Index>(op_.values_)
           .emplace(
               std::in_place_type<std::tuple<std::decay_t<Values>...>>,
               (Values &&) values...);
       op_.element_complete();
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       this->set_error(std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   template <typename Error>
@@ -248,19 +242,13 @@ struct _op<Receiver, Senders...>::type {
 
   template <std::size_t... Indices>
   void deliver_value(std::index_sequence<Indices...>) noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       unifex::set_value(
           std::move(receiver_),
           std::get<Indices>(std::move(values_)).value()...);
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(std::move(receiver_), std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;

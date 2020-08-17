@@ -153,10 +153,7 @@ private:
 
 template <typename Receiver>
 inline void _op<Receiver>::type::start() & noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-  try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+  UNIFEX_TRY {
     // Acquire the lock before launching the thread.
     // This prevents the run() method from trying to read the thread_ variable
     // until after we have finished assigning it.
@@ -172,12 +169,9 @@ inline void _op<Receiver>::type::start() & noexcept {
     // we ensure the count increment happens before the count decrement that
     // is performed when the thread is being retired.
     ctx_->activeThreadCount_.fetch_add(1, std::memory_order_relaxed);
-
-#if !UNIFEX_NO_EXCEPTIONS
-  } catch (...) {
+  } UNIFEX_CATCH (...) {
     unifex::set_error(std::move(receiver_), std::current_exception());
   }
-#endif // !UNIFEX_NO_EXCEPTIONS
 }
 
 template <typename Receiver>
@@ -205,17 +199,11 @@ inline void _op<Receiver>::type::run() noexcept {
   if (get_stop_token(receiver_).stop_requested()) {
     unifex::set_done(std::move(receiver_));
   } else {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       unifex::set_value(std::move(receiver_));
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(std::move(receiver_), std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   ctx->retire_thread(std::move(thisThread));

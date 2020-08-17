@@ -63,20 +63,14 @@ struct _receiver {
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-      try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+      UNIFEX_TRY {
         unifex::activate_union_member(promise_.value_, (Values&&)values...);
         promise_.state_ = promise<T>::state::value;
-
-#if !UNIFEX_NO_EXCEPTIONS
       }
-      catch (...) {
+      UNIFEX_CATCH (...) {
         unifex::activate_union_member(promise_.exception_, std::current_exception());
         promise_.state_ = promise<T>::state::error;
       }
-#endif // !UNIFEX_NO_EXCEPTIONS
 
       signal_complete();
     }

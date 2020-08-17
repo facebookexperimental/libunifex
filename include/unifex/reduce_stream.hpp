@@ -175,10 +175,7 @@ struct _next_receiver<Operation>::type {
   void set_value(Values... values) && noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.next_);
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       op.state_ = std::invoke(
           op.reducer_,
           std::forward<state_type>(op.state_),
@@ -187,9 +184,7 @@ struct _next_receiver<Operation>::type {
         return unifex::connect(next(op.stream_), _reduce::next_receiver<Operation>{op});
       });
       unifex::start(op.next_.get());
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::activate_union_member_from(op.errorCleanup_, [&] {
         return unifex::connect(
             cleanup(op.stream_),
@@ -197,7 +192,6 @@ struct _next_receiver<Operation>::type {
       });
       unifex::start(op.errorCleanup_.get());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   void set_done() && noexcept {
@@ -268,21 +262,15 @@ struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
   ~type() {} // Due to the union member, this is load-bearing. DO NOT DELETE.
 
   void start() noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       unifex::activate_union_member_from(next_, [&] {
         return unifex::connect(next(stream_), next_receiver<operation>{*this});
       });
       unifex::start(next_.get());
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 };
 

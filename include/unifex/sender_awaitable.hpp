@@ -52,19 +52,13 @@ struct _sender_awaiter<Sender, Value>::type {
         unifex::activate_union_member(awaiter_.value_, (Values&&)values...);
         awaiter_.state_ = state::value;
       } else {
-#if !UNIFEX_NO_EXCEPTIONS
-        try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+        UNIFEX_TRY {
             unifex::activate_union_member(awaiter_.value_, (Values&&)values...);
             awaiter_.state_ = state::value;
-
-#if !UNIFEX_NO_EXCEPTIONS
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
             unifex::activate_union_member(awaiter_.ex_, std::current_exception());
             awaiter_.state_ = state::error;
         }
-#endif // !UNIFEX_NO_EXCEPTIONS
       }
       awaiter_.continuation_.resume();
     }

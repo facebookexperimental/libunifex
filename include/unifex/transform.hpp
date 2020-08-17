@@ -67,18 +67,12 @@ struct _receiver<Receiver, Func>::type {
         std::invoke((Func &&) func_, (Values &&) values...);
         unifex::set_value((Receiver &&) receiver_);
       } else {
-#if !UNIFEX_NO_EXCEPTIONS
-        try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+        UNIFEX_TRY {
           std::invoke((Func &&) func_, (Values &&) values...);
           unifex::set_value((Receiver &&) receiver_);
-
-#if !UNIFEX_NO_EXCEPTIONS
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
-#endif // !UNIFEX_NO_EXCEPTIONS
       }
     } else {
       if constexpr (noexcept(std::invoke(
@@ -87,19 +81,13 @@ struct _receiver<Receiver, Func>::type {
             (Receiver &&) receiver_,
             std::invoke((Func &&) func_, (Values &&) values...));
       } else {
-#if !UNIFEX_NO_EXCEPTIONS
-        try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+        UNIFEX_TRY {
           unifex::set_value(
               (Receiver &&) receiver_,
               std::invoke((Func &&) func_, (Values &&) values...));
-
-#if !UNIFEX_NO_EXCEPTIONS
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
-#endif // !UNIFEX_NO_EXCEPTIONS
       }
     }
   }

@@ -44,21 +44,15 @@ struct _op<Receiver, Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
   void start() & noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       std::apply(
           [&](Values&&... values) {
             unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
           },
           std::move(values_));
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error((Receiver &&) receiver_, std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 };
 

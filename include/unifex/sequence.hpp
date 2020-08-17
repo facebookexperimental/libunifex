@@ -161,24 +161,18 @@ namespace unifex
           op->status_ = operation_type::status::successor_operation_constructed;
           unifex::start(op->succOp_.get());
         } else {
-#if !UNIFEX_NO_EXCEPTIONS
-          try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+          UNIFEX_TRY {
             unifex::activate_union_member_from(op->succOp_, [&] {
               return unifex::connect(
                   static_cast<Successor&&>(op->successor_), successor_receiver_t{op});
             });
             op->status_ = operation_type::status::successor_operation_constructed;
             unifex::start(op->succOp_.get());
-
-#if !UNIFEX_NO_EXCEPTIONS
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(
                 static_cast<Receiver&&>(op->receiver_),
                 std::current_exception());
           }
-#endif // !UNIFEX_NO_EXCEPTIONS
         }
       }
 

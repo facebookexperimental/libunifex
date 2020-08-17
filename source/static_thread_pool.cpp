@@ -28,21 +28,15 @@ namespace _static_thread_pool {
 
     threads_.reserve(threadCount);
 
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       for (std::uint32_t i = 0; i < threadCount; ++i) {
         threads_.emplace_back([this, i] { run(i); });
       }
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       request_stop();
       join();
-      throw;
+      UNIFEX_RETHROW();
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   context::~context() {

@@ -187,57 +187,39 @@ struct _predecessor_receiver<Successor, Receiver>::type {
 
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       submit(
           (Successor &&) successor_,
           value_receiver<Receiver, Values...>{
               {(Values &&) values...}, (Receiver &&) receiver_});
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       submit(
           (Successor &&) successor_,
           error_receiver<Receiver, Error>{
               (Error &&) error, (Receiver &&) receiver_});
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   void set_done() && noexcept {
-#if !UNIFEX_NO_EXCEPTIONS
-    try {
-#endif // !UNIFEX_NO_EXCEPTIONS
-
+    UNIFEX_TRY {
       submit(
           (Successor &&) successor_,
           done_receiver<Receiver>{(Receiver &&) receiver_});
-
-#if !UNIFEX_NO_EXCEPTIONS
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }
-#endif // !UNIFEX_NO_EXCEPTIONS
   }
 
   template(typename CPO)
