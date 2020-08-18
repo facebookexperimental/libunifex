@@ -273,6 +273,13 @@ namespace _schedule_after {
 using _schedule_after::schedule_after;
 
 namespace _schedule_at {
+  template <typename TimePoint>
+  struct _sender {
+    class type;
+  };
+  template <typename TimePoint>
+  using sender = typename _sender<TimePoint>::type;
+
   inline const struct _fn {
   private:
     template <typename TimeScheduler, typename TimePoint>
@@ -301,7 +308,44 @@ namespace _schedule_at {
         -> _result_t<TimeScheduler, TimePoint> {
       return static_cast<TimeScheduler&&>(s).schedule_at((TimePoint &&) tp);
     }
+
+    template <typename TimePoint>
+    constexpr sender<TimePoint> operator()(TimePoint tp) const {
+      return sender<TimePoint>{std::move(tp)};
+    }
   } schedule_at {};
+
+  template <typename TimePoint>
+  class _sender<TimePoint>::type {
+  public:
+    template <template <typename...> class Variant, template <typename...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template <template <typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    explicit type(TimePoint tp)
+      : time_point_(tp)
+    {}
+
+  private:
+    friend _fn;
+
+    template(
+      typename Receiver,
+      typename Scheduler =
+        std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
+      typename ScheduleAtSender =
+        callable_result_t<_fn, Scheduler&, const TimePoint&>)
+      (requires receiver<Receiver>)
+    friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
+        -> connect_result_t<ScheduleAtSender, Receiver> {
+      auto scheduler = get_scheduler(std::as_const(r));
+      return connect(schedule_at(scheduler, std::as_const(s.time_point_)), (Receiver&&) r);
+    }
+
+    TimePoint time_point_;
+  };
 } // namespace _schedule_at
 using _schedule_at::schedule_at;
 
@@ -336,6 +380,29 @@ namespace _now {
   } now {};
 } // namespace _now
 using _now::now;
+
+namespace _current {
+  inline constexpr struct _scheduler {
+    auto schedule() const noexcept {
+        return unifex::schedule();
+    }
+    template <typename Duration>
+    auto schedule_after(Duration d) const {
+        return unifex::schedule_after(std::move(d));
+    }
+    template <typename TimePoint>
+    auto schedule_at(TimePoint tp) const {
+        return unifex::schedule_at(std::move(tp));
+    }
+    friend constexpr bool operator==(_scheduler, _scheduler) noexcept {
+        return true;
+    }
+    friend constexpr bool operator!=(_scheduler, _scheduler) noexcept {
+        return false;
+    }
+  } current_scheduler{};
+}
+using _current::current_scheduler;
 
 } // namespace unifex
 
