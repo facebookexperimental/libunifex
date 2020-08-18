@@ -187,12 +187,12 @@ struct _predecessor_receiver<Successor, Receiver>::type {
 
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
-    try {
+    UNIFEX_TRY {
       submit(
           (Successor &&) successor_,
           value_receiver<Receiver, Values...>{
               {(Values &&) values...}, (Receiver &&) receiver_});
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }
@@ -200,23 +200,23 @@ struct _predecessor_receiver<Successor, Receiver>::type {
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    try {
+    UNIFEX_TRY {
       submit(
           (Successor &&) successor_,
           error_receiver<Receiver, Error>{
               (Error &&) error, (Receiver &&) receiver_});
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }
   }
 
   void set_done() && noexcept {
-    try {
+    UNIFEX_TRY {
       submit(
           (Successor &&) successor_,
           done_receiver<Receiver>{(Receiver &&) receiver_});
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       unifex::set_error(
           static_cast<Receiver&&>(receiver_), std::current_exception());
     }

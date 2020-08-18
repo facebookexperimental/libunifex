@@ -305,7 +305,8 @@ class _make<CPOs...>::type
     using allocator_traits = std::allocator_traits<allocator_type>;
     allocator_type typedAllocator{std::move(alloc)};
     auto ptr = allocator_traits::allocate(typedAllocator, 1);
-    try {
+
+    UNIFEX_TRY {
       // TODO: Ideally we'd use allocator_traits::construct() here but
       // that makes it difficult to provide consistent behaviour across
       // std::allocator and std::pmr::polymorphic_allocator as the latter
@@ -314,10 +315,11 @@ class _make<CPOs...>::type
       // injection of the parameters.
       ::new ((void*)ptr)
           concrete_type{std::allocator_arg, typedAllocator, (Args &&) args...};
-    } catch (...) {
+    } UNIFEX_CATCH (...) {
       allocator_traits::deallocate(typedAllocator, ptr, 1);
-      throw;
+      UNIFEX_RETHROW();
     }
+
     impl_ = static_cast<void*>(ptr);
   }
 

@@ -31,6 +31,8 @@ using namespace std::chrono_literals;
 
 struct my_error {};
 
+#if !UNIFEX_NO_EXCEPTIONS
+
 TEST(WhenAll2, Smoke) {
   timed_single_thread_context context;
 
@@ -85,6 +87,8 @@ TEST(WhenAll2, Smoke) {
   EXPECT_FALSE(ranPart2Callback);
   EXPECT_FALSE(ranFinalCallback);
 }
+
+#endif // !UNIFEX_NO_EXCEPTIONS
 
 struct string_const_ref_sender {
   template <

@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #if !UNIFEX_NO_LIBURING
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
@@ -325,9 +326,9 @@ class io_uring_context::schedule_sender {
   class operation : private operation_base {
    public:
     void start() noexcept {
-      try {
+      UNIFEX_TRY {
         context_.schedule_impl(this);
-      } catch (...) {
+      } UNIFEX_CATCH (...) {
         unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
@@ -354,9 +355,9 @@ class io_uring_context::schedule_sender {
       if constexpr (noexcept(unifex::set_value(static_cast<Receiver&&>(op.receiver_)))) {
         unifex::set_value(static_cast<Receiver&&>(op.receiver_));
       } else {
-        try {
+        UNIFEX_TRY {
           unifex::set_value(static_cast<Receiver&&>(op.receiver_));
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(static_cast<Receiver&&>(op.receiver_), std::current_exception());
         }
       }
@@ -453,9 +454,9 @@ class io_uring_context::read_sender {
         if constexpr (noexcept(unifex::set_value(std::move(self.receiver_), ssize_t(self.result_)))) {
           unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(std::move(self.receiver_), std::current_exception());
           }
         }
@@ -569,9 +570,9 @@ class io_uring_context::write_sender {
         if constexpr (noexcept(unifex::set_value(std::move(self.receiver_), ssize_t(self.result_)))) {
           unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(std::move(self.receiver_), std::current_exception());
           }
         }
@@ -752,9 +753,9 @@ class io_uring_context::schedule_at_sender {
       if constexpr (noexcept(unifex::set_value(std::move(timerOp).receiver_))) {
         unifex::set_value(std::move(timerOp).receiver_);
       } else {
-        try {
+        UNIFEX_TRY {
           unifex::set_value(std::move(timerOp).receiver_);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
         }
       }

@@ -93,7 +93,7 @@ namespace unifex
         using completion_value_op_t = connect_result_t<CompletionSender, value_receiver>;
         unifex::deactivate_union_member<completion_value_op_t>(op->completionValueOp_);
 
-        try {
+        UNIFEX_TRY {
           // Move the stored values onto the stack so that we can
           // destroy the ones stored in the operation-state. This
           // prevents the need to add a big switch to the operation
@@ -115,7 +115,8 @@ namespace unifex
                     static_cast<Values&&>(values)...);
               },
               static_cast<std::tuple<Values...>&&>(values));
-        } catch (...) {
+
+        } UNIFEX_CATCH (...) {
           unifex::set_error(
               static_cast<Receiver&&>(op->receiver_), std::current_exception());
         }
@@ -374,17 +375,18 @@ namespace unifex
           (requires receiver_of<Receiver, Values...>)
       void set_value(Values&&... values) && noexcept {
         auto* const op = op_;
-        try {
+
+        UNIFEX_TRY {
           unifex::activate_union_member<std::tuple<std::decay_t<Values>...>>(
             op->value_, static_cast<Values&&>(values)...);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           std::move(*this).set_error(std::current_exception());
           return;
         }
 
         unifex::deactivate_union_member(op->sourceOp_);
 
-        try {
+        UNIFEX_TRY {
           using value_receiver = value_receiver<
               SourceSender,
               CompletionSender,
@@ -401,7 +403,7 @@ namespace unifex
                         value_receiver{op});
                   });
           unifex::start(completionOp);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           using decayed_tuple_t = std::tuple<std::decay_t<Values>...>;
           unifex::deactivate_union_member<decayed_tuple_t>(op->value_);
           unifex::set_error(
@@ -420,7 +422,7 @@ namespace unifex
 
         unifex::deactivate_union_member(op->sourceOp_);
 
-        try {
+        UNIFEX_TRY {
           using error_receiver_t = error_receiver<
               SourceSender,
               CompletionSender,
@@ -437,7 +439,7 @@ namespace unifex
                         error_receiver_t{op});
                   });
           unifex::start(completionOp);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::deactivate_union_member<std::decay_t<Error>>(op->error_);
           unifex::set_error(
               static_cast<Receiver&&>(op->receiver_), std::current_exception());
@@ -449,7 +451,7 @@ namespace unifex
 
         unifex::deactivate_union_member(op->sourceOp_);
 
-        try {
+        UNIFEX_TRY {
           using done_receiver =
               done_receiver<SourceSender, CompletionSender, Receiver>;
           auto& completionOp = unifex::activate_union_member_from(
@@ -460,7 +462,7 @@ namespace unifex
                   done_receiver{op});
             });
           unifex::start(completionOp);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(
               static_cast<Receiver&&>(op->receiver_), std::current_exception());
         }

@@ -52,10 +52,10 @@ struct _sender_awaiter<Sender, Value>::type {
         unifex::activate_union_member(awaiter_.value_, (Values&&)values...);
         awaiter_.state_ = state::value;
       } else {
-        try {
+        UNIFEX_TRY {
             unifex::activate_union_member(awaiter_.value_, (Values&&)values...);
             awaiter_.state_ = state::value;
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
             unifex::activate_union_member(awaiter_.ex_, std::current_exception());
             awaiter_.state_ = state::error;
         }

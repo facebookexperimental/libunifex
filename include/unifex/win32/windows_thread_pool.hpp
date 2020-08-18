@@ -156,9 +156,9 @@ private:
         if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(op.receiver_));
         } else {
-            try {
+            UNIFEX_TRY {
                 unifex::set_value(std::move(op.receiver_));
-            } catch (...) {
+            } UNIFEX_CATCH (...) {
                 unifex::set_error(std::move(op.receiver_), std::current_exception());
             }
         }
@@ -404,9 +404,9 @@ private:
         if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(receiver_));
         } else {
-            try {
+            UNIFEX_TRY {
                 unifex::set_value(std::move(receiver_));
-            } catch (...) {
+            } UNIFEX_CATCH (...) {
                 unifex::set_error(std::move(receiver_), std::current_exception());
             }
         }
@@ -663,9 +663,9 @@ private:
         if constexpr (unifex::is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(receiver_));
         } else {
-            try {
+            UNIFEX_TRY {
                 unifex::set_value(std::move(receiver_));
-            } catch (...) {
+            } UNIFEX_CATCH (...) {
                 unifex::set_error(std::move(receiver_), std::current_exception());
             }
         }
@@ -741,9 +741,9 @@ private:
         if constexpr (unifex::is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(receiver_));
         } else {
-            try {
+            UNIFEX_TRY {
                 unifex::set_value(std::move(receiver_));
-            } catch (...) {
+            } UNIFEX_CATCH (...) {
                 unifex::set_error(std::move(receiver_), std::current_exception());
             }
         }

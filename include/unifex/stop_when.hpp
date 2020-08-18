@@ -232,7 +232,7 @@ namespace unifex
       }
 
       void deliver_result() noexcept {
-        try {
+        UNIFEX_TRY {
           std::visit(
               [this](auto&& tuple) {
                 if constexpr (
@@ -251,7 +251,7 @@ namespace unifex
                 }
               },
               std::move(result_));
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(std::move(receiver_), std::current_exception());
         }
       }

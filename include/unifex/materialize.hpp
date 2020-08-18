@@ -69,12 +69,12 @@ namespace unifex
               unifex::set_error,
               static_cast<Error&&>(error));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(
                 static_cast<Receiver&&>(receiver_),
                 unifex::set_error,
                 static_cast<Error&&>(error));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(
                 static_cast<Receiver&&>(receiver_), std::current_exception());
           }
@@ -88,10 +88,10 @@ namespace unifex
           unifex::set_value(
               static_cast<Receiver&&>(receiver_), unifex::set_done);
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(
                 static_cast<Receiver&&>(receiver_), unifex::set_done);
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(
                 static_cast<Receiver&&>(receiver_), std::current_exception());
           }

@@ -109,6 +109,18 @@
 #  define UNIFEX_NO_RTTI 1
 #endif
 
+#if __cpp_exceptions >= 199711
+#  define UNIFEX_NO_EXCEPTIONS 0
+#  define UNIFEX_TRY try
+#  define UNIFEX_CATCH(...) catch (__VA_ARGS__)
+#  define UNIFEX_RETHROW() throw
+#else
+#  define UNIFEX_NO_EXCEPTIONS 1
+#  define UNIFEX_TRY
+#  define UNIFEX_CATCH(...) if constexpr (true) {} else
+#  define UNIFEX_RETHROW() ((void)0)
+#endif
+
 #if defined(_MSC_VER) && !defined(__clang__)
   #define UNIFEX_DIAGNOSTIC_PUSH __pragma(warning(push))
   #define UNIFEX_DIAGNOSTIC_POP __pragma(warning(pop))

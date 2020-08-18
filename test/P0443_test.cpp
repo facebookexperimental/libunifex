@@ -37,6 +37,8 @@ namespace {
       return false;
     }
   };
+
+#if !UNIFEX_NO_EXCEPTIONS
   struct throwing_executor {
     UNIFEX_TEMPLATE(typename Fn)
       (requires invocable<Fn&>)
@@ -50,14 +52,18 @@ namespace {
       return false;
     }
   };
+#endif // !UNIFEX_NO_EXCEPTIONS
+
   class inline_sender : sender_base {
     template <typename Receiver>
     struct _op {
       Receiver r_;
-      void start() & noexcept try {
-        set_value((Receiver&&) r_);
-      } catch(...) {
-        set_error((Receiver&&) r_, std::current_exception());
+      void start() & noexcept {
+        UNIFEX_TRY {
+          set_value((Receiver&&) r_);
+        } UNIFEX_CATCH(...) {
+          set_error((Receiver&&) r_, std::current_exception());
+        }
       }
     };
   public:
@@ -96,6 +102,7 @@ TEST(P0443, connect_with_executor) {
   EXPECT_EQ(1, i);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(P0443, connect_with_throwing_executor) {
   int i = 0;
   struct _receiver {
@@ -116,6 +123,7 @@ TEST(P0443, connect_with_throwing_executor) {
   } catch (...) {}
   EXPECT_EQ(4, i);
 }
+#endif // !UNIFEX_NO_EXCEPTIONS
 
 TEST(P0443, schedule_with_executor) {
   int i = 0;

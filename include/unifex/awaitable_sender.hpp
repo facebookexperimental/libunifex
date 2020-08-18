@@ -132,8 +132,11 @@ struct _sender<Awaitable>::type {
   detail::sender_task connect(Receiver&& receiver) && {
     return [](Awaitable awaitable,
            remove_cvref_t<Receiver> receiver) -> detail::sender_task {
+#if !UNIFEX_NO_EXCEPTIONS
           std::exception_ptr ex;
           try {
+#endif // !UNIFEX_NO_EXCEPTIONS
+
             if constexpr (std::is_void_v<result_type>) {
               co_await(Awaitable &&) awaitable;
               co_yield[&] {
@@ -155,12 +158,15 @@ struct _sender<Awaitable>::type {
                     };
                   }(co_await (Awaitable &&) awaitable);
             }
+
+#if !UNIFEX_NO_EXCEPTIONS
           } catch (...) {
             ex = std::current_exception();
           }
           co_yield[&] {
             unifex::set_error(std::move(receiver), std::move(ex));
           };
+#endif // !UNIFEX_NO_EXCEPTIONS
         }((Awaitable &&) awaitable_, (Receiver &&) receiver);
   }
 };

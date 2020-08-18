@@ -67,10 +67,10 @@ struct _receiver<Receiver, Func>::type {
         std::invoke((Func &&) func_, (Values &&) values...);
         unifex::set_value((Receiver &&) receiver_);
       } else {
-        try {
+        UNIFEX_TRY {
           std::invoke((Func &&) func_, (Values &&) values...);
           unifex::set_value((Receiver &&) receiver_);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
       }
@@ -81,11 +81,11 @@ struct _receiver<Receiver, Func>::type {
             (Receiver &&) receiver_,
             std::invoke((Func &&) func_, (Values &&) values...));
       } else {
-        try {
+        UNIFEX_TRY {
           unifex::set_value(
               (Receiver &&) receiver_,
               std::invoke((Func &&) func_, (Values &&) values...));
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
       }

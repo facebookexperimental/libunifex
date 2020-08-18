@@ -211,9 +211,9 @@ class io_epoll_context::schedule_sender {
   class operation : private operation_base {
    public:
     void start() noexcept {
-      try {
+      UNIFEX_TRY {
         context_.schedule_impl(this);
-      } catch (...) {
+      } UNIFEX_CATCH (...) {
         unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
@@ -239,9 +239,9 @@ class io_epoll_context::schedule_sender {
       if constexpr (is_nothrow_receiver_of_v<Receiver>) {
         unifex::set_value(static_cast<Receiver&&>(op.receiver_));
       } else {
-        try {
+        UNIFEX_TRY {
           unifex::set_value(static_cast<Receiver&&>(op.receiver_));
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(
               static_cast<Receiver&&>(op.receiver_), std::current_exception());
         }
@@ -332,9 +332,9 @@ class io_epoll_context::schedule_at_sender {
       if constexpr (is_nothrow_receiver_of_v<Receiver>) {
         unifex::set_value(std::move(timerOp).receiver_);
       } else {
-        try {
+        UNIFEX_TRY {
           unifex::set_value(std::move(timerOp).receiver_);
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
         }
       }
@@ -578,9 +578,9 @@ class io_epoll_context::read_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(receiver_), ssize_t(result));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(receiver_), ssize_t(result));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
         }
@@ -619,9 +619,9 @@ class io_epoll_context::read_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(self).receiver_, ssize_t(result));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(self).receiver_, ssize_t(result));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(std::move(self).receiver_, std::current_exception());
           }
         }
@@ -789,9 +789,9 @@ class io_epoll_context::write_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(receiver_), ssize_t(result));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(receiver_), ssize_t(result));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
         }
@@ -830,9 +830,9 @@ class io_epoll_context::write_sender {
         if constexpr (is_nothrow_receiver_of_v<Receiver, ssize_t>) {
           unifex::set_value(std::move(self).receiver_, ssize_t(result));
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(self).receiver_, ssize_t(result));
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(std::move(self).receiver_, std::current_exception());
           }
         }

@@ -57,12 +57,15 @@ namespace detail {
       if(r_)
         unifex::set_done((R&&) *r_);
     }
-    void operator()() & noexcept try {
-      unifex::set_value((R&&) *r_);
-      r_ = nullptr;
-    } catch(...) {
-      unifex::set_error((R&&) *r_, std::current_exception());
-      r_ = nullptr;
+
+    void operator()() & noexcept {
+      UNIFEX_TRY {
+        unifex::set_value((R&&) *r_);
+        r_ = nullptr;
+      } UNIFEX_CATCH(...) {
+        unifex::set_error((R&&) *r_, std::current_exception());
+        r_ = nullptr;
+      }
     }
   };
 
@@ -238,13 +241,16 @@ namespace _connect_cpo {
       struct type {
         remove_cvref_t<Executor> e_;
         remove_cvref_t<Receiver> r_;
-        void start() noexcept try {
-          using _as_invocable =
-            detail::_as_invocable<remove_cvref_t<Receiver>, Executor>;
-          unifex::execute(std::move(e_), _as_invocable{r_});
-        } catch(...) {
-          // BUGBUG: see https://github.com/executors/executors/issues/463
-          // unifex::set_error(std::move(r_), std::current_exception());
+
+        void start() noexcept {
+          UNIFEX_TRY {
+            using _as_invocable =
+              detail::_as_invocable<remove_cvref_t<Receiver>, Executor>;
+            unifex::execute(std::move(e_), _as_invocable{r_});
+          } UNIFEX_CATCH(...) {
+            // BUGBUG: see https://github.com/executors/executors/issues/463
+            // unifex::set_error(std::move(r_), std::current_exception());
+          }
         }
       };
     };

@@ -164,14 +164,15 @@ struct _stream<SourceStream, TriggerStream>::type {
         void start() noexcept {
           if (!stream_.triggerNextStarted_) {
             stream_.triggerNextStarted_ = true;
-            try {
+
+            UNIFEX_TRY {
               stream_.triggerNextOp_.construct_from([&] {
                 return unifex::connect(
                   next(stream_.trigger_),
                   trigger_next_receiver{stream_});
               });
               unifex::start(stream_.triggerNextOp_.get());
-            } catch (...) {
+            } UNIFEX_CATCH (...) {
               stream_.trigger_next_done();
             }
           }
@@ -286,14 +287,14 @@ struct _stream<SourceStream, TriggerStream>::type {
         {}
 
         void start() noexcept {
-          try {
+          UNIFEX_TRY {
             sourceOp_.construct_from([&] {
               return unifex::connect(
                 cleanup(stream_.source_),
                 source_receiver{*this});
             });
             unifex::start(sourceOp_.get());
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             source_cleanup_error(std::current_exception());
           }
 
@@ -312,14 +313,14 @@ struct _stream<SourceStream, TriggerStream>::type {
         }
 
         void start_trigger_cleanup() noexcept final {
-          try {
+          UNIFEX_TRY {
             triggerOp_.construct_from([&] {
               return unifex::connect(
                 cleanup(stream_.trigger_),
                 trigger_receiver{*this});
             });
             unifex::start(triggerOp_.get());
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             trigger_cleanup_error(std::current_exception());
             return;
           }

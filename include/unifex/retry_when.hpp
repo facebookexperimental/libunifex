@@ -84,13 +84,13 @@ public:
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
-      try {
+      UNIFEX_TRY {
         auto& sourceOp = unifex::activate_union_member_from(op->sourceOp_, [&] {
             return unifex::connect(op->source_, source_receiver_t{op});
           });
         op->isSourceOpConstructed_ = true;
         unifex::start(sourceOp);
-      } catch (...) {
+      } UNIFEX_CATCH (...) {
         unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
       }
     }
@@ -201,15 +201,15 @@ public:
         });
       unifex::start(triggerOp);
     } else {
-      try {
-      auto& triggerOp = unifex::activate_union_member_from<trigger_op_t>(
-        op->triggerOps_,
-          [&]() {
-            return unifex::connect(
-              std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
-          });
-        unifex::start(triggerOp);
-      } catch (...) {
+      UNIFEX_TRY {
+        auto& triggerOp = unifex::activate_union_member_from<trigger_op_t>(
+          op->triggerOps_,
+            [&]() {
+              return unifex::connect(
+                std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
+            });
+          unifex::start(triggerOp);
+      } UNIFEX_CATCH (...) {
         unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
       }
     }
