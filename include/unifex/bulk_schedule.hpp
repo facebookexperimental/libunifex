@@ -65,8 +65,11 @@ public:
                 }
                 Integral chunk_end = std::min(chunk_start + static_cast<Integral>(bulk_cancellation_chunk_size), count_);
                 if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
+UNIFEX_DIAGNOSTIC_PUSH
+
                     // Vectorisable version
 #if defined(__clang__)
+                    #pragma clang diagnostic ignored "-Wpass-failed"
                     #pragma clang loop vectorize(enable) interleave(enable)
 #elif defined(__GNUC__)
                     #pragma GCC ivdep
@@ -76,6 +79,8 @@ public:
                     for (Integral i(chunk_start); i < chunk_end; ++i) {
                         unifex::set_next(receiver_, Integral(i));
                     }
+
+UNIFEX_DIAGNOSTIC_POP
                 } else {
                     // Sequenced version
                     for (Integral i(chunk_start); i < chunk_end; ++i) {
@@ -85,8 +90,11 @@ public:
             }
         } else {
             if constexpr (is_one_of_v<policy_t, unsequenced_policy, parallel_unsequenced_policy>) {
+UNIFEX_DIAGNOSTIC_PUSH
+
                 // Vectorisable version
 #if defined(__clang__)
+                #pragma clang diagnostic ignored "-Wpass-failed"
                 #pragma clang loop vectorize(enable) interleave(enable)
 #elif defined(__GNUC__)
                 #pragma GCC ivdep
@@ -96,6 +104,8 @@ public:
                 for (Integral i(0); i < count_; ++i) {
                     unifex::set_next(receiver_, Integral(i));
                 }
+
+UNIFEX_DIAGNOSTIC_POP
             } else {
                 // Sequenced version
                 for (Integral i(0); i < count_; ++i) {
