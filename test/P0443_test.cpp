@@ -30,10 +30,10 @@ namespace {
     void execute(Fn fn) const {
       fn();
     }
-    friend bool operator==(inline_executor, inline_executor) noexcept {
+    [[maybe_unused]] friend bool operator==(inline_executor, inline_executor) noexcept {
       return true;
     }
-    friend bool operator!=(inline_executor, inline_executor) noexcept {
+    [[maybe_unused]] friend bool operator!=(inline_executor, inline_executor) noexcept {
       return false;
     }
   };
@@ -43,10 +43,10 @@ namespace {
     void execute(Fn fn) const {
       throw std::runtime_error("sorry, charlie");
     }
-    friend bool operator==(throwing_executor, throwing_executor) noexcept {
+    [[maybe_unused]] friend bool operator==(throwing_executor, throwing_executor) noexcept {
       return true;
     }
-    friend bool operator!=(throwing_executor, throwing_executor) noexcept {
+    [[maybe_unused]] friend bool operator!=(throwing_executor, throwing_executor) noexcept {
       return false;
     }
   };
