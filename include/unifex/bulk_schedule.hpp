@@ -69,6 +69,10 @@ UNIFEX_DIAGNOSTIC_PUSH
 
                     // Vectorisable version
 #if defined(__clang__)
+                    // When optimizing for size (e.g. with -Oz), Clang will not
+                    // vectorize this loop, and will emit a warning.  There's
+                    // nothing to be done about the warning, though, so just
+                    // suppress it.
                     #pragma clang diagnostic ignored "-Wpass-failed"
                     #pragma clang loop vectorize(enable) interleave(enable)
 #elif defined(__GNUC__)
@@ -94,6 +98,10 @@ UNIFEX_DIAGNOSTIC_PUSH
 
                 // Vectorisable version
 #if defined(__clang__)
+                // When optimizing for size (e.g. with -Oz), Clang will not
+                // vectorize this loop, and will emit a warning.  There's
+                // nothing to be done about the warning, though, so just
+                // suppress it.
                 #pragma clang diagnostic ignored "-Wpass-failed"
                 #pragma clang loop vectorize(enable) interleave(enable)
 #elif defined(__GNUC__)
