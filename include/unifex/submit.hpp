@@ -76,9 +76,10 @@ class _op<Sender, Receiver>::type {
 
     template <typename Allocator>
     void destroy(Allocator allocator) noexcept {
+      type* op = op_;
       rebind_alloc_t<Allocator, type> typedAllocator{allocator};
-      rebind_traits_t<Allocator, type>::destroy(typedAllocator, op_);
-      rebind_traits_t<Allocator, type>::deallocate(typedAllocator, op_, 1);
+      rebind_traits_t<Allocator, type>::destroy(typedAllocator, op);
+      rebind_traits_t<Allocator, type>::deallocate(typedAllocator, op, 1);
     }
 
     Receiver& get_receiver() const noexcept {
