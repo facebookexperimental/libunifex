@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
+#include <unifex/let_with.hpp>
 #include <unifex/let_with_stop_source.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -157,86 +158,90 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       auto num_chunks = (distance/max_num_chunks) > min_chunk_size ?
         max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
       auto chunk_size = (distance+num_chunks)/num_chunks;
-      // Found flag on the heap
-      // TODO: We can store this in the operation state with a let_with algorithm
-      // as atomics are not moveable.
-      auto found = std::make_unique<std::atomic<bool>>(false);
+
+      // Found flag and vector that will be constructed in-place in the operation state
+      struct State {
+        std::atomic<bool> found_flag;
+        std::vector<Iterator> perChunkState;
+      };
 
       // The outer let keeps the vector of found results and the found flag
       // alive for the duration.
-      // Once we implement it, replace this with let_with which would allocate data
-      // into the operation state directly to avoid the heap allocation.
+      // let_with constructs the vector and found_flag directly in the operation
+      // state.
       // Use a two phase process largely to demonstrate a simple multi-phase algorithm
       // and to avoid using a cmpexch loop on an intermediate iterator.
-      return unifex::let(
-        unifex::just(std::vector<Iterator>(num_chunks, end_it), std::forward<Values>(values)...),
+      return
+      unifex::let(
+        unifex::just(std::forward<Values>(values)...),
         [func = std::move(func_), sched = std::move(sched), begin_it,
-         chunk_size, end_it, num_chunks, found_flag = std::move(found)](
-            std::vector<Iterator>& perChunkState, Values&... values) mutable {
-          // Inject a stop source and make it available for inner operations.
-          // This stop source propagates into the algorithm through the receiver,
-          // such that it will cancel the bulk_schedule operation.
-          // It is also triggered if the downstream stop source is triggered.
-          return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) mutable {
-            auto bulk_phase = unifex::bulk_join(
-                unifex::bulk_transform(
-                  unifex::bulk_schedule(std::move(sched), num_chunks),
-                  [&](std::size_t index){
-                    auto chunk_begin_it = begin_it + (chunk_size*index);
-                    auto chunk_end_it = chunk_begin_it;
-                    if(index < (num_chunks-1)) {
-                      std::advance(chunk_end_it, chunk_size);
-                    } else {
-                      chunk_end_it = end_it;
-                    }
+        chunk_size, end_it, num_chunks](Values&... values) mutable {
+          return unifex::let_with([&](){return State{false, std::vector<Iterator>(num_chunks, end_it)};},[&](State& state) {
+            // Inject a stop source and make it available for inner operations.
+            // This stop source propagates into the algorithm through the receiver,
+            // such that it will cancel the bulk_schedule operation.
+            // It is also triggered if the downstream stop source is triggered.
+            return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) mutable {
+              auto bulk_phase = unifex::bulk_join(
+                  unifex::bulk_transform(
+                    unifex::bulk_schedule(std::move(sched), num_chunks),
+                    [&](std::size_t index){
+                      auto chunk_begin_it = begin_it + (chunk_size*index);
+                      auto chunk_end_it = chunk_begin_it;
+                      if(index < (num_chunks-1)) {
+                        std::advance(chunk_end_it, chunk_size);
+                      } else {
+                        chunk_end_it = end_it;
+                      }
 
-                    for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                      if(std::invoke(func, *it, values...)) {
-                        // On success, store the value in the output array
-                        // and cancel future work.
-                        // This works on the assumption that bulk_schedule will launch
-                        // tasks (or at least, test for cancellation) in
-                        // iteration-space order, and hence only cancel future work,
-                        // to maintain the find-first property.
-                        perChunkState[index] = it;
-                        *found_flag = true;
-                        stopSource.request_stop();
-                        return;
+                      for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
+                        if(std::invoke(func, *it, values...)) {
+                          // On success, store the value in the output array
+                          // and cancel future work.
+                          // This works on the assumption that bulk_schedule will launch
+                          // tasks (or at least, test for cancellation) in
+                          // iteration-space order, and hence only cancel future work,
+                          // to maintain the find-first property.
+                          state.perChunkState[index] = it;
+                          state.found_flag = true;
+                          stopSource.request_stop();
+                          return;
+                        }
+                      }
+                    },
+                    unifex::par
+                  )
+                );
+              return
+                unifex::transform(
+                  unifex::transform_done(
+                    std::move(bulk_phase),
+                    [&stopSource, &state](){
+                      if(state.found_flag == true) {
+                        // If the item was found, then continue as if not cancelled
+                        return just();
+                      } else {
+                        // If there was cancellation and we did not find the item
+                        // then propagate the cancellation and assume failure
+                        // TODO: We are temporarily always recovering from cancellation
+                        // until a variant sender is implemented to unify the two
+                        // algorithms
+                        return just();
                       }
                     }
-                  },
-                  unifex::par
-                )
-              );
-            return
-              unifex::transform(
-                unifex::transform_done(
-                  std::move(bulk_phase),
-                  [&stopSource, &found_flag](){
-                    if(*found_flag == true) {
-                      // If the item was found, then continue as if not cancelled
-                      return just();
-                    } else {
-                      // If there was cancellation and we did not find the item
-                      // then propagate the cancellation and assume failure
-                      // TODO: We are temporarily always recovering from cancellation
-                      // until a variant sender is implemented to unify the two
-                      // algorithms
-                      return just();
+                  ),
+                  [&state, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
+                    for(auto it : state.perChunkState) {
+                      if(it != end_it) {
+                        return std::tuple<Iterator, Values...>(it, std::move(values)...);
+                      }
                     }
+                    return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
                   }
-                ),
-                [&perChunkState, end_it, &values...]() mutable -> std::tuple<Iterator, Values...> {
-                  for(auto it : perChunkState) {
-                    if(it != end_it) {
-                      return std::tuple<Iterator, Values...>(it, std::move(values)...);
-                    }
-                  }
-                  return std::tuple<Iterator, Values...>(end_it, std::move(values)...);
-                }
-              );
+                );
+              });
+            });
           });
-        });
     }
   };
 
