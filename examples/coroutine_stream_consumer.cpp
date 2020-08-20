@@ -17,11 +17,9 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/awaitable_sender.hpp>
 #include <unifex/delay.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/sender_awaitable.hpp>
 #include <unifex/single.hpp>
 #include <unifex/stop_immediately.hpp>
 #include <unifex/sync_wait.hpp>
@@ -66,7 +64,7 @@ int main() {
     co_return sum;
   };
 
-  sync_wait(awaitable_sender(makeTask()));
+  sync_wait(makeTask());
 
   return 0;
 }
