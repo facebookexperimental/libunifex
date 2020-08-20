@@ -31,10 +31,6 @@ namespace unifex {
 
 namespace _visit_continuations_cpo {
   inline const struct _fn {
-    template <typename Continuation, typename Func>
-    friend void
-    tag_invoke(_fn, const Continuation&, Func&&) noexcept {}
-
 #if !UNIFEX_NO_COROUTINES
     template(typename Promise, typename Func)
         (requires (!std::is_void_v<Promise>))
@@ -46,7 +42,8 @@ namespace _visit_continuations_cpo {
     }
 #endif // UNIFEX_NO_COROUTINES
 
-    template <typename Continuation, typename Func>
+    template(typename Continuation, typename Func)
+      (requires tag_invocable<_fn, const Continuation&, Func>)
     void operator()(const Continuation& c, Func&& func) const
         noexcept(is_nothrow_tag_invocable_v<
                 _fn,
@@ -60,6 +57,10 @@ namespace _visit_continuations_cpo {
           "tag_invoke() overload for visit_continuations() must return void");
       return tag_invoke(_fn{}, c, (Func &&) func);
     }
+
+    template(typename Continuation, typename Func)
+      (requires (!tag_invocable<_fn, const Continuation&, Func>))
+    void operator()(const Continuation&, Func&&) const noexcept {}
   } visit_continuations {};
 } // namespace _visit_continuations_cpo
 using _visit_continuations_cpo::visit_continuations;

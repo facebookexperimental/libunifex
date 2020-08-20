@@ -92,18 +92,16 @@ namespace unifex
         return r.get_stop_token();
       }
 
-      template(typename CPO, typename... Args)
+      template(typename CPO)
           (requires is_receiver_query_cpo_v<CPO>)
       friend auto tag_invoke(
           CPO cpo,
-          const type& r,
-          Args&&... args) noexcept(std::
+          const type& r) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
-                                           const Receiver&,
-                                           Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
-        return std::invoke(std::move(cpo), r.get_receiver(), (Args &&) args...);
+                                           const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
+        return std::invoke(std::move(cpo), r.get_receiver());
       }
 
       inplace_stop_token get_stop_token() const noexcept {
@@ -150,18 +148,16 @@ namespace unifex
         return r.get_stop_token();
       }
 
-      template(typename CPO, typename... Args)
+      template(typename CPO)
           (requires is_receiver_query_cpo_v<CPO>)
       friend auto tag_invoke(
           CPO cpo,
-          const type& r,
-          Args&&... args) noexcept(std::
+          const type& r) noexcept(std::
                                        is_nothrow_invocable_v<
                                            CPO,
-                                           const Receiver&,
-                                           Args...>)
-          -> std::invoke_result_t<CPO, const Receiver&, Args...> {
-        return std::invoke(std::move(cpo), r.get_receiver(), (Args &&) args...);
+                                           const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
+        return std::invoke(std::move(cpo), r.get_receiver());
       }
 
       inplace_stop_token get_stop_token() const noexcept {
