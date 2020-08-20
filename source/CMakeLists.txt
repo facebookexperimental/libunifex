@@ -9,6 +9,7 @@ target_sources(unifex
   PRIVATE
     async_mutex.cpp
     inplace_stop_token.cpp
+    fifo_manual_event_loop.cpp
     manual_event_loop.cpp
     static_thread_pool.cpp
     thread_unsafe_event_loop.cpp
