@@ -19,9 +19,7 @@
 #if !UNIFEX_NO_COROUTINES
 
 #  include <unifex/async_mutex.hpp>
-#  include <unifex/awaitable_sender.hpp>
 #  include <unifex/scheduler_concepts.hpp>
-#  include <unifex/sender_awaitable.hpp>
 #  include <unifex/single_thread_context.hpp>
 #  include <unifex/sync_wait.hpp>
 #  include <unifex/task.hpp>
@@ -50,8 +48,8 @@ TEST(async_mutex, multiple_threads) {
   single_thread_context ctx2;
 
   sync_wait(when_all(
-      awaitable_sender(makeTask(ctx1.get_scheduler())),
-      awaitable_sender(makeTask(ctx2.get_scheduler()))));
+      makeTask(ctx1.get_scheduler()),
+      makeTask(ctx2.get_scheduler())));
 
   EXPECT_EQ(200'000, sharedState);
 }

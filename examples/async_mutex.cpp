@@ -21,9 +21,7 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/awaitable_sender.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/sender_awaitable.hpp>
 #include <unifex/task.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/single_thread_context.hpp>
@@ -50,8 +48,8 @@ int main() {
   single_thread_context ctx1;
   single_thread_context ctx2;
 
-  sync_wait(when_all(awaitable_sender(makeTask(ctx1.get_scheduler())),
-                     awaitable_sender(makeTask(ctx2.get_scheduler()))));
+  sync_wait(when_all(makeTask(ctx1.get_scheduler()),
+                     makeTask(ctx2.get_scheduler())));
 
   if (sharedState != 200'000) {
     std::printf("error: incorrect result %i, expected 2000000\n", sharedState);

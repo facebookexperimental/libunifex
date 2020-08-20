@@ -402,9 +402,27 @@ struct single_value_type<> {
   using type = void;
 };
 
+template <typename... Overloads>
+struct single_overload {};
+
+template <typename Overload>
+struct single_overload<Overload> {
+  using type = Overload;
+};
+
+template <>
+struct single_overload<> {
+private:
+  struct dummy {
+    using type = void;
+  };
+public:
+  using type = dummy;
+};
+
 template <typename Sender>
 using single_value_result_t = non_void_t<wrap_reference_t<decay_rvalue_t<
-    typename Sender::template value_types<single_type, single_value_type>::
+    typename Sender::template value_types<single_overload, single_value_type>::
         type::type>>>;
 
 template <typename Sender>

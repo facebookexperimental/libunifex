@@ -28,8 +28,6 @@
 #include <unifex/when_all.hpp>
 
 #if !UNIFEX_NO_COROUTINES
-#include <unifex/awaitable_sender.hpp>
-#include <unifex/sender_awaitable.hpp>
 #include <unifex/task.hpp>
 #endif
 
@@ -102,12 +100,10 @@ int main() {
             return time;
           }),
 #if !UNIFEX_NO_COROUTINES
-        awaitable_sender(
           []() -> task<int> {
             co_await dump_async_trace("coroutine");
             co_return 42;
           }()
-        )
 #else
         just(42)
 #endif // UNIFEX_NO_COROUTINES
