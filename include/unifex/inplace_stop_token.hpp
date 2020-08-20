@@ -17,6 +17,8 @@
 
 #include <unifex/config.hpp>
 #include <unifex/spin_wait.hpp>
+#include <unifex/unstoppable_token.hpp>
+#include <unifex/manual_lifetime.hpp>
 
 #include <atomic>
 #include <cassert>
@@ -98,11 +100,17 @@ class inplace_stop_token {
 
   inplace_stop_token() noexcept : source_(nullptr) {}
 
+  inplace_stop_token(const inplace_stop_token& other) noexcept = default;
+
   inplace_stop_token(inplace_stop_token&& other) noexcept
       : source_(std::exchange(other.source_, {})) {}
 
-  inplace_stop_token(const inplace_stop_token& other) noexcept
-      : source_(other.source_) {}
+  inplace_stop_token& operator=(const inplace_stop_token& other) noexcept = default;
+
+  inplace_stop_token& operator=(inplace_stop_token&& other) noexcept {
+    source_ = std::exchange(other.source_, nullptr);
+    return *this;
+  }
 
   bool stop_requested() const noexcept {
     return source_ != nullptr && source_->stop_requested();
@@ -110,6 +118,18 @@ class inplace_stop_token {
 
   bool stop_possible() const noexcept {
     return source_ != nullptr;
+  }
+
+  void swap(inplace_stop_token& other) noexcept {
+    std::swap(source_, other.source_);
+  }
+
+  friend bool operator==(const inplace_stop_token& a, const inplace_stop_token& b) noexcept {
+    return a.source_ == b.source_;
+  }
+
+  friend bool operator!=(const inplace_stop_token& a, const inplace_stop_token& b) noexcept {
+    return !(a == b);
   }
 
  private:
@@ -155,6 +175,57 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
 
  private:
   UNIFEX_NO_UNIQUE_ADDRESS F func_;
+};
+
+namespace detail {
+  struct forward_stop_request_to_inplace_stop_source {
+    inplace_stop_source& source;
+
+    void operator()() const noexcept {
+      source.request_stop();
+    }
+  };
+} // namespace detail
+
+// Helper class for adapting an incoming StopToken type to an
+// inplace_stop_token.
+template<typename StopToken>
+class inplace_stop_token_adapter {
+public:
+  inplace_stop_token subscribe(StopToken stoken) noexcept {
+    const bool stopPossible = stoken.stop_possible();
+    callback_.construct(std::move(stoken), source_);
+    return stopPossible ? source_.get_token() : inplace_stop_token{};
+  }
+
+  void unsubscribe() noexcept {
+    callback_.destruct();
+  }
+
+private:
+  using stop_callback = typename StopToken::template callback_type<detail::forward_stop_request_to_inplace_stop_source>;
+  inplace_stop_source source_;
+  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<stop_callback> callback_;
+};
+
+template<>
+class inplace_stop_token_adapter<inplace_stop_token> {
+public:
+  inplace_stop_token subscribe(inplace_stop_token stoken) noexcept {
+    return std::move(stoken);
+  }
+
+  void unsubscribe() noexcept {}
+};
+
+template<>
+class inplace_stop_token_adapter<unstoppable_token> {
+public:
+  inplace_stop_token subscribe(unstoppable_token) noexcept {
+    return inplace_stop_token{};
+  }
+
+  void unsubscribe() noexcept {}
 };
 
 } // namespace unifex
