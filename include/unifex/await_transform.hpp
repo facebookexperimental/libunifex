@@ -41,7 +41,8 @@ namespace _await_transform {
 
 template <typename Promise, typename Sender>
 class _as_awaitable {
-  using value_t = single_value_result_t<Sender>;
+  using value_t = typename remove_cvref_t<Sender>::
+        template value_types<single_overload, single_value_type>::type::type;
   enum class state { empty, value, exception, done };
 
   class receiver {
@@ -57,7 +58,7 @@ class _as_awaitable {
     {}
 
     template(class... Us)
-      (requires constructible_from<value_t, Us...>)
+      (requires (constructible_from<value_t, Us...> || (std::is_void_v<value_t> && sizeof...(Us) == 0)))
     void set_value(Us&&... us) &&
         noexcept(std::is_nothrow_constructible_v<value_t, Us...>) {
       unifex::activate_union_member(op_->value_, (Us&&) us...);
@@ -73,7 +74,7 @@ class _as_awaitable {
     
     void set_done() && noexcept {
       op_->state_ = state::done;
-      continuation_.resume();
+      continuation_.promise().unhandled_done().resume();
     }
 
     template(typename CPO)
@@ -122,12 +123,10 @@ public:
     unifex::start(op_);
   }
 
-  std::optional<value_t> await_resume() {
+  value_t await_resume() {
     switch (state_) {
     case state::value:
       return std::move(value_).get();
-    case state::done:
-      return std::nullopt;
     default:
       assert(state_ == state::exception);
       std::rethrow_exception(exception_.get());
