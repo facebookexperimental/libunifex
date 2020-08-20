@@ -21,7 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/compose_with_target.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <condition_variable>
 #include <exception>
@@ -149,9 +149,9 @@ namespace _sync_wait_cpo {
     }
     auto operator()() const
         noexcept(is_nothrow_callable_v<
-          tag_t<compose_with_target>, _fn>)
-        -> compose_with_target_result_t<_fn> {
-      return compose_with_target(*this);
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   };
 } // namespace _sync_wait_cpo

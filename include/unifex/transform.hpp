@@ -25,7 +25,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/compose_with_target.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <exception>
 #include <functional>
@@ -204,9 +204,9 @@ namespace _tfx_cpo {
     template <typename Func>
     auto operator()(Func&& func) const
         noexcept(is_nothrow_callable_v<
-          tag_t<compose_with_target>, _fn, Func>)
-        -> compose_with_target_result_t<_fn, Func> {
-      return compose_with_target(*this, (Func &&) func);
+          tag_t<bind_back>, _fn, Func>)
+        -> bind_back_result_t<_fn, Func> {
+      return bind_back(*this, (Func &&) func);
     }
   } transform{};
 } // namespace _tfx_cpo

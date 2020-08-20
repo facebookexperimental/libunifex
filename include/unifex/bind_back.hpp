@@ -24,7 +24,7 @@
 
 namespace unifex {
 
-namespace _compose_with_target {
+namespace _bind_back {
 
 template <typename Cpo, typename... ArgN>
 struct apply_target {
@@ -32,16 +32,26 @@ private:
   std::tuple<remove_cvref_t<ArgN>...> argN_;
 public:
   template <typename... CN>
-  explicit apply_target(CN&&... cn) : argN_((CN&&) cn...) {}
+  explicit constexpr apply_target(CN&&... cn) 
+    noexcept(std::is_nothrow_constructible_v<std::tuple<remove_cvref_t<ArgN>...>, CN...>) 
+    : argN_((CN&&) cn...) {}
+
+  template <typename Target>
+  auto operator()(Target&& target) &&
+    noexcept(
+      is_nothrow_callable_v<Cpo, Target, ArgN...>) 
+    -> callable_result_t<Cpo, Target, ArgN...> {
+    return std::apply([&](auto&&... argN){
+      return Cpo{}((Target&&) target, (ArgN&&) argN...);
+    }, std::move(argN_));
+  }
 
   template <typename Target>
   friend auto operator|(Target&& target, apply_target&& self) 
     noexcept(
       is_nothrow_callable_v<Cpo, Target, ArgN...>) 
     -> callable_result_t<Cpo, Target, ArgN...> {
-    return std::apply([&](auto&&... argN){
-      return Cpo{}((Target&&) target, (ArgN&&) argN...);
-    }, std::move(self.argN_));
+    return std::move(self)((Target&&) target);
   }
 };
 
@@ -55,14 +65,14 @@ public:
       -> apply_target<remove_cvref_t<Cpo>, ArgN...> {
     return apply_target<remove_cvref_t<Cpo>, ArgN...>{(ArgN &&) argN...};
   }
-} compose_with_target{};
+} bind_back{};
 
-} // namespace _compose_with_target
+} // namespace _bind_back
 
-using _compose_with_target::compose_with_target;
+using _bind_back::bind_back;
 
 template <typename Cpo, typename... ArgN>
-using compose_with_target_result_t = _compose_with_target::apply_target<remove_cvref_t<Cpo>, ArgN...>;
+using bind_back_result_t = _bind_back::apply_target<remove_cvref_t<Cpo>, ArgN...>;
 
 } // namespace unifex
 
