@@ -143,14 +143,16 @@ public:
       template <typename...> class Variant,
       template <typename...> class Tuple>
   using value_types = type_list_nested_apply_t<
-    typename Predecessor::template value_types<concat_type_lists_unique_t, result>,
+    typename sender_traits<Predecessor>::template value_types<concat_type_lists_unique_t, result>,
     Variant,
     Tuple>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-    typename Predecessor::template error_types<type_list>,
+    typename sender_traits<Predecessor>::template error_types<type_list>,
     type_list<std::exception_ptr>>::template apply<Variant>;
+
+  static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, Func>;

@@ -134,12 +134,14 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types = typename Predecessor::template value_types<Variant, Tuple>;
+  using value_types = typename sender_traits<Predecessor>::template value_types<Variant, Tuple>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename Predecessor::template error_types<type_list>,
+      typename sender_traits<Predecessor>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
+
+  static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
   friend constexpr auto tag_invoke(
       tag_t<blocking>,

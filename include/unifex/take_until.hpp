@@ -95,12 +95,14 @@ struct _stream<SourceStream, TriggerStream>::type {
     template <template <typename...> class Variant,
              template <typename...> class Tuple>
     using value_types =
-      typename next_sender_t<SourceStream>::
+      typename sender_traits<next_sender_t<SourceStream>>::
         template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types =
-      typename next_sender_t<SourceStream>::template error_types<Variant>;
+      typename sender_traits<next_sender_t<SourceStream>>::template error_types<Variant>;
+
+    static constexpr bool sends_done = sender_traits<next_sender_t<SourceStream>>::sends_done;
 
     template <typename Receiver>
     struct _op {
@@ -201,12 +203,14 @@ struct _stream<SourceStream, TriggerStream>::type {
     template <template <typename...> class Variant,
              template <typename...> class Tuple>
     using value_types =
-      typename cleanup_sender_t<SourceStream>::
+      typename sender_traits<cleanup_sender_t<SourceStream>>::
         template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types =
-      typename cleanup_sender_t<SourceStream>::template error_types<Variant>;
+      typename sender_traits<cleanup_sender_t<SourceStream>>::template error_types<Variant>;
+
+    static constexpr bool sends_done = true;
 
     template <typename Receiver>
     struct _op {

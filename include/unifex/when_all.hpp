@@ -113,7 +113,7 @@ using unique_decayed_error_types = concat_type_lists_unique_t<
 
 template <template <typename...> class Variant, typename... Senders>
 using error_types = typename concat_type_lists_unique_t<
-    typename Senders::template error_types<unique_decayed_error_types>...,
+    typename sender_traits<Senders>::template error_types<unique_decayed_error_types>...,
     type_list<std::exception_ptr>>::template apply<Variant>;
 
 template <typename... Values>
@@ -121,7 +121,7 @@ using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
 
 template <typename Sender>
 using value_variant_for_sender =
-  typename Sender::template value_types<concat_type_lists_unique_t, decayed_value_tuple>::template apply<std::variant>;
+  typename sender_traits<Sender>::template value_types<concat_type_lists_unique_t, decayed_value_tuple>::template apply<std::variant>;
 
 template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver {
@@ -296,6 +296,8 @@ class _sender<Senders...>::type {
 
   template <template <typename...> class Variant>
   using error_types = error_types<Variant, Senders...>;
+
+  static constexpr bool sends_done = true;
 
   template <typename... Senders2>
   explicit type(Senders2&&... senders)

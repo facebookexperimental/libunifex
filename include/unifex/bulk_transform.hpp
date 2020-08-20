@@ -151,17 +151,17 @@ public:
         template<typename...> class Variant,
         template<typename...> class Tuple>
     using next_types = type_list_nested_apply_t<
-        typename Source::template next_types<concat_type_lists_unique_t, result>,
+        typename sender_traits<Source>::template next_types<concat_type_lists_unique_t, result>,
         Variant,
         Tuple>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
-    using value_types = typename Source::template value_types<Variant, Tuple>;
+    using value_types = typename sender_traits<Source>::template value_types<Variant, Tuple>;
 
     template<template<typename...> class Variant>
-    using error_types = typename Source::template error_types<Variant>;
+    using error_types = typename sender_traits<Source>::template error_types<Variant>;
 
-    static constexpr bool sends_done = Source::sends_done;
+    static constexpr bool sends_done = sender_traits<Source>::sends_done;
 
     template<typename Source2, typename Func2>
     explicit type(Source2&& source, Func2&& func, Policy policy)

@@ -73,8 +73,7 @@ namespace detail {
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_sender_types_impl, //
       requires() (          //
-        // BUGBUG TODO:
-        // typename (std::bool_constant<S::sends_done>),
+        typename (std::bool_constant<S::sends_done>),
         typename (_has_value_types<S::template value_types>),
         typename (_has_error_types<S::template error_types>)
       ));
@@ -87,8 +86,7 @@ namespace detail {
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_bulk_sender_types_impl, //
       requires() (          //
-        // BUGBUG TODO:
-        // typename (std::bool_constant<S::sends_done>),
+        typename (std::bool_constant<S::sends_done>),
         typename (_has_value_types<S::template value_types>),
         typename (_has_value_types<S::template next_types>),
         typename (_has_error_types<S::template error_types>)
@@ -131,8 +129,7 @@ namespace detail {
     template <template <typename...> class Variant>
     using error_types = typename S::template error_types<Variant>;
 
-    // TODO
-    // static constexpr bool sends_done = S::sends_done;
+    static constexpr bool sends_done = S::sends_done;
   };
 
   template <typename S>
@@ -378,14 +375,14 @@ namespace detail {
 
 template <typename Sender, typename Adaptor>
 using adapt_error_types_t =
-    typename Sender::template error_types<Adaptor::template apply>;
+    typename sender_traits<Sender>::template error_types<Adaptor::template apply>;
 
 template <
     typename Sender,
     template <typename...> class Variant,
     typename Adaptor>
 using adapt_value_types_t =
-    typename Sender::template value_types<Variant, typename Adaptor::apply>;
+    typename sender_traits<Sender>::template value_types<Variant, typename Adaptor::apply>;
 
 template <typename... Types>
 struct single_value_type {

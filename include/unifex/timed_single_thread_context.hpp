@@ -135,6 +135,8 @@ namespace _timed_single_thread_context {
     template <template <typename...> class Variant>
     using error_types = Variant<>;
 
+    static constexpr bool sends_done = true;
+
     template <typename Receiver>
     after_operation<Duration, Receiver> connect(Receiver&& receiver) const & {
       return after_operation<Duration, Receiver>{
@@ -202,6 +204,8 @@ namespace _timed_single_thread_context {
 
     template <template <typename...> class Variant>
     using error_types = Variant<>;
+
+    static constexpr bool sends_done = true;
 
     template <typename Receiver>
     at_operation<remove_cvref_t<Receiver>> connect(Receiver&& receiver) {

@@ -163,9 +163,9 @@ public:
     using next_types = Variant<Tuple<Integral>>;
 
     template<template<typename...> class Variant>
-    using error_types = typename schedule_sender_t::template error_types<Variant>;
+    using error_types = typename sender_traits<schedule_sender_t>::template error_types<Variant>;
 
-    static constexpr bool sends_done = schedule_sender_t::sends_done;
+    static constexpr bool sends_done = true;
 
     template<typename Scheduler2>
     explicit type(Scheduler2&& s, Integral count)

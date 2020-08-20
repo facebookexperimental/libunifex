@@ -311,6 +311,12 @@ struct _sender {
 template <typename Source, typename Func>
 using sender = typename _sender<remove_cvref_t<Source>, std::decay_t<Func>>::type;
 
+template<typename Sender>
+struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {};
+
+template<typename... Senders>
+using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
+
 template <typename Source, typename Func>
 class _sender<Source, Func>::type {
   using sender = type;
@@ -320,16 +326,22 @@ class _sender<Source, Func>::type {
 
   template <typename... Errors>
   using make_error_type_list = typename concat_type_lists_unique<
-      typename trigger_sender<Errors>::template error_types<type_list>...,
+      typename sender_traits<trigger_sender<Errors>>::template error_types<type_list>...,
       type_list<std::exception_ptr>>::type;
+
+  template <typename... Errors>
+  using sends_done_impl = any_sends_done<Source, trigger_sender<Errors>...>;
 
 public:
   template <template <typename...> class Variant,
            template <typename...> class Tuple>
-  using value_types = typename Source::template value_types<Variant, Tuple>;
+  using value_types = typename sender_traits<Source>::template value_types<Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename Source::template error_types<make_error_type_list>::template apply<Variant>;
+  using error_types = typename sender_traits<Source>::template error_types<make_error_type_list>::template apply<Variant>;
+
+  static constexpr bool sends_done =
+    sender_traits<Source>::template error_types<sends_done_impl>::value;
 
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)

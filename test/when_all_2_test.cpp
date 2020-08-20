@@ -101,6 +101,8 @@ struct string_const_ref_sender {
   template <template <typename...> class Variant>
   using error_types = Variant<const std::exception_ptr&>;
 
+  static constexpr bool sends_done = false;
+
   template <typename Receiver>
   struct operation {
     unifex::remove_cvref_t<Receiver> receiver_;

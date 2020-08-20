@@ -111,10 +111,12 @@ class _sender<CPO, Value, Sender>::type {
 public:
   template <template <typename...> class Variant,
             template <typename...> class Tuple>
-  using value_types = typename Sender::template value_types<Variant, Tuple>;
+  using value_types = typename sender_traits<Sender>::template value_types<Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename Sender::template error_types<Variant>;
+  using error_types = typename sender_traits<Sender>::template error_types<Variant>;
+
+  static constexpr bool sends_done = sender_traits<Sender>::sends_done;
 
   template <typename Sender2, typename Value2>
   explicit type(Sender2 &&sender, Value2 &&value)

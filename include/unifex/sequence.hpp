@@ -300,13 +300,17 @@ namespace unifex
           template <typename...> class Variant,
           template <typename...> class Tuple>
       using value_types =
-          typename Successor::template value_types<Variant, Tuple>;
+          typename sender_traits<Successor>::template value_types<Variant, Tuple>;
 
       template <template <typename...> class Variant>
       using error_types = typename concat_type_lists_unique_t<
-          typename Predecessor::template error_types<type_list>,
-          typename Successor::template error_types<type_list>,
+          typename sender_traits<Predecessor>::template error_types<type_list>,
+          typename sender_traits<Successor>::template error_types<type_list>,
           type_list<std::exception_ptr>>::template apply<Variant>;
+
+      static constexpr bool sends_done =
+        sender_traits<Predecessor>::sends_done ||
+        sender_traits<Successor>::sends_done;
 
       template(typename Predecessor2, typename Successor2)
           (requires constructible_from<Predecessor, Predecessor2> AND

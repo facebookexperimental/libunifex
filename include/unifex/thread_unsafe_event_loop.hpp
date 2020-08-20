@@ -146,6 +146,8 @@ namespace _thread_unsafe_event_loop {
     template <template <typename...> class Variant>
     using error_types = Variant<>;
 
+    static constexpr bool sends_done = true;
+
     template <typename Receiver>
     after_operation<Duration, remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
       return after_operation<Duration, remove_cvref_t<Receiver>>{
@@ -221,6 +223,8 @@ namespace _thread_unsafe_event_loop {
 
     template <template <typename...> class Variant>
     using error_types = Variant<>;
+
+    static constexpr bool sends_done = true;
 
     template <typename Receiver>
     at_operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const& {

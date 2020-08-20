@@ -69,6 +69,8 @@ namespace _inline_sched {
       template <template <typename...> class Variant>
       using error_types = Variant<>;
 
+      static constexpr bool sends_done = true;
+
       friend constexpr blocking_kind tag_invoke(
           tag_t<blocking>,
           const schedule_task&) noexcept {

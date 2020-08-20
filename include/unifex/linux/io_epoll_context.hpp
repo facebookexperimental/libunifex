@@ -261,6 +261,8 @@ class io_epoll_context::schedule_sender {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
+  static constexpr bool sends_done = true;
+
   template <typename Receiver>
   operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) && {
     return operation<std::remove_reference_t<Receiver>>{context_,
@@ -448,6 +450,8 @@ class io_epoll_context::schedule_at_sender {
 
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
+
+  static constexpr bool sends_done = true;
 
   explicit schedule_at_sender(
       io_epoll_context& context,
@@ -700,6 +704,8 @@ class io_epoll_context::read_sender {
   template <template <typename...> class Variant>
   using error_types = Variant<std::error_code, std::exception_ptr>;
 
+  static constexpr bool sends_done = true;
+
   explicit read_sender(
       io_epoll_context& context,
       int fd,
@@ -910,6 +916,8 @@ class io_epoll_context::write_sender {
 
   template <template <typename...> class Variant>
   using error_types = Variant<std::error_code, std::exception_ptr>;
+
+  static constexpr bool sends_done = true;
 
   explicit write_sender(
       io_epoll_context& context,

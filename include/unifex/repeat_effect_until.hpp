@@ -194,8 +194,10 @@ public:
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename Source::template error_types<type_list>,
+      typename sender_traits<Source>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
+
+  static constexpr bool sends_done = true;
 
   template <typename Source2, typename Predicate2>
   explicit type(Source2&& source, Predicate2&& predicate)
