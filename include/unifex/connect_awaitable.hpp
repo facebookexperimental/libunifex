@@ -70,6 +70,11 @@ public:
       std::terminate();
     }
 
+    coro::coroutine_handle<> unhandled_done() noexcept {
+      unifex::set_done(std::move(receiver_));
+      return coro::noop_coroutine();
+    }
+
     template <typename Func>
     auto yield_value(Func&& func) noexcept {
       struct awaiter {
@@ -148,7 +153,7 @@ namespace _await_cpo {
       try {
 #endif // !UNIFEX_NO_EXCEPTIONS
 
-        using result_type = std::optional<single_value_result_t<Awaitable>>;
+        using result_type = single_value_result_t<Awaitable>;
 
         // This is a bit mind bending control-flow wise.
         // We are first evaluating the co_await expression.
@@ -160,24 +165,28 @@ namespace _await_cpo {
         // for the receiver to destroy the coroutine.
         co_yield [&](result_type&& result) {
               return [&] {
-                constexpr bool canCompleteWithValue = Awaitable::template value_types<count_types, single_value_type>::value > 0;
-                if constexpr (canCompleteWithValue) {
-                  using value_type = typename Awaitable::template value_types<single_type, single_value_type>;
-                  if (result.has_value()) {
-                    if constexpr (std::is_void_v<value_type>) {
-                      unifex::set_value(std::move(receiver));
-                    } else {
-                      unifex::set_value(std::move(receiver), std::move(result).value());
-                    }
-                    return;
+                constexpr size_t valueOverloadCount = Awaitable::template value_types<count_types, single_value_type>::value;
+                static_assert(valueOverloadCount <= 1);
+
+                if constexpr (valueOverloadCount == 1) {
+                  constexpr size_t valueCount = Awaitable::template value_types<type_identity_t, count_types>::value;
+                  if constexpr (valueCount == 0) {
+                    unifex::set_value(std::move(receiver));
+                  } else if constexpr (valueCount == 1) {
+                    using value_type = typename Awaitable::template value_types<single_type, single_type>::type::type;
+                    unifex::set_value(std::move(receiver), static_cast<value_type&&>(result));
+                  } else {
+                    std::apply([&](auto&&... values) {
+                      unifex::set_value(std::move(receiver), static_cast<decltype(values)>(values)...);
+                    }, (result_type&&)result);
                   }
+                } else {
+                  // Shouldn't complete with a value if there are no value_types
+                  // specified.
+                  std::terminate();
                 }
-
-                assert(!result.has_value());
-
-                unifex::set_done(std::move(receiver));
               };
-            }(co_await (Awaitable &&) awaitable);
+            }(co_await (Awaitable &&)awaitable);
 #if !UNIFEX_NO_EXCEPTIONS
       } catch (...) {
         ex = std::current_exception();

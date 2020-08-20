@@ -34,26 +34,28 @@ using namespace unifex;
 using namespace std::chrono_literals;
 
 TEST(awaitable_senders, non_void) {
-  auto makeTask = [&]() -> task<std::optional<int>> {
+  auto makeTask = [&]() -> task<int> {
     co_return co_await just(42);
   };
 
-  std::optional<std::optional<int>> answer =
+  std::optional<int> answer =
       sync_wait(makeTask());
 
-  EXPECT_TRUE(answer.has_value() && answer->has_value());
-  EXPECT_EQ(42, **answer);
+  EXPECT_TRUE(answer.has_value());
+  EXPECT_EQ(42, *answer);
 }
 
 TEST(awaitable_senders, void) {
-  auto makeTask = [&]() -> task<std::optional<unifex::unit>> {
-    co_return co_await just();
+  // HACK: ideally would be task<void> once that specialisation has been added.
+  auto makeTask = [&]() -> task<unifex::unit> {
+    co_await just();
+    co_return unifex::unit{};
   };
 
-  std::optional<std::optional<unifex::unit>> answer =
+  std::optional<unifex::unit> answer =
       sync_wait(makeTask());
 
-  EXPECT_TRUE(answer.has_value() && answer->has_value());
+  EXPECT_TRUE(answer.has_value());
 }
 
 TEST(awaitable_senders, task_cancellation) {
@@ -62,11 +64,22 @@ TEST(awaitable_senders, task_cancellation) {
   sync_wait(
     stop_when(
       [&]() -> task<int> {
-        std::optional<unifex::unit> x = co_await schedule_after(sched, 500ms);
-        EXPECT_FALSE(x.has_value());
-        co_return 0;
+        co_await schedule_after(sched, 500ms);
+        ADD_FAILURE();
+        std::terminate();
       }(),
       schedule_after(sched, 5ms)));
+}
+
+TEST(awaitable_senders, await_multi_value_sender) {
+  std::optional<int> result = sync_wait([]() -> task<int> {
+    auto [a, b] = co_await just(10, 42);
+    EXPECT_EQ(10, a);
+    EXPECT_EQ(42, b);
+    co_return a + b;
+  }());
+
+  EXPECT_EQ(52, result);
 }
 
 #endif  // UNIFEX_NO_COROUTINES

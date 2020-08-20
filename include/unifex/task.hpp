@@ -104,6 +104,15 @@ struct _task<T>::type {
       return awaiter{};
     }
 
+    coro::coroutine_handle<> unhandled_done() noexcept {
+      if (doneCallback_ == nullptr) {
+        // No handler for 'done' signal
+        std::terminate();
+      }
+
+      return doneCallback_(continuation_.address());
+    }
+
     void unhandled_exception() noexcept {
       reset_value();
       unifex::activate_union_member(exception_, std::current_exception());
@@ -152,9 +161,13 @@ struct _task<T>::type {
       return p.stoken_;
     }
 
-    enum class state { empty, value, exception };
+    enum class state { empty, value, exception, done };
+
+    using done_callback = coro::coroutine_handle<>(void*) noexcept;
 
     coro::coroutine_handle<> continuation_;
+    done_callback* doneCallback_ = nullptr;
+
     state state_ = state::empty;
     union {
       manual_lifetime<T> value_;
@@ -176,7 +189,7 @@ struct _task<T>::type {
     template<typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
-  static constexpr bool sends_done = false;
+  static constexpr bool sends_done = true;
 
   explicit type(coro::coroutine_handle<promise_type> h) noexcept
       : coro_(h) {}
@@ -216,13 +229,16 @@ private:
         coro::coroutine_handle<Promise> h) noexcept {
       assert(coro_);
       coro_.promise().continuation_ = h;
+      coro_.promise().doneCallback_ = [](void* p) noexcept {
+        return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
+      };
       coro_.promise().info_.emplace(
           continuation_info::from_continuation(h.promise()));
       coro_.promise().stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
       return coro_;
     }
 
-    std::optional<non_void_t<wrap_reference_t<decay_rvalue_t<T>>>> await_resume() {
+    T await_resume() {
       stopTokenAdapter_.unsubscribe();
       scope_guard destroyOnExit{[this]() noexcept { std::exchange(coro_, {}).destroy(); }};
       return coro_.promise().result();

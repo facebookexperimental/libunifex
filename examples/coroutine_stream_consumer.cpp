@@ -27,11 +27,30 @@
 #include <unifex/task.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>
+#include <unifex/transform_done.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/just.hpp>
 
 #include <chrono>
 #include <cstdio>
 
 using namespace unifex;
+
+template<typename Sender>
+auto done_as_optional(Sender&& sender) {
+  using value_type = unifex::single_value_result_t<unifex::remove_cvref_t<Sender>>;
+  return unifex::transform_done(
+    unifex::transform((Sender&&)sender, [](auto&&... values) {
+      return std::optional<value_type>{std::in_place, static_cast<decltype(values)>(values)...};
+    }), []() {
+      return unifex::just(std::optional<value_type>(std::nullopt));
+    });
+}
+
+template<typename Sender>
+auto done_as_void(Sender&& sender) {
+  return transform_done((Sender&&)sender, [] { return just(); });
+}
 
 int main() {
   using namespace std::chrono;
@@ -47,7 +66,7 @@ int main() {
         single(schedule_after(context.get_scheduler(), 500ms)));
 
     int sum = 0;
-    while (auto value = co_await next(s)) {
+    while (auto value = co_await done_as_optional(next(s))) {
       auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
       std::printf("[%i ms] %i\n", (int)ms.count(), *value);
       std::fflush(stdout);
@@ -55,7 +74,7 @@ int main() {
       sum += *value;
     }
 
-    co_await cleanup(s);
+    co_await done_as_void(cleanup(s));
 
     auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
     std::printf("[%i ms] sum = %i\n", (int)ms.count(), sum);
