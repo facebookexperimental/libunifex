@@ -161,6 +161,10 @@ T& activate_union_member(manual_lifetime<T>& box, Args&&... args) noexcept(
   return t;
 }
 
+inline void activate_union_member(manual_lifetime<void>& box) noexcept {
+  (::new (&box) manual_lifetime<void>{})->construct();
+}
+
 // For activating a manual_lifetime when it is in a union and initializing
 // its value from the result of calling a function.
 template <typename T, typename Func>
