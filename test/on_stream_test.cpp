@@ -49,12 +49,11 @@ TEST(on_stream, Pipeable) {
   single_thread_context context1;
   single_thread_context context2;
 
-  typed_via_stream(
-    context1.get_scheduler(),
-    range_stream{0, 10}
-      | transform_stream(
-          [](int value) { return value * value; })
-      | on_stream(context2.get_scheduler()))
+  range_stream{0, 10}
+    | transform_stream(
+        [](int value) { return value * value; })
+    | on_stream(context2.get_scheduler())
+    | typed_via_stream(context1.get_scheduler())
     | for_each([](int value) { std::printf("got %i\n", value); })
     | transform([]() { std::printf("done\n"); })
     | sync_wait();

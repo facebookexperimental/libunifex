@@ -18,6 +18,7 @@
 #include <unifex/finally.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <type_traits>
 
@@ -49,6 +50,14 @@ namespace _typed_via {
       return finally(
           static_cast<Source&&>(source),
           schedule(static_cast<Scheduler&&>(scheduler)));
+    }
+    template(typename Scheduler)
+        (requires scheduler<Scheduler>)
+    auto operator()(Scheduler&& scheduler) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Scheduler>)
+        -> bind_back_result_t<_fn, Scheduler> {
+      return bind_back(*this, (Scheduler&&)scheduler);
     }
   };
 } // namespace _typed_via
