@@ -39,18 +39,22 @@
 #cmakedefine UNIFEX_COROUTINES_HEADER <@UNIFEX_COROUTINES_HEADER@>
 #cmakedefine UNIFEX_COROUTINES_NAMESPACE @UNIFEX_COROUTINES_NAMESPACE@
 
-#if defined(__ANDROID_API__) && __ANDROID_API__ < 19
+#if !defined(UNIFEX_NO_EPOLL)
+#  if defined(__ANDROID_API__) && __ANDROID_API__ < 19
 // Android makes timerfd_create and friend available as of API version 19;
 // before that, the epoll API exists but it's insufficient for our purposes.
 // https://android.googlesource.com/platform/bionic/+/master/libc/include/sys/timerfd.h#56
-#  define UNIFEX_NO_EPOLL 1
+#    define UNIFEX_NO_EPOLL 1
+#  endif
 #endif
 
 #if !defined(UNIFEX_NO_EPOLL)
 #cmakedefine01 UNIFEX_NO_EPOLL
 #endif
 
+#if !defined(UNIFEX_NO_LIBURING)
 #cmakedefine01 UNIFEX_NO_LIBURING
+#endif
 
 // UNIFEX_DECLARE_NON_DEDUCED_TYPE(type)
 // UNIFEX_USE_NON_DEDUCED_TYPE(type)
