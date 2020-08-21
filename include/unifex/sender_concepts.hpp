@@ -413,11 +413,11 @@ struct single_overload<Overload> {
 template <>
 struct single_overload<> {
 private:
-  struct dummy {
+  struct impl {
     using type = void;
   };
 public:
-  using type = dummy;
+  using type = impl;
 };
 
 template <typename Sender>

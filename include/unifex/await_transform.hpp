@@ -18,7 +18,7 @@
 #include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
-# error "Coroutine support is required to use <unifex/coroutine_concepts.hpp>"
+# error "Coroutine support is required to use <unifex/await_transform.hpp>"
 #endif
 
 #include <unifex/async_trace.hpp>
@@ -118,7 +118,7 @@ public:
     return false;
   }
 
-  void await_suspend([[maybe_unused]] coro::coroutine_handle<Promise> h) noexcept {
+  void await_suspend(coro::coroutine_handle<Promise>) noexcept {
     unifex::start(op_);
   }
 
@@ -157,6 +157,9 @@ struct _fn {
   template(typename Promise, typename Value)
     (requires (!tag_invocable<_fn, Promise&, Value>))
   decltype(auto) operator()(Promise& promise, Value&& value) const {
+    // Note we don't fold the two '(Value&&)value'-returning cases here
+    // to avoid instantiating 'unifex::sender<Value>' concept check in
+    // the case that _awaitable<Value> evaluates to true.
     if constexpr (detail::_awaitable<Value>) {
       return (Value&&)value;
     } else if constexpr (unifex::sender<Value>) {
