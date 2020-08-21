@@ -44,9 +44,9 @@ TEST(reduce_stream, Smoke) {
 TEST(reduce_stream, Pipeable) {
   int finalResult;
 
-  transform_stream(
-    range_stream{0, 10},
-    [](int value) { return value * value; })
+  range_stream{0, 10}
+    | transform_stream(
+        [](int value) { return value * value; })
     | reduce_stream(
         0,
         [](int state, int value) { return state + value; })
