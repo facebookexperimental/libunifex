@@ -97,3 +97,30 @@ TEST(find_if, find_if_parallel) {
     // cannot cancel earlier tasks, which makes find_if's find-fist rule safe.
     EXPECT_EQ(countOfTasksRun, 62);
 }
+
+TEST(find_if, Pipeable) {
+    using namespace unifex;
+
+    std::vector<int> input{1, 2, 3, 4};
+    // Apply linear find_if.
+    // As for std::find_if it returns the first instance that matches the
+    // predicate where the algorithm takes an iterator pair as the first
+    // two arguments, and forwards all other arguments to the predicate and
+    // onwards to the result.
+    // Precise API shape for the data being passed through is TBD, this is
+    // one option only.
+    std::optional<std::vector<int>::iterator> result = just(begin(input), end(input), 3)
+      | find_if(
+          [&](const int& v, int another_parameter) noexcept {
+            return v == another_parameter;
+          },
+          unifex::seq)
+      | transform(
+          [](std::vector<int>::iterator v, int another_parameter) noexcept {
+            assert(another_parameter == 3);
+            return v;
+          })
+      | sync_wait();
+
+    EXPECT_EQ(**result, 3);
+}

@@ -34,6 +34,7 @@
 #include <unifex/bulk_join.hpp>
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_schedule.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <exception>
 #include <functional>
@@ -417,6 +418,13 @@ namespace _find_if_cpo {
         -> _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
       return _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
         (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};
+    }
+    template <typename Func, typename FuncPolicy>
+    auto operator()(Func&& f, const FuncPolicy& policy) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Func, const FuncPolicy&>)
+        -> bind_back_result_t<_fn, Func, const FuncPolicy&> {
+      return bind_back(*this, (Func&&)f, policy);
     }
   } find_if{};
 } // namespace _find_if_cpo
