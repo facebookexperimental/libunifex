@@ -23,6 +23,7 @@
 #include <unifex/type_list.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <utility>
 #include <cassert>
@@ -257,6 +258,13 @@ inline const struct repeat_effect_until_cpo {
     return repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>>{
         (Source&&)source, (Predicate&&)predicate};
   }
+  template <typename Predicate>
+  auto operator()(Predicate&& predicate) const
+      noexcept(is_nothrow_callable_v<
+        tag_t<bind_back>, repeat_effect_until_cpo, Predicate>)
+      -> bind_back_result_t<repeat_effect_until_cpo, Predicate> {
+    return bind_back(*this, (Predicate&&)predicate);
+  }
 } repeat_effect_until{};
 
 inline const struct repeat_effect_cpo {
@@ -280,6 +288,12 @@ inline const struct repeat_effect_cpo {
       -> repeat_effect_until_sender<remove_cvref_t<Source>, forever> {
     return repeat_effect_until_sender<remove_cvref_t<Source>, forever>{
         (Source&&)source, forever{}};
+  }
+  auto operator()() const
+      noexcept(is_nothrow_callable_v<
+        tag_t<bind_back>, repeat_effect_cpo>)
+      -> bind_back_result_t<repeat_effect_cpo> {
+    return bind_back(*this);
   }
 } repeat_effect{};
 
