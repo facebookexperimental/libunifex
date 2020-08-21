@@ -23,6 +23,7 @@
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <exception>
 #include <atomic>
@@ -467,6 +468,13 @@ namespace _take_until_cpo {
       return _take_until::stream<SourceStream, TriggerStream>{
         (SourceStream&&)source,
         (TriggerStream&&)trigger};
+    }
+    template <typename TriggerStream>
+    auto operator()(TriggerStream&& trigger) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, TriggerStream>)
+        -> bind_back_result_t<_fn, TriggerStream> {
+      return bind_back(*this, (TriggerStream&&)trigger);
     }
   } take_until {};
 } // namespace _take_until_cpo
