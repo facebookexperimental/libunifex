@@ -23,8 +23,7 @@
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/get_stop_token.hpp>
-
-#include <unifex/get_stop_token.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -383,6 +382,12 @@ namespace _type_erase_cpo {
     template <typename Stream>
     _type_erase::stream<Ts...> operator()(Stream&& strm) const {
       return _type_erase::stream<Ts...>{(Stream &&) strm};
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   };
 } // namespace _type_erase_cpo
