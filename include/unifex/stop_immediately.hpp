@@ -25,6 +25,7 @@
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <atomic>
 #include <exception>
@@ -457,6 +458,12 @@ namespace _stop_immediately_cpo {
     auto operator()(SourceStream&& source) const {
       return _stop_immediately::stream<SourceStream, Values...>{
         (SourceStream &&) source};
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   };
 } // namespace _stop_immediately_cpo

@@ -60,8 +60,9 @@ TEST(single, Pipeable) {
   [[maybe_unused]] std::optional<unit> result = 
     eventLoop.sync_wait(
       take_until(
-        stop_immediately<int>(
-          range_stream{0, 100} | delay(eventLoop.get_scheduler(), 50ms)),
+        range_stream{0, 100} 
+          | delay(eventLoop.get_scheduler(), 50ms)
+          | stop_immediately<int>(),
         schedule_after(eventLoop.get_scheduler(), 500ms) | single())
         | for_each(
             [start](int value) {
