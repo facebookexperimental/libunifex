@@ -24,6 +24,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <utility>
 #include <cassert>
@@ -393,6 +394,13 @@ namespace _retry_when_cpo {
           _retry_when::sender<Source, Func>, Source, Func>)
         -> _result_t<Source, Func> {
       return _retry_when::sender<Source, Func>{(Source&&)source, (Func&&)func};
+    }
+    template <typename Func>
+    auto operator()(Func&& func) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Func>)
+        -> bind_back_result_t<_fn, Func> {
+      return bind_back(*this, (Func&&)func);
     }
   } retry_when{};
 } // namespace _retry_when_cpo
