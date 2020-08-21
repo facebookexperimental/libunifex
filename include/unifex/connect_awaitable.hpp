@@ -143,6 +143,16 @@ namespace _await_cpo {
   template<typename... Ts>
   using count_types = std::integral_constant<std::size_t, sizeof...(Ts)>;
 
+  template<typename Receiver>
+  struct set_value_applicator {
+    Receiver& receiver_;
+
+    template<typename... Values>
+    void operator()(Values&&... values) {
+      unifex::set_value(std::move(receiver_), (Values&&)values...);
+    }
+  };
+
   inline const struct _fn {
   private:
     template <typename Awaitable, typename Receiver>
@@ -176,9 +186,7 @@ namespace _await_cpo {
                     using value_type = typename Awaitable::template value_types<single_type, single_type>::type::type;
                     unifex::set_value(std::move(receiver), static_cast<value_type&&>(result));
                   } else {
-                    std::apply([&](auto&&... values) {
-                      unifex::set_value(std::move(receiver), static_cast<decltype(values)>(values)...);
-                    }, (result_type&&)result);
+                    std::apply(set_value_applicator<Receiver>{receiver}, (result_type&&)result);
                   }
                 } else {
                   // Shouldn't complete with a value if there are no value_types
