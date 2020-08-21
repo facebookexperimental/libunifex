@@ -24,6 +24,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <exception>
 #include <functional>
@@ -342,6 +343,13 @@ namespace _let_cpo {
       return _let::sender<Predecessor, SuccessorFactory>{
           (Predecessor &&) pred,
           (SuccessorFactory &&) func};
+    }
+    template <typename SuccessorFactory>
+    auto operator()(SuccessorFactory&& func) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, SuccessorFactory>)
+        -> bind_back_result_t<_fn, SuccessorFactory> {
+      return bind_back(*this, (SuccessorFactory&&)func);
     }
   } let {};
 } // namespace _let_cpo
