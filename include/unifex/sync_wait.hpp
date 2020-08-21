@@ -21,6 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <condition_variable>
 #include <exception>
@@ -146,6 +147,12 @@ namespace _sync_wait_cpo {
         -> std::optional<single_value_result_t<remove_cvref_t<Sender>>> {
       using Result = single_value_result_t<remove_cvref_t<Sender>>;
       return _sync_wait::_impl<Result>((Sender&&) sender);
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   };
 } // namespace _sync_wait_cpo
