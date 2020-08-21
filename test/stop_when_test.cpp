@@ -121,16 +121,17 @@ TEST(StopWhen, Pipeable) {
     bool sourceExecuted = false;
     bool triggerExecuted = false;
     
-    std::optional<int> result = unifex::schedule_after(ctx.get_scheduler(), 1s)
+    std::optional<int> result = unifex::schedule_after(1s)
       | unifex::transform(
         [&] {
             sourceExecuted = true;
             return 42;
         })
       | unifex::stop_when(
-          unifex::schedule_after(ctx.get_scheduler(), 10ms)
+          unifex::schedule_after(10ms)
             | unifex::transform(
               [&] { triggerExecuted = true; }))
+      | unifex::on(ctx.get_scheduler())
       | unifex::sync_wait();
 
     EXPECT_FALSE(result.has_value());

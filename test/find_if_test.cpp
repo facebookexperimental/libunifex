@@ -101,6 +101,8 @@ TEST(find_if, find_if_parallel) {
 TEST(find_if, Pipeable) {
     using namespace unifex;
 
+    static_thread_pool ctx;
+
     std::vector<int> input{1, 2, 3, 4};
     // Apply linear find_if.
     // As for std::find_if it returns the first instance that matches the
@@ -120,6 +122,7 @@ TEST(find_if, Pipeable) {
             assert(another_parameter == 3);
             return v;
           })
+      | on(ctx.get_scheduler())
       | sync_wait();
 
     EXPECT_EQ(**result, 3);
