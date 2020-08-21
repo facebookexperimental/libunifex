@@ -61,6 +61,15 @@ template <typename Sender>
 UNIFEX_CONCEPT _single_typed_sender =
   typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
 
+template <typename Promise>
+coro::coroutine_handle<> forward_unhandled_done_callback(void* p) noexcept {
+  return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
+}
+
+[[noreturn]] inline coro::coroutine_handle<> default_unhandled_done_callback(void*) noexcept {
+  std::terminate();
+}
+
 template <typename T>
 struct _task {
   struct type;
@@ -105,11 +114,6 @@ struct _task<T>::type {
     }
 
     coro::coroutine_handle<> unhandled_done() noexcept {
-      if (doneCallback_ == nullptr) {
-        // No handler for 'done' signal
-        std::terminate();
-      }
-
       return doneCallback_(continuation_.address());
     }
 
@@ -166,7 +170,7 @@ struct _task<T>::type {
     using done_callback = coro::coroutine_handle<>(void*) noexcept;
 
     coro::coroutine_handle<> continuation_;
-    done_callback* doneCallback_ = nullptr;
+    done_callback* doneCallback_ = &default_unhandled_done_callback;
 
     state state_ = state::empty;
     union {
@@ -229,9 +233,7 @@ private:
         coro::coroutine_handle<Promise> h) noexcept {
       assert(coro_);
       coro_.promise().continuation_ = h;
-      coro_.promise().doneCallback_ = [](void* p) noexcept {
-        return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
-      };
+      coro_.promise().doneCallback_ = &forward_unhandled_done_callback<Promise>;
       coro_.promise().info_.emplace(
           continuation_info::from_continuation(h.promise()));
       coro_.promise().stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
