@@ -23,6 +23,7 @@
 #include <unifex/type_list.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/async_trace.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <utility>
 #include <cassert>
@@ -339,6 +340,14 @@ inline const struct transform_done_cpo {
       -> transform_done_sender<Source, Done> {
     return transform_done_sender<Source, Done>{
         (Source&&)source, (Done&&)done};
+  }
+  template(typename Done)
+      (requires is_callable_v<remove_cvref_t<Done>>)
+  auto operator()(Done&& done) const
+      noexcept(is_nothrow_callable_v<
+        tag_t<bind_back>, transform_done_cpo, Done>)
+      -> bind_back_result_t<transform_done_cpo, Done> {
+    return bind_back(*this, (Done&&)done);
   }
 } transform_done{};
 

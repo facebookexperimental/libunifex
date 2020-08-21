@@ -54,3 +54,21 @@ TEST(TransformDone, Smoke) {
 
   EXPECT_EQ(count, 1);
 }
+
+TEST(TransformDone, Pipeable) {
+  timed_single_thread_context context;
+
+  auto scheduler = context.get_scheduler();
+
+  int count = 0;
+
+  sequence(
+    schedule_after(scheduler, 200ms)
+      | transform_done(
+          []{ return just(); }), 
+    lazy([&]{ ++count; }))
+    | stop_when(schedule_after(scheduler, 100ms))
+    | sync_wait();
+
+  EXPECT_EQ(count, 1);
+}
