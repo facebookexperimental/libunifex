@@ -21,6 +21,7 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <memory>
 #include <type_traits>
@@ -153,6 +154,12 @@ namespace _alloc_cpo {
         noexcept(std::is_nothrow_constructible_v<_alloc::sender<Sender>, Sender>)
         -> _result_t<Sender> {
       return _alloc::sender<Sender>{(Sender &&) predecessor};
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   } allocate{};
 } // namespace _alloc_cpo
