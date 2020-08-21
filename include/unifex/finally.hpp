@@ -24,6 +24,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <cassert>
 #include <exception>
@@ -705,6 +706,13 @@ namespace unifex
         return _final::sender<SourceSender, CompletionSender>{
             static_cast<SourceSender&&>(source),
             static_cast<CompletionSender&&>(completion)};
+      }
+      template <typename CompletionSender>
+      auto operator()(CompletionSender&& completion) const
+          noexcept(is_nothrow_callable_v<
+            tag_t<bind_back>, _fn, CompletionSender>)
+          -> bind_back_result_t<_fn, CompletionSender> {
+        return bind_back(*this, (CompletionSender&&)completion);
       }
     } finally{};
   } // namespace _final_cpo
