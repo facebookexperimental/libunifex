@@ -18,19 +18,38 @@
 #include <unifex/adapt_stream.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _on_stream {
   inline const struct _fn {
-    template <typename StreamSender, typename Scheduler>
+    template (typename StreamSender, typename Scheduler)
+      (requires scheduler<Scheduler>)
     auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
             return on((decltype(sender))sender, s);
           });
+    }
+    template (typename StreamSender, typename Scheduler)
+      (requires scheduler<Scheduler>)
+    auto operator()(StreamSender&& stream, Scheduler&& scheduler) const {
+      return adapt_stream(
+          (StreamSender &&) stream,
+          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+            return on((decltype(sender))sender, s);
+          });
+    }
+    template(typename Scheduler)
+      (requires scheduler<Scheduler>)
+    auto operator()(Scheduler&& scheduler) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Scheduler>)
+        -> bind_back_result_t<_fn, Scheduler> {
+      return bind_back(*this, (Scheduler&&)scheduler);
     }
   } on_stream {};
 } // namespace _on_stream
