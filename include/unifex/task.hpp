@@ -111,7 +111,7 @@ struct _task<T>::type {
     }
 
     template(typename Value)
-      (requires is_callable_v<decltype(unifex::await_transform), promise_type&, Value>)
+      (requires callable<decltype(unifex::await_transform), promise_type&, Value>)
     auto await_transform(Value&& value)
         noexcept(is_nothrow_callable_v<decltype(unifex::await_transform), promise_type&, Value>)
         -> callable_result_t<decltype(unifex::await_transform), promise_type&, Value> {
