@@ -25,6 +25,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <exception>
 #include <functional>
@@ -199,6 +200,13 @@ namespace _tfx_cpo {
           _tfx::sender<Sender, Func>, Sender, Func>)
         -> _result_t<Sender, Func> {
       return _tfx::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
+    }
+    template <typename Func>
+    auto operator()(Func&& func) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Func>)
+        -> bind_back_result_t<_fn, Func> {
+      return bind_back(*this, (Func &&) func);
     }
   } transform{};
 } // namespace _tfx_cpo
