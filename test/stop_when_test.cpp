@@ -112,3 +112,28 @@ TEST(StopWhen, CancelledFromParent) {
     EXPECT_FALSE(sourceExecuted);
     EXPECT_FALSE(triggerExecuted);
 }
+
+TEST(StopWhen, Pipeable) {
+    using namespace std::chrono_literals;
+
+    unifex::timed_single_thread_context ctx;
+
+    bool sourceExecuted = false;
+    bool triggerExecuted = false;
+    
+    std::optional<int> result = unifex::schedule_after(ctx.get_scheduler(), 1s)
+      | unifex::transform(
+        [&] {
+            sourceExecuted = true;
+            return 42;
+        })
+      | unifex::stop_when(
+          unifex::schedule_after(ctx.get_scheduler(), 10ms)
+            | unifex::transform(
+              [&] { triggerExecuted = true; }))
+      | unifex::sync_wait();
+
+    EXPECT_FALSE(result.has_value());
+    EXPECT_FALSE(sourceExecuted);
+    EXPECT_TRUE(triggerExecuted);
+}
