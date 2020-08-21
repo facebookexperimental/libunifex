@@ -19,6 +19,7 @@
 #include <unifex/adapt_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/finally.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <type_traits>
 
@@ -38,6 +39,13 @@ namespace unifex
                   static_cast<decltype(sender)>(sender),
                   schedule_after(scheduler, duration));
             });
+      }
+      template <typename Scheduler, typename Duration>
+      auto operator()(Scheduler&& scheduler, Duration&& duration) const
+          noexcept(is_nothrow_callable_v<
+            tag_t<bind_back>, _fn, Scheduler, Duration>)
+          -> bind_back_result_t<_fn, Scheduler, Duration> {
+        return bind_back(*this, (Scheduler&&)scheduler, (Duration&&)duration);
       }
     } delay{};
   } // namespace _delay
