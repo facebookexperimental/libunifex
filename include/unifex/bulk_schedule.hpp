@@ -24,6 +24,7 @@
 #include <unifex/get_execution_policy.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -211,6 +212,13 @@ struct _fn {
             std::is_nothrow_move_constructible_v<Integral>)
         -> default_sender<remove_cvref_t<Scheduler>, Integral> {
         return default_sender<remove_cvref_t<Scheduler>, Integral>{(Scheduler&&)s, std::move(n)};
+    }
+    template <typename Integral>
+    auto operator()(Integral n) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Integral>)
+        -> bind_back_result_t<_fn, Integral> {
+      return bind_back(*this, n);
     }
 };
 

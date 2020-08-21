@@ -20,6 +20,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/get_execution_policy.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -146,6 +147,12 @@ struct _fn {
         -> join_sender<remove_cvref_t<Source>> {
         return join_sender<remove_cvref_t<Source>>{
             (Source&&)source};
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
 };
 
