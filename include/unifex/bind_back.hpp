@@ -27,12 +27,20 @@ namespace unifex {
 namespace _bind_back {
 
 template <typename Cpo, typename... ArgN>
-struct apply_target {
-private:
+struct _apply_target {
+  struct type;
+};
+
+template <typename Cpo, typename... ArgN>
+using apply_target = typename _apply_target<Cpo, ArgN...>::type;
+
+template <typename Cpo, typename... ArgN>
+struct _apply_target<Cpo, ArgN...>::type {
+ private:
   std::tuple<remove_cvref_t<ArgN>...> argN_;
-public:
+ public:
   template <typename... CN>
-  explicit constexpr apply_target(CN&&... cn) 
+  explicit constexpr type(CN&&... cn) 
     noexcept(std::is_nothrow_constructible_v<std::tuple<remove_cvref_t<ArgN>...>, CN...>) 
     : argN_((CN&&) cn...) {}
 
@@ -47,7 +55,7 @@ public:
   }
 
   template <typename Target>
-  friend auto operator|(Target&& target, apply_target&& self) 
+  friend auto operator|(Target&& target, type&& self) 
     noexcept(
       is_nothrow_callable_v<Cpo, Target, ArgN...>) 
     -> callable_result_t<Cpo, Target, ArgN...> {
