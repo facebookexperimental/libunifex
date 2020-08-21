@@ -17,7 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/spin_wait.hpp>
-#include <unifex/unstoppable_token.hpp>
+#include <unifex/stop_token_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 
 #include <atomic>
@@ -189,7 +189,7 @@ namespace detail {
 
 // Helper class for adapting an incoming StopToken type to an
 // inplace_stop_token.
-template<typename StopToken>
+template<typename StopToken, typename = void>
 class inplace_stop_token_adapter {
 public:
   inplace_stop_token subscribe(StopToken stoken) noexcept {
@@ -209,7 +209,7 @@ private:
 };
 
 template<>
-class inplace_stop_token_adapter<inplace_stop_token> {
+class inplace_stop_token_adapter<inplace_stop_token, void> {
 public:
   inplace_stop_token subscribe(inplace_stop_token stoken) noexcept {
     return std::move(stoken);
@@ -218,10 +218,10 @@ public:
   void unsubscribe() noexcept {}
 };
 
-template<>
-class inplace_stop_token_adapter<unstoppable_token> {
+template<typename StopToken>
+class inplace_stop_token_adapter<StopToken, std::enable_if_t<is_stop_never_possible_v<StopToken>>> {
 public:
-  inplace_stop_token subscribe(unstoppable_token) noexcept {
+  inplace_stop_token subscribe(StopToken) noexcept {
     return inplace_stop_token{};
   }
 
