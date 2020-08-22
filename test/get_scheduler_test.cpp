@@ -70,14 +70,13 @@ TEST(get_scheduler, Pipeable) {
 
   // Check that this can propagate through multiple levels of
   // composed operations.
-  with_query_value(
-    range_stream{0, 10}
-        | transform_stream([](int value) {
-            return value * value;
-        })
-        | via_stream(current_scheduler)
-        | for_each([](int value) { std::printf("got %i\n", value); })
-        | transform([]() { std::printf("done\n"); })
-    get_scheduler, ctx.get_scheduler())
+  range_stream{0, 10}
+    | transform_stream([](int value) {
+        return value * value;
+    })
+    | via_stream(current_scheduler)
+    | for_each([](int value) { std::printf("got %i\n", value); })
+    | transform([]() { std::printf("done\n"); })
+    | with_query_value(get_scheduler, ctx.get_scheduler())
     | sync_wait();
 }

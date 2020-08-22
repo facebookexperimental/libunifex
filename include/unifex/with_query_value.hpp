@@ -19,6 +19,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -155,6 +156,13 @@ namespace _with_query_value_cpo {
       return _with_query_value::sender<CPO, Value, Sender>{
           (Sender &&) sender,
           (Value &&) value};
+    }
+    template <typename CPO, typename Value>
+    auto operator()(const CPO&, Value&& value) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, CPO, Value>)
+        -> bind_back_result_t<_fn, CPO, Value> {
+      return bind_back(*this, CPO{}, (Value&&)value);
     }
   } with_query_value {};
 } // namespace _with_query_value_cpo
