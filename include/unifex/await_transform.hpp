@@ -74,8 +74,7 @@ class _as_awaitable {
     }
     
     void set_done() && noexcept {
-      // TODO: Enable this once sender_traits support 'sends_done'
-      //static_assert(sender_traits<remove_cvref_t<Sender>>::sends_done);
+      static_assert(sender_traits<remove_cvref_t<Sender>>::sends_done);
       op_->state_ = state::done;
       continuation_.promise().unhandled_done().resume();
     }
