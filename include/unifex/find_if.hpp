@@ -152,12 +152,13 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       // func_ is safe to run concurrently so let's make use of that
 
       // NOTE: Assumes random access iterator for now, on the assumption that the policy was accurate
-      constexpr int max_num_chunks = 32;
-      constexpr int min_chunk_size = 4;
       auto distance = std::distance(begin_it, end_it);
-      auto num_chunks = (distance/max_num_chunks) > min_chunk_size ?
+      using diff_t = decltype(distance);
+      constexpr diff_t max_num_chunks = 32;
+      constexpr diff_t min_chunk_size = 4;
+      diff_t num_chunks = (distance/max_num_chunks) > min_chunk_size ?
         max_num_chunks : ((distance+min_chunk_size)/min_chunk_size);
-      auto chunk_size = (distance+num_chunks)/num_chunks;
+      diff_t chunk_size = (distance+num_chunks)/num_chunks;
 
       // Found flag and vector that will be constructed in-place in the operation state
       struct State {
@@ -185,7 +186,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
               auto bulk_phase = unifex::bulk_join(
                   unifex::bulk_transform(
                     unifex::bulk_schedule(std::move(sched), num_chunks),
-                    [&](std::size_t index){
+                    [&](diff_t index){
                       auto chunk_begin_it = begin_it + (chunk_size*index);
                       auto chunk_end_it = chunk_begin_it;
                       if(index < (num_chunks-1)) {

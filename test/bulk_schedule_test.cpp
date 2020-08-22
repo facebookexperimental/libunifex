@@ -42,7 +42,7 @@ TEST(bulk, bulk_transform) {
                         return count - 1 - index;
                     }, unifex::par_unseq),
                 [&](std::size_t index) noexcept {
-                    output[index] = index;
+                    output[index] = static_cast<int>(index);
                 }, unifex::par_unseq)));
 
     for (std::size_t i = 0; i < count; ++i) {
@@ -74,12 +74,12 @@ TEST(bulk, cancellation) {
                         if(index == compare_index) {
                             stopSource.request_stop();
                         }
-                        output[index] = index;
+                        output[index] = static_cast<int>(index);
                     }, unifex::seq));
         }));
 
     for (std::size_t i = 0; i <= compare_index; ++i) {
-        EXPECT_EQ(i, output[i]);
+        EXPECT_EQ(static_cast<int>(i), output[i]);
     }
     for (std::size_t i = compare_index+1; i < count; ++i) {
         EXPECT_EQ(0, output[i]);
