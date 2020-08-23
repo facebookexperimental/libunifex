@@ -53,3 +53,20 @@ TEST(RepeatEffect, Smoke) {
 
   EXPECT_GT(count.load(), 1);
 }
+
+TEST(RepeatEffect, Pipeable) {
+  timed_single_thread_context context;
+
+  auto scheduler = context.get_scheduler();
+
+  std::atomic<int> count{0};
+
+  sequence(
+    schedule_after(scheduler, 50ms), 
+    lazy([&]{ ++count; }))
+    | repeat_effect()
+    | stop_when(schedule_after(scheduler, 500ms))
+    | sync_wait();
+
+  EXPECT_GT(count.load(), 1);
+}

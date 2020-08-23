@@ -13,62 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/scheduler_concepts.hpp>
+#include <unifex/schedule_with_subscheduler.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/just.hpp>
 #include <unifex/transform.hpp>
-#include <unifex/transform_done.hpp>
-#include <unifex/sequence.hpp>
-#include <unifex/stop_when.hpp>
-
-#include <chrono>
-#include <iostream>
 
 #include <gtest/gtest.h>
 
 using namespace unifex;
-using namespace std::chrono;
-using namespace std::chrono_literals;
 
-template <typename F>
-auto lazy(F&& f) {
-  return transform(just(), (F &&) f);
-}
-
-TEST(TransformDone, Smoke) {
+TEST(schedule_with_subscheduler, Smoke) {
   timed_single_thread_context context;
-
   auto scheduler = context.get_scheduler();
 
-  int count = 0;
+  std::optional<bool> result = sync_wait(transform(
+      schedule_with_subscheduler(scheduler),
+      [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
 
-  sync_wait(
-    stop_when(
-      sequence(
-        transform_done(
-          schedule_after(scheduler, 200ms), 
-          []{ return just(); }), 
-        lazy([&]{ ++count; })),
-      schedule_after(scheduler, 100ms)));
-
-  EXPECT_EQ(count, 1);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.value());
 }
 
-TEST(TransformDone, Pipeable) {
+TEST(schedule_with_subscheduler, Pipeable) {
   timed_single_thread_context context;
-
   auto scheduler = context.get_scheduler();
 
-  int count = 0;
-
-  sequence(
-    schedule_after(scheduler, 200ms)
-      | transform_done(
-          []{ return just(); }), 
-    lazy([&]{ ++count; }))
-    | stop_when(schedule_after(scheduler, 100ms))
+  std::optional<bool> result = scheduler
+    | schedule_with_subscheduler()
+    | transform([&](auto subScheduler) noexcept { 
+        return subScheduler == scheduler; 
+      })
     | sync_wait();
 
-  EXPECT_EQ(count, 1);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_TRUE(result.value());
 }

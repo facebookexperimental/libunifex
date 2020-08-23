@@ -23,6 +23,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <atomic>
 #include <functional>
@@ -408,6 +409,13 @@ namespace unifex
             remove_cvref_t<Source>,
             remove_cvref_t<Trigger>>(
             (Source &&) source, (Trigger &&) trigger);
+      }
+      template <typename Trigger>
+      auto operator()(Trigger&& trigger) const
+          noexcept(is_nothrow_callable_v<
+            tag_t<bind_back>, _fn, Trigger>)
+          -> bind_back_result_t<_fn, Trigger> {
+        return bind_back(*this, (Trigger&&)trigger);
       }
     };
 

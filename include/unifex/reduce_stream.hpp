@@ -26,6 +26,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <exception>
 #include <functional>
@@ -340,6 +341,13 @@ namespace _reduce_cpo {
           (StreamSender &&) stream,
           (State &&) initialState,
           (ReducerFunc &&) reducer};
+    }
+    template <typename State, typename ReducerFunc>
+    auto operator()(State&& initialState, ReducerFunc&& reducer) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, State, ReducerFunc>)
+        -> bind_back_result_t<_fn, State, ReducerFunc> {
+      return bind_back(*this, (State&&)initialState, (ReducerFunc&&)reducer);
     }
   } reduce_stream{};
 } // namespace _reduce_cpo

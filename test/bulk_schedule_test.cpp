@@ -85,3 +85,30 @@ TEST(bulk, cancellation) {
         EXPECT_EQ(0, output[i]);
     }
 }
+
+TEST(bulk, Pipeable) {
+    unifex::single_thread_context ctx;
+    auto sched = ctx.get_scheduler();
+
+    const std::size_t count = 1000;
+
+    std::vector<int> output;
+    output.resize(count);
+
+    unifex::bulk_schedule(sched, count)
+      | unifex::bulk_transform(
+        [](std::size_t index) noexcept {
+            // Reverse indices
+            return count - 1 - index;
+        }, unifex::par_unseq)
+      | unifex::bulk_transform(
+        [&](std::size_t index) noexcept {
+            output[index] = index;
+        }, unifex::par_unseq)
+      | unifex::bulk_join()
+      | unifex::sync_wait();
+
+    for (std::size_t i = 0; i < count; ++i) {
+        EXPECT_EQ(i, output[i]);
+    }
+}

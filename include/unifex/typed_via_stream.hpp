@@ -24,13 +24,31 @@
 namespace unifex {
 namespace _typed_via_stream {
   struct _fn {
-    template <typename StreamSender, typename Scheduler>
+    template (typename StreamSender, typename Scheduler)
+        (requires scheduler<Scheduler>)
     auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
             return typed_via((decltype(sender))sender, s);
           });
+    }
+    template (typename StreamSender, typename Scheduler)
+        (requires scheduler<Scheduler>)
+    auto operator()(StreamSender&& stream, Scheduler&& scheduler) const {
+      return adapt_stream(
+          (StreamSender &&) stream,
+          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+            return typed_via((decltype(sender))sender, s);
+          });
+    }
+    template(typename Scheduler)
+        (requires scheduler<Scheduler>)
+    auto operator()(Scheduler&& scheduler) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Scheduler>)
+        -> bind_back_result_t<_fn, Scheduler> {
+      return bind_back(*this, (Scheduler&&)scheduler);
     }
   };
 } // namespace _typed_via_stream

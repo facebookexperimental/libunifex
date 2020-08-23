@@ -168,6 +168,13 @@ namespace _ifor_cpo {
       return _ifor::sender<Sender, Policy, Range, Func>{
           (Sender &&) predecessor, (Policy &&) policy, (Range &&) range, (Func &&) func};
     }
+    template <typename Policy, typename Range, typename Func>
+    auto operator()(Policy&& policy, Range&& range, Func&& f) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Policy, Range, Func>)
+        -> bind_back_result_t<_fn, Policy, Range, Func> {
+      return bind_back(*this, (Policy&&)policy, (Range&&)range, (Func&&)f);
+    }
   } indexed_for{};
 } // namespace _ifor_cpo
 using _ifor_cpo::indexed_for;

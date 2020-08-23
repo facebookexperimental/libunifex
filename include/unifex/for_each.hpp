@@ -18,6 +18,7 @@
 #include <unifex/reduce_stream.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -74,6 +75,13 @@ namespace _for_each {
               unit{},
               _impl::_map<remove_cvref_t<Func>>{(Func &&) func}),
           _impl::_reduce{});
+    }
+    template <typename Func>
+    auto operator()(Func&& f) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Func>)
+        -> bind_back_result_t<_fn, Func> {
+      return bind_back(*this, (Func&&)f);
     }
   } for_each{};
 } // namespace _for_each

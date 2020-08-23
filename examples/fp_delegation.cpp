@@ -159,6 +159,13 @@ class delegating_scheduler {
     return delegating_sender{context_};
   }
 
+  friend bool operator==(delegating_scheduler, delegating_scheduler) noexcept {
+    return true;
+  }
+  friend bool operator!=(delegating_scheduler, delegating_scheduler) noexcept {
+    return false;
+  }
+
   delegating_context* context_ = nullptr;
 };
 

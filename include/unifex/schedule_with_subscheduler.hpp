@@ -18,6 +18,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/transform.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -77,6 +78,12 @@ namespace _subschedule {
         static_cast<decltype(scheduleOp)>(scheduleOp),
         {(Scheduler &&) sched}
       };
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   } schedule_with_subscheduler{};
 } // namespace _subschedule

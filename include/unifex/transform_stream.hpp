@@ -17,6 +17,7 @@
 
 #include <unifex/next_adapt_stream.hpp>
 #include <unifex/transform.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <functional>
 
@@ -31,6 +32,13 @@ namespace _tfx_stream {
           (StreamSender &&) stream, [func = (Func &&) func](auto&& sender) mutable {
             return transform((decltype(sender))sender, std::ref(func));
           });
+    }
+    template <typename Func>
+    auto operator()(Func&& func) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Func>)
+        -> bind_back_result_t<_fn, Func> {
+      return bind_back(*this, (Func&&)func);
     }
   };
 } // namespace _tfx_stream

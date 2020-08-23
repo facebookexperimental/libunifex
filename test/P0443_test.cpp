@@ -142,3 +142,22 @@ TEST(P0443, schedule_with_executor) {
   submit(schedule(inline_executor{}), _receiver{&i});
   EXPECT_EQ(1, i);
 }
+
+TEST(P0443, Pipeable) {
+  int i = 0;
+  struct _receiver {
+    int *p;
+    void set_value() && noexcept {
+      *p += 1;
+    }
+    void set_error(std::exception_ptr) && noexcept {
+      *p += 2;
+    }
+    void set_done() && noexcept {
+      *p += 4;
+    }
+  };
+  schedule(inline_executor{})
+    | submit(_receiver{&i});
+  EXPECT_EQ(1, i);
+}

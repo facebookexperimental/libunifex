@@ -25,6 +25,7 @@
 #include <unifex/get_allocator.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <memory>
 #include <utility>
@@ -195,6 +196,14 @@ namespace _submit_cpo {
           op->start();
         }
       }
+    }
+    template(typename Receiver)
+        (requires receiver<Receiver>)
+    auto operator()(Receiver&& receiver) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Receiver>)
+        -> bind_back_result_t<_fn, Receiver> {
+      return bind_back(*this, (Receiver&&)receiver);
     }
   } submit{};
 } // namespace _submit_cpo

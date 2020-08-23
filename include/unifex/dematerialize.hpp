@@ -23,6 +23,7 @@
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <type_traits>
 
@@ -198,6 +199,12 @@ namespace _demat_cpo {
         noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
         -> _result_t<Sender> {
       return _demat::sender<Sender>{(Sender &&) predecessor};
+    }
+    auto operator()() const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn>)
+        -> bind_back_result_t<_fn> {
+      return bind_back(*this);
     }
   } dematerialize{};
 } // namespace _demat_cpo

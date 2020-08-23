@@ -20,6 +20,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/with_query_value.hpp>
 #include <unifex/sequence.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <type_traits>
 
@@ -49,6 +50,14 @@ namespace _on {
           (Sender&&)sender,
           get_scheduler,
           (Scheduler&&)scheduler));
+    }
+    template(typename Scheduler)
+        (requires scheduler<Scheduler>)
+    auto operator()(Scheduler&& scheduler) const
+        noexcept(is_nothrow_callable_v<
+          tag_t<bind_back>, _fn, Scheduler>)
+        -> bind_back_result_t<_fn, Scheduler> {
+      return bind_back(*this, (Scheduler&&)scheduler);
     }
   } on{};
 } // namespace _on
