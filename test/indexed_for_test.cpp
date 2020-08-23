@@ -96,4 +96,8 @@ TEST(indexed_for, Pipeable) {
           x = x + idx;
         })
     | sync_wait();
+
+  // ranges::iota_view{10} produces [0, 9] so our accumulator is summing
+  // 42 + 0 + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 +  9, which is 42 + 45 = 87.
+  EXPECT_EQ(87, *result);
 }
