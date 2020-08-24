@@ -58,5 +58,12 @@ TEST(Pipeable, Transform) {
     | transform([&]{ ++count; })
     | sync_wait();
 
-  EXPECT_EQ(count, 1);
+  auto twocount = transform([&]{ ++count; }) | transform([&]{ ++count; });
+
+  just()
+    | transform([&]{ ++count; })
+    | twocount
+    | sync_wait();
+
+  EXPECT_EQ(count, 4);
 }
