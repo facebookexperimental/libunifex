@@ -125,7 +125,7 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
 
 inline const struct _fn {
   template <typename Cpo, typename... ArgN>
-  auto operator()(Cpo cpo, ArgN&&... argN) const
+  constexpr auto operator()(Cpo cpo, ArgN&&... argN) const
       noexcept(noexcept(
           _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, {(ArgN &&) argN...}}))
       -> _result<Cpo, std::decay_t<ArgN>...> {
