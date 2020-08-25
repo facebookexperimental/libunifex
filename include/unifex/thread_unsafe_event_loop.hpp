@@ -43,8 +43,10 @@ namespace _thread_unsafe_event_loop {
   class operation_base {
     friend cancel_callback;
    protected:
-    operation_base(thread_unsafe_event_loop& loop) noexcept
-      : loop_(loop) {}
+    using execute_fn = void(operation_base*) noexcept;
+
+    operation_base(thread_unsafe_event_loop& loop, execute_fn* execute) noexcept
+      : loop_(loop), execute_(execute) {}
 
     operation_base(const operation_base&) = delete;
     operation_base(operation_base&&) = delete;
@@ -55,11 +57,14 @@ namespace _thread_unsafe_event_loop {
    private:
     friend thread_unsafe_event_loop;
 
-    virtual void execute() noexcept = 0;
+    void execute() noexcept {
+      this->execute_(this);
+    }
 
     thread_unsafe_event_loop& loop_;
     operation_base* next_;
     operation_base** prevPtr_;
+    execute_fn* execute_;
 
    protected:
     time_point_t dueTime_;
@@ -109,20 +114,21 @@ namespace _thread_unsafe_event_loop {
         Receiver2&& r,
         Duration d,
         thread_unsafe_event_loop& loop)
-        : operation_base(loop)
+        : operation_base(loop, &type::execute_impl)
         , receiver_((Receiver2 &&) r)
         , duration_(d) {}
 
-    void execute() noexcept override {
-      callback_.destruct();
+    static void execute_impl(operation_base* p) noexcept {
+      auto& self = *static_cast<type*>(p);
+      self.callback_.destruct();
       if constexpr (is_stop_never_possible_v<
                         stop_token_type_t<Receiver&>>) {
-        unifex::set_value(std::move(receiver_));
+        unifex::set_value(std::move(self.receiver_));
       } else {
-        if (get_stop_token(receiver_).stop_requested()) {
-          unifex::set_done(std::move(receiver_));
+        if (get_stop_token(self.receiver_).stop_requested()) {
+          unifex::set_done(std::move(self.receiver_));
         } else {
-          unifex::set_value(std::move(receiver_));
+          unifex::set_value(std::move(self.receiver_));
         }
       }
     }
@@ -189,20 +195,21 @@ namespace _thread_unsafe_event_loop {
         Receiver2&& r,
         time_point_t tp,
         thread_unsafe_event_loop& loop)
-        : operation_base(loop), receiver_((Receiver2 &&) r) {
+        : operation_base(loop, &type::execute_impl), receiver_((Receiver2 &&) r) {
       this->dueTime_ = tp;
     }
 
-    void execute() noexcept override {
-      callback_.destruct();
+    static void execute_impl(operation_base* p) noexcept {
+      auto& self = *static_cast<type*>(p);
+      self.callback_.destruct();
       if constexpr (is_stop_never_possible_v<
                         stop_token_type_t<Receiver&>>) {
-        unifex::set_value(std::move(receiver_));
+        unifex::set_value(std::move(self.receiver_));
       } else {
-        if (get_stop_token(receiver_).stop_requested()) {
-          unifex::set_done(std::move(receiver_));
+        if (get_stop_token(self.receiver_).stop_requested()) {
+          unifex::set_done(std::move(self.receiver_));
         } else {
-          unifex::set_value(std::move(receiver_));
+          unifex::set_value(std::move(self.receiver_));
         }
       }
     }
