@@ -421,7 +421,7 @@ namespace _find_if_cpo {
         (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};
     }
     template <typename Func, typename FuncPolicy>
-    auto operator()(Func&& f, const FuncPolicy& policy) const
+    constexpr auto operator()(Func&& f, const FuncPolicy& policy) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Func, const FuncPolicy&>)
         -> bind_back_result_t<_fn, Func, const FuncPolicy&> {

@@ -470,7 +470,7 @@ namespace _take_until_cpo {
         (TriggerStream&&)trigger};
     }
     template <typename TriggerStream>
-    auto operator()(TriggerStream&& trigger) const
+    constexpr auto operator()(TriggerStream&& trigger) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, TriggerStream>)
         -> bind_back_result_t<_fn, TriggerStream> {

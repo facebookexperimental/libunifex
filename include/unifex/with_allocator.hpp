@@ -29,7 +29,7 @@ namespace _with_alloc_cpo {
                               (Allocator &&) allocator);
     }
     template <typename Allocator>
-    auto operator()(Allocator&& allocator) const
+    constexpr auto operator()(Allocator&& allocator) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Allocator>)
         -> bind_back_result_t<_fn, Allocator> {

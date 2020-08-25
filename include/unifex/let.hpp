@@ -345,7 +345,7 @@ namespace _let_cpo {
           (SuccessorFactory &&) func};
     }
     template <typename SuccessorFactory>
-    auto operator()(SuccessorFactory&& func) const
+    constexpr auto operator()(SuccessorFactory&& func) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, SuccessorFactory>)
         -> bind_back_result_t<_fn, SuccessorFactory> {

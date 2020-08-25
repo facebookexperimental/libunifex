@@ -169,7 +169,7 @@ namespace _ifor_cpo {
           (Sender &&) predecessor, (Policy &&) policy, (Range &&) range, (Func &&) func};
     }
     template <typename Policy, typename Range, typename Func>
-    auto operator()(Policy&& policy, Range&& range, Func&& f) const
+    constexpr auto operator()(Policy&& policy, Range&& range, Func&& f) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Policy, Range, Func>)
         -> bind_back_result_t<_fn, Policy, Range, Func> {

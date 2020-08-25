@@ -51,7 +51,7 @@ namespace _via_stream_cpo {
     }
     template(typename Scheduler)
       (requires scheduler<Scheduler>)
-    auto operator()(Scheduler&& scheduler) const
+    constexpr auto operator()(Scheduler&& scheduler) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Scheduler>)
         -> bind_back_result_t<_fn, Scheduler> {

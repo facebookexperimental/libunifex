@@ -79,7 +79,7 @@ namespace _subschedule {
         {(Scheduler &&) sched}
       };
     }
-    auto operator()() const
+    constexpr auto operator()() const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn>)
         -> bind_back_result_t<_fn> {

@@ -214,7 +214,7 @@ struct _fn {
         return default_sender<remove_cvref_t<Scheduler>, Integral>{(Scheduler&&)s, std::move(n)};
     }
     template <typename Integral>
-    auto operator()(Integral n) const
+    constexpr auto operator()(Integral n) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Integral>)
         -> bind_back_result_t<_fn, Integral> {

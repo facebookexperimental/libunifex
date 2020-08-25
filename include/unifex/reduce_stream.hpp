@@ -343,7 +343,7 @@ namespace _reduce_cpo {
           (ReducerFunc &&) reducer};
     }
     template <typename State, typename ReducerFunc>
-    auto operator()(State&& initialState, ReducerFunc&& reducer) const
+    constexpr auto operator()(State&& initialState, ReducerFunc&& reducer) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, State, ReducerFunc>)
         -> bind_back_result_t<_fn, State, ReducerFunc> {
