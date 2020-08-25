@@ -48,6 +48,8 @@ class inplace_stop_callback_base {
   explicit inplace_stop_callback_base(inplace_stop_source* source, execute_fn* execute) noexcept
       : source_(source), execute_(execute) {}
 
+  void register_callback() noexcept;
+
   friend inplace_stop_source;
 
   inplace_stop_source* source_;
@@ -79,6 +81,7 @@ class inplace_stop_source {
 
  private:
   friend inplace_stop_token;
+  friend inplace_stop_callback_base;
   template <typename F>
   friend class inplace_stop_callback;
 
@@ -162,14 +165,7 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
       std::is_nothrow_constructible_v<F, T>)
       : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl)
       , func_((T&&) func) {
-    if (source_ != nullptr) {
-      if (!source_->try_add_callback(this)) {
-        source_ = nullptr;
-        // Callback not registered because stop_requested() was true.
-        // Execute inline here.
-        execute();
-      }
-    }
+    this->register_callback();
   }
 
   ~inplace_stop_callback() {
@@ -186,6 +182,17 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
 
   UNIFEX_NO_UNIQUE_ADDRESS F func_;
 };
+
+inline void inplace_stop_callback_base::register_callback() noexcept {
+    if (source_ != nullptr) {
+      if (!source_->try_add_callback(this)) {
+        source_ = nullptr;
+        // Callback not registered because stop_requested() was true.
+        // Execute inline here.
+        execute();
+      }
+    }
+}
 
 namespace detail {
   struct forward_stop_request_to_inplace_stop_source {
