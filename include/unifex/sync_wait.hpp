@@ -148,7 +148,7 @@ namespace _sync_wait_cpo {
       using Result = single_value_result_t<remove_cvref_t<Sender>>;
       return _sync_wait::_impl<Result>((Sender&&) sender);
     }
-    auto operator()() const
+    constexpr auto operator()() const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn>)
         -> bind_back_result_t<_fn> {

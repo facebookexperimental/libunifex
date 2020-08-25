@@ -383,7 +383,7 @@ namespace _type_erase_cpo {
     _type_erase::stream<Ts...> operator()(Stream&& strm) const {
       return _type_erase::stream<Ts...>{(Stream &&) strm};
     }
-    auto operator()() const
+    constexpr auto operator()() const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn>)
         -> bind_back_result_t<_fn> {

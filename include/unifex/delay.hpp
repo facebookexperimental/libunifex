@@ -41,7 +41,7 @@ namespace unifex
             });
       }
       template <typename Scheduler, typename Duration>
-      auto operator()(Scheduler&& scheduler, Duration&& duration) const
+      constexpr auto operator()(Scheduler&& scheduler, Duration&& duration) const
           noexcept(is_nothrow_callable_v<
             tag_t<bind_back>, _fn, Scheduler, Duration>)
           -> bind_back_result_t<_fn, Scheduler, Duration> {

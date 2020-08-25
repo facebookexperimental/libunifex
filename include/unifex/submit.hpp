@@ -199,7 +199,7 @@ namespace _submit_cpo {
     }
     template(typename Receiver)
         (requires receiver<Receiver>)
-    auto operator()(Receiver&& receiver) const
+    constexpr auto operator()(Receiver&& receiver) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Receiver>)
         -> bind_back_result_t<_fn, Receiver> {

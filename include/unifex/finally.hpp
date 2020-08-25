@@ -708,7 +708,7 @@ namespace unifex
             static_cast<CompletionSender&&>(completion)};
       }
       template <typename CompletionSender>
-      auto operator()(CompletionSender&& completion) const
+      constexpr auto operator()(CompletionSender&& completion) const
           noexcept(is_nothrow_callable_v<
             tag_t<bind_back>, _fn, CompletionSender>)
           -> bind_back_result_t<_fn, CompletionSender> {

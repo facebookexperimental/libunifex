@@ -77,7 +77,7 @@ namespace _for_each {
           _impl::_reduce{});
     }
     template <typename Func>
-    auto operator()(Func&& f) const
+    constexpr auto operator()(Func&& f) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Func>)
         -> bind_back_result_t<_fn, Func> {

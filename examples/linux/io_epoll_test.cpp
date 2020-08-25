@@ -53,14 +53,17 @@ using namespace std::chrono_literals;
 
 inline constexpr auto sink = [](auto&&...){};
 
-inline constexpr auto lazy =
-  unifex::bind_back([](auto&& f) { return transform(just(), (decltype(f)) f ); });
+template <typename F>
+auto lazy(F f) {
+  return transform(just(), (F&&) f);
+}
 
-inline constexpr auto defer =
-  unifex::bind_back([](auto&& f) { return let(just(), (decltype(f)) f ); });
+template <typename F>
+auto defer(F f) {
+  return let(just(), (F&&) f);
+}
 
-inline constexpr auto discard =
-  unifex::bind_back([](auto&& s) { return transform((decltype(s)) s, sink); });
+inline constexpr auto discard = transform(sink);
 
 //! Seconds to warmup the benchmark
 static constexpr int WARMUP_DURATION = 3;
@@ -85,18 +88,15 @@ int main() {
     {
       auto start = std::chrono::steady_clock::now();
       inplace_stop_source timerStopSource;
-      when_all(
+      auto task = when_all(
           schedule_at(scheduler, now(scheduler) + 1s)
             | transform([] { std::printf("timer 1 completed (1s)\n"); }),
           schedule_at(scheduler, now(scheduler) + 2s)
-            | transform([] { std::printf("timer 2 completed (2s)\n"); }),
+            | transform([] { std::printf("timer 2 completed (2s)\n"); }))
+        | stop_when(
           schedule_at(scheduler, now(scheduler) + 1500ms)
-            | transform([&] {
-                std::printf("timer 3 completed (1.5s) cancelling\n");
-                timerStopSource.request_stop();
-              }))
-        | with_query_value(get_stop_token, timerStopSource.get_token())
-        | sync_wait();
+            | transform([] { std::printf("timer 3 completed (1.5s) cancelling\n"); }));
+      sync_wait(std::move(task));
       auto end = std::chrono::steady_clock::now();
 
       std::printf(
@@ -111,43 +111,38 @@ int main() {
 
   auto pipe_bench = [](auto& rPipeRef, auto& buffer, auto scheduler, int seconds,
                        auto& data, auto& reps, auto& offset) {
-    return [&, scheduler, seconds] {
-      return [&] {
+    return defer([&, scheduler, seconds] {
+      return defer([&] {
         return
-          // do reads
+          // do read:
           async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))
           | discard
           | transform([&] {
               assert(data[(reps + offset) % sizeof(data)] == buffer[0]);
               ++reps;
             });
-      } | defer
+      })
         | typed_via(scheduler)
+          // Repeat the reads:
         | repeat_effect()
           // stop reads after requested time
         | stop_when(schedule_at(scheduler, now(scheduler) + std::chrono::seconds(seconds)))
-        // complete with void when requested time expires
+          // complete with void when requested time expires
         | transform_done([]{return just();});
-    } | defer;
+    });
   };
 
   auto pipe_write = [](auto& wPipeRef, auto databuffer, auto scheduler, auto stopToken) {
     return
       // write the data to one end of the pipe
       sequence(
-        [&]{
-          printf("writes starting!\n");
-        } | lazy,
-        [&, databuffer] {
-          return async_write_some(wPipeRef, databuffer) | discard;
-        } | defer
+        lazy([&]{ printf("writes starting!\n"); }),
+        defer([&, databuffer] { return discard(async_write_some(wPipeRef, databuffer)); })
           | typed_via(scheduler)
           | repeat_effect()
           | transform_done([]{return just();})
           | with_query_value(get_stop_token, stopToken),
-        [&]{
-          printf("writes stopped!\n");
-        } | lazy);
+        lazy([&]{ printf("writes stopped!\n"); }));
   };
   auto [rPipe, wPipe] = open_pipe(scheduler);
 
@@ -160,7 +155,7 @@ int main() {
   auto buffer = std::vector<char>{};
   buffer.resize(1);
   try {
-    when_all(
+    auto task = when_all(
       // write chunk of data into one end repeatedly
       pipe_write(wPipe, databuffer, scheduler, stopWrite.get_token()),
       // read the data 1 byte at a time from the other end
@@ -169,18 +164,18 @@ int main() {
         // this is done to reduce startup effects
         pipe_bench(rPipe, buffer, scheduler, WARMUP_DURATION, data, reps, offset),
         // reset measurements to exclude warmup
-        [&] {
+        lazy([&] {
           // restart reps and keep offset in data
           offset = reps%sizeof(data);
           reps = 0;
           printf("warmup completed!\n");
           // exclude the warmup time
           start = end = std::chrono::high_resolution_clock::now();
-        } | lazy,
+        }),
         // do more reads and measure how many reads occur
         pipe_bench(rPipe, buffer, scheduler, BENCHMARK_DURATION, data, reps, offset),
         // report results
-        [&] {
+        lazy([&] {
           end = std::chrono::high_resolution_clock::now();
           printf("benchmark completed!\n");
           auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -201,9 +196,10 @@ int main() {
               << ns/reps << "ns-per-op, "
               << reps/ms << "ops-per-ms\n";
           stopWrite.request_stop();
-        } | lazy
+        })
       )
-    ) | sync_wait();
+    );
+    sync_wait(std::move(task));
   } catch (const std::system_error& se) {
     std::printf("async_read_some system_error: [%s], [%s]\n", se.code().message().c_str(), se.what());
   } catch (const std::exception& ex) {

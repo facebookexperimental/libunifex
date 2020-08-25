@@ -158,7 +158,7 @@ namespace _with_query_value_cpo {
           (Value &&) value};
     }
     template <typename CPO, typename Value>
-    auto operator()(const CPO&, Value&& value) const
+    constexpr auto operator()(const CPO&, Value&& value) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, CPO, Value>)
         -> bind_back_result_t<_fn, CPO, Value> {

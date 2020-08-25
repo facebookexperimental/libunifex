@@ -343,7 +343,7 @@ inline const struct transform_done_cpo {
   }
   template(typename Done)
       (requires callable<remove_cvref_t<Done>>)
-  auto operator()(Done&& done) const
+  constexpr auto operator()(Done&& done) const
       noexcept(is_nothrow_callable_v<
         tag_t<bind_back>, transform_done_cpo, Done>)
       -> bind_back_result_t<transform_done_cpo, Done> {

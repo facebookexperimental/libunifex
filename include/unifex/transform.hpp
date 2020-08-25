@@ -202,7 +202,7 @@ namespace _tfx_cpo {
       return _tfx::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
     }
     template <typename Func>
-    auto operator()(Func&& func) const
+    constexpr auto operator()(Func&& func) const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn, Func>)
         -> bind_back_result_t<_fn, Func> {

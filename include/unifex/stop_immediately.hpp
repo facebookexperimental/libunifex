@@ -459,7 +459,7 @@ namespace _stop_immediately_cpo {
       return _stop_immediately::stream<SourceStream, Values...>{
         (SourceStream &&) source};
     }
-    auto operator()() const
+    constexpr auto operator()() const
         noexcept(is_nothrow_callable_v<
           tag_t<bind_back>, _fn>)
         -> bind_back_result_t<_fn> {

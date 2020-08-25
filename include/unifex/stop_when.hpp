@@ -411,7 +411,7 @@ namespace unifex
             (Source &&) source, (Trigger &&) trigger);
       }
       template <typename Trigger>
-      auto operator()(Trigger&& trigger) const
+      constexpr auto operator()(Trigger&& trigger) const
           noexcept(is_nothrow_callable_v<
             tag_t<bind_back>, _fn, Trigger>)
           -> bind_back_result_t<_fn, Trigger> {
