@@ -31,8 +31,18 @@ namespace _manual_event_loop {
 class context;
 
 struct task_base {
+  using execute_fn = void(task_base*) noexcept;
+
+  explicit task_base(execute_fn* execute) noexcept
+  : execute_(execute)
+  {}
+
+  void execute() noexcept {
+    this->execute_(this);
+  }
+
   task_base* next_ = nullptr;
-  virtual void execute() noexcept = 0;
+  execute_fn* execute_;
 };
 
 template <typename Receiver>
@@ -49,19 +59,22 @@ class _op<Receiver>::type final : task_base {
  public:
   template <typename Receiver2>
   explicit type(Receiver2&& receiver, context* loop)
-    : receiver_((Receiver2 &&) receiver), loop_(loop) {}
+    : task_base(&type::execute_impl)
+    , receiver_((Receiver2 &&) receiver)
+    , loop_(loop) {}
 
   void start() noexcept;
 
  private:
-  void execute() noexcept override {
+  static void execute_impl(task_base* t) noexcept {
+    auto& self = *static_cast<type*>(t);
     if constexpr (is_stop_never_possible_v<stop_token_type>) {
-      unifex::set_value(std::move(receiver_));
+      unifex::set_value(std::move(self.receiver_));
     } else {
-      if (get_stop_token(receiver_).stop_requested()) {
-        unifex::set_done(std::move(receiver_));
+      if (get_stop_token(self.receiver_).stop_requested()) {
+        unifex::set_done(std::move(self.receiver_));
       } else {
-        unifex::set_value(std::move(receiver_));
+        unifex::set_value(std::move(self.receiver_));
       }
     }
   }

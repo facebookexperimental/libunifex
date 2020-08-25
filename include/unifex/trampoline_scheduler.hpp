@@ -39,8 +39,37 @@ class scheduler {
 
  private:
   struct operation_base {
+    using execute_fn = void(operation_base*) noexcept;
+
+    explicit operation_base(execute_fn* execute, std::size_t maxDepth) noexcept
+    : execute_(execute)
+    , maxRecursionDepth_(maxDepth)
+    {}
+
+    void execute() noexcept {
+      execute_(this);
+    }
+
+    void start() noexcept {
+      auto* currentState = trampoline_state::current_;
+      if (currentState == nullptr) {
+        trampoline_state state;
+        execute();
+        state.drain();
+      } else if (currentState->recursionDepth_ < maxRecursionDepth_) {
+        ++currentState->recursionDepth_;
+        execute();
+      } else {
+        // Exceeded recursion limit.
+        next_ = std::exchange(
+          currentState->head_,
+          static_cast<operation_base*>(this));
+      }
+    }
+
     operation_base* next_ = nullptr;
-    virtual void execute() noexcept = 0;
+    execute_fn* execute_;
+    std::size_t maxRecursionDepth_;
   };
 
   struct trampoline_state {
@@ -66,42 +95,29 @@ class scheduler {
   struct _op {
     class type final : operation_base {
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-      std::size_t maxRecursionDepth_;
 
       friend schedule_sender;
 
       template <typename Receiver2>
       explicit type(Receiver2&& receiver, std::size_t maxDepth)
-        : receiver_((Receiver2 &&) receiver), maxRecursionDepth_(maxDepth) {}
+        : operation_base(&type::execute_impl, maxDepth)
+        , receiver_((Receiver2 &&) receiver) {}
 
-      void execute() noexcept final {
+      static void execute_impl(operation_base* p) noexcept {
+        auto& self = *static_cast<type*>(p);
         if (is_stop_never_possible_v<stop_token_type_t<Receiver&>>) {
-          unifex::set_value(static_cast<Receiver&&>(receiver_));
+          unifex::set_value(static_cast<Receiver&&>(self.receiver_));
         } else {
-          if (get_stop_token(receiver_).stop_requested()) {
-            unifex::set_done(static_cast<Receiver&&>(receiver_));
+          if (get_stop_token(self.receiver_).stop_requested()) {
+            unifex::set_done(static_cast<Receiver&&>(self.receiver_));
           } else {
-            unifex::set_value(static_cast<Receiver&&>(receiver_));
+            unifex::set_value(static_cast<Receiver&&>(self.receiver_));
           }
         }
       }
+      
     public:
-      void start() noexcept {
-        auto* currentState = trampoline_state::current_;
-        if (currentState == nullptr) {
-          trampoline_state state;
-          execute();
-          state.drain();
-        } else if (currentState->recursionDepth_ < maxRecursionDepth_) {
-          ++currentState->recursionDepth_;
-          execute();
-        } else {
-          // Exceeded recursion limit.
-          next_ = std::exchange(
-            currentState->head_,
-            static_cast<operation_base*>(this));
-        }
-      }
+      using operation_base::start;
     };
   };
   template <typename Receiver>

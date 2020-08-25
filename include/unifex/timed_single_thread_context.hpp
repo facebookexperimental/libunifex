@@ -38,15 +38,20 @@ namespace _timed_single_thread_context {
   using time_point = typename clock_t::time_point;
 
   struct task_base {
-    explicit task_base(timed_single_thread_context& context) noexcept
-      : context_(&context) {}
+    using execute_fn = void(task_base*) noexcept;
+
+    explicit task_base(timed_single_thread_context& context, execute_fn* execute) noexcept
+      : context_(&context), execute_(execute) {}
 
     timed_single_thread_context* const context_;
     task_base* next_ = nullptr;
     task_base** prevNextPtr_ = nullptr;
+    execute_fn* execute_;
     time_point dueTime_;
 
-    virtual void execute() noexcept = 0;
+    void execute() noexcept {
+      execute_(this);
+    }
   };
 
   class cancel_callback {
@@ -84,22 +89,23 @@ namespace _timed_single_thread_context {
         timed_single_thread_context& context,
         Duration duration,
         Receiver2&& receiver)
-        : task_base(context),
+        : task_base(context, &type::execute_impl),
           duration_(duration),
           receiver_((Receiver2 &&) receiver) {
       assert(context_ != nullptr);
     }
 
-    void execute() noexcept final {
-      cancelCallback_.destruct();
+    static void execute_impl(task_base* t) noexcept {
+      auto& self = *static_cast<type*>(t);
+      self.cancelCallback_.destruct();
       if constexpr (is_stop_never_possible_v<
                         stop_token_type_t<Receiver&>>) {
-        unifex::set_value(static_cast<Receiver&&>(receiver_));
+        unifex::set_value(static_cast<Receiver&&>(self.receiver_));
       } else {
-        if (get_stop_token(receiver_).stop_requested()) {
-          unifex::set_done(static_cast<Receiver&&>(receiver_));
+        if (get_stop_token(self.receiver_).stop_requested()) {
+          unifex::set_done(static_cast<Receiver&&>(self.receiver_));
         } else {
-          unifex::set_value(static_cast<Receiver&&>(receiver_));
+          unifex::set_value(static_cast<Receiver&&>(self.receiver_));
         }
       }
     }
@@ -156,21 +162,22 @@ namespace _timed_single_thread_context {
         timed_single_thread_context& scheduler,
         clock_t::time_point dueTime,
         Receiver2&& receiver)
-        : task_base(scheduler)
+        : task_base(scheduler, &type::execute_impl)
         , receiver_((Receiver2 &&) receiver) {
       this->dueTime_ = dueTime;
     }
 
-    void execute() noexcept final {
-      cancelCallback_.destruct();
+    static void execute_impl(task_base* p) noexcept {
+      auto& self = *static_cast<type*>(p);
+      self.cancelCallback_.destruct();
       if constexpr (is_stop_never_possible_v<
                         stop_token_type_t<Receiver&>>) {
-        unifex::set_value(static_cast<Receiver&&>(receiver_));
+        unifex::set_value(static_cast<Receiver&&>(self.receiver_));
       } else {
-        if (get_stop_token(receiver_).stop_requested()) {
-          unifex::set_done(static_cast<Receiver&&>(receiver_));
+        if (get_stop_token(self.receiver_).stop_requested()) {
+          unifex::set_done(static_cast<Receiver&&>(self.receiver_));
         } else {
-          unifex::set_value(static_cast<Receiver&&>(receiver_));
+          unifex::set_value(static_cast<Receiver&&>(self.receiver_));
         }
       }
     }
