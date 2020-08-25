@@ -16,9 +16,10 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/spin_wait.hpp>
-#include <unifex/stop_token_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/spin_wait.hpp>
+#include <unifex/std_concepts.hpp>
+#include <unifex/stop_token_concepts.hpp>
 
 #include <atomic>
 #include <cassert>
@@ -37,15 +38,20 @@ class inplace_stop_callback;
 
 class inplace_stop_callback_base {
  public:
-  virtual void execute() noexcept = 0;
+  void execute() noexcept {
+    this->execute_(this);
+  }
 
  protected:
-  explicit inplace_stop_callback_base(inplace_stop_source* source)
-      : source_(source) {}
+  using execute_fn = void(inplace_stop_callback_base* cb) noexcept;
+
+  explicit inplace_stop_callback_base(inplace_stop_source* source, execute_fn* execute) noexcept
+      : source_(source), execute_(execute) {}
 
   friend inplace_stop_source;
 
   inplace_stop_source* source_;
+  execute_fn* execute_;
   inplace_stop_callback_base* next_ = nullptr;
   inplace_stop_callback_base** prevPtr_ = nullptr;
   bool* removedDuringCallback_ = nullptr;
@@ -150,9 +156,12 @@ inline inplace_stop_token inplace_stop_source::get_token() noexcept {
 template <typename F>
 class inplace_stop_callback final : private inplace_stop_callback_base {
  public:
-  explicit inplace_stop_callback(inplace_stop_token token, F&& func) noexcept(
-      std::is_nothrow_move_constructible_v<F>)
-      : inplace_stop_callback_base(token.source_), func_((F &&) func) {
+  template(typename T)
+    (requires convertible_to<T, F>)
+  explicit inplace_stop_callback(inplace_stop_token token, T&& func) noexcept(
+      std::is_nothrow_constructible_v<F, T>)
+      : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl)
+      , func_((T&&) func) {
     if (source_ != nullptr) {
       if (!source_->try_add_callback(this)) {
         source_ = nullptr;
@@ -169,11 +178,12 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
     }
   }
 
-  void execute() noexcept final {
-    func_();
+ private:
+  static void execute_impl(inplace_stop_callback_base* cb) noexcept {
+    auto& self = *static_cast<inplace_stop_callback*>(cb);
+    self.func_();
   }
 
- private:
   UNIFEX_NO_UNIQUE_ADDRESS F func_;
 };
 
