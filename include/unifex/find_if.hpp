@@ -288,7 +288,7 @@ struct _operation_state {
       typename receiver_type::template unpack_receiver<Receiver>>;
   };
   using operation_state_t =
-      typename Predecessor::template value_types<concat_type_lists_unique_t, find_if_apply>::type;
+      typename sender_traits<Predecessor>::template value_types<concat_type_lists_unique_t, find_if_apply>::type;
 
   template<typename Sender>
   _operation_state(Sender&& s, Receiver&& r) :
@@ -364,15 +364,16 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
       template <typename...> class Variant,
       template <typename...> class Tuple>
   using value_types = type_list_nested_apply_t<
-    typename Predecessor::template value_types<concat_type_lists_unique_t, result>,
+    typename sender_traits<Predecessor>::template value_types<concat_type_lists_unique_t, result>,
     Variant,
     Tuple>;
 
-
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-    typename Predecessor::template error_types<type_list>,
+    typename sender_traits<Predecessor>::template error_types<type_list>,
     type_list<std::exception_ptr>>::template apply<Variant>;
+
+  static constexpr bool sends_done = true;
 
   template <typename Receiver>
   using receiver_type = receiver_t<Predecessor, Receiver, Func, FuncPolicy>;
@@ -391,8 +392,6 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
         decltype((static_cast<Sender&&>(s).pred_)),
         receiver_type<remove_cvref_t<Receiver>>>)
       -> _operation_state<Predecessor, Receiver, Func, FuncPolicy> {
-
-
     return _operation_state<Predecessor, Receiver, Func, FuncPolicy>{
       static_cast<Sender&&>(s), static_cast<Receiver&&>(r)};
   }

@@ -299,9 +299,11 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename next_sender_t<StreamSender>::template error_types<type_list>,
-      typename cleanup_sender_t<StreamSender>::template error_types<type_list>,
+      typename sender_traits<next_sender_t<StreamSender>>::template error_types<type_list>,
+      typename sender_traits<cleanup_sender_t<StreamSender>>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
+
+  static constexpr bool sends_done = false;
 
   template <typename Receiver>
   using operation = operation<StreamSender, State, ReducerFunc, Receiver>;

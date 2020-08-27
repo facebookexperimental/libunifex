@@ -137,6 +137,8 @@ class scheduler {
     template <template <typename...> class Variant>
     using error_types = Variant<>;
 
+    static constexpr bool sends_done = true;
+
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) const& {
       return operation<Receiver>{(Receiver &&) receiver, maxRecursionDepth_};

@@ -95,12 +95,12 @@ template<typename Source>
 class _join_sender<Source>::type {
 public:
     template<template<typename...> class Variant, template<typename...> class Tuple>
-    using value_types = typename Source::template value_types<Variant, Tuple>;
+    using value_types = typename sender_traits<Source>::template value_types<Variant, Tuple>;
 
     template<template<typename...> class Variant>
-    using error_types = typename Source::template error_types<Variant>;
+    using error_types = typename sender_traits<Source>::template error_types<Variant>;
 
-    static constexpr bool sends_done = Source::sends_done;
+    static constexpr bool sends_done = sender_traits<Source>::sends_done;
 
     template<typename Source2>
     explicit type(Source2&& s)

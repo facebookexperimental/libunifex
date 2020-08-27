@@ -581,7 +581,7 @@ namespace unifex
             error_;
 
         // Storage for value-types that might be produced by SourceSender.
-        UNIFEX_NO_UNIQUE_ADDRESS typename remove_cvref_t<SourceSender>::template value_types<
+        UNIFEX_NO_UNIQUE_ADDRESS typename sender_traits<remove_cvref_t<SourceSender>>::template value_types<
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
             value_;
@@ -633,7 +633,7 @@ namespace unifex
       template <
           template <typename...> class Variant,
           template <typename...> class Tuple>
-      using value_types = typename SourceSender::
+      using value_types = typename sender_traits<SourceSender>::
           template value_types<Variant, decayed_tuple<Tuple>::template apply>;
 
       // This can produce any of the error_types of SourceSender, or of
@@ -643,11 +643,15 @@ namespace unifex
       // connect() operation and move/copy of values
       template <template <typename...> class Variant>
       using error_types = typename concat_type_lists_unique_t<
-          typename SourceSender::template error_types<
+          typename sender_traits<SourceSender>::template error_types<
               decayed_tuple<type_list>::template apply>,
-          typename CompletionSender::template error_types<
+          typename sender_traits<CompletionSender>::template error_types<
               decayed_tuple<type_list>::template apply>,
           type_list<std::exception_ptr>>::template apply<Variant>;
+
+      static constexpr bool sends_done =
+          sender_traits<SourceSender>::sends_done ||
+          sender_traits<CompletionSender>::sends_done;
 
       template <typename SourceSender2, typename CompletionSender2>
       explicit type(

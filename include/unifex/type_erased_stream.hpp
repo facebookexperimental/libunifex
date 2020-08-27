@@ -279,6 +279,8 @@ struct _stream<Values...>::type {
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
+    static constexpr bool sends_done = true;
+
     template <typename Receiver>
     struct _op {
       struct type {
@@ -333,6 +335,8 @@ struct _stream<Values...>::type {
 
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
 
     template <typename Receiver>
     struct _op {

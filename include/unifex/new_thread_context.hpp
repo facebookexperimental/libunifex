@@ -75,6 +75,8 @@ private:
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
+    static constexpr bool sends_done = true;
+
     explicit schedule_sender(context* ctx) noexcept
       : context_(ctx) {}
 

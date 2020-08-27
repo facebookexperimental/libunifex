@@ -76,6 +76,8 @@ class _sender<Values...>::type {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
+  static constexpr bool sends_done = false;
+
   template(typename... Values2)
     (requires (sizeof...(Values2) == sizeof...(Values)))
   explicit type(std::in_place_t, Values2&&... values)

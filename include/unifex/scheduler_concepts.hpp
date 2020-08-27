@@ -178,6 +178,8 @@ struct _schedule::sender {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
+  static constexpr bool sends_done = true;
+
   template(
     typename Receiver,
     typename Scheduler =
@@ -246,6 +248,8 @@ namespace _schedule_after {
 
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
 
     explicit type(Duration d)
       : duration_(d)
@@ -323,6 +327,8 @@ namespace _schedule_at {
 
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
 
     explicit type(TimePoint tp)
       : time_point_(tp)

@@ -376,6 +376,8 @@ class io_uring_context::schedule_sender {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
+  static constexpr bool sends_done = true;
+
   template <typename Receiver>
   operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) {
     return operation<std::remove_reference_t<Receiver>>{context_,
@@ -487,6 +489,8 @@ class io_uring_context::read_sender {
   // receiver's set_value() exits with an exception.
   template <template <typename...> class Variant>
   using error_types = Variant<std::error_code, std::exception_ptr>;
+
+  static constexpr bool sends_done = true;
 
   explicit read_sender(
       io_uring_context& context,
@@ -603,6 +607,8 @@ class io_uring_context::write_sender {
   // receiver's set_value() exits with an exception.
   template <template <typename...> class Variant>
   using error_types = Variant<std::error_code, std::exception_ptr>;
+
+  static constexpr bool sends_done = true;
 
   explicit write_sender(
       io_uring_context& context,
@@ -871,6 +877,8 @@ class io_uring_context::schedule_at_sender {
   // receiver's set_value() exits with an exception.
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
+
+  static constexpr bool sends_done = true;
 
   explicit schedule_at_sender(
       io_uring_context& context,

@@ -108,10 +108,12 @@ public:
     using InnerOp = std::invoke_result_t<SuccessorFactory, inplace_stop_source&>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
-    using value_types = typename InnerOp::template value_types<Variant, Tuple>;
+    using value_types = typename sender_traits<InnerOp>::template value_types<Variant, Tuple>;
 
     template<template<typename...> class Variant>
-    using error_types = typename InnerOp::template error_types<Variant>;
+    using error_types = typename sender_traits<InnerOp>::template error_types<Variant>;
+
+    static constexpr bool sends_done = sender_traits<InnerOp>::sends_done;
 
     template<typename SuccessorFactory2>
     explicit type(SuccessorFactory2&& func) : func_((SuccessorFactory2&&)func)

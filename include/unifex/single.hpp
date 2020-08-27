@@ -92,10 +92,12 @@ struct _stream<Sender>::type {
 
     template <template <typename...> class Variant,
              template <typename...> class Tuple>
-    using value_types = typename Sender::template value_types<Variant, Tuple>;
+    using value_types = typename sender_traits<Sender>::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
-    using error_types = typename Sender::template error_types<Variant>;
+    using error_types = typename sender_traits<Sender>::template error_types<Variant>;
+
+    static constexpr bool sends_done = true;
 
     template <typename Receiver>
     auto connect(Receiver&& receiver) {

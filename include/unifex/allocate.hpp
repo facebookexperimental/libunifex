@@ -85,46 +85,24 @@ namespace _alloc {
     template <
         template <typename...> class Variant,
         template <typename...> class Tuple>
-    using value_types = typename Sender::template value_types<Variant, Tuple>;
+    using value_types = typename sender_traits<Sender>::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
-    using error_types = typename Sender::template error_types<Variant>;
+    using error_types = typename sender_traits<Sender>::template error_types<Variant>;
 
-    template(typename Receiver)
-      (requires receiver<Receiver>)
-    friend auto tag_invoke(tag_t<connect>, sender&& s, Receiver&& r)
+    static constexpr bool sends_done = sender_traits<Sender>::sends_done;
+
+    template(typename Self, typename Receiver)
+      (requires same_as<remove_cvref_t<Self>, type> AND
+                receiver<Receiver>)
+    friend auto tag_invoke(tag_t<connect>, Self&& s, Receiver&& r)
         -> operation<
-            connect_result_t<Sender, Receiver>,
+            connect_result_t<member_t<Self, Sender>, Receiver>,
             remove_cvref_t<get_allocator_t<Receiver>>> {
       return operation<
-          connect_result_t<Sender, Receiver>,
+          connect_result_t<member_t<Self, Sender>, Receiver>,
           remove_cvref_t<get_allocator_t<Receiver>>>{
-          (Sender &&) s.sender_, (Receiver &&) r};
-    }
-
-    template(typename Receiver)
-      (requires receiver<Receiver>)
-    friend auto tag_invoke(tag_t<connect>, sender& s, Receiver&& r)
-        -> operation<
-            connect_result_t<Sender&, Receiver>,
-            remove_cvref_t<get_allocator_t<Receiver>>> {
-      return operation<
-          connect_result_t<Sender&, Receiver>,
-          remove_cvref_t<get_allocator_t<Receiver>>>{
-          s.sender_, (Receiver &&) r};
-    }
-
-    template(typename Receiver)
-      (requires receiver<Receiver>)
-    friend auto
-    tag_invoke(tag_t<connect>, const sender& s, Receiver&& r)
-        -> operation<
-            connect_result_t<const Sender&, Receiver>,
-            remove_cvref_t<get_allocator_t<Receiver>>> {
-      return operation<
-          connect_result_t<const Sender&, Receiver>,
-          remove_cvref_t<get_allocator_t<Receiver>>>{
-          std::as_const(s.sender_), (Receiver &&) r};
+          static_cast<Self&&>(s).sender_, (Receiver &&) r};
     }
 
     Sender sender_;

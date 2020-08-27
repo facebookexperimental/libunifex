@@ -266,6 +266,9 @@ a type that is an instantiation of `Variant`, with a template argument for each
 overload of `set_error` that may be called, with each template argument being
 the type of the error argument for the call to `set_error`.
 
+A nested `static constexpr bool sends_done` is defined, which indicates whether
+the sender might complete with `set_done`.
+
 For example:
 ```c++
 struct some_typed_sender {
@@ -277,6 +280,8 @@ struct some_typed_sender {
 
  template<template<typename...> class Variant>
  using error_types = Variant<std::exception_ptr>;
+
+ static constexpr bool sends_done = true;
  ...
 };
 ```
@@ -287,14 +292,13 @@ the receiver:
 - `set_value(R&&, std::string, int)`
 - `set_value(R&&)`
 - `set_error(R&&, std::exception_ptr)`
+- `set_done(R&&)`
 
-TODO: Add support for querying whether `set_done()` may be called.
-Often this will not be known in general until a receiver is available.
-Maybe we need to also put this query on the operation-state type?
+When querying the `value_types/error_types/sends_done` properties of
+a sender you should look them up in the `sender_traits<Sender>` class rather
+than on the sender type directly.
 
-TODO: Do we need to indirect these through a `sender_traits` type to
-allow these queries to be customised externally. e.g. so that we can
-allow third-party library types to implement the typed-sender concept.
+e.g. `typename unifex::sender_traits<Sender>::template value_types<std::variant, std::tuple>`
 
 ## OperationState Concept
 

@@ -256,6 +256,12 @@ using sender = typename _sender<
     remove_cvref_t<Predecessor>,
     remove_cvref_t<SuccessorFactory>>::type;
 
+template<typename Sender>
+struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {};
+
+template <typename... Successors>
+using any_sends_done = std::disjunction<sends_done_impl<Successors>...>;
+
 template <typename Predecessor, typename SuccessorFactory>
 class _sender<Predecessor, SuccessorFactory>::type {
   using sender = type;
@@ -267,7 +273,7 @@ class _sender<Predecessor, SuccessorFactory>::type {
 
   template <template <typename...> class List>
   using successor_types =
-      typename Predecessor::template value_types<List, successor_type>;
+      typename sender_traits<Predecessor>::template value_types<List, successor_type>;
 
   template <
       template <typename...> class Variant,
@@ -276,7 +282,7 @@ class _sender<Predecessor, SuccessorFactory>::type {
    public:
     template <typename... Senders>
     using apply = typename concat_type_lists_unique_t<
-        typename Senders::template value_types<type_list, Tuple>...
+        typename sender_traits<Senders>::template value_types<type_list, Tuple>...
         >::template apply<Variant>;
   };
 
@@ -297,7 +303,7 @@ class _sender<Predecessor, SuccessorFactory>::type {
   struct error_types_impl {
     template <typename... Senders>
     using apply = typename concat_type_lists_unique_t<
-        typename Senders::template error_types<type_list>...,
+        typename sender_traits<Senders>::template error_types<type_list>...,
         type_list<std::exception_ptr>>::template apply<Variant>;
   };
 
@@ -311,6 +317,10 @@ public:
   template <template <typename...> class Variant>
   using error_types =
       successor_types<error_types_impl<Variant>::template apply>;
+
+  static constexpr bool sends_done =
+    sender_traits<Predecessor>::sends_done ||
+    successor_types<any_sends_done>::value;
 
  public:
   template <typename Predecessor2, typename SuccessorFactory2>

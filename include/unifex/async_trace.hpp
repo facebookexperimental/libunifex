@@ -198,6 +198,8 @@ namespace _async_trace {
     template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
+    static constexpr bool sends_done = false;
+
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const& {
       return operation<Receiver>{(Receiver &&) r};

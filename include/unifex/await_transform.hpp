@@ -41,8 +41,9 @@ namespace _await_transform {
 
 template <typename Promise, typename Sender>
 class _as_awaitable {
-  using value_t = typename remove_cvref_t<Sender>::
+  using value_t = typename sender_traits<remove_cvref_t<Sender>>::
         template value_types<single_overload, single_value_type>::type::type;
+  
   enum class state { empty, value, exception, done };
 
   class receiver {
@@ -73,6 +74,7 @@ class _as_awaitable {
     }
     
     void set_done() && noexcept {
+      static_assert(sender_traits<remove_cvref_t<Sender>>::sends_done);
       op_->state_ = state::done;
       continuation_.promise().unhandled_done().resume();
     }

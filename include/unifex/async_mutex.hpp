@@ -58,6 +58,8 @@ private:
     template <template <typename...> class Variant>
     using error_types = Variant<>;
 
+    static constexpr bool sends_done = false;
+
     lock_sender(const lock_sender &) = delete;
     lock_sender(lock_sender &&) = default;
 

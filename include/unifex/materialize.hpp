@@ -154,7 +154,7 @@ namespace unifex
               template apply>;
 
       using type =
-          typename Source::template value_types<value_variant, value_tuple>;
+          typename sender_traits<Source>::template value_types<value_variant, value_tuple>;
     };
 
     template <typename Source>
@@ -178,6 +178,8 @@ namespace unifex
 
       template <template <typename...> class Variant>
       using error_types = Variant<std::exception_ptr>;
+
+      static constexpr bool sends_done = false;
 
       template(typename Source2)
           (requires constructible_from<Source, Source2>)

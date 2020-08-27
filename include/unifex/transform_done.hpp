@@ -266,15 +266,17 @@ public:
   template <template <typename...> class Variant,
            template <typename...> class Tuple>
   using value_types = typename concat_type_lists_unique_t<
-        typename Source::template value_types<type_list, Tuple>,
-        typename decltype(std::declval<Done>()())::template value_types<type_list, Tuple>
+        typename sender_traits<Source>::template value_types<type_list, Tuple>,
+        typename sender_traits<final_sender_t>::template value_types<type_list, Tuple>
       >::template apply<Variant>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      typename Source::template error_types<type_list>,
-      typename decltype(std::declval<Done>()())::template error_types<type_list>,
+      typename sender_traits<Source>::template error_types<type_list>,
+      typename sender_traits<final_sender_t>::template error_types<type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
+
+  static constexpr bool sends_done = sender_traits<final_sender_t>::sends_done;
 
   template <typename Source2, typename Done2>
   explicit type(Source2&& source, Done2&& done)

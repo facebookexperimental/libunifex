@@ -263,9 +263,9 @@ namespace unifex
 
       using result_variant = typename concat_type_lists_t<
           type_list<std::tuple<>, std::tuple<tag_t<unifex::set_done>>>,
-          typename std::remove_reference_t<
-              Source>::template value_types<type_list, value_decayed_tuple>,
-          typename std::remove_reference_t<Source>::template error_types<
+          typename sender_traits<std::remove_reference_t<
+              Source>>::template value_types<type_list, value_decayed_tuple>,
+          typename sender_traits<std::remove_reference_t<Source>>::template error_types<
               error_tuples>>::template apply<std::variant>;
 
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -311,15 +311,17 @@ namespace unifex
           class Variant,
           template <typename...>
           class Tuple>
-      using value_types = typename Source::
+      using value_types = typename sender_traits<Source>::
           template value_types<concat_type_lists_unique_t, decayed_type_list>::
               template apply<compose_nested<Variant, Tuple>::template apply>;
 
       template <template <typename...> class Variant>
       using error_types = typename concat_type_lists_unique_t<
-          typename Source::template error_types<
+          typename sender_traits<Source>::template error_types<
               decayed_tuple<type_list>::template apply>,
           type_list<std::exception_ptr>>::template apply<Variant>;
+
+      static constexpr bool sends_done = true;
 
       template <typename Source2, typename Trigger2>
       explicit type(Source2&& source, Trigger2&& trigger) noexcept(
