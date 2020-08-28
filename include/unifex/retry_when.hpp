@@ -326,23 +326,26 @@ class _sender<Source, Func>::type {
   using trigger_sender = std::invoke_result_t<Func&, remove_cvref_t<Error>>;
 
   template <typename... Errors>
-  using make_error_type_list = typename concat_type_lists_unique<
-      typename sender_traits<trigger_sender<Errors>>::template error_types<type_list>...,
-      type_list<std::exception_ptr>>::type;
+  using make_error_type_list =
+      typename concat_type_lists_unique<
+          sender_error_types_t<trigger_sender<Errors>, type_list>...,
+          type_list<std::exception_ptr>>::type;
 
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, trigger_sender<Errors>...>;
 
 public:
   template <template <typename...> class Variant,
-           template <typename...> class Tuple>
-  using value_types = typename sender_traits<Source>::template value_types<Variant, Tuple>;
+            template <typename...> class Tuple>
+  using value_types = sender_value_types_t<Source, Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename sender_traits<Source>::template error_types<make_error_type_list>::template apply<Variant>;
+  using error_types =
+      typename sender_error_types_t<Source, make_error_type_list>::template
+          apply<Variant>;
 
   static constexpr bool sends_done =
-    sender_traits<Source>::template error_types<sends_done_impl>::value;
+    sender_error_types_t<Source, sends_done_impl>::value;
 
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)

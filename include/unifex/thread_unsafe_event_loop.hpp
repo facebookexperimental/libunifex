@@ -385,7 +385,7 @@ class thread_unsafe_event_loop {
 
   template <
       typename Sender,
-      typename Result = single_value_result_t<remove_cvref_t<Sender>>>
+      typename Result = sender_single_value_result_t<remove_cvref_t<Sender>>>
   std::optional<Result> sync_wait(Sender&& sender) {
     using promise_t = _thread_unsafe_event_loop::sync_wait_promise<Result>;
     promise_t promise;

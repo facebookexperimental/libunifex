@@ -264,17 +264,19 @@ class _sndr<Source, Done>::type {
 
 public:
   template <template <typename...> class Variant,
-           template <typename...> class Tuple>
-  using value_types = typename concat_type_lists_unique_t<
-        typename sender_traits<Source>::template value_types<type_list, Tuple>,
-        typename sender_traits<final_sender_t>::template value_types<type_list, Tuple>
-      >::template apply<Variant>;
+            template <typename...> class Tuple>
+  using value_types =
+      typename concat_type_lists_unique_t<
+          sender_value_types_t<Source, type_list, Tuple>,
+          sender_value_types_t<final_sender_t, type_list, Tuple>>::template
+              apply<Variant>;
 
   template <template <typename...> class Variant>
-  using error_types = typename concat_type_lists_unique_t<
-      typename sender_traits<Source>::template error_types<type_list>,
-      typename sender_traits<final_sender_t>::template error_types<type_list>,
-      type_list<std::exception_ptr>>::template apply<Variant>;
+  using error_types =
+      typename concat_type_lists_unique_t<
+          sender_error_types_t<Source, type_list>,
+          sender_error_types_t<final_sender_t, type_list>,
+          type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done = sender_traits<final_sender_t>::sends_done;
 

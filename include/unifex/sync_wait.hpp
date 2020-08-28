@@ -144,8 +144,8 @@ namespace _sync_wait_cpo {
     template(typename Sender)
       (requires typed_sender<Sender>)
     auto operator()(Sender&& sender) const
-        -> std::optional<single_value_result_t<remove_cvref_t<Sender>>> {
-      using Result = single_value_result_t<remove_cvref_t<Sender>>;
+        -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
+      using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
       return _sync_wait::_impl<Result>((Sender&&) sender);
     }
     constexpr auto operator()() const

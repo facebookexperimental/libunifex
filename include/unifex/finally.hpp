@@ -577,14 +577,16 @@ namespace unifex
       union {
         // Storage for error-types that might be produced by SourceSender.
         UNIFEX_NO_UNIQUE_ADDRESS
-        typename remove_cvref_t<SourceSender>::template error_types<error_result_union>
+        sender_error_types_t<remove_cvref_t<SourceSender>, error_result_union>
             error_;
 
         // Storage for value-types that might be produced by SourceSender.
-        UNIFEX_NO_UNIQUE_ADDRESS typename sender_traits<remove_cvref_t<SourceSender>>::template value_types<
+        UNIFEX_NO_UNIQUE_ADDRESS
+        sender_value_types_t<
+            remove_cvref_t<SourceSender>,
             manual_lifetime_union,
             decayed_tuple<std::tuple>::template apply>
-            value_;
+                value_;
       };
 
       using source_operation_t =
@@ -592,11 +594,14 @@ namespace unifex
             SourceSender,
             receiver_t<SourceSender, CompletionSender, Receiver>>>;
 
-      using completion_value_union_t = typename remove_cvref_t<SourceSender>::
-          template value_types<manual_lifetime_union, value_operation>;
+      using completion_value_union_t =
+          sender_value_types_t<
+              remove_cvref_t<SourceSender>,
+              manual_lifetime_union,
+              value_operation>;
 
-      using completion_error_union_t = typename remove_cvref_t<SourceSender>::
-          template error_types<error_operation_union>;
+      using completion_error_union_t =
+          sender_error_types_t<remove_cvref_t<SourceSender>, error_operation_union>;
 
       // Operation storage.
       union {
@@ -642,12 +647,11 @@ namespace unifex
       // TODO: In theory we could eliminate exception_ptr in the case that the
       // connect() operation and move/copy of values
       template <template <typename...> class Variant>
-      using error_types = typename concat_type_lists_unique_t<
-          typename sender_traits<SourceSender>::template error_types<
-              decayed_tuple<type_list>::template apply>,
-          typename sender_traits<CompletionSender>::template error_types<
-              decayed_tuple<type_list>::template apply>,
-          type_list<std::exception_ptr>>::template apply<Variant>;
+      using error_types =
+          typename concat_type_lists_unique_t<
+              sender_error_types_t<SourceSender, decayed_tuple<type_list>::template apply>,
+              sender_error_types_t<CompletionSender, decayed_tuple<type_list>::template apply>,
+              type_list<std::exception_ptr>>::template apply<Variant>;
 
       static constexpr bool sends_done =
           sender_traits<SourceSender>::sends_done ||

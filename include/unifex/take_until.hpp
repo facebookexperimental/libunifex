@@ -101,7 +101,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
     template <template <typename...> class Variant>
     using error_types =
-      typename sender_traits<next_sender_t<SourceStream>>::template error_types<Variant>;
+      sender_error_types_t<next_sender_t<SourceStream>, Variant>;
 
     static constexpr bool sends_done = sender_traits<next_sender_t<SourceStream>>::sends_done;
 
@@ -209,7 +209,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
     template <template <typename...> class Variant>
     using error_types =
-      typename sender_traits<cleanup_sender_t<SourceStream>>::template error_types<Variant>;
+      sender_error_types_t<cleanup_sender_t<SourceStream>, Variant>;
 
     static constexpr bool sends_done = true;
 

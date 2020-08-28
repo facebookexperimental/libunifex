@@ -41,8 +41,7 @@ namespace _await_transform {
 
 template <typename Promise, typename Sender>
 class _as_awaitable {
-  using value_t = typename sender_traits<remove_cvref_t<Sender>>::
-        template value_types<single_overload, single_value_type>::type::type;
+  using value_t = sender_single_value_return_type_t<remove_cvref_t<Sender>>;
   
   enum class state { empty, value, exception, done };
 
