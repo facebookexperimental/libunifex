@@ -37,75 +37,24 @@
 
 namespace unifex {
 
-namespace _await_transform {
+namespace _await_tfx {
+
+template <typename Promise, typename Value>
+struct _awaitable_base {
+  struct type;
+};
 
 template <typename Promise, typename Sender>
-class _as_awaitable {
-  using value_t = typename sender_traits<remove_cvref_t<Sender>>::
-        template value_types<single_overload, single_value_type>::type::type;
-  
-  enum class state { empty, value, exception, done };
+struct _awaitable {
+  struct type;
+};
 
-  class receiver {
-  public:
-    explicit receiver(_as_awaitable* op, coro::coroutine_handle<Promise> continuation) noexcept
-    : op_(op)
-    , continuation_(continuation)
-    {}
+enum class state { empty, value, exception, done };
 
-    receiver(receiver&& r) noexcept
-    : op_(std::exchange(r.op_, nullptr))
-    , continuation_(std::exchange(r.continuation_, nullptr))
-    {}
-
-    template(class... Us)
-      (requires (constructible_from<value_t, Us...> || (std::is_void_v<value_t> && sizeof...(Us) == 0)))
-    void set_value(Us&&... us) &&
-        noexcept(std::is_nothrow_constructible_v<value_t, Us...>) {
-      unifex::activate_union_member(op_->value_, (Us&&) us...);
-      op_->state_ = state::value;
-      continuation_.resume();
-    }
-
-    void set_error(std::exception_ptr eptr) && noexcept {
-      unifex::activate_union_member(op_->exception_, std::move(eptr));
-      op_->state_ = state::exception;
-      continuation_.resume();
-    }
-    
-    void set_done() && noexcept {
-      static_assert(sender_traits<remove_cvref_t<Sender>>::sends_done);
-      op_->state_ = state::done;
-      continuation_.promise().unhandled_done().resume();
-    }
-
-    template(typename CPO)
-      (requires is_receiver_query_cpo_v<CPO> AND is_callable_v<CPO, const Promise&>)
-    friend auto tag_invoke(CPO cpo, const receiver& r)
-        noexcept(is_nothrow_callable_v<CPO, const Promise&>)
-        -> callable_result_t<CPO, const Promise&> {
-      const Promise& p = r.continuation_.promise();
-      return std::move(cpo)(p);
-    }
-
-    template <typename Func>
-    friend void
-    tag_invoke(tag_t<visit_continuations>, const receiver& r, Func&& func) {
-      visit_continuations(r.continuation_.promise(), (Func&&)func);
-    }
-
-  private:
-    _as_awaitable* op_;
-    coro::coroutine_handle<Promise> continuation_;
-  };
-
-public:
-  explicit _as_awaitable(Sender&& sender, coro::coroutine_handle<Promise> h)
-    noexcept(is_nothrow_connectable_v<Sender, receiver>)
-  : op_(unifex::connect((Sender&&)sender, receiver{this, h}))
-  {}
-
-  ~_as_awaitable() {
+template <typename Value>
+struct _expected {
+  _expected() noexcept {}
+  ~_expected() {
     switch(state_) {
     case state::value:
       unifex::deactivate_union_member(value_);
@@ -117,32 +66,109 @@ public:
     }
   }
 
+  state state_ = state::empty;
+  union {
+    manual_lifetime<Value> value_;
+    manual_lifetime<std::exception_ptr> exception_;
+  };
+};
+
+template <typename Promise, typename Value>
+struct _awaitable_base<Promise, Value>::type {
+protected:
+  struct _rec {
+  public:
+    explicit _rec(_expected<Value>* result, coro::coroutine_handle<Promise> continuation) noexcept
+    : result_(result)
+    , continuation_(continuation)
+    {}
+
+    _rec(_rec&& r) noexcept
+    : result_(std::exchange(r.result_, nullptr))
+    , continuation_(std::exchange(r.continuation_, nullptr))
+    {}
+
+    template(class... Us)
+      (requires (constructible_from<Value, Us...> ||
+          (std::is_void_v<Value> && sizeof...(Us) == 0)))
+    void set_value(Us&&... us) &&
+        noexcept(std::is_nothrow_constructible_v<Value, Us...> ||
+            std::is_void_v<Value>) {
+      unifex::activate_union_member(result_->value_, (Us&&) us...);
+      result_->state_ = state::value;
+      continuation_.resume();
+    }
+
+    void set_error(std::exception_ptr eptr) && noexcept {
+      unifex::activate_union_member(result_->exception_, std::move(eptr));
+      result_->state_ = state::exception;
+      continuation_.resume();
+    }
+    
+    void set_done() && noexcept {
+      result_->state_ = state::done;
+      continuation_.promise().unhandled_done().resume();
+    }
+
+    template(typename CPO)
+      (requires is_receiver_query_cpo_v<CPO> AND is_callable_v<CPO, const Promise&>)
+    friend auto tag_invoke(CPO cpo, const _rec& r)
+        noexcept(is_nothrow_callable_v<CPO, const Promise&>)
+        -> callable_result_t<CPO, const Promise&> {
+      const Promise& p = r.continuation_.promise();
+      return std::move(cpo)(p);
+    }
+
+    template <typename Func>
+    friend void
+    tag_invoke(tag_t<visit_continuations>, const _rec& r, Func&& func) {
+      visit_continuations(r.continuation_.promise(), (Func&&)func);
+    }
+
+  private:
+    _expected<Value>* result_;
+    coro::coroutine_handle<Promise> continuation_;
+  };
+
+  _expected<Value> result_;
+
+public:
   bool await_ready() const noexcept {
     return false;
   }
 
+  Value await_resume() {
+    switch (result_.state_) {
+    case state::value:
+      return std::move(result_.value_).get();
+    default:
+      assert(result_.state_ == state::exception);
+      std::rethrow_exception(result_.exception_.get());
+    }
+  }
+};
+
+template <typename Promise, typename Sender>
+struct _awaitable<Promise, Sender>::type
+  : _awaitable_base<Promise, sender_single_value_return_type_t<Sender>>::type {
+private:
+  using _base =
+      typename _awaitable_base<Promise, sender_single_value_return_type_t<Sender>>::type;
+  using _rec = typename _base::_rec;
+  connect_result_t<Sender, _rec> op_;
+public:
+  explicit type(Sender&& sender, coro::coroutine_handle<Promise> h)
+    noexcept(is_nothrow_connectable_v<Sender, _rec>)
+  : op_(unifex::connect((Sender&&)sender, _rec{&this->result_, h}))
+  {}
+
   void await_suspend(coro::coroutine_handle<Promise>) noexcept {
     unifex::start(op_);
   }
-
-  value_t await_resume() {
-    switch (state_) {
-    case state::value:
-      return std::move(value_).get();
-    default:
-      assert(state_ == state::exception);
-      std::rethrow_exception(exception_.get());
-    }
-  }
-
-private:
-  state state_ = state::empty;
-  union {
-    manual_lifetime<value_t> value_;
-    manual_lifetime<std::exception_ptr> exception_;
-  };
-  connect_result_t<Sender, receiver> op_;
 };
+
+template <typename Promise, typename Sender>
+using _as_awaitable = typename _awaitable<Promise, Sender>::type;
 
 struct _fn {
   // Call custom implementation if present.
@@ -172,7 +198,7 @@ struct _fn {
   }
 };
 
-} // namespace _await_transform
+} // namespace _await_tfx
 
 // The await_transform() customisation point allows value-types to customise
 // what kind of awaitable object should be used for this type when it is used
@@ -183,7 +209,7 @@ struct _fn {
 //
 // Coroutine promise_types can implement their .await_transform() methods to
 // forward to this customisation point to enable use of type customisations.
-inline constexpr _await_transform::_fn await_transform;
+inline constexpr _await_tfx::_fn await_transform;
 
 } // namespace unifex
 

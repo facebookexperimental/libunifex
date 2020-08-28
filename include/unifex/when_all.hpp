@@ -112,16 +112,18 @@ using unique_decayed_error_types = concat_type_lists_unique_t<
   type_list<std::decay_t<Errors>>...>;
 
 template <template <typename...> class Variant, typename... Senders>
-using error_types = typename concat_type_lists_unique_t<
-    typename sender_traits<Senders>::template error_types<unique_decayed_error_types>...,
-    type_list<std::exception_ptr>>::template apply<Variant>;
+using error_types =
+    typename concat_type_lists_unique_t<
+        sender_error_types_t<Senders, unique_decayed_error_types>...,
+        type_list<std::exception_ptr>>::template apply<Variant>;
 
 template <typename... Values>
 using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
 
 template <typename Sender>
 using value_variant_for_sender =
-  typename sender_traits<Sender>::template value_types<concat_type_lists_unique_t, decayed_value_tuple>::template apply<std::variant>;
+  typename sender_value_types_t<Sender, concat_type_lists_unique_t, decayed_value_tuple>
+      ::template apply<std::variant>;
 
 template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver {

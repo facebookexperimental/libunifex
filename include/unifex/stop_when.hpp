@@ -261,12 +261,12 @@ namespace unifex
       using error_tuples = type_list<
           std::tuple<tag_t<unifex::set_error>, std::decay_t<Errors>>...>;
 
-      using result_variant = typename concat_type_lists_t<
-          type_list<std::tuple<>, std::tuple<tag_t<unifex::set_done>>>,
-          typename sender_traits<std::remove_reference_t<
-              Source>>::template value_types<type_list, value_decayed_tuple>,
-          typename sender_traits<std::remove_reference_t<Source>>::template error_types<
-              error_tuples>>::template apply<std::variant>;
+      using result_variant =
+          typename concat_type_lists_t<
+              type_list<std::tuple<>, std::tuple<tag_t<unifex::set_done>>>,
+              sender_value_types_t<remove_cvref_t<Source>, type_list, value_decayed_tuple>,
+              sender_error_types_t<remove_cvref_t<Source>, error_tuples>>::template
+                  apply<std::variant>;
 
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       std::atomic<int> activeOpCount_ = 2;
@@ -276,8 +276,8 @@ namespace unifex
           stopCallback_;
       UNIFEX_NO_UNIQUE_ADDRESS result_variant result_;
       UNIFEX_NO_UNIQUE_ADDRESS connect_result_t<Source, source_receiver> sourceOp_;
-      UNIFEX_NO_UNIQUE_ADDRESS connect_result_t<Trigger, trigger_receiver>
-          triggerOp_;
+      UNIFEX_NO_UNIQUE_ADDRESS
+      connect_result_t<Trigger, trigger_receiver> triggerOp_;
     };
 
     template <typename Source, typename Trigger>
@@ -316,10 +316,10 @@ namespace unifex
               template apply<compose_nested<Variant, Tuple>::template apply>;
 
       template <template <typename...> class Variant>
-      using error_types = typename concat_type_lists_unique_t<
-          typename sender_traits<Source>::template error_types<
-              decayed_tuple<type_list>::template apply>,
-          type_list<std::exception_ptr>>::template apply<Variant>;
+      using error_types =
+          typename concat_type_lists_unique_t<
+              sender_error_types_t<Source, decayed_tuple<type_list>::template apply>,
+              type_list<std::exception_ptr>>::template apply<Variant>;
 
       static constexpr bool sends_done = true;
 

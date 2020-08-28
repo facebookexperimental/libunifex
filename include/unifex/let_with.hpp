@@ -52,10 +52,10 @@ public:
     using InnerOp = std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
-    using value_types = typename sender_traits<InnerOp>::template value_types<Variant, Tuple>;
+    using value_types = sender_value_types_t<InnerOp, Variant, Tuple>;
 
     template<template<typename...> class Variant>
-    using error_types = typename sender_traits<InnerOp>::template error_types<Variant>;
+    using error_types = sender_error_types_t<InnerOp, Variant>;
 
     static constexpr bool sends_done = sender_traits<InnerOp>::sends_done;
 

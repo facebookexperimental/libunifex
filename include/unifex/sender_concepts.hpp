@@ -373,16 +373,18 @@ namespace detail {
 } // namespace detail
 /// \endcond
 
-template <typename Sender, typename Adaptor>
-using adapt_error_types_t =
-    typename sender_traits<Sender>::template error_types<Adaptor::template apply>;
-
 template <
     typename Sender,
     template <typename...> class Variant,
-    typename Adaptor>
-using adapt_value_types_t =
-    typename sender_traits<Sender>::template value_types<Variant, typename Adaptor::apply>;
+    template <typename...> class Tuple>
+using sender_value_types_t =
+    typename sender_traits<Sender>::template value_types<Variant, Tuple>;
+
+template <
+    typename Sender,
+    template <typename...> class Variant>
+using sender_error_types_t =
+    typename sender_traits<Sender>::template error_types<Variant>;
 
 template <typename... Types>
 struct single_value_type {
@@ -418,13 +420,16 @@ public:
 };
 
 template <typename Sender>
-using single_value_result_t = non_void_t<wrap_reference_t<decay_rvalue_t<
-    typename Sender::template value_types<single_overload, single_value_type>::
-        type::type>>>;
+using sender_single_value_return_type_t =
+    typename sender_value_types_t<Sender, single_overload, single_value_type>::type::type;
+
+template <typename Sender>
+using sender_single_value_result_t =
+    non_void_t<wrap_reference_t<decay_rvalue_t<sender_single_value_return_type_t<Sender>>>>;
 
 template <typename Sender>
 constexpr bool is_sender_nofail_v =
-    Sender::template error_types<is_empty_list>::value;
+    sender_error_types_t<Sender, is_empty_list>::value;
 
 } // namespace unifex
 

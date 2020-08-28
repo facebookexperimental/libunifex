@@ -145,14 +145,18 @@ namespace _demat {
     template <
         template <typename...> class Variant,
         template <typename...> class Tuple>
-    using value_types = typename sender_traits<Source>::template value_types<
-        variant<Variant>::template apply,
-        tuple<tag_t<set_value>, Tuple>::template apply>;
+    using value_types =
+        sender_value_types_t<
+            Source,
+            variant<Variant>::template apply,
+            tuple<tag_t<set_value>, Tuple>::template apply>;
 
     template <template <typename...> class Variant>
-    using error_types = typename sender_traits<Source>::template value_types<
-        variant<append_error_types<Variant>::template apply>::template apply,
-        tuple<tag_t<set_error>, single_type_t>::template apply>;
+    using error_types =
+        sender_value_types_t<
+            Source,
+            variant<append_error_types<Variant>::template apply>::template apply,
+            tuple<tag_t<set_error>, single_type_t>::template apply>;
 
     static constexpr bool sends_done = sender_traits<Source>::sends_done;
 

@@ -205,11 +205,11 @@ struct _stream<SourceStream, Values...>::type {
     template <template <typename...> class Variant,
              template <typename...> class Tuple>
     using value_types =
-      typename sender_traits<next_sender_t<SourceStream>>::template value_types<Variant, Tuple>;
+      sender_value_types_t<next_sender_t<SourceStream>, Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types =
-      typename sender_traits<next_sender_t<SourceStream>>::template error_types<Variant>;
+      sender_error_types_t<next_sender_t<SourceStream>, Variant>;
 
     static constexpr bool sends_done = true;
 
@@ -313,9 +313,10 @@ struct _stream<SourceStream, Values...>::type {
     using value_types = Variant<>;
 
     template <template <typename...> class Variant>
-    using error_types = typename concat_type_lists_unique_t<
-      typename sender_traits<cleanup_sender_t<SourceStream>>::template error_types<type_list>,
-      type_list<std::exception_ptr>>::template apply<Variant>;
+    using error_types =
+        typename concat_type_lists_unique_t<
+            sender_error_types_t<cleanup_sender_t<SourceStream>, type_list>,
+            type_list<std::exception_ptr>>::template apply<Variant>;
 
     static constexpr bool sends_done = true;
 

@@ -154,7 +154,7 @@ namespace unifex
               template apply>;
 
       using type =
-          typename sender_traits<Source>::template value_types<value_variant, value_tuple>;
+          sender_value_types_t<Source, value_variant, value_tuple>;
     };
 
     template <typename Source>

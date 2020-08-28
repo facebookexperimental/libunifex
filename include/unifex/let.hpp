@@ -273,17 +273,16 @@ class _sender<Predecessor, SuccessorFactory>::type {
 
   template <template <typename...> class List>
   using successor_types =
-      typename sender_traits<Predecessor>::template value_types<List, successor_type>;
+      sender_value_types_t<Predecessor, List, successor_type>;
 
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
   struct value_types_impl {
-   public:
     template <typename... Senders>
-    using apply = typename concat_type_lists_unique_t<
-        typename sender_traits<Senders>::template value_types<type_list, Tuple>...
-        >::template apply<Variant>;
+    using apply =
+        typename concat_type_lists_unique_t<
+            sender_value_types_t<Senders, type_list, Tuple>...>::template apply<Variant>;
   };
 
   // TODO: Ideally we'd only conditionally add the std::exception_ptr type
@@ -302,9 +301,10 @@ class _sender<Predecessor, SuccessorFactory>::type {
   template <template <typename...> class Variant>
   struct error_types_impl {
     template <typename... Senders>
-    using apply = typename concat_type_lists_unique_t<
-        typename sender_traits<Senders>::template error_types<type_list>...,
-        type_list<std::exception_ptr>>::template apply<Variant>;
+    using apply =
+        typename concat_type_lists_unique_t<
+            sender_error_types_t<Senders, type_list>...,
+            type_list<std::exception_ptr>>::template apply<Variant>;
   };
 
 public:

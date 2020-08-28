@@ -280,15 +280,20 @@ struct _operation_state {
   template <typename... Ts>
   struct find_if_apply {
     using type = connect_result_t<
-      std::invoke_result_t<
-        typename receiver_type::find_if_helper,
-        std::decay_t<std::invoke_result_t<decltype(unifex::get_scheduler), const Receiver&>>&&,
-        FuncPolicy,
-        Ts&&...>,
-      typename receiver_type::template unpack_receiver<Receiver>>;
+        callable_result_t<
+            typename receiver_type::find_if_helper,
+            std::decay_t<
+                callable_result_t<decltype(unifex::get_scheduler), const Receiver&>>&&,
+            FuncPolicy,
+            Ts&&...>,
+        typename receiver_type::template unpack_receiver<Receiver>>;
   };
+
   using operation_state_t =
-      typename sender_traits<Predecessor>::template value_types<concat_type_lists_unique_t, find_if_apply>::type;
+      typename sender_value_types_t<
+          Predecessor,
+          concat_type_lists_unique_t,
+          find_if_apply>::type;
 
   template<typename Sender>
   _operation_state(Sender&& s, Receiver&& r) :
@@ -364,14 +369,15 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
       template <typename...> class Variant,
       template <typename...> class Tuple>
   using value_types = type_list_nested_apply_t<
-    typename sender_traits<Predecessor>::template value_types<concat_type_lists_unique_t, result>,
-    Variant,
-    Tuple>;
+      sender_value_types_t<Predecessor, concat_type_lists_unique_t, result>,
+      Variant,
+      Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename concat_type_lists_unique_t<
-    typename sender_traits<Predecessor>::template error_types<type_list>,
-    type_list<std::exception_ptr>>::template apply<Variant>;
+  using error_types =
+      typename concat_type_lists_unique_t<
+          sender_error_types_t<Predecessor, type_list>,
+          type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done = true;
 

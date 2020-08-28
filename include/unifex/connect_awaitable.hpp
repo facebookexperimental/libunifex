@@ -163,7 +163,7 @@ namespace _await_cpo {
       try {
 #endif // !UNIFEX_NO_EXCEPTIONS
 
-        using result_type = single_value_result_t<Awaitable>;
+        using result_type = sender_single_value_result_t<Awaitable>;
 
         // This is a bit mind bending control-flow wise.
         // We are first evaluating the co_await expression.
@@ -175,15 +175,19 @@ namespace _await_cpo {
         // for the receiver to destroy the coroutine.
         co_yield [&](result_type&& result) {
               return [&] {
-                constexpr size_t valueOverloadCount = Awaitable::template value_types<count_types, single_value_type>::value;
+                constexpr size_t valueOverloadCount =
+                    sender_value_types_t<Awaitable, count_types, single_value_type>::value;
                 static_assert(valueOverloadCount <= 1);
 
                 if constexpr (valueOverloadCount == 1) {
-                  constexpr size_t valueCount = Awaitable::template value_types<type_identity_t, count_types>::value;
+                  constexpr size_t valueCount =
+                      sender_value_types_t<Awaitable, type_identity_t, count_types>::value;
                   if constexpr (valueCount == 0) {
                     unifex::set_value(std::move(receiver));
                   } else if constexpr (valueCount == 1) {
-                    using value_type = typename Awaitable::template value_types<single_type, single_type>::type::type;
+                    using value_type =
+                        typename sender_value_types_t<Awaitable, single_type, single_type>
+                            ::type::type;
                     unifex::set_value(std::move(receiver), static_cast<value_type&&>(result));
                   } else {
                     std::apply(set_value_applicator<Receiver>{receiver}, (result_type&&)result);

@@ -194,9 +194,10 @@ public:
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
-  using error_types = typename concat_type_lists_unique_t<
-      typename sender_traits<Source>::template error_types<type_list>,
-      type_list<std::exception_ptr>>::template apply<Variant>;
+  using error_types =
+      typename concat_type_lists_unique_t<
+          sender_error_types_t<Source, type_list>,
+          type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done = true;
 

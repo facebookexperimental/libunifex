@@ -164,7 +164,7 @@ public:
     using next_types = Variant<Tuple<Integral>>;
 
     template<template<typename...> class Variant>
-    using error_types = typename sender_traits<schedule_sender_t>::template error_types<Variant>;
+    using error_types = sender_error_types_t<schedule_sender_t, Variant>;
 
     static constexpr bool sends_done = true;
 

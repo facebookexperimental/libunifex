@@ -75,8 +75,10 @@ struct _task {
   struct type;
 };
 template <typename T>
-struct _task<T>::type {
-  struct promise_type {
+struct _promise {
+  struct type {
+    using result_type = T;
+
     void reset_value() noexcept {
       switch (std::exchange(state_, state::empty)) {
         case state::value:
@@ -90,9 +92,9 @@ struct _task<T>::type {
       }
     }
 
-    type get_return_object() noexcept {
-      return type{
-          coro::coroutine_handle<promise_type>::from_promise(*this)};
+    typename _task<T>::type get_return_object() noexcept {
+      return typename _task<T>::type{
+          coro::coroutine_handle<type>::from_promise(*this)};
     }
 
     coro::suspend_always initial_suspend() noexcept {
@@ -104,8 +106,7 @@ struct _task<T>::type {
         bool await_ready() noexcept {
           return false;
         }
-        auto await_suspend(
-            coro::coroutine_handle<promise_type> h) noexcept {
+        auto await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_;
         }
         void await_resume() noexcept {}
@@ -124,15 +125,15 @@ struct _task<T>::type {
     }
 
     template(typename Value)
-      (requires callable<decltype(unifex::await_transform), promise_type&, Value>)
+        (requires callable<decltype(unifex::await_transform), type&, Value>)
     auto await_transform(Value&& value)
-        noexcept(is_nothrow_callable_v<decltype(unifex::await_transform), promise_type&, Value>)
-        -> callable_result_t<decltype(unifex::await_transform), promise_type&, Value> {
+        noexcept(is_nothrow_callable_v<decltype(unifex::await_transform), type&, Value>)
+        -> callable_result_t<decltype(unifex::await_transform), type&, Value> {
       return unifex::await_transform(*this, (Value&&)value);
     }
 
     template(typename Value)
-        (requires convertible_to<Value, T>)
+        (requires convertible_to<Value, T> AND constructible_from<T, Value>)
     void return_value(Value&& value) noexcept(
         std::is_nothrow_constructible_v<T, Value>) {
       reset_value();
@@ -140,9 +141,9 @@ struct _task<T>::type {
       state_ = state::value;
     }
 
-    promise_type() noexcept {}
+    type() noexcept {}
 
-    ~promise_type() {
+    ~type() {
       reset_value();
     }
 
@@ -155,13 +156,13 @@ struct _task<T>::type {
 
     template <typename Func>
     friend void
-    tag_invoke(tag_t<visit_continuations>, const promise_type& p, Func&& func) {
+    tag_invoke(tag_t<visit_continuations>, const type& p, Func&& func) {
       if (p.info_) {
         visit_continuations(*p.info_, (Func &&) func);
       }
     }
 
-    friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const promise_type& p) noexcept {
+    friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& p) noexcept {
       return p.stoken_;
     }
 
@@ -180,6 +181,57 @@ struct _task<T>::type {
     std::optional<continuation_info> info_;
     inplace_stop_token stoken_;
   };
+};
+
+template<typename ThisPromise, typename OtherPromise>
+struct _awaiter {
+  struct type {
+    using result_type = typename ThisPromise::result_type;
+
+    explicit type(coro::coroutine_handle<ThisPromise> coro) noexcept
+    : coro_(coro)
+    {}
+
+    type(type&& other) noexcept
+    : coro_(std::exchange(other.coro_, {}))
+    {}
+
+    ~type() {
+      if (coro_) coro_.destroy();
+    }
+
+    bool await_ready() noexcept {
+      return false;
+    }
+
+    coro::coroutine_handle<ThisPromise> await_suspend(
+        coro::coroutine_handle<OtherPromise> h) noexcept {
+      assert(coro_);
+      coro_.promise().continuation_ = h;
+      coro_.promise().doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;
+      coro_.promise().info_.emplace(
+          continuation_info::from_continuation(h.promise()));
+      coro_.promise().stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
+      return coro_;
+    }
+
+    result_type await_resume() {
+      stopTokenAdapter_.unsubscribe();
+      scope_guard destroyOnExit{[this]() noexcept { std::exchange(coro_, {}).destroy(); }};
+      return coro_.promise().result();
+    }
+
+  private:
+    coro::coroutine_handle<ThisPromise> coro_;
+    UNIFEX_NO_UNIQUE_ADDRESS
+    inplace_stop_token_adapter<stop_token_type_t<OtherPromise>> stopTokenAdapter_;
+  };
+};
+
+template <typename T>
+struct _task<T>::type {
+  using promise_type = typename _promise<T>::type;
+  friend promise_type;
 
   template<
     template<typename...> class Variant,
@@ -195,9 +247,6 @@ struct _task<T>::type {
 
   static constexpr bool sends_done = true;
 
-  explicit type(coro::coroutine_handle<promise_type> h) noexcept
-      : coro_(h) {}
-
   ~type() {
     if (coro_)
       coro_.destroy();
@@ -211,45 +260,11 @@ struct _task<T>::type {
   }
 
 private:
-  template<typename Promise>
-  struct awaiter {
-    explicit awaiter(coro::coroutine_handle<promise_type> coro) noexcept
-    : coro_(coro)
-    {}
+  template <typename OtherPromise>
+  using awaiter = typename _awaiter<promise_type, OtherPromise>::type;
 
-    awaiter(awaiter&& other) noexcept
-    : coro_(std::exchange(other.coro_, {}))
-    {}
-
-    ~awaiter() {
-      if (coro_) coro_.destroy();
-    }
-
-    bool await_ready() noexcept {
-      return false;
-    }
-
-    coro::coroutine_handle<promise_type> await_suspend(
-        coro::coroutine_handle<Promise> h) noexcept {
-      assert(coro_);
-      coro_.promise().continuation_ = h;
-      coro_.promise().doneCallback_ = &forward_unhandled_done_callback<Promise>;
-      coro_.promise().info_.emplace(
-          continuation_info::from_continuation(h.promise()));
-      coro_.promise().stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
-      return coro_;
-    }
-
-    T await_resume() {
-      stopTokenAdapter_.unsubscribe();
-      scope_guard destroyOnExit{[this]() noexcept { std::exchange(coro_, {}).destroy(); }};
-      return coro_.promise().result();
-    }
-
-  private:
-    coro::coroutine_handle<promise_type> coro_;
-    UNIFEX_NO_UNIQUE_ADDRESS inplace_stop_token_adapter<stop_token_type_t<Promise>> stopTokenAdapter_;
-  };
+  explicit type(coro::coroutine_handle<promise_type> h) noexcept
+      : coro_(h) {}
 
   template<typename Promise>
   friend awaiter<Promise> tag_invoke(tag_t<unifex::await_transform>, Promise& promise, type&& t) noexcept {
