@@ -33,12 +33,12 @@ using any_operation_state =
     any_unique_t<
         overload<void(this_&) noexcept>(start)>;
 
-namespace _any_sender {
+namespace _any {
 
 // For in-place constructing non-movable operation states.
 // Relies on C++17's guaranteed copy elision.
 template <typename Fun>
-struct rvo {
+struct _rvo {
   Fun fun_;
   operator callable_result_t<Fun>() && {
     return ((Fun&&) fun_)();
@@ -46,43 +46,43 @@ struct rvo {
 };
 
 template <typename Fun>
-rvo(Fun) -> rvo<Fun>;
+_rvo(Fun) -> _rvo<Fun>;
 
 template <typename... Values>
-struct _any_connect_fn {
+struct _connect_fn {
   using type_erased_signature_t =
       any_operation_state(this_&&, any_receiver_of<Values...>&&);
 
-  UNIFEX_TEMPLATE (typename Sender)
+  template(typename Sender)
       (requires sender_to<Sender, any_receiver_of<Values...>>)
   friend any_operation_state
-  tag_invoke(_any_connect_fn, Sender&& s, any_receiver_of<Values...>&& r) {
+  tag_invoke(_connect_fn, Sender&& s, any_receiver_of<Values...>&& r) {
     return any_operation_state{
       std::in_place_type<connect_result_t<Sender, any_receiver_of<Values...>>>,
-      rvo{[&]() { return connect((Sender&&) s, std::move(r)); }}
+      _rvo{[&]() { return connect((Sender&&) s, std::move(r)); }}
     };
   }
 
-  UNIFEX_TEMPLATE (typename Self)
-      (requires tag_invocable<_any_connect_fn, Self, any_receiver_of<Values...>>)
+  template(typename Self)
+      (requires tag_invocable<_connect_fn, Self, any_receiver_of<Values...>>)
   any_operation_state operator()(Self&& s, any_receiver_of<Values...>&& r) const {
     return tag_invoke(*this, (Self&&) s, std::move(r));
   }
 };
 
 template <typename... Values>
-inline constexpr _any_connect_fn<Values...> _any_connect{};
+inline constexpr _connect_fn<Values...> _any_connect{};
 
 template <typename... Values>
-using _any_sender_of = any_unique_t<_any_connect<Values...>>;
-
-} // namespace _any_sender
+using _sender_base = any_unique_t<_any_connect<Values...>>;
 
 template <typename... Values>
-class any_sender_of : private _any_sender::_any_sender_of<Values...> {
-  using _any_sender_of = _any_sender::_any_sender_of<Values...>;
+struct _sender {
+  struct type;
+};
 
-public:
+template <typename... Values>
+struct _sender<Values...>::type : private _sender_base<Values...> {
   template <template <class...> class Variant, template <class...> class Tuple>
   using value_types = Variant<Tuple<Values...>>;
 
@@ -91,14 +91,19 @@ public:
 
   static constexpr bool sends_done = true;
 
-  using _any_sender_of::_any_sender_of;
+  using _sender_base<Values...>::_sender_base;
 
   any_operation_state connect(any_receiver_of<Values...> receiver) && {
-    return _any_sender::_any_connect<Values...>(
-        static_cast<_any_sender::_any_sender_of<Values...>&&>(*this),
+    return _any::_any_connect<Values...>(
+        static_cast<_sender_base<Values...>&&>(*this),
         std::move(receiver));
   }
 };
+
+} // namespace _any
+
+template <typename... Values>
+using any_sender_of = typename _any::_sender<Values...>::type;
 
 } // namespace unifex
 

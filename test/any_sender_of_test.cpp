@@ -52,11 +52,8 @@ using namespace testing;
 //    receiver pairs are also noexcept when the same pair is connected through
 //    an any_sender_of/any_receiver_of pair
 
-template <typename Sig>
-struct AnySenderOfTest;
-
-template <typename... T, bool Noexcept>
-struct AnySenderOfTest<void(T...) noexcept(Noexcept)> : Test {
+template <bool Noexcept, typename... T>
+struct AnySenderOfTestImpl : Test {
   using any_sender = any_sender_of<T...>;
 
   static constexpr size_t value_count = sizeof...(T);
@@ -93,6 +90,19 @@ struct AnySenderOfTest<void(T...) noexcept(Noexcept)> : Test {
     }
   }
 };
+
+template <typename Sig>
+struct AnySenderOfTest;
+
+template <typename... Ts>
+struct AnySenderOfTest<void(Ts...)>
+  : AnySenderOfTestImpl<false, Ts...>
+{};
+
+template <typename... Ts>
+struct AnySenderOfTest<void(Ts...) noexcept>
+  : AnySenderOfTestImpl<true, Ts...>
+{};
 
 using AnySenderOfTestTypes = Types<
     void(),

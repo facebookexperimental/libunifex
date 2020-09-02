@@ -26,24 +26,40 @@ namespace unifex_test {
 template <typename Sig>
 struct mock_receiver_body_base;
 
-template <bool Noexcept>
-struct mock_receiver_body_base<void() noexcept(Noexcept)> {
-  MOCK_METHOD(void, set_value, (), (noexcept(Noexcept)));
+template <>
+struct mock_receiver_body_base<void()> {
+  MOCK_METHOD(void, set_value, (), ());
+};
+template <>
+struct mock_receiver_body_base<void() noexcept> {
+  MOCK_METHOD(void, set_value, (), (noexcept));
 };
 
-template <typename T, bool Noexcept>
-struct mock_receiver_body_base<void(T) noexcept(Noexcept)> {
-  MOCK_METHOD(void, set_value, (T), (noexcept(Noexcept)));
+template <typename T>
+struct mock_receiver_body_base<void(T)> {
+  MOCK_METHOD(void, set_value, (T), ());
+};
+template <typename T>
+struct mock_receiver_body_base<void(T) noexcept> {
+  MOCK_METHOD(void, set_value, (T), (noexcept));
 };
 
-template <typename T, typename U, bool Noexcept>
-struct mock_receiver_body_base<void(T, U) noexcept(Noexcept)> {
-  MOCK_METHOD(void, set_value, (T, U), (noexcept(Noexcept)));
+template <typename T, typename U>
+struct mock_receiver_body_base<void(T, U)> {
+  MOCK_METHOD(void, set_value, (T, U), ());
+};
+template <typename T, typename U>
+struct mock_receiver_body_base<void(T, U) noexcept> {
+  MOCK_METHOD(void, set_value, (T, U), (noexcept));
 };
 
-template <typename T, typename U, typename V, bool Noexcept>
-struct mock_receiver_body_base<void(T, U, V) noexcept(Noexcept)> {
-  MOCK_METHOD(void, set_value, (T, U, V), (noexcept(Noexcept)));
+template <typename T, typename U, typename V>
+struct mock_receiver_body_base<void(T, U, V)> {
+  MOCK_METHOD(void, set_value, (T, U, V), ());
+};
+template <typename T, typename U, typename V>
+struct mock_receiver_body_base<void(T, U, V) noexcept> {
+  MOCK_METHOD(void, set_value, (T, U, V), (noexcept));
 };
 
 template <typename... Sigs>
@@ -52,7 +68,6 @@ struct mock_receiver_body : mock_receiver_body_base<Sigs>... {
   using mock_receiver_body_base<Sigs>::set_value...;
 
   MOCK_METHOD(void, set_error, (std::exception_ptr), (noexcept));
-
   MOCK_METHOD(void, set_done, (), (noexcept));
 };
 
