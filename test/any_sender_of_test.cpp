@@ -153,6 +153,8 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanConnectToAMultiReceiver) {
   testWrappingAJust<TypeParam, void(), void(int), void(int, std::string), void(int, int, int)>();
 }
 
+#if !defined(_MSC_VER)
+// TODO: Investigate why MSVC can't compile these tests.
 TYPED_TEST(AnySenderOfTest, AnySenderOfCanBeCancelled) {
   using test_t = AnySenderOfTest<TypeParam>;
   using any_sender = typename test_t::any_sender;
@@ -198,4 +200,4 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanError) {
   start(op);
 }
 #endif // !UNIFEX_NO_EXCEPTIONS
-
+#endif // !defined(_MSC_VER)

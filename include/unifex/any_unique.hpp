@@ -36,7 +36,7 @@ struct vtable_entry;
 template <typename CPO, typename Ret, typename... Args>
 struct vtable_entry<CPO, Ret(Args...)> {
   using fn_t =
-      Ret(detail::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...);
+      Ret(_overload::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...);
 
   constexpr fn_t* get() const noexcept {
     return fn_;
@@ -45,7 +45,7 @@ struct vtable_entry<CPO, Ret(Args...)> {
   template <typename T>
   static constexpr _any_unique::vtable_entry<CPO> create() noexcept {
       constexpr fn_t* f = [](
-          detail::base_cpo_t<CPO> cpo,
+          _overload::base_cpo_t<CPO> cpo,
           replace_this_with_void_ptr_t<Args>... args) {
               void* thisPointer = extract_this<Args...>{}(args...);
               T& obj = *static_cast<T*>(thisPointer);
@@ -65,7 +65,7 @@ struct vtable_entry<CPO, Ret(Args...)> {
 template <typename CPO, typename Ret, typename... Args>
 struct vtable_entry<CPO, Ret(Args...) noexcept> {
     using fn_t =
-        Ret(detail::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...)
+        Ret(_overload::base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...)
         noexcept;
 
     constexpr fn_t* get() const noexcept {
@@ -75,7 +75,7 @@ struct vtable_entry<CPO, Ret(Args...) noexcept> {
     template <typename T>
     static constexpr _any_unique::vtable_entry<CPO> create() noexcept {
         constexpr fn_t* f = [](
-            detail::base_cpo_t<CPO> cpo,
+            _overload::base_cpo_t<CPO> cpo,
             replace_this_with_void_ptr_t<Args>... args) noexcept {
                 void* thisPointer = extract_this<Args...>{}(args...);
                 T& obj = *static_cast<T*>(thisPointer);
@@ -198,7 +198,7 @@ struct _with_type_erased_tag_invoke<
       }
    public:
     friend Ret tag_invoke(
-        detail::base_cpo_t<CPO> cpo,
+        _overload::base_cpo_t<CPO> cpo,
         replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
       auto& t = extract_this<Args...>{}(args...);
       void* objPtr = get_object_address(t);
@@ -251,7 +251,7 @@ struct _with_forwarding_tag_invoke<
     Ret(Args...)> {
   struct type {
     friend Ret tag_invoke(
-        detail::base_cpo_t<CPO> cpo,
+        _overload::base_cpo_t<CPO> cpo,
         replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
       auto& wrapper = extract_this<Args...>{}(args...);
       auto& wrapped = wrapper.value;

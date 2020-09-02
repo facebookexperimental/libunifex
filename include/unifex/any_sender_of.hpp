@@ -22,12 +22,21 @@
 
 namespace unifex {
 
+#if defined(_MSC_VER)
+template <typename... Values>
+using any_receiver_of =
+    any_unique<
+        overload_t<set_value, void(this_&&, Values...)>,
+        overload_t<set_error, void(this_&&, std::exception_ptr) noexcept>,
+        overload_t<set_done, void(this_&&) noexcept>>;
+#else
 template <typename... Values>
 using any_receiver_of =
     any_unique_t<
         overload<void(this_&&, Values...)>(set_value),
         overload<void(this_&&, std::exception_ptr) noexcept>(set_error),
         overload<void(this_&&) noexcept>(set_done)>;
+#endif
 
 using any_operation_state =
     any_unique_t<
@@ -71,10 +80,10 @@ struct _connect_fn {
 };
 
 template <typename... Values>
-inline constexpr _connect_fn<Values...> _any_connect{};
+inline constexpr _connect_fn<Values...> _connect{};
 
 template <typename... Values>
-using _sender_base = any_unique_t<_any_connect<Values...>>;
+using _sender_base = any_unique_t<_connect<Values...>>;
 
 template <typename... Values>
 struct _sender {
@@ -91,13 +100,13 @@ struct _sender<Values...>::type : private _sender_base<Values...> {
 
   static constexpr bool sends_done = true;
 
-  using _sender_base<Values...>::_sender_base;
-
   any_operation_state connect(any_receiver_of<Values...> receiver) && {
-    return _any::_any_connect<Values...>(
-        static_cast<_sender_base<Values...>&&>(*this),
+    return _connect<Values...>(
+        static_cast<any_unique_t<_connect<Values...>>&&>(*this),
         std::move(receiver));
   }
+
+  using _sender_base<Values...>::_sender_base;
 };
 
 } // namespace _any
