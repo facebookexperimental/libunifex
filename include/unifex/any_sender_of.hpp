@@ -52,9 +52,8 @@ struct _rec_ref {
 template <typename... Values>
 struct _rec_ref<Values...>::type {
   template (typename Receiver)
-    (requires (!same_as<Receiver const, type const>) AND
-        receiver_of<Receiver, Values...>)
-  type(Receiver& rec)
+    (requires receiver_of<Receiver, Values...>)
+  type(int, Receiver& rec)
     : rec_(std::addressof(rec))
     , set_value_fn_([](void* rec, Values&&... values) {
         unifex::set_value(
@@ -148,7 +147,7 @@ struct _op_for<Receiver>::type {
   template <typename Fn>
   explicit type(Receiver r, Fn fn)
     : rec_((Receiver&&) r)
-    , state_{fn(rec_)}
+    , state_{fn({0, rec_})}
   {}
 
   void start() & noexcept {
@@ -177,7 +176,8 @@ struct _sender<Values...>::type : private _sender_base<Values...> {
 
   static constexpr bool sends_done = true;
 
-  template <typename Receiver>
+  template (typename Receiver)
+    (requires receiver_of<Receiver, Values...>)
   typename _op_for<Receiver>::type connect(Receiver r) && {
     any_unique_t<_connect<Values...>>& self = *this;
     return typename _op_for<Receiver>::type{
