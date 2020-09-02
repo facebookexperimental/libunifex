@@ -37,7 +37,7 @@ using namespace testing;
 //  - any_sender_of<T...> is a typed_sender
 //  - sender_traits<any_sender_of<T...>>::value_types<std::variant, std::tuple>
 //    is std::variant<std::tuple<T...>>
-//  - sender_traits<any_sender_of<T...><::error_types<std::variant> is
+//  - sender_traits<any_sender_of<T...>>::error_types<std::variant> is
 //    std::variant<std::exception_ptr>
 //  - any_sender_of<T...> is constructible from just(declval<T>()...)
 //  - connect(any_sender_of<T...>{}, mock_receiver<T...>{}):
@@ -62,16 +62,11 @@ struct AnySenderOfTest<void(T...) noexcept(Noexcept)> : Test {
   static constexpr size_t value_count = sizeof...(T);
 
   static_assert(typed_sender<any_sender>);
-
   static_assert(sender_to<any_sender, mock_receiver<void(T...)>>);
-
-  using any_sender_traits = sender_traits<any_sender>;
-
   static_assert(std::is_same_v<std::variant<std::tuple<T...>>,
-                               typename any_sender_traits::template value_types<std::variant, std::tuple>>);
-
+                               sender_value_types_t<any_sender, std::variant, std::tuple>>);
   static_assert(std::is_same_v<std::variant<std::exception_ptr>,
-                               typename any_sender_traits::template error_types<std::variant>>);
+                               sender_error_types_t<any_sender, std::variant>>);
 
   static auto default_just() {
     if constexpr (value_count == 0) {
@@ -107,7 +102,7 @@ using AnySenderOfTestTypes = Types<
     void(int, std::string),
     void(int, std::string) noexcept>;
 
-TYPED_TEST_CASE(AnySenderOfTest, AnySenderOfTestTypes);
+TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes);
 
 namespace {
 
@@ -138,7 +133,7 @@ void testWrappingAJust() noexcept {
   start(op);
 }
 
-}
+} // <anonymous namespace>
 
 TYPED_TEST(AnySenderOfTest, AnySenderOfCanWrapAJust) {
   testWrappingAJust<TypeParam>();

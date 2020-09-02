@@ -28,22 +28,22 @@ struct mock_receiver_body_base;
 
 template <bool Noexcept>
 struct mock_receiver_body_base<void() noexcept(Noexcept)> {
-  MOCK_QUALIFIED_METHOD0(set_value, noexcept(Noexcept), void());
+  MOCK_METHOD(void, set_value, (), (noexcept(Noexcept)));
 };
 
 template <typename T, bool Noexcept>
 struct mock_receiver_body_base<void(T) noexcept(Noexcept)> {
-  MOCK_QUALIFIED_METHOD1_T(set_value, noexcept(Noexcept), void(T));
+  MOCK_METHOD(void, set_value, (T), (noexcept(Noexcept)));
 };
 
 template <typename T, typename U, bool Noexcept>
 struct mock_receiver_body_base<void(T, U) noexcept(Noexcept)> {
-  MOCK_QUALIFIED_METHOD2_T(set_value, noexcept(Noexcept), void(T, U));
+  MOCK_METHOD(void, set_value, (T, U), (noexcept(Noexcept)));
 };
 
 template <typename T, typename U, typename V, bool Noexcept>
 struct mock_receiver_body_base<void(T, U, V) noexcept(Noexcept)> {
-  MOCK_QUALIFIED_METHOD3_T(set_value, noexcept(Noexcept), void(T, U, V));
+  MOCK_METHOD(void, set_value, (T, U, V), (noexcept(Noexcept)));
 };
 
 template <typename... Sigs>
@@ -51,9 +51,9 @@ struct mock_receiver_body : mock_receiver_body_base<Sigs>... {
   using mock_receiver_body_base<Sigs>::gmock_set_value...;
   using mock_receiver_body_base<Sigs>::set_value...;
 
-  MOCK_QUALIFIED_METHOD1(set_error, noexcept, void(std::exception_ptr));
+  MOCK_METHOD(void, set_error, (std::exception_ptr), (noexcept));
 
-  MOCK_QUALIFIED_METHOD0(set_done, noexcept, void());
+  MOCK_METHOD(void, set_done, (), (noexcept));
 };
 
 template <typename... Sigs>

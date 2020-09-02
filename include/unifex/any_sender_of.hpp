@@ -89,6 +89,8 @@ public:
   template <template <class...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
+  static constexpr bool sends_done = true;
+
   using _any_sender_of::_any_sender_of;
 
   any_operation_state connect(any_receiver_of<Values...> receiver) && {
