@@ -41,32 +41,26 @@ struct _rec_ref<Values...>::type {
   type(inplace_stop_token st, Op* op)
     : op_(op)
     , st_(st)
-    , set_value_fn_([](void* op, Values&&... values) noexcept {
-        static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
-        UNIFEX_TRY {
-          unifex::set_value(
-              std::move(static_cast<Op*>(op)->rec_),
-              (Values&&) values...);
-        } UNIFEX_CATCH (...) {
-          unifex::set_error(
-              std::move(static_cast<Op*>(op)->rec_),
-              std::current_exception());
-        }
+    , set_value_fn_([](void* op, Values&&... values) {
+        static_cast<Op*>(op)->subscription_.unsubscribe();
+        unifex::set_value(
+            std::move(static_cast<Op*>(op)->rec_),
+            (Values&&) values...);
       })
     , set_error_fn_([](void* op, std::exception_ptr e) noexcept {
-        static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
+        static_cast<Op*>(op)->subscription_.unsubscribe();
         unifex::set_error(
             std::move(static_cast<Op*>(op)->rec_),
             (std::exception_ptr&&) e);
       })
     , set_done_fn_([](void* op) noexcept {
-        static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
+        static_cast<Op*>(op)->subscription_.unsubscribe();
         unifex::set_done(
             std::move(static_cast<Op*>(op)->rec_));
       })
   {}
 
-  void set_value(Values&&... values) && noexcept {
+  void set_value(Values&&... values) && {
     set_value_fn_(op_, (Values&&) values...);
   }
   void set_error(std::exception_ptr e) && noexcept {
@@ -83,7 +77,7 @@ private:
 
   void *op_;
   inplace_stop_token st_;
-  void (*set_value_fn_)(void*, Values&&...) noexcept;
+  void (*set_value_fn_)(void*, Values&&...);
   void (*set_error_fn_)(void*, std::exception_ptr) noexcept;
   void (*set_done_fn_)(void*) noexcept;
 };
@@ -134,6 +128,27 @@ struct _connect_fn<Values...>::type {
 template <typename... Values>
 inline constexpr typename _connect_fn<Values...>::type _connect{};
 
+template <typename StopToken>
+struct inplace_stop_token_adapter_subscription {
+  inplace_stop_token subscribe(StopToken stoken) noexcept {
+    isSubscribed_ = true;
+    return stopTokenAdapter_.subscribe(std::move(stoken));
+  }
+  void unsubscribe() noexcept {
+    if (isSubscribed_) {
+      isSubscribed_ = false;
+      stopTokenAdapter_.unsubscribe();
+    }
+  }
+  ~inplace_stop_token_adapter_subscription() {
+    unsubscribe();
+  }
+private:
+  bool isSubscribed_ = false;
+  UNIFEX_NO_UNIQUE_ADDRESS
+  inplace_stop_token_adapter<StopToken> stopTokenAdapter_{};
+};
+
 template <typename Receiver>
 struct _op_for {
   struct type;
@@ -144,8 +159,7 @@ struct _op_for<Receiver>::type {
   template <typename Fn>
   explicit type(Receiver r, Fn fn)
     : rec_((Receiver&&) r)
-    , stopTokenAdapter_{}
-    , state_{fn({stopTokenAdapter_.subscribe(unifex::get_stop_token(rec_)), this})}
+    , state_{fn({subscription_.subscribe(unifex::get_stop_token(rec_)), this})}
   {}
 
   void start() & noexcept {
@@ -154,8 +168,7 @@ struct _op_for<Receiver>::type {
 
   UNIFEX_NO_UNIQUE_ADDRESS
   Receiver rec_;
-  UNIFEX_NO_UNIQUE_ADDRESS
-  inplace_stop_token_adapter<stop_token_type_t<Receiver>> stopTokenAdapter_;
+  inplace_stop_token_adapter_subscription<stop_token_type_t<Receiver>> subscription_{};
   _operation_state state_;
 };
 
