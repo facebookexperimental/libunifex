@@ -57,6 +57,7 @@ struct _rec_ref<Values...>::type {
         unifex::set_done(
             std::move(static_cast<Op*>(op)->rec_));
       })
+    , st_(st)
   {}
 
   void set_value(Values... values) && {
