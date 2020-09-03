@@ -17,6 +17,7 @@
 
 #include <unifex/tag_invoke.hpp>
 
+#include <cstddef>
 #include <memory>
 #include <type_traits>
 
