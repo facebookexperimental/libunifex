@@ -16,33 +16,19 @@
 #pragma once
 
 #include <unifex/any_unique.hpp>
+#include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/get_stop_token.hpp>
+#include <unifex/inplace_stop_token.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 
-#if defined(_MSC_VER)
-template <typename... Values>
-using any_receiver_of =
-    any_unique<
-        overload_t<set_value, void(this_&&, Values...)>,
-        overload_t<set_error, void(this_&&, std::exception_ptr) noexcept>,
-        overload_t<set_done, void(this_&&) noexcept>>;
-#else
-template <typename... Values>
-using any_receiver_of =
-    any_unique_t<
-        overload<void(this_&&, Values...)>(set_value),
-        overload<void(this_&&, std::exception_ptr) noexcept>(set_error),
-        overload<void(this_&&) noexcept>(set_done)>;
-#endif
-
-using any_operation_state =
-    any_unique_t<
-        overload<void(this_&) noexcept>(start)>;
-
 namespace _any {
+
+using _operation_state =
+    any_unique_t<overload<void(this_&) noexcept>(start)>;
 
 template <typename... Values>
 struct _rec_ref {
@@ -51,41 +37,48 @@ struct _rec_ref {
 
 template <typename... Values>
 struct _rec_ref<Values...>::type {
-  template (typename Receiver)
-    (requires receiver_of<Receiver, Values...>)
-  type(int, Receiver& rec)
-    : rec_(std::addressof(rec))
-    , set_value_fn_([](void* rec, Values&&... values) {
+  template <typename Op>
+  type(inplace_stop_token st, Op* op)
+    : op_(op)
+    , set_value_fn_([](void* op, Values&&... values) {
+        static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
         unifex::set_value(
-            static_cast<Receiver&&>(*static_cast<Receiver*>(rec)),
+            std::move(static_cast<Op*>(op)->rec_),
             (Values&&) values...);
       })
-    , set_error_fn_([](void* rec, std::exception_ptr e) noexcept {
+    , set_error_fn_([](void* op, std::exception_ptr e) noexcept {
+        static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
         unifex::set_error(
-            static_cast<Receiver&&>(*static_cast<Receiver*>(rec)),
+            std::move(static_cast<Op*>(op)->rec_),
             (std::exception_ptr&&) e);
       })
-    , set_done_fn_([](void* rec) noexcept {
+    , set_done_fn_([](void* op) noexcept {
+        static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
         unifex::set_done(
-            static_cast<Receiver&&>(*static_cast<Receiver*>(rec)));
+            std::move(static_cast<Op*>(op)->rec_));
       })
   {}
 
   void set_value(Values... values) && {
-    set_value_fn_(rec_, (Values&&) values...);
+    set_value_fn_(op_, (Values&&) values...);
   }
   void set_error(std::exception_ptr e) && noexcept {
-    set_error_fn_(rec_, (std::exception_ptr&&) e);
+    set_error_fn_(op_, (std::exception_ptr&&) e);
   }
   void set_done() && noexcept {
-    set_done_fn_(rec_);
+    set_done_fn_(op_);
   }
 
 private:
-  void *rec_;
+  friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& self) {
+    return self.st_;
+  }
+
+  void *op_;
   void (*set_value_fn_)(void*, Values&&...);
   void (*set_error_fn_)(void*, std::exception_ptr) noexcept;
   void (*set_done_fn_)(void*) noexcept;
+  inplace_stop_token st_;
 };
 
 template <typename... Values>
@@ -105,20 +98,20 @@ template <typename Fun>
 _rvo(Fun) -> _rvo<Fun>;
 
 template <typename... Values>
-struct _connect_fn_impl {
+struct _connect_fn {
   struct type;
 };
 
 template <typename... Values>
-struct _connect_fn_impl<Values...>::type {
+struct _connect_fn<Values...>::type {
   using type_erased_signature_t =
-      any_operation_state(this_&&, _receiver_ref<Values...>);
+      _operation_state(this_&&, _receiver_ref<Values...>);
 
   template(typename Sender)
       (requires sender_to<Sender, _receiver_ref<Values...>>)
-  friend any_operation_state
+  friend _operation_state
   tag_invoke(type, Sender&& s, _receiver_ref<Values...> r) {
-    return any_operation_state{
+    return _operation_state{
       std::in_place_type<connect_result_t<Sender, _receiver_ref<Values...>>>,
       _rvo{[r, &s]() { return connect((Sender&&) s, std::move(r)); }}
     };
@@ -126,16 +119,13 @@ struct _connect_fn_impl<Values...>::type {
 
   template(typename Self)
       (requires tag_invocable<type, Self, _receiver_ref<Values...>>)
-  any_operation_state operator()(Self&& s, _receiver_ref<Values...> r) const {
+  _operation_state operator()(Self&& s, _receiver_ref<Values...> r) const {
     return tag_invoke(*this, (Self&&) s, std::move(r));
   }
 };
 
 template <typename... Values>
-using _connect_fn = typename _connect_fn_impl<Values...>::type;
-
-template <typename... Values>
-inline constexpr _connect_fn<Values...> _connect{};
+inline constexpr typename _connect_fn<Values...>::type _connect{};
 
 template <typename Receiver>
 struct _op_for {
@@ -147,15 +137,19 @@ struct _op_for<Receiver>::type {
   template <typename Fn>
   explicit type(Receiver r, Fn fn)
     : rec_((Receiver&&) r)
-    , state_{fn({0, rec_})}
+    , stopTokenAdapter_{}
+    , state_{fn({stopTokenAdapter_.subscribe(unifex::get_stop_token(rec_)), this})}
   {}
 
   void start() & noexcept {
     unifex::start(state_);
   }
-private:
+
+  UNIFEX_NO_UNIQUE_ADDRESS
   Receiver rec_;
-  any_operation_state state_;
+  UNIFEX_NO_UNIQUE_ADDRESS
+  inplace_stop_token_adapter<stop_token_type_t<Receiver>> stopTokenAdapter_;
+  _operation_state state_;
 };
 
 template <typename... Values>
@@ -192,9 +186,6 @@ struct _sender<Values...>::type : private _sender_base<Values...> {
 };
 
 } // namespace _any
-
-template <typename... Values>
-using any_receiver_ref_of = typename _any::_receiver_ref<Values...>;
 
 template <typename Receiver>
 using any_operation_state_for = typename _any::_op_for<Receiver>::type;
