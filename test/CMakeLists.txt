@@ -16,3 +16,5 @@ if(CXX_MEMORY_RESOURCE_HAVE_PMR)
   target_link_libraries(any_unique_test PUBLIC std::memory_resource)
   target_link_libraries(submit_allocator_customisation_test PUBLIC std::memory_resource)
 endif()
+
+target_link_libraries(any_sender_of_test PUBLIC gmock)

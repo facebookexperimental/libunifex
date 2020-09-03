@@ -15,41 +15,62 @@
  */
 #pragma once
 
+#include <utility>
+#include <unifex/tag_invoke.hpp>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 
-namespace detail {
+namespace _overload {
 
 template <typename CPO, typename Sig>
-struct overloaded_cpo : CPO {
-  constexpr overloaded_cpo() = default;
-  constexpr overloaded_cpo(CPO) noexcept {}
+struct _cpo_t {
+  struct type;
+};
 
+// This type will have the associated namespaces
+// of CPO (by inheritance) but not those of Sig.
+template <typename CPO, typename Sig>
+struct _cpo_t<CPO, Sig>::type : CPO {
+  constexpr type() = default;
+  constexpr type(CPO) noexcept {}
+
+  using base_cpo_t = CPO;
   using type_erased_signature_t = Sig;
 };
 
-template <typename CPO>
+template <typename CPO, typename Enable = void>
 struct base_cpo {
   using type = CPO;
 };
 
-template <typename CPO, typename Sig>
-struct base_cpo<overloaded_cpo<CPO, Sig>> {
-  using type = CPO;
+template <typename CPO>
+struct base_cpo<CPO, std::void_t<typename CPO::base_cpo_t>> {
+  using type = typename CPO::base_cpo_t;
 };
 
 template <typename CPO>
 using base_cpo_t = typename base_cpo<CPO>::type;
 
 template <typename CPO, typename Sig>
-inline constexpr overloaded_cpo<CPO, Sig> overload_{};
+inline constexpr typename _cpo_t<CPO, Sig>::type _cpo{};
 
-} // namespace detail
+template <typename Sig>
+struct _sig {};
+
+} // namespace _overload
+
+template <typename Sig>
+inline constexpr _overload::_sig<Sig> const sig{};
+
+template <auto& CPO, typename Sig>
+using overload_t = typename _overload::_cpo_t<tag_t<CPO>, Sig>::type;
 
 template <typename Sig, typename CPO>
-constexpr auto& overload(CPO) {
-  return detail::overload_<CPO, Sig>;
+constexpr typename _overload::_cpo_t<CPO, Sig>::type const&
+overload(CPO const&, _overload::_sig<Sig> = {}) noexcept {
+  return _overload::_cpo<CPO, Sig>;
 }
 
 } // namespace unifex

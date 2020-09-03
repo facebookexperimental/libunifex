@@ -198,6 +198,9 @@ namespace detail {
   struct forward_stop_request_to_inplace_stop_source {
     inplace_stop_source& source;
 
+    forward_stop_request_to_inplace_stop_source(inplace_stop_source& s) noexcept
+      : source(s) {}
+
     void operator()() const noexcept {
       source.request_stop();
     }
