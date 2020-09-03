@@ -71,7 +71,7 @@ struct _rec_ref<Values...>::type {
   }
 
 private:
-  friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& self) {
+  friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& self) noexcept {
     return self.st_;
   }
 
