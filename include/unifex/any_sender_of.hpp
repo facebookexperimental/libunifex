@@ -40,11 +40,18 @@ struct _rec_ref<Values...>::type {
   template <typename Op>
   type(inplace_stop_token st, Op* op)
     : op_(op)
-    , set_value_fn_([](void* op, Values&&... values) {
+    , st_(st)
+    , set_value_fn_([](void* op, Values&&... values) noexcept {
         static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
-        unifex::set_value(
-            std::move(static_cast<Op*>(op)->rec_),
-            (Values&&) values...);
+        UNIFEX_TRY {
+          unifex::set_value(
+              std::move(static_cast<Op*>(op)->rec_),
+              (Values&&) values...);
+        } UNIFEX_CATCH (...) {
+          unifex::set_error(
+              std::move(static_cast<Op*>(op)->rec_),
+              std::current_exception());
+        }
       })
     , set_error_fn_([](void* op, std::exception_ptr e) noexcept {
         static_cast<Op*>(op)->stopTokenAdapter_.unsubscribe();
@@ -57,10 +64,9 @@ struct _rec_ref<Values...>::type {
         unifex::set_done(
             std::move(static_cast<Op*>(op)->rec_));
       })
-    , st_(st)
   {}
 
-  void set_value(Values... values) && {
+  void set_value(Values&&... values) && noexcept {
     set_value_fn_(op_, (Values&&) values...);
   }
   void set_error(std::exception_ptr e) && noexcept {
@@ -76,10 +82,10 @@ private:
   }
 
   void *op_;
-  void (*set_value_fn_)(void*, Values&&...);
+  inplace_stop_token st_;
+  void (*set_value_fn_)(void*, Values&&...) noexcept;
   void (*set_error_fn_)(void*, std::exception_ptr) noexcept;
   void (*set_done_fn_)(void*) noexcept;
-  inplace_stop_token st_;
 };
 
 template <typename... Values>
