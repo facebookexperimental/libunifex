@@ -33,11 +33,13 @@
 
 using namespace std::chrono_literals;
 
+namespace {
 class some_error : public std::exception {
     const char* what() const noexcept override {
         return "some error";
     }
 };
+} // anonymous namespace
 
 TEST(retry_when, WorksAsExpected) {
   unifex::timed_single_thread_context ctx;

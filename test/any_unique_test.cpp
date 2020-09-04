@@ -24,6 +24,7 @@
 
 #include <gtest/gtest.h>
 
+namespace {
 inline constexpr struct get_typeid_cpo {
   using type_erased_signature_t =
       unifex::type_index(const unifex::this_&) noexcept;
@@ -82,6 +83,7 @@ class counting_memory_resource : public memory_resource {
   std::atomic<std::size_t> allocated_ = 0;
 };
 #endif
+} // anonymous namespace
 
 using A = unifex::any_unique_t<get_typeid>;
 using B = unifex::any_unique_t<>;

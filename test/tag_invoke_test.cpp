@@ -18,6 +18,7 @@
 
 #include <gtest/gtest.h>
 
+namespace {
 inline constexpr struct test_cpo {} test;
 
 struct X {
@@ -26,6 +27,7 @@ struct X {
 };
 
 struct Y {};
+} // anonymous namespace
 
 // Tests of the tag_invoke metafunctions.
 static_assert(std::is_same_v<void, unifex::tag_invoke_result_t<test_cpo, X>>);

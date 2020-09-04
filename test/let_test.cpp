@@ -31,6 +31,7 @@ using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
+namespace {
 constexpr auto async = [](auto& context, auto&& func) {
     return transform(
         schedule_after(context.get_scheduler(), 100ms),
@@ -43,6 +44,7 @@ constexpr auto asyncVector = [](auto& context) {
         return std::vector<int>{1, 2, 3, 4};
     });
 };
+} // anonymous namespace
 
 TEST(Let, Simple) {
   timed_single_thread_context context;

@@ -31,6 +31,7 @@
 
 using namespace unifex;
 
+namespace {
 #if !UNIFEX_NO_MEMORY_RESOURCE
 using namespace unifex::pmr;
 
@@ -86,6 +87,7 @@ void test(Scheduler scheduler, Allocator allocator) {
 
   EXPECT_EQ(value, 3);
 }
+} // anonymous namespace
 
 TEST(with_allocator, SubmitWithStdAllocator) {
   single_thread_context thread;
@@ -93,10 +95,10 @@ TEST(with_allocator, SubmitWithStdAllocator) {
 }
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
-
 TEST(with_allocator, SubmitWithCountingAllocator) {
   counting_memory_resource res{new_delete_resource()};
   polymorphic_allocator<char> alloc{&res};
+
   {
     single_thread_context thread;
     test(thread.get_scheduler(), alloc);

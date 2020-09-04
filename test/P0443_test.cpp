@@ -73,7 +73,7 @@ namespace {
       return _op<Receiver>{(Receiver&&) r};
     }
   };
-}
+} // anonymous namespace
 
 TEST(P0443, execute_with_executor) {
   int i = 0;

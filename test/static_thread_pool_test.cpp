@@ -28,10 +28,12 @@
 
 using namespace unifex;
 
+namespace {
 template <typename Scheduler, typename F>
 auto run_on(Scheduler&& s, F&& func) {
   return transform(schedule((Scheduler &&) s), (F &&) func);
 }
+} // anonymous namespace
 
 TEST(StaticThreadPool, Smoke) {
   static_thread_pool tpContext;

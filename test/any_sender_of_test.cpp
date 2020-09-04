@@ -33,6 +33,7 @@ using namespace unifex;
 using namespace unifex_test;
 using namespace testing;
 
+namespace {
 // We need to validate the following contract:
 //  - any_sender_of<T...> is a typed_sender
 //  - sender_traits<any_sender_of<T...>>::value_types<std::variant, std::tuple>
@@ -113,8 +114,6 @@ using AnySenderOfTestTypes = Types<
     void(int, std::string) noexcept>;
 
 TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes);
-
-namespace {
 
 template <typename SenderSig, typename ReceiverSig = SenderSig, typename... ExtraReceiverSigs>
 void testWrappingAJust() noexcept {
