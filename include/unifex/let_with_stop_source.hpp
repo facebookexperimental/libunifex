@@ -72,7 +72,7 @@ public:
         unifex::set_done(std::move(receiver_));
     }
 
-    friend auto tag_invoke(tag_t<get_stop_token>, const type& r) noexcept {
+    friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& r) noexcept {
         return r.op_.stop_source_.get_token();
     }
 
