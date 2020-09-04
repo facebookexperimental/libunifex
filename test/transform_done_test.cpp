@@ -31,10 +31,12 @@ using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
+namespace {
 template <typename F>
 auto lazy(F&& f) {
   return transform(just(), (F &&) f);
 }
+} // anonymous namespace
 
 TEST(TransformDone, Smoke) {
   timed_single_thread_context context;

@@ -29,7 +29,9 @@ using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
+namespace {
 struct my_error {};
+}
 
 #if !UNIFEX_NO_EXCEPTIONS
 

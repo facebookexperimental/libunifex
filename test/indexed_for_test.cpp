@@ -34,6 +34,7 @@ inline constexpr sequenced_policy seq{};
 inline constexpr parallel_policy par{};
 }
 
+namespace {
 namespace ranges {
 struct int_iterator {
   using value_type = int;
@@ -85,6 +86,7 @@ struct iota_view {
   }
 };
 } // namespace ranges
+} // anonymous namespace
 
 TEST(indexed_for, Pipeable) {
   // use seq, which supports a forward range
