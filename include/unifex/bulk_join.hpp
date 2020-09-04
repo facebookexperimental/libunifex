@@ -47,19 +47,17 @@ public:
     void set_next() & noexcept {}
 
     template(typename... Values)
-        (requires is_value_receiver_v<Receiver, Values...>)
-    void set_value(Values&&... values) noexcept(is_nothrow_value_receiver_v<Receiver, Values...>) {
+        (requires receiver_of<Receiver, Values...>)
+    void set_value(Values&&... values) noexcept(is_nothrow_receiver_of_v<Receiver, Values...>) {
         unifex::set_value(std::move(receiver_), (Values&&)values...);
     }
 
     template(typename Error)
-        (requires is_error_receiver_v<Receiver, Error>)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& error) noexcept {
         unifex::set_error(std::move(receiver_), (Error&&)error);
     }
 
-    template(typename R = Receiver)
-        (requires is_done_receiver_v<Receiver>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
     }
@@ -117,7 +115,7 @@ public:
             std::is_nothrow_constructible_v<remove_cvref_t<Receiver>> &&
             is_nothrow_connectable_v<member_t<Self, Source>, join_receiver<remove_cvref_t<Receiver>>>)
         -> connect_result_t<member_t<Self, Source>, join_receiver<remove_cvref_t<Receiver>>>
-        {
+    {
         return unifex::connect(
             static_cast<Self&&>(self).source_,
             join_receiver<remove_cvref_t<Receiver>>{static_cast<Receiver&&>(r)});
