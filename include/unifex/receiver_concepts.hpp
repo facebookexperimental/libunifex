@@ -256,24 +256,8 @@ inline constexpr bool is_next_receiver_v =
     is_callable_v<decltype(set_next), R&, An...>;
 
 template <typename R, typename... An>
-inline constexpr bool is_value_receiver_v =
-    is_callable_v<decltype(set_value), R, An...>;
-
-template <typename R, typename E>
-inline constexpr bool is_error_receiver_v =
-    is_callable_v<decltype(set_error), R, E>;
-
-template <typename R>
-inline constexpr bool is_done_receiver_v =
-    is_callable_v<decltype(set_done), R>;
-
-template <typename R, typename... An>
 inline constexpr bool is_nothrow_next_receiver_v =
     is_nothrow_callable_v<decltype(set_next), R&, An...>;
-
-template <typename R, typename... An>
-inline constexpr bool is_nothrow_value_receiver_v =
-    is_nothrow_callable_v<decltype(set_value), R, An...>;
 
 } // namespace unifex
 

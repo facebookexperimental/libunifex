@@ -43,7 +43,6 @@ struct _stop_source_operation {
 template <typename InnerOp, typename Receiver>
 using operation =  typename _stop_source_operation<InnerOp, remove_cvref_t<Receiver>>::type;
 
-
 template<typename Operation, typename Receiver>
 using stop_source_receiver = typename _stop_source_receiver<Operation, Receiver>::type;
 
@@ -55,19 +54,17 @@ public:
     {}
 
     template(typename... Values)
-        (requires is_value_receiver_v<Receiver, Values...>)
-    void set_value(Values&&... values) noexcept(is_nothrow_value_receiver_v<Receiver, Values...>) {
+        (requires receiver_of<Receiver, Values...>)
+    void set_value(Values&&... values) noexcept(is_nothrow_receiver_of_v<Receiver, Values...>) {
         unifex::set_value(std::move(receiver_), (Values&&)values...);
     }
 
     template(typename Error)
-        (requires is_error_receiver_v<Receiver, Error>)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& error) noexcept {
         unifex::set_error(std::move(receiver_), (Error&&)error);
     }
 
-    template(typename R = Receiver)
-        (requires is_done_receiver_v<R>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
     }
@@ -120,12 +117,12 @@ public:
     {}
 
     template(typename Self, typename Receiver)
-        (requires same_as<remove_cvref_t<Self>, type>)
+        (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
             std::is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_source&> &&
-            std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
-
+            std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+        -> operation<member_t<Self, SuccessorFactory>, Receiver> {
         return operation<member_t<Self, SuccessorFactory>, Receiver>(
             static_cast<Self&&>(self).func_, static_cast<Receiver&&>(r));
     }

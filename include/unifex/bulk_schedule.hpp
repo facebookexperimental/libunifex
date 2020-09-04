@@ -52,7 +52,7 @@ public:
     {}
 
     void set_value()
-        noexcept(is_nothrow_value_receiver_v<Receiver> &&
+        noexcept(is_nothrow_receiver_of_v<Receiver> &&
                  is_nothrow_next_receiver_v<Receiver, Integral>) {
         using policy_t = decltype(get_execution_policy(receiver_));
         auto stop_token = get_stop_token(receiver_);
@@ -127,13 +127,11 @@ UNIFEX_DIAGNOSTIC_POP
     }
 
     template(typename Error)
-        (requires is_error_receiver_v<Receiver, Error>)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& e) noexcept {
         unifex::set_error(std::move(receiver_), (Error&&)e);
     }
 
-    template(typename R = Receiver)
-        (requires is_done_receiver_v<Receiver>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
     }

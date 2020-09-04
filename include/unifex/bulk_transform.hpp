@@ -70,19 +70,17 @@ public:
     }
 
     template(typename... Values)
-        (requires is_value_receiver_v<Receiver, Values...>)
-    void set_value(Values&&... values) noexcept(is_nothrow_value_receiver_v<Receiver, Values...>) {
+        (requires receiver_of<Receiver, Values...>)
+    void set_value(Values&&... values) noexcept(is_nothrow_receiver_of_v<Receiver, Values...>) {
         unifex::set_value(std::move(receiver_), (Values&&)values...);
     }
 
     template(typename Error)
-        (requires is_error_receiver_v<Receiver, Error>)
+        (requires receiver<Receiver, Error>)
     void set_error(Error&& error) noexcept {
         unifex::set_error(std::move(receiver_), (Error&&)error);
     }
 
-    template(typename R = Receiver)
-        (requires is_done_receiver_v<Receiver>)
     void set_done() noexcept {
         unifex::set_done(std::move(receiver_));
     }
@@ -174,6 +172,7 @@ public:
         (requires
             same_as<remove_cvref_t<Self>, type> AND
             constructible_from<Func, member_t<Self, Func>> AND
+            receiver<Receiver> AND
             sender_to<member_t<Self, Source>, tfx_receiver<Func, Policy, remove_cvref_t<Receiver>>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
