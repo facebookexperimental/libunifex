@@ -46,7 +46,7 @@ struct vtable_entry<CPO, Ret(Args...)> {
   static constexpr vtable_entry create() noexcept {
     constexpr fn_t* f =
         [](_overload::base_cpo_t<CPO> cpo,
-           replace_this_with_void_ptr_t<Args>... args) {
+           replace_this_with_void_ptr_t<Args>... args) -> Ret {
       void* thisPointer = extract_this<Args...>{}(args...);
       T& obj = *static_cast<T*>(thisPointer);
       return std::move(cpo)(
@@ -76,7 +76,7 @@ struct vtable_entry<CPO, Ret(Args...) noexcept> {
   static constexpr vtable_entry create() noexcept {
     constexpr fn_t* f = [](
         _overload::base_cpo_t<CPO> cpo,
-        replace_this_with_void_ptr_t<Args>... args) noexcept {
+        replace_this_with_void_ptr_t<Args>... args) noexcept -> Ret {
       void* thisPointer = extract_this<Args...>{}(args...);
       T& obj = *static_cast<T*>(thisPointer);
       return std::move(cpo)(replace_this<Args>::get((Args&&)args, obj)...);

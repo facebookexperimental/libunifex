@@ -39,7 +39,8 @@ using join_receiver = typename _join_receiver<Receiver>::type;
 template<typename Receiver>
 class _join_receiver<Receiver>::type {
 public:
-    template<typename Receiver2>
+    template(typename Receiver2)
+      (requires constructible_from<Receiver, Receiver2>)
     explicit type(Receiver2&& r) noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2>)
     : receiver_((Receiver2&&)r)
     {}

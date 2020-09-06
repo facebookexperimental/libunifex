@@ -19,6 +19,7 @@
 #include <unifex/just.hpp>
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/transform.hpp>
+#include <unifex/inline_scheduler.hpp>
 
 #include "mock_receiver.hpp"
 
@@ -129,13 +130,12 @@ void testWrappingAJust() noexcept {
   test_t::expect_set_value_call(*receiver)
       .WillOnce(Invoke([](auto... values) noexcept {
         if constexpr (test_t::value_count == 0) {
-          EXPECT_EQ(std::tuple{}, std::make_tuple(std::move(values)...));
+          EXPECT_EQ(std::tuple{}, std::tie(values...));
         } else if constexpr (test_t::value_count == 1) {
-          EXPECT_EQ(std::tuple{42}, std::make_tuple(std::move(values)...));
+          EXPECT_EQ(std::tuple{42}, std::tie(values...));
         } else {
           static_assert(test_t::value_count == 2, "Unimplemented");
-
-          EXPECT_EQ((std::tuple{42, std::string{"hello"}}), std::make_tuple(std::move(values)...));
+          EXPECT_EQ((std::tuple{42, std::string{"hello"}}), std::tie(values...));
         }
       }));
 
@@ -200,3 +200,33 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanError) {
 }
 #endif // !UNIFEX_NO_EXCEPTIONS
 #endif // !defined(_MSC_VER)
+
+TEST(AnySenderOfTest, SchedulerProvider) {
+  // Build a list of required receiver queries; in this case, just get_scheduler:
+  using Queries =
+      with_receiver_queries<overload<any_scheduler(const this_&)>(get_scheduler)>;
+
+  // From that list of receiver queries, generate a type-erased sender:
+  using Sender =
+      Queries::any_sender_of<int, std::string>;
+
+  // Type-erase a sender. This sender only connects to receivers that have
+  // implemented the required receiver queries.
+  Sender j = just(42, std::string{"hello"});
+
+  // Wrap the sender such that all passed-in receivers are wrapped in a
+  // wrapper that implements the get_scheduler query to return an
+  // inline_scheduler
+  auto sender = with_query_value(std::move(j), get_scheduler, inline_scheduler{});
+
+  mock_receiver<void(int, std::string)> receiver;
+
+  auto op = connect(std::move(sender), receiver);
+
+  EXPECT_CALL(*receiver, set_value(_, _))
+      .WillOnce(Invoke([](auto... values) noexcept {
+        EXPECT_EQ((std::tuple{42, std::string{"hello"}}), std::tie(values...));
+      }));
+
+  start(op);
+}

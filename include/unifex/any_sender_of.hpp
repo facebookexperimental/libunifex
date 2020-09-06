@@ -20,6 +20,9 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
+#include <unifex/type_list.hpp>
+#include <unifex/with_query_value.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -30,103 +33,97 @@ namespace _any {
 using _operation_state =
     any_unique_t<overload<void(this_&) noexcept>(start)>;
 
-template <typename... Values>
+template <typename CPOs>
+struct _rec_ref_base;
+
+template <typename... CPOs>
+struct _rec_ref_base<type_list<CPOs...>> {
+#if defined(_MSC_VER)
+  template <typename... Values>
+  using type =
+      any_ref<
+          tag_t<overload(set_value, sig<void(this_&&, Values...)>)>,
+          tag_t<overload(set_error, sig<void(this_&&, std::exception_ptr) noexcept>)>,
+          tag_t<overload(set_done, sig<void(this_&&) noexcept>)>,
+          CPOs...>;
+#else
+  template <typename... Values>
+  using type =
+      any_ref<
+          tag_t<overload<void(this_&&, Values...)>(set_value)>,
+          tag_t<overload<void(this_&&, std::exception_ptr) noexcept>(set_error)>,
+          tag_t<overload<void(this_&&) noexcept>(set_done)>,
+          CPOs...>;
+#endif
+};
+
+template <typename CPOs, typename... Values>
 struct _rec_ref {
   struct type;
 };
 
-template <typename... Values>
-struct _rec_ref<Values...>::type {
+template <typename CPOs, typename... Values>
+struct _rec_ref<CPOs, Values...>::type
+    : _rec_ref_base<CPOs>::template type<Values...> {
   template <typename Op>
   type(inplace_stop_token st, Op* op)
-    : op_(op)
-    , st_(st)
-    , set_value_fn_([](void* op, Values&&... values) {
-        static_cast<Op*>(op)->subscription_.unsubscribe();
-        unifex::set_value(
-            std::move(static_cast<Op*>(op)->rec_),
-            (Values&&) values...);
-      })
-    , set_error_fn_([](void* op, std::exception_ptr e) noexcept {
-        static_cast<Op*>(op)->subscription_.unsubscribe();
-        unifex::set_error(
-            std::move(static_cast<Op*>(op)->rec_),
-            (std::exception_ptr&&) e);
-      })
-    , set_done_fn_([](void* op) noexcept {
-        static_cast<Op*>(op)->subscription_.unsubscribe();
-        unifex::set_done(
-            std::move(static_cast<Op*>(op)->rec_));
-      })
-  {}
-
-  void set_value(Values&&... values) && {
-    set_value_fn_(op_, (Values&&) values...);
-  }
-  void set_error(std::exception_ptr e) && noexcept {
-    set_error_fn_(op_, (std::exception_ptr&&) e);
-  }
-  void set_done() && noexcept {
-    set_done_fn_(op_);
-  }
+    : _rec_ref_base<CPOs>::template type<Values...>(*op)
+    , stoken_(st) {}
 
 private:
   friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& self) noexcept {
-    return self.st_;
+    return self.stoken_;
   }
 
-  void *op_;
-  inplace_stop_token st_;
-  void (*set_value_fn_)(void*, Values&&...);
-  void (*set_error_fn_)(void*, std::exception_ptr) noexcept;
-  void (*set_done_fn_)(void*) noexcept;
+  inplace_stop_token stoken_;
 };
 
-template <typename... Values>
-using _receiver_ref = typename _rec_ref<Values...>::type;
+template <typename CPOs, typename... Values>
+using _receiver_ref = typename _rec_ref<CPOs, Values...>::type;
 
 // For in-place constructing non-movable operation states.
 // Relies on C++17's guaranteed copy elision.
-template <typename Fun>
+template <typename Sender, typename Receiver>
 struct _rvo {
-  Fun fun_;
-  operator callable_result_t<Fun>() && {
-    return ((Fun&&) fun_)();
+  Sender&& s;
+  Receiver r;
+  operator connect_result_t<Sender, Receiver>() {
+    return connect((Sender &&) s, std::move(r));
   }
 };
+template <typename Sender, typename Receiver>
+_rvo(Sender&&, Receiver) -> _rvo<Sender, Receiver>;
 
-template <typename Fun>
-_rvo(Fun) -> _rvo<Fun>;
-
-template <typename... Values>
+template <typename CPOs, typename... Values>
 struct _connect_fn {
   struct type;
 };
 
-template <typename... Values>
-struct _connect_fn<Values...>::type {
+template <typename CPOs, typename... Values>
+struct _connect_fn<CPOs, Values...>::type {
   using type_erased_signature_t =
-      _operation_state(this_&&, _receiver_ref<Values...>);
+      _operation_state(this_&&, _receiver_ref<CPOs, Values...>);
 
   template(typename Sender)
-      (requires sender_to<Sender, _receiver_ref<Values...>>)
+      (requires sender_to<Sender, _receiver_ref<CPOs, Values...>>)
   friend _operation_state
-  tag_invoke(type, Sender&& s, _receiver_ref<Values...> r) {
-    return _operation_state{
-      std::in_place_type<connect_result_t<Sender, _receiver_ref<Values...>>>,
-      _rvo{[r, &s]() { return connect((Sender&&) s, std::move(r)); }}
+  tag_invoke(type, Sender&& s, _receiver_ref<CPOs, Values...> r) {
+    using Op = connect_result_t<Sender, _receiver_ref<CPOs, Values...>>;
+    return _operation_state {
+      std::in_place_type<Op>,
+      _rvo{(Sender &&) s, std::move(r)}
     };
   }
 
   template(typename Self)
-      (requires tag_invocable<type, Self, _receiver_ref<Values...>>)
-  _operation_state operator()(Self&& s, _receiver_ref<Values...> r) const {
+      (requires tag_invocable<type, Self, _receiver_ref<CPOs, Values...>>)
+  _operation_state operator()(Self&& s, _receiver_ref<CPOs, Values...> r) const {
     return tag_invoke(*this, (Self&&) s, std::move(r));
   }
 };
 
-template <typename... Values>
-inline constexpr typename _connect_fn<Values...>::type _connect{};
+template <typename CPOs, typename... Values>
+inline constexpr typename _connect_fn<CPOs, Values...>::type _connect{};
 
 template <typename StopToken>
 struct inplace_stop_token_adapter_subscription {
@@ -166,22 +163,51 @@ struct _op_for<Receiver>::type {
     unifex::start(state_);
   }
 
+  // This operation state also implements the receiver CPOs and forwards them
+  // to the receiver after unsubscribing the stop token.
+  template (typename CPO, typename... Args)
+    (requires is_receiver_cpo_v<CPO> AND is_callable_v<CPO, Receiver, Args...>)
+  friend void tag_invoke(CPO cpo, type&& self, Args&&... args)
+    noexcept(is_nothrow_callable_v<CPO, Receiver, Args...>) {
+    self.subscription_.unsubscribe();
+    cpo(std::move(self).rec_, (Args&&) args...);
+  }
+
+  // Forward other receiver queries
+  template (typename CPO)
+    (requires is_receiver_query_cpo_v<CPO> AND is_callable_v<CPO, const Receiver&>)
+  friend auto tag_invoke(CPO cpo, const type& self)
+    noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+    -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(self.rec_);
+  }
+
   UNIFEX_NO_UNIQUE_ADDRESS
   Receiver rec_;
   inplace_stop_token_adapter_subscription<stop_token_type_t<Receiver>> subscription_{};
   _operation_state state_;
 };
 
-template <typename... Values>
-using _sender_base = any_unique_t<_connect<Values...>>;
+template <typename CPOs, typename... Values>
+using _sender_base = any_unique_t<_connect<CPOs, Values...>>;
 
-template <typename... Values>
-struct _sender {
-  struct type;
+template <typename... CPOs>
+struct _with_receiver_queries {
+  template <typename... Values>
+  struct _sender {
+    struct type;
+  };
+
+  template <typename... Values>
+  using any_sender_of = typename _sender<Values...>::type;
+
+  using any_scheduler = any_unique_t<overload<any_sender_of<>(const this_&)>(schedule)>;
 };
 
+template <typename... CPOs>
 template <typename... Values>
-struct _sender<Values...>::type : private _sender_base<Values...> {
+struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
+    : private _sender_base<type_list<CPOs...>, Values...> {
   template <template <class...> class Variant, template <class...> class Tuple>
   using value_types = Variant<Tuple<Values...>>;
 
@@ -191,18 +217,29 @@ struct _sender<Values...>::type : private _sender_base<Values...> {
   static constexpr bool sends_done = true;
 
   template (typename Receiver)
-    (requires receiver_of<Receiver, Values...>)
+    (requires receiver_of<Receiver, Values...> AND
+      (invocable<CPOs, Receiver const&> &&...))
   typename _op_for<Receiver>::type connect(Receiver r) && {
-    any_unique_t<_connect<Values...>>& self = *this;
+    any_unique_t<_connect<type_list<CPOs...>, Values...>>& self = *this;
     return typename _op_for<Receiver>::type{
         std::move(r),
-        [&self](_receiver_ref<Values...> rec) {
-          return _connect<Values...>(std::move(self), std::move(rec));
+        [&self](_receiver_ref<type_list<CPOs...>, Values...> rec) {
+          return _connect<type_list<CPOs...>, Values...>(std::move(self), std::move(rec));
         }
       };
   }
 
-  using _sender_base<Values...>::_sender_base;
+  using _sender_base<type_list<CPOs...>, Values...>::_sender_base;
+};
+
+template <typename... Values>
+struct _sender {
+  struct type;
+};
+
+template <typename... Values>
+struct _sender<Values...>::type : _with_receiver_queries<>::_sender<Values...>::type {
+  using _with_receiver_queries<>::_sender<Values...>::type::type;
 };
 
 } // namespace _any
@@ -212,6 +249,12 @@ using any_operation_state_for = typename _any::_op_for<Receiver>::type;
 
 template <typename... Values>
 using any_sender_of = typename _any::_sender<Values...>::type;
+
+using any_scheduler =
+    any_unique_t<overload<any_sender_of<>(const this_&)>(schedule)>;
+
+template <auto&... CPOs>
+using with_receiver_queries = _any::_with_receiver_queries<tag_t<CPOs>...>;
 
 } // namespace unifex
 

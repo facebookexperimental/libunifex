@@ -61,8 +61,10 @@ struct _op<Receiver>::type {
           template callback_type<cancel_callback>>
     stopCallback_;
 
-  template <typename Receiver2>
-  type(Receiver2&& receiver) : receiver_((Receiver2 &&) receiver) {}
+  template(typename Receiver2)
+    (requires constructible_from<Receiver, Receiver2>)
+  type(Receiver2&& receiver)
+    : receiver_((Receiver2 &&) receiver) {}
 
   void start() noexcept {
     assert(get_stop_token(receiver_).stop_possible());
