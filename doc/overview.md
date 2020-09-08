@@ -345,7 +345,7 @@ task transform(AsyncOp op, Func f) {
 ```
 
 We could just write:
-```
+```c++
 template<typename AsyncOp, typename Func>
 task transform(AsyncOp op, Func f) {
   f(co_await... std::move(op));

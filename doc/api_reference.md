@@ -542,7 +542,7 @@ chain of continuations for the current async operation.
 The stack-trace is represented as a `std::vector<async_trace_entry>` where
 the `async_trace_entry` is defined as follows:
 
-```
+```c++
 struct async_trace_entry {
   size_t depth; // depth of this trace entry from the starting point.
   size_t parentIndex; // index into vector of the parent continuation
