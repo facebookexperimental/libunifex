@@ -42,7 +42,8 @@ namespace unifex
     template <typename Receiver>
     class _receiver<Receiver>::type {
     public:
-      template <typename Receiver2>
+      template(typename Receiver2)
+        (requires constructible_from<Receiver, Receiver2>)
       explicit type(Receiver2&& receiver) noexcept(
           std::is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_(static_cast<Receiver2&&>(receiver)) {}

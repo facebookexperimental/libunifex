@@ -103,7 +103,7 @@ TEST(bulk, Pipeable) {
         }, unifex::par_unseq)
       | unifex::bulk_transform(
         [&](std::size_t index) noexcept {
-            output[index] = index;
+            output[index] = static_cast<int>(index);
         }, unifex::par_unseq)
       | unifex::bulk_join()
       | unifex::sync_wait();
