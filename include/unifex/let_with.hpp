@@ -79,8 +79,7 @@ public:
                     callable_result_t<member_t<Self, StateFactory>>&>,
                 remove_cvref_t<Receiver>>) {
 
-        return operation<
-                StateFactory, SuccessorFactory, Receiver>(
+        return operation<StateFactory, SuccessorFactory, Receiver>(
             static_cast<Self&&>(self).stateFactory_,
             static_cast<Self&&>(self).func_,
             static_cast<Receiver&&>(r));
@@ -121,8 +120,16 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
 
 namespace _let_with_cpo {
     struct _fn {
-
-        template<typename StateFactory, typename SuccessorFactory>
+        template (typename StateFactory, typename SuccessorFactory)
+          (requires
+              callable<std::decay_t<StateFactory>> AND
+              callable<
+                  std::decay_t<SuccessorFactory>,
+                  callable_result_t<std::decay_t<StateFactory>>&> AND
+              sender<
+                  callable_result_t<
+                      std::decay_t<SuccessorFactory>,
+                      callable_result_t<std::decay_t<StateFactory>>&>>)
         auto operator()(StateFactory&& stateFactory, SuccessorFactory&& successor_factory) const
             noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory> &&
                     std::is_nothrow_constructible_v<std::decay_t<StateFactory>, StateFactory>)
