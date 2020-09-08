@@ -21,6 +21,7 @@
 #include <cassert>
 #include <string>
 #include <atomic>
+#include <sstream>
 
 #include <gtest/gtest.h>
 
@@ -41,7 +42,27 @@ inline constexpr struct get_typeid_cpo {
       std::is_same_v<unifex::type_index, unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);
   }
-} get_typeid;
+} get_typeid{};
+
+inline constexpr struct to_string_cpo {
+  using type_erased_signature_t =
+      std::string(const unifex::this_&) noexcept;
+
+  template <typename T>
+  friend std::string tag_invoke(to_string_cpo, const T& x) {
+    std::stringstream sout;
+    sout << x;
+    return sout.str();
+  }
+
+  template <typename T>
+  auto operator()(const T& x) const noexcept ->
+      unifex::tag_invoke_result_t<to_string_cpo, const T&> {
+    static_assert(
+      std::is_same_v<std::string, unifex::tag_invoke_result_t<to_string_cpo, const T&>>);
+    return tag_invoke(to_string_cpo{}, x);
+  }
+} to_string{};
 
 struct destructor {
   explicit destructor(bool& x) : ref_(x) {}
@@ -108,6 +129,25 @@ TEST(AnyUniqueTest, TestDestructor) {
     EXPECT_FALSE(hasDestructorRun);
   }
   EXPECT_TRUE(hasDestructorRun);
+}
+
+using Aref = unifex::any_ref_t<get_typeid, to_string>;
+using Bref = unifex::any_ref_t<>;
+
+TEST(AnyRefTest, WithTypeid) {
+  std::string hello{"hello"};
+  const ::Aref a = hello;
+  auto id = get_typeid(a);
+  EXPECT_EQ(id, unifex::type_id<std::string>());
+  std::string str = to_string(a);
+  EXPECT_EQ(str, "hello");
+}
+
+TEST(AnyRefTest, WithoutTypeid) {
+  std::string hello{"hello"};
+  const ::Bref b = hello;
+  auto id = get_typeid(b);
+  EXPECT_EQ(id, unifex::type_id<Bref>());
 }
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
