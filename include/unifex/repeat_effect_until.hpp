@@ -274,7 +274,7 @@ inline const struct repeat_effect_cpo {
   struct forever {
     bool operator()() const { return false; }
   };
-  template <typename Source, typename Predicate>
+  template <typename Source>
   auto operator()(Source&& source) const
       noexcept(is_nothrow_tag_invocable_v<repeat_effect_cpo, Source>)
       -> tag_invoke_result_t<repeat_effect_cpo, Source> {
