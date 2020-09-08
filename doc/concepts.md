@@ -703,7 +703,7 @@ which may progress at different rates.
 Having the `now()` operation as an operation on the `TimeScheduler`  allows implementations of schedulers that contain stateful clocks such as virtual
 time schedulers which can manually advance time to skip idle periods. e.g. in unit-tests.
 
-```
+```c++
 namespace unifex
 {
   // TimeScheduler CPOs
