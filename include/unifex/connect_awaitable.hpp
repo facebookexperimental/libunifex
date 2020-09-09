@@ -155,6 +155,13 @@ namespace _await_cpo {
 
   inline const struct _fn {
   private:
+    struct _comma_hack {
+      template <typename T>
+      friend T&& operator,(T&& t, _comma_hack) noexcept {
+        return (T&&) t;
+      }
+      operator unit() const noexcept { return {}; }
+    };
     template <typename Awaitable, typename Receiver>
     static auto connect_impl(Awaitable awaitable, Receiver receiver)
         -> _await::sender_task<Receiver> {
@@ -198,7 +205,11 @@ namespace _await_cpo {
                   std::terminate();
                 }
               };
-            }(co_await (Awaitable &&)awaitable);
+            // The _comma_hack here makes this well-formed when the co_await
+            // expression has type void. This could potentially run into trouble
+            // if the type of the co_await expression itself overloads operator
+            // comma, but that's pretty unlikely.
+            }((co_await (Awaitable &&)awaitable, _comma_hack{}));
 #if !UNIFEX_NO_EXCEPTIONS
       } catch (...) {
         ex = std::current_exception();

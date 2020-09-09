@@ -36,8 +36,40 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
+namespace _util {
+enum class _state { empty, value, exception, done };
+
+template <typename Value>
+struct _expected {
+  _expected() noexcept {}
+  void reset_value() noexcept {
+    _reset_value(std::exchange(state_, _state::empty));
+  }
+  ~_expected() {
+    _reset_value(state_);
+  }
+  _state state_ = _state::empty;
+  union {
+    manual_lifetime<Value> value_;
+    manual_lifetime<std::exception_ptr> exception_;
+  };
+private:
+  void _reset_value(_state s) noexcept {
+    switch(s) {
+    case _state::value:
+      unifex::deactivate_union_member(value_);
+      break;
+    case _state::exception:
+      unifex::deactivate_union_member(exception_);
+      break;
+    default:;
+    }
+  }
+};
+}
 
 namespace _await_tfx {
+using namespace _util;
 
 template <typename Promise, typename Value>
 struct _awaitable_base {
@@ -47,30 +79,6 @@ struct _awaitable_base {
 template <typename Promise, typename Sender>
 struct _awaitable {
   struct type;
-};
-
-enum class state { empty, value, exception, done };
-
-template <typename Value>
-struct _expected {
-  _expected() noexcept {}
-  ~_expected() {
-    switch(state_) {
-    case state::value:
-      unifex::deactivate_union_member(value_);
-      break;
-    case state::exception:
-      unifex::deactivate_union_member(exception_);
-      break;
-    default:;
-    }
-  }
-
-  state state_ = state::empty;
-  union {
-    manual_lifetime<Value> value_;
-    manual_lifetime<std::exception_ptr> exception_;
-  };
 };
 
 template <typename Promise, typename Value>
@@ -95,18 +103,18 @@ protected:
         noexcept(std::is_nothrow_constructible_v<Value, Us...> ||
             std::is_void_v<Value>) {
       unifex::activate_union_member(result_->value_, (Us&&) us...);
-      result_->state_ = state::value;
+      result_->state_ = _state::value;
       continuation_.resume();
     }
 
     void set_error(std::exception_ptr eptr) && noexcept {
       unifex::activate_union_member(result_->exception_, std::move(eptr));
-      result_->state_ = state::exception;
+      result_->state_ = _state::exception;
       continuation_.resume();
     }
     
     void set_done() && noexcept {
-      result_->state_ = state::done;
+      result_->state_ = _state::done;
       continuation_.promise().unhandled_done().resume();
     }
 
@@ -139,10 +147,10 @@ public:
 
   Value await_resume() {
     switch (result_.state_) {
-    case state::value:
+    case _state::value:
       return std::move(result_.value_).get();
     default:
-      assert(result_.state_ == state::exception);
+      assert(result_.state_ == _state::exception);
       std::rethrow_exception(result_.exception_.get());
     }
   }

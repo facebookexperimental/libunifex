@@ -39,6 +39,7 @@
 
 namespace unifex {
 namespace _task {
+using namespace _util;
 
 template <typename... Types>
 using _is_single_valued_tuple =
@@ -74,54 +75,93 @@ template <typename T>
 struct _task {
   struct type;
 };
+
+struct _promise_base {
+  struct _final_suspend_awaiter_base {
+    static bool await_ready() noexcept {
+      return false;
+    }
+    static void await_resume() noexcept {}
+  };
+
+  coro::suspend_always initial_suspend() noexcept {
+    return {};
+  }
+
+  coro::coroutine_handle<> unhandled_done() noexcept {
+    return doneCallback_(continuation_.address());
+  }
+
+  template <typename Func>
+  friend void
+  tag_invoke(tag_t<visit_continuations>, const _promise_base& p, Func&& func) {
+    if (p.info_) {
+      visit_continuations(*p.info_, (Func &&) func);
+    }
+  }
+
+  friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const _promise_base& p) noexcept {
+    return p.stoken_;
+  }
+
+  using done_callback = coro::coroutine_handle<>(void*) noexcept;
+
+  coro::coroutine_handle<> continuation_;
+  done_callback* doneCallback_ = &default_unhandled_done_callback;
+  std::optional<continuation_info> info_;
+  inplace_stop_token stoken_;
+};
+
+template <typename T>
+struct _return_value_or_void {
+  struct type {
+    template(typename Value = T)
+        (requires convertible_to<Value, T> AND constructible_from<T, Value>)
+    void return_value(Value&& value) noexcept(
+        std::is_nothrow_constructible_v<T, Value>) {
+      expected_.reset_value();
+      unifex::activate_union_member(expected_.value_, (Value &&) value);
+      expected_.state_ = _state::value;
+    }
+    _expected<T> expected_;
+  };
+};
+
+template <>
+struct _return_value_or_void<void> {
+  struct type {
+    void return_void() noexcept {
+      expected_.reset_value();
+      unifex::activate_union_member(expected_.value_);
+      expected_.state_ = _state::value;
+    }
+    _expected<void> expected_;
+  };
+};
+
 template <typename T>
 struct _promise {
-  struct type {
+  struct type : _promise_base, _return_value_or_void<T>::type {
     using result_type = T;
-
-    void reset_value() noexcept {
-      switch (std::exchange(state_, state::empty)) {
-        case state::value:
-          unifex::deactivate_union_member(value_);
-          break;
-        case state::exception:
-          unifex::deactivate_union_member(exception_);
-          break;
-        default:
-          break;
-      }
-    }
 
     typename _task<T>::type get_return_object() noexcept {
       return typename _task<T>::type{
           coro::coroutine_handle<type>::from_promise(*this)};
     }
 
-    coro::suspend_always initial_suspend() noexcept {
-      return {};
-    }
-
     auto final_suspend() noexcept {
-      struct awaiter {
-        bool await_ready() noexcept {
-          return false;
-        }
+      struct awaiter : _final_suspend_awaiter_base {
         auto await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_;
         }
-        void await_resume() noexcept {}
       };
       return awaiter{};
     }
 
-    coro::coroutine_handle<> unhandled_done() noexcept {
-      return doneCallback_(continuation_.address());
-    }
-
     void unhandled_exception() noexcept {
-      reset_value();
-      unifex::activate_union_member(exception_, std::current_exception());
-      state_ = state::exception;
+      this->expected_.reset_value();
+      unifex::activate_union_member(this->expected_.exception_, std::current_exception());
+      this->expected_.state_ = _state::exception;
     }
 
     template(typename Value)
@@ -132,54 +172,12 @@ struct _promise {
       return unifex::await_transform(*this, (Value&&)value);
     }
 
-    template(typename Value)
-        (requires convertible_to<Value, T> AND constructible_from<T, Value>)
-    void return_value(Value&& value) noexcept(
-        std::is_nothrow_constructible_v<T, Value>) {
-      reset_value();
-      unifex::activate_union_member(value_, (Value &&) value);
-      state_ = state::value;
-    }
-
-    type() noexcept {}
-
-    ~type() {
-      reset_value();
-    }
-
     decltype(auto) result() {
-      if (state_ == state::exception) {
-        std::rethrow_exception(std::move(exception_).get());
+      if (this->expected_.state_ == _state::exception) {
+        std::rethrow_exception(std::move(this->expected_.exception_).get());
       }
-      return std::move(value_).get();
+      return std::move(this->expected_.value_).get();
     }
-
-    template <typename Func>
-    friend void
-    tag_invoke(tag_t<visit_continuations>, const type& p, Func&& func) {
-      if (p.info_) {
-        visit_continuations(*p.info_, (Func &&) func);
-      }
-    }
-
-    friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& p) noexcept {
-      return p.stoken_;
-    }
-
-    enum class state { empty, value, exception, done };
-
-    using done_callback = coro::coroutine_handle<>(void*) noexcept;
-
-    coro::coroutine_handle<> continuation_;
-    done_callback* doneCallback_ = &default_unhandled_done_callback;
-
-    state state_ = state::empty;
-    union {
-      manual_lifetime<T> value_;
-      manual_lifetime<std::exception_ptr> exception_;
-    };
-    std::optional<continuation_info> info_;
-    inplace_stop_token stoken_;
   };
 };
 
@@ -207,11 +205,11 @@ struct _awaiter {
     coro::coroutine_handle<ThisPromise> await_suspend(
         coro::coroutine_handle<OtherPromise> h) noexcept {
       assert(coro_);
-      coro_.promise().continuation_ = h;
-      coro_.promise().doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;
-      coro_.promise().info_.emplace(
-          continuation_info::from_continuation(h.promise()));
-      coro_.promise().stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
+      auto& promise = coro_.promise();
+      promise.continuation_ = h;
+      promise.doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;
+      promise.info_.emplace(continuation_info::from_continuation(h.promise()));
+      promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
       return coro_;
     }
 
