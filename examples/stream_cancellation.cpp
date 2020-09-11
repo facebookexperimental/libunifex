@@ -21,7 +21,6 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/trampoline_scheduler.hpp>
 #include <unifex/stop_when.hpp>
 
 #include <chrono>
@@ -38,23 +37,18 @@ int main() {
 
   auto start = steady_clock::now();
 
-  sync_wait(
-      on(
-        stop_when(
-          for_each(
-             on_stream(trampoline_scheduler{}, range_stream{0, 20}),
-             [](int value) {
-               // Simulate some work
-               std::printf("processing %i\n", value);
-               std::this_thread::sleep_for(10ms);
-             }),
-          schedule_after(100ms)),
-        context.get_scheduler()));
+  on_stream(current_scheduler, range_stream{0, 20})
+    | for_each([](int value) {
+        // Simulate some work
+        std::printf("processing %i\n", value);
+        std::this_thread::sleep_for(10ms);
+      })
+    | stop_when(schedule_after(100ms))
+    | on(context.get_scheduler())
+    | sync_wait();
 
   auto end = steady_clock::now();
 
   std::printf(
       "took %i ms\n", (int)duration_cast<milliseconds>(end - start).count());
-
-  return 0;
 }
