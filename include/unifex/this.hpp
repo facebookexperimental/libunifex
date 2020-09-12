@@ -24,94 +24,126 @@ namespace unifex {
 
 struct this_ {};
 
-template <typename ArgType>
-struct replace_this {
-  template <typename Arg, typename T>
+template <typename T>
+inline constexpr bool is_this_v = false;
+template <>
+inline constexpr bool is_this_v<this_> = true;
+template <>
+inline constexpr bool is_this_v<this_&> = true;
+template <>
+inline constexpr bool is_this_v<this_&&> = true;
+template <>
+inline constexpr bool is_this_v<const this_> = true;
+template <>
+inline constexpr bool is_this_v<const this_&> = true;
+template <>
+inline constexpr bool is_this_v<const this_&&> = true;
+
+struct _ignore {
+  template <typename T>
+  /*implicit*/ _ignore(T&&) {}
+};
+
+template <typename>
+struct _replace_this;
+
+template <>
+struct _replace_this<void> {
+  template <typename Arg, typename>
   using apply = Arg;
 
-  template <typename Arg, typename T>
-  static Arg&& get(Arg&& arg, T&) {
+  template <typename Arg>
+  static Arg&& get(Arg&& arg, _ignore) {
     return (Arg &&) arg;
   }
 };
 
 template <>
-struct replace_this<this_> {
-  template <typename Arg, typename T>
+struct _replace_this<this_> {
+  template <typename, typename T>
   using apply = T;
 
-  template <typename Arg, typename T>
-  static T&& get(Arg&&, T& obj) {
+  template <typename T>
+  static T&& get(_ignore, T& obj) {
     return (T &&) obj;
   }
 };
 
 template <>
-struct replace_this<this_&> {
-  template <typename Arg, typename T>
+struct _replace_this<this_&> {
+  template <typename, typename T>
   using apply = T&;
 
-  template <typename Arg, typename T>
-  static T& get(Arg&, T& obj) noexcept {
+  template <typename T>
+  static T& get(_ignore, T& obj) noexcept {
     return obj;
   }
 };
 
 template <>
-struct replace_this<this_&&> {
-  template <typename Arg, typename T>
+struct _replace_this<this_&&> {
+  template <typename, typename T>
   using apply = T&&;
 
-  template <typename Arg, typename T>
-  static T&& get(Arg&&, T& obj) noexcept {
+  template <typename T>
+  static T&& get(_ignore, T& obj) noexcept {
     return (T &&) obj;
   }
 };
 
 template <>
-struct replace_this<const this_&> {
-  template <typename Arg, typename T>
+struct _replace_this<const this_&> {
+  template <typename, typename T>
   using apply = const T&;
 
-  template <typename Arg, typename T>
-  static const T& get(const Arg&, T& obj) noexcept {
+  template <typename T>
+  static const T& get(_ignore, T& obj) noexcept {
     return obj;
   }
 };
 
 template <>
-struct replace_this<const this_&&> {
-  template <typename Arg, typename T>
+struct _replace_this<const this_&&> {
+  template <typename, typename T>
   using type = const T&&;
 
-  template <typename Arg, typename T>
-  const T&& operator()(const Arg&&, T& obj) const {
-    return (const T&&)obj;
+  template <typename T>
+  const T&& operator()(_ignore, T& obj) const {
+    return (const T&&) obj;
   }
 };
+
+template <typename Arg>
+using _normalize_t = conditional_t<is_this_v<Arg>, Arg, void>;
+
+template <typename T>
+using replace_this = _replace_this<_normalize_t<T>>;
 
 template <typename Arg, typename T>
 using replace_this_t = typename replace_this<Arg>::template apply<Arg, T>;
 
 template <typename Arg>
 using replace_this_with_void_ptr_t =
-    conditional_t<std::is_same_v<remove_cvref_t<Arg>, this_>, void*, Arg>;
+    conditional_t<is_this_v<Arg>, void*, Arg>;
 
-template <typename... ArgTypes>
-struct extract_this;
-
-template <typename FirstType, typename... RestTypes>
-struct extract_this<FirstType, RestTypes...> {
+template <bool...>
+struct _extract_this {
   template <typename TFirst, typename... TRest>
-  decltype(auto) operator()(TFirst&& first, TRest&&... rest) const {
-    if constexpr (std::is_same_v<remove_cvref_t<FirstType>, this_>) {
-      return first;
-    } else {
-      static_assert(sizeof...(TRest) > 0, "Arguments to extract_this");
-      return extract_this<RestTypes...>{}((TRest &&) rest...);
-    }
+  TFirst&& operator()(TFirst&& first, TRest&&...) const {
+    return (TFirst&&) first;
   }
 };
+template <bool... IsThis>
+struct _extract_this<false, IsThis...> {
+  template <typename... TRest>
+  decltype(auto) operator()(_ignore, TRest&&... rest) const {
+    static_assert(sizeof...(IsThis) > 0, "Arguments to extract_this");
+    return _extract_this<IsThis...>{}((TRest &&) rest...);
+  }
+};
+
+template <typename... Ts>
+using extract_this = _extract_this<is_this_v<Ts>...>;
 
 } // namespace unifex
 
