@@ -30,13 +30,15 @@
 namespace unifex {
 namespace _any_unique {
 
-template <typename T, typename CPO, bool NoExcept, typename Ret, typename... Args>
-static Ret _invoke(
-    replace_this_with_void_ptr_t<Args>... args,
-    _overload::base_cpo_t<CPO> cpo) noexcept(NoExcept) {
-  void* thisPointer = extract_this<Args...>{}((decltype(args)&&) args...);
-  T& obj = *static_cast<T*>(thisPointer);
-  return std::move(cpo)(replace_this<Args>::get((Args&&)args, obj)...);
+template <typename CPO, typename T, bool NoExcept, typename Ret, typename... Args>
+Ret _invoke(
+    _overload::base_cpo_t<CPO> cpo,
+    replace_this_with_void_ptr_t<Args>... args) noexcept(NoExcept) {
+  void* thisPointer = extract_this<Args...>{}(args...);
+  return std::move(cpo)(
+      replace_this<Args>::get(
+          (decltype(args)&&) args,
+          *static_cast<T*>(thisPointer))...);
 }
 
 template <typename CPO, typename Sig = typename CPO::type_erased_signature_t>
@@ -45,8 +47,8 @@ struct vtable_entry;
 template <typename CPO, typename Ret, typename... Args>
 struct vtable_entry<CPO, Ret(Args...) noexcept> {
   using fn_t =
-      Ret(replace_this_with_void_ptr_t<Args>...,
-          _overload::base_cpo_t<CPO>) noexcept;
+      Ret(_overload::base_cpo_t<CPO>,
+          replace_this_with_void_ptr_t<Args>...) noexcept;
 
   constexpr fn_t* get() const noexcept {
     return fn_;
@@ -54,7 +56,7 @@ struct vtable_entry<CPO, Ret(Args...) noexcept> {
 
   template <typename T>
   static constexpr vtable_entry create() noexcept {
-    return vtable_entry{_any_unique::_invoke<T, CPO, true, Ret, Args...>};
+    return vtable_entry{_any_unique::_invoke<CPO, T, true, Ret, Args...>};
   }
 
 private:
@@ -67,8 +69,8 @@ private:
 template <typename CPO, typename Ret, typename... Args>
 struct vtable_entry<CPO, Ret(Args...)> {
   using fn_t =
-      Ret(replace_this_with_void_ptr_t<Args>...,
-          _overload::base_cpo_t<CPO>);
+      Ret(_overload::base_cpo_t<CPO>,
+          replace_this_with_void_ptr_t<Args>...);
 
   constexpr fn_t* get() const noexcept {
     return fn_;
@@ -76,7 +78,7 @@ struct vtable_entry<CPO, Ret(Args...)> {
 
   template <typename T>
   static constexpr vtable_entry create() noexcept {
-    return vtable_entry{_any_unique::_invoke<T, CPO, false, Ret, Args...>};
+    return vtable_entry{_any_unique::_invoke<CPO, T, false, Ret, Args...>};
   }
 
 private:
@@ -188,9 +190,8 @@ struct _with_type_erased_tag_invoke<
       void* objPtr = get_object_address(t);
       auto* fnPtr = get_vtable(t)->template get<CPO>();
       return fnPtr(
-          replace_this<Args>::get((decltype(args) &&) args, objPtr)...,
-          std::move(cpo)
-          );
+          std::move(cpo),
+          replace_this<Args>::get((decltype(args) &&) args, objPtr)...);
     }
   };
 };
@@ -208,36 +209,54 @@ struct _with_type_erased_tag_invoke<
   : _with_type_erased_tag_invoke<Derived, CPO, true, Ret(Args...)> {
 };
 
-template <typename CPO, bool NoExcept = false, typename Sig = typename CPO::type_erased_signature_t>
-struct _dispatch_cpo;
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept,
+    typename Sig>
+struct _with_forwarding_tag_invoke;
 
-template <typename CPO, typename Ret, typename... Args>
-struct _dispatch_cpo<CPO, false, Ret(Args...) noexcept>
-  : _dispatch_cpo<CPO, true, Ret(Args...)> {};
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept = false,
+    typename Sig = typename CPO::type_erased_signature_t>
+using with_forwarding_tag_invoke =
+    typename _with_forwarding_tag_invoke<Derived, CPO, NoExcept, Sig>::type;
 
-template <typename CPO, bool NoExcept, typename Ret, typename... Args>
-struct _dispatch_cpo<CPO, NoExcept, Ret(Args...)> {
+template <
+    typename Derived,
+    typename CPO,
+    bool NoExcept,
+    typename Ret,
+    typename... Args>
+struct _with_forwarding_tag_invoke<
+    Derived,
+    CPO,
+    NoExcept,
+    Ret(Args...)> {
   struct type {
-    struct _result {
-      UNIFEX_NO_UNIQUE_ADDRESS _overload::base_cpo_t<CPO> cpo;
-
-      template (typename... Args2)
-        (requires ((convertible_to<Args2, Args> || is_this_v<Args>) &&...))
-      Ret operator()(Args2&&... args) && {
-        auto&& wrapper = extract_this<Args...>{}((Args2&&) args...);
-        auto& wrapped = wrapper.value;
-        return std::move(cpo)(replace_this<Args>::get((Args2 &&) args, wrapped)...);
-      }
-    };
-    _result operator()(_overload::base_cpo_t<CPO> cpo) const {
-      return _result{std::move(cpo)};
+    friend Ret tag_invoke(
+        _overload::base_cpo_t<CPO> cpo,
+        replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
+      auto& wrapper = extract_this<Args...>{}(args...);
+      auto& wrapped = wrapper.value;
+      return std::move(cpo)(replace_this<Args>::get((Args &&) args, wrapped)...);
     }
   };
 };
 
-template <typename... CPOs>
-struct _dispatch_fn : _dispatch_cpo<CPOs>::type... {
-  using _dispatch_cpo<CPOs>::type::operator()...;
+template <
+    typename Derived,
+    typename CPO,
+    typename Ret,
+    typename... Args>
+struct _with_forwarding_tag_invoke<
+    Derived,
+    CPO,
+    false,
+    Ret(Args...) noexcept>
+  : _with_forwarding_tag_invoke<Derived, CPO, true, Ret(Args...)> {
 };
 
 struct _deallocate_cpo {
@@ -253,40 +272,41 @@ struct _deallocate_cpo {
   }
 };
 
-template <typename Concrete, typename Allocator, typename... CPOs>
+template <typename Concrete, typename Allocator>
 struct _concrete_impl {
-  struct type final {
+  struct base {
     using allocator_type = typename std::allocator_traits<
-        Allocator>::template rebind_alloc<type>;
-    using dispatch_fn = _dispatch_fn<CPOs...>;
+        Allocator>::template rebind_alloc<base>;
 
     template <typename... Args>
-    explicit type(std::allocator_arg_t, allocator_type alloc, Args&&... args)
+    explicit base(std::allocator_arg_t, allocator_type alloc, Args&&... args)
       noexcept(std::is_nothrow_move_constructible_v<allocator_type> &&
           std::is_nothrow_constructible_v<Concrete, Args...>)
       : value((Args &&) args...)
       , alloc(std::move(alloc)) {}
 
-    friend void tag_invoke(_deallocate_cpo, type&& impl) noexcept {
+    friend void tag_invoke(_deallocate_cpo, base&& impl) noexcept {
       allocator_type allocCopy = std::move(impl.alloc);
-      impl.~type();
+      impl.~base();
       std::allocator_traits<allocator_type>::deallocate(
           allocCopy, &impl, 1);
-    }
-
-    template (typename CPO, typename... Args)
-      (requires callable<dispatch_fn, CPO> AND
-        callable<callable_result_t<dispatch_fn, CPO>, Args...>)
-    friend decltype(auto) tag_invoke(CPO cpo, Args&&... args) noexcept {
-      return dispatch_fn{}((CPO&&) cpo)((Args&&) args...);
     }
 
     UNIFEX_NO_UNIQUE_ADDRESS Concrete value;
     UNIFEX_NO_UNIQUE_ADDRESS allocator_type alloc;
   };
+
+  template <typename... CPOs>
+  struct impl {
+    struct type : base, private with_forwarding_tag_invoke<base, CPOs>... {
+      using base::base;
+    };
+  };
 };
+
 template <typename Concrete, typename Allocator, typename... CPOs>
-using concrete_impl = typename _concrete_impl<Concrete, Allocator, CPOs...>::type;
+using concrete_impl =
+    typename _concrete_impl<Concrete, Allocator>::template impl<CPOs...>::type;
 
 template <typename... CPOs>
 struct _byval {
@@ -341,8 +361,7 @@ class _byval<CPOs...>::type
   template <typename Concrete, typename... Args>
   explicit type(std::in_place_type_t<Concrete> tag, Args&&... args)
     : impl_(new Concrete((Args&&) args...))
-    , vtable_(vtable_holder_t::template create<Concrete>()) {
-  }
+    , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
   template(typename Concrete)
     (requires (!instance_of_v<std::in_place_type_t, Concrete>))
@@ -352,12 +371,13 @@ class _byval<CPOs...>::type
           (Concrete &&) concrete) {}
 
   type(type&& other) noexcept
-    : impl_(std::exchange(other.impl_, nullptr)), vtable_(other.vtable_) {}
+    : impl_(std::exchange(other.impl_, nullptr))
+    , vtable_(other.vtable_) {}
 
   ~type() {
     if (impl_ != nullptr) {
       auto* deallocateFn = vtable_->template get<_deallocate_cpo>();
-      deallocateFn(impl_, _deallocate_cpo{});
+      deallocateFn(_deallocate_cpo{}, impl_);
     }
   }
 

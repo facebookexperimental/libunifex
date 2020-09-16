@@ -108,7 +108,7 @@ struct _replace_this<const this_&&> {
   using type = const T&&;
 
   template <typename T>
-  const T&& operator()(_ignore, T& obj) const {
+  static const T&& get(_ignore, T& obj) {
     return (const T&&) obj;
   }
 };

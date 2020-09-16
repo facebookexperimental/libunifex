@@ -101,23 +101,20 @@ struct _connect_fn {
 
 template <typename CPOs, typename... Values>
 struct _connect_fn<CPOs, Values...>::type {
-  using type_erased_signature_t =
-      _operation_state(this_&&, _receiver_ref<CPOs, Values...>);
+  using _rec_ref_t = _receiver_ref<CPOs, Values...>;
+  using type_erased_signature_t = _operation_state(this_&&, _rec_ref_t);
 
   template(typename Sender)
-      (requires sender_to<Sender, _receiver_ref<CPOs, Values...>>)
+    (requires sender_to<Sender, _rec_ref_t>)
   friend _operation_state
-  tag_invoke(type, Sender&& s, _receiver_ref<CPOs, Values...> r) {
-    using Op = connect_result_t<Sender, _receiver_ref<CPOs, Values...>>;
-    return _operation_state {
-      std::in_place_type<Op>,
-      _rvo{(Sender &&) s, std::move(r)}
-    };
+  tag_invoke(const type&, Sender&& s, _rec_ref_t r) {
+    using Op = connect_result_t<Sender, _rec_ref_t>;
+    return _operation_state{std::in_place_type<Op>, _rvo{(Sender &&) s, std::move(r)}};
   }
 
   template(typename Self)
-      (requires tag_invocable<type, Self, _receiver_ref<CPOs, Values...>>)
-  _operation_state operator()(Self&& s, _receiver_ref<CPOs, Values...> r) const {
+      (requires tag_invocable<type, Self, _rec_ref_t>)
+  _operation_state operator()(Self&& s, _rec_ref_t r) const {
     return tag_invoke(*this, (Self&&) s, std::move(r));
   }
 };
