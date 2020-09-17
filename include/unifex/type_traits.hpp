@@ -110,18 +110,18 @@ struct unit {};
 using _unit::unit;
 
 template <bool B>
-struct _conditional {
+struct _if {
   template <typename, typename T>
   using apply = T;
 };
 template <>
-struct _conditional<true> {
+struct _if<true> {
   template <typename T, typename>
   using apply = T;
 };
 
 template <bool B, typename T, typename U>
-using conditional_t = typename _conditional<B>::template apply<T, U>;
+using conditional_t = typename _if<B>::template apply<T, U>;
 
 template <typename T>
 using non_void_t = conditional_t<std::is_void_v<T>, unit, T>;

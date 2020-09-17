@@ -36,21 +36,17 @@ namespace unifex {
 
     template <typename CPO, typename... Args>
     using tag_invoke_result_t = decltype(
-        tag_invoke(UNIFEX_DECLVAL(CPO && ), UNIFEX_DECLVAL(Args && )...));
+        tag_invoke(UNIFEX_DECLVAL(CPO &&), UNIFEX_DECLVAL(Args &&)...));
 
-    struct yes_type {
-      char dummy;
-    };
-    struct no_type {
-      char dummy[2];
-    };
+    using yes_type = char;
+    using no_type = char(&)[2];
 
     template <typename CPO, typename... Args>
     auto try_tag_invoke(int) //
         noexcept(noexcept(tag_invoke(
-            UNIFEX_DECLVAL(CPO && ), UNIFEX_DECLVAL(Args && )...)))
+            UNIFEX_DECLVAL(CPO &&), UNIFEX_DECLVAL(Args &&)...)))
         -> decltype(static_cast<void>(tag_invoke(
-            UNIFEX_DECLVAL(CPO && ), UNIFEX_DECLVAL(Args && )...)), yes_type{});
+            UNIFEX_DECLVAL(CPO &&), UNIFEX_DECLVAL(Args &&)...)), yes_type{});
 
     template <typename CPO, typename... Args>
     no_type try_tag_invoke(...) noexcept(false);
