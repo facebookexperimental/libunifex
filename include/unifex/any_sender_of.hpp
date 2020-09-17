@@ -112,11 +112,21 @@ struct _connect_fn<CPOs, Values...>::type {
     return _operation_state{std::in_place_type<Op>, _rvo{(Sender &&) s, std::move(r)}};
   }
 
+#ifdef _MSC_VER
+  // MSVC doesn't seem to like the requires clause here.
+  // Use SFINAE instead.
+  template <typename Self>
+  tag_invoke_result_t<type, Self, _rec_ref_t>
+  operator()(Self&& s, _rec_ref_t r) const {
+    return tag_invoke(*this, (Self&&) s, std::move(r));
+  }
+#else
   template(typename Self)
-      (requires tag_invocable<type, Self, _rec_ref_t>)
+    (requires tag_invocable<type, Self, _rec_ref_t>)
   _operation_state operator()(Self&& s, _rec_ref_t r) const {
     return tag_invoke(*this, (Self&&) s, std::move(r));
   }
+#endif
 };
 
 template <typename CPOs, typename... Values>
