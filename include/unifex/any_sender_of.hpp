@@ -113,8 +113,8 @@ struct _connect_fn<CPOs, Values...>::type {
   }
 
 #ifdef _MSC_VER
-  // MSVC doesn't seem to like the requires clause here.
-  // Use SFINAE instead.
+  // MSVC (_MSC_VER == 1927) doesn't seem to like the requires
+  // clause here. Use SFINAE instead.
   template <typename Self>
   tag_invoke_result_t<type, Self, _rec_ref_t>
   operator()(Self&& s, _rec_ref_t r) const {
