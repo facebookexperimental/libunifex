@@ -237,6 +237,8 @@ struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
   }
 
   using _sender_base<type_list<CPOs...>, Values...>::_sender_base;
+  UNIFEX_ALWAYS_INLINE ~type() = default;
+  type(type&&) = default;
 };
 
 template <typename... Values>

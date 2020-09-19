@@ -30,12 +30,20 @@
 namespace unifex {
 namespace _any_unique {
 
+template <typename CPO>
+using base_cpo_t = _overload::base_cpo_t<CPO>;
+
 template <typename CPO, typename T, bool NoExcept, typename Ret, typename... Args>
 Ret _invoke(
-    _overload::base_cpo_t<CPO> cpo,
+    base_cpo_t<CPO> cpo,
     replace_this_with_void_ptr_t<Args>... args) noexcept(NoExcept) {
+  static_assert(!NoExcept || noexcept(extract_this<Args...>{}(args...)));
   void* thisPointer = extract_this<Args...>{}(args...);
-  return std::move(cpo)(
+  static_assert(!NoExcept || noexcept(Ret(((base_cpo_t<CPO>&&) cpo)(
+      replace_this<Args>::get(
+          (decltype(args)&&) args,
+          *static_cast<T*>(thisPointer))...))));
+  return ((base_cpo_t<CPO>&&) cpo)(
       replace_this<Args>::get(
           (decltype(args)&&) args,
           *static_cast<T*>(thisPointer))...);
@@ -47,8 +55,7 @@ struct vtable_entry;
 template <typename CPO, typename Ret, typename... Args>
 struct vtable_entry<CPO, Ret(Args...) noexcept> {
   using fn_t =
-      Ret(_overload::base_cpo_t<CPO>,
-          replace_this_with_void_ptr_t<Args>...) noexcept;
+      Ret(base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...) noexcept;
 
   constexpr fn_t* get() const noexcept {
     return fn_;
@@ -69,8 +76,7 @@ private:
 template <typename CPO, typename Ret, typename... Args>
 struct vtable_entry<CPO, Ret(Args...)> {
   using fn_t =
-      Ret(_overload::base_cpo_t<CPO>,
-          replace_this_with_void_ptr_t<Args>...);
+      Ret(base_cpo_t<CPO>, replace_this_with_void_ptr_t<Args>...);
 
   constexpr fn_t* get() const noexcept {
     return fn_;
@@ -184,13 +190,21 @@ struct _with_type_erased_tag_invoke<
     NoExcept,
     Ret(Args...)> {
   struct type {
-    friend Ret tag_invoke(_overload::base_cpo_t<CPO> cpo, replace_this_t<Args, Derived>... args)
+    friend Ret tag_invoke(base_cpo_t<CPO> cpo, replace_this_t<Args, Derived>... args)
         noexcept(NoExcept) {
+      using cpo_t = base_cpo_t<CPO>;
+      static_assert(
+          !NoExcept || noexcept(extract_this<Args...>{}((decltype(args) &&) args...)));
       auto&& t = extract_this<Args...>{}((decltype(args) &&) args...);
+      static_assert(!NoExcept || noexcept(get_object_address(t)));
       void* objPtr = get_object_address(t);
+      static_assert(!NoExcept || noexcept(get_vtable(t)->template get<CPO>()));
       auto* fnPtr = get_vtable(t)->template get<CPO>();
+      static_assert(!NoExcept || noexcept(fnPtr(
+          (cpo_t&&) cpo,
+          replace_this<Args>::get((decltype(args) &&) args, objPtr)...)));
       return fnPtr(
-          std::move(cpo),
+          (cpo_t&&) cpo,
           replace_this<Args>::get((decltype(args) &&) args, objPtr)...);
     }
   };
@@ -237,10 +251,14 @@ struct _with_forwarding_tag_invoke<
     Ret(Args...)> {
   struct type {
     friend Ret tag_invoke(
-        _overload::base_cpo_t<CPO> cpo,
+        base_cpo_t<CPO> cpo,
         replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
+      static_assert(!NoExcept || noexcept(extract_this<Args...>{}(args...)));
       auto& wrapper = extract_this<Args...>{}(args...);
       auto& wrapped = wrapper.value;
+      static_assert(
+          !NoExcept || noexcept(std::move(cpo)(
+              replace_this<Args>::get((Args &&) args, wrapped)...)));
       return std::move(cpo)(replace_this<Args>::get((Args &&) args, wrapped)...);
     }
   };
@@ -260,12 +278,14 @@ struct _with_forwarding_tag_invoke<
 };
 
 struct _deallocate_cpo {
-  using type_erased_signature_t = void(this_&&) noexcept;
+  using type_erased_signature_t = void(this_&) noexcept;
 
   template <typename T>
-  void operator()(T&& obj) const noexcept {
-    if constexpr (tag_invocable<_deallocate_cpo, T>) {
-      tag_invoke(_deallocate_cpo{}, (T &&) obj);
+  UNIFEX_ALWAYS_INLINE
+  void operator()(T& obj) const noexcept {
+    if constexpr (tag_invocable<_deallocate_cpo, T&>) {
+      static_assert(noexcept(tag_invoke(_deallocate_cpo{}, obj)));
+      tag_invoke(_deallocate_cpo{}, obj);
     } else {
       delete std::addressof(obj);
     }
@@ -285,7 +305,7 @@ struct _concrete_impl {
       : value((Args &&) args...)
       , alloc(std::move(alloc)) {}
 
-    friend void tag_invoke(_deallocate_cpo, base&& impl) noexcept {
+    friend void tag_invoke(_deallocate_cpo, base& impl) noexcept {
       allocator_type allocCopy = std::move(impl.alloc);
       impl.~base();
       std::allocator_traits<allocator_type>::deallocate(
@@ -374,9 +394,11 @@ class _byval<CPOs...>::type
     : impl_(std::exchange(other.impl_, nullptr))
     , vtable_(other.vtable_) {}
 
-  ~type() {
-    if (impl_ != nullptr) {
+  UNIFEX_ALWAYS_INLINE ~type() {
+    if (nullptr != impl_) {
+      static_assert(noexcept(vtable_->template get<_deallocate_cpo>()));
       auto* deallocateFn = vtable_->template get<_deallocate_cpo>();
+      static_assert(noexcept(deallocateFn(_deallocate_cpo{}, impl_)));
       deallocateFn(_deallocate_cpo{}, impl_);
     }
   }

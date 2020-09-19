@@ -41,7 +41,7 @@ inline constexpr bool is_this_v<const this_&&> = true;
 
 struct _ignore {
   template <typename T>
-  /*implicit*/ _ignore(T&&) {}
+  /*implicit*/ _ignore(T&&) noexcept {}
 };
 
 template <typename>
@@ -53,7 +53,7 @@ struct _replace_this<void> {
   using apply = Arg;
 
   template <typename Arg>
-  static Arg&& get(Arg&& arg, _ignore) {
+  static Arg&& get(Arg&& arg, _ignore) noexcept {
     return (Arg &&) arg;
   }
 };
@@ -64,7 +64,7 @@ struct _replace_this<this_> {
   using apply = T;
 
   template <typename T>
-  static T&& get(_ignore, T& obj) {
+  static T&& get(_ignore, T& obj) noexcept {
     return (T &&) obj;
   }
 };
@@ -108,7 +108,7 @@ struct _replace_this<const this_&&> {
   using type = const T&&;
 
   template <typename T>
-  static const T&& get(_ignore, T& obj) {
+  static const T&& get(_ignore, T& obj) noexcept {
     return (const T&&) obj;
   }
 };
@@ -129,14 +129,14 @@ using replace_this_with_void_ptr_t =
 template <bool...>
 struct _extract_this {
   template <typename TFirst, typename... TRest>
-  TFirst&& operator()(TFirst&& first, TRest&&...) const {
+  TFirst&& operator()(TFirst&& first, TRest&&...) const noexcept {
     return (TFirst&&) first;
   }
 };
 template <bool... IsThis>
 struct _extract_this<false, IsThis...> {
   template <typename... TRest>
-  decltype(auto) operator()(_ignore, TRest&&... rest) const {
+  decltype(auto) operator()(_ignore, TRest&&... rest) const noexcept {
     static_assert(sizeof...(IsThis) > 0, "Arguments to extract_this");
     return _extract_this<IsThis...>{}((TRest &&) rest...);
   }

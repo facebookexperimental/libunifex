@@ -167,3 +167,12 @@
     #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
   #endif
 #endif // MSVC/Generic configuration switch
+
+#if defined(__GNUC__) || defined(__clang__)
+  #define UNIFEX_ALWAYS_INLINE \
+    __attribute__((__always_inline__)) __attribute__((__visibility__("hidden")))
+#elif defined(_MSC_VER)
+  #define UNIFEX_ALWAYS_INLINE __forceinline
+#else
+  #define UNIFEX_ALWAYS_INLINE inline
+#endif
