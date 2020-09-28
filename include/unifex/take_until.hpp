@@ -24,6 +24,7 @@
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/exception.hpp>
 
 #include <exception>
 #include <atomic>
@@ -227,7 +228,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
           template <typename Error>
           void set_error(Error&& error) && noexcept {
-            std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+            std::move(*this).set_error(make_exception_ptr((Error&&)error));
           }
 
           void set_error(std::exception_ptr error) && noexcept {
@@ -256,7 +257,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
           template <typename Error>
           void set_error(Error&& error) && noexcept {
-            std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+            std::move(*this).set_error(make_exception_ptr((Error&&)error));
           }
 
           void set_error(std::exception_ptr error) && noexcept {

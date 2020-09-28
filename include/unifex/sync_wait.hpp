@@ -22,6 +22,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/with_query_value.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/exception.hpp>
 
 #include <condition_variable>
 #include <exception>
@@ -83,12 +84,12 @@ struct _receiver {
     }
 
     void set_error(std::error_code ec) && noexcept {
-      std::move(*this).set_error(std::make_exception_ptr(std::system_error{ec, "sync_wait"}));
+      std::move(*this).set_error(make_exception_ptr(std::system_error{ec, "sync_wait"}));
     }
 
     template <typename Error>
     void set_error(Error&& e) && noexcept {
-      std::move(*this).set_error(std::make_exception_ptr((Error&&)e));
+      std::move(*this).set_error(make_exception_ptr((Error&&)e));
     }
 
     void set_done() && noexcept {

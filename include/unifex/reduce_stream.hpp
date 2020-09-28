@@ -27,6 +27,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/exception.hpp>
 
 #include <exception>
 #include <functional>
@@ -218,7 +219,7 @@ struct _next_receiver<Operation>::type {
 
   template <typename Error>
   void set_error(Error&& e) && noexcept {
-    std::move(*this).set_error(std::make_exception_ptr((Error &&) e));
+    std::move(*this).set_error(make_exception_ptr((Error &&) e));
   }
 };
 

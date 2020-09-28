@@ -8,6 +8,7 @@ add_library(unifex "")
 target_sources(unifex
   PRIVATE
     async_mutex.cpp
+    exception.cpp
     inplace_stop_token.cpp
     manual_event_loop.cpp
     static_thread_pool.cpp
