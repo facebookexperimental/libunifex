@@ -15,6 +15,7 @@
  */
 
 #include <unifex/when_all.hpp>
+#include <unifex/just_error.hpp>
 #include <unifex/materialize.hpp>
 #include <unifex/dematerialize.hpp>
 #include <unifex/transform.hpp>
@@ -55,4 +56,18 @@ TEST(Materialize, Pipeable) {
 
     EXPECT_TRUE(!!result);
     EXPECT_EQ(result.value(), 42);
+}
+
+TEST(Materialize, Failure) {
+    std::string what;
+    try {
+      std::optional<int> result = just_error(std::make_exception_ptr(std::runtime_error{"failure"}))
+        | transform(
+          []() { return 42; })
+        | materialize()
+        | dematerialize()
+        | sync_wait();
+    } catch(const std::runtime_error& ex) { what = ex.what(); }
+
+    EXPECT_EQ(what, "failure");
 }
