@@ -77,7 +77,7 @@ class _sender<Error>::type {
 
   template(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, type> AND
-        receiver<Receiver> AND
+        receiver<Receiver, Error> AND
         constructible_from<Error, member_t<This, Error>>)
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
       noexcept(std::is_nothrow_constructible_v<Error, member_t<This, Error>>)
