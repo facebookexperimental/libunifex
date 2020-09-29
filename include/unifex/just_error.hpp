@@ -63,7 +63,7 @@ class _sender<Error>::type {
   template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
-  using value_types = Variant<Tuple<>>;
+  using value_types = Variant<>;
 
   template <template <typename...> class Variant>
   using error_types = Variant<Error>;
@@ -95,8 +95,8 @@ namespace _just_error_cpo {
   inline const struct just_error_fn {
     template <typename Error>
     constexpr auto operator()(Error&& error) const
-      noexcept(std::is_nothrow_constructible_v<_just_error::sender<Error>, Error>)
-      -> _just_error::sender<std::decay_t<Error>> {
+      noexcept(std::is_nothrow_constructible_v<std::decay_t<Error>, Error>)
+      -> _just_error::sender<Error> {
       return _just_error::sender<Error>{std::in_place, (Error&&) error};
     }
   } just_error{};

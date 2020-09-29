@@ -59,15 +59,15 @@ TEST(Materialize, Pipeable) {
 }
 
 TEST(Materialize, Failure) {
-    std::string what;
-    try {
-      std::optional<int> result = just_error(std::make_exception_ptr(std::runtime_error{"failure"}))
-        | transform(
-          []() { return 42; })
-        | materialize()
-        | dematerialize()
-        | sync_wait();
-    } catch(const std::runtime_error& ex) { what = ex.what(); }
-
-    EXPECT_EQ(what, "failure");
+    EXPECT_THROW({
+      try {
+        std::optional<unit> result = just_error(std::make_exception_ptr(std::runtime_error{"failure"}))
+          | materialize()
+          | dematerialize()
+          | sync_wait();
+      } catch(const std::runtime_error& ex) { 
+        EXPECT_STREQ(ex.what(), "failure"); 
+        throw;
+      }
+    }, std::runtime_error);
 }
