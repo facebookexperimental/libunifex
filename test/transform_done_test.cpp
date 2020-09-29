@@ -17,6 +17,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/sequence.hpp>
@@ -55,6 +56,24 @@ TEST(TransformDone, Smoke) {
       schedule_after(scheduler, 100ms)));
 
   EXPECT_EQ(count, 1);
+}
+
+TEST(TransformDone, StayDone) {
+  timed_single_thread_context context;
+
+  auto scheduler = context.get_scheduler();
+
+  int count = 0;
+
+  sequence(
+    schedule_after(scheduler, 200ms)
+      | transform_done(
+          []{ return just_done(); }), 
+    lazy([&]{ ++count; }))
+    | stop_when(schedule_after(scheduler, 100ms))
+    | sync_wait();
+
+  EXPECT_EQ(count, 0);
 }
 
 TEST(TransformDone, Pipeable) {
