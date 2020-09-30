@@ -18,6 +18,7 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
+#include <unifex/on.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/sequence.hpp>
@@ -66,14 +67,14 @@ TEST(TransformDone, StayDone) {
   int count = 0;
 
   sequence(
-    schedule_after(scheduler, 200ms)
+    just_done()
       | transform_done(
-          []{ return just_done(); }), 
+          []{ return just(); }) 
+      | on(scheduler),
     lazy([&]{ ++count; }))
-    | stop_when(schedule_after(scheduler, 100ms))
     | sync_wait();
 
-  EXPECT_EQ(count, 0);
+  EXPECT_EQ(count, 1);
 }
 
 TEST(TransformDone, Pipeable) {
