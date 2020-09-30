@@ -79,7 +79,8 @@ class _sender<Values...>::type {
   static constexpr bool sends_done = false;
 
   template(typename... Values2)
-    (requires (sizeof...(Values2) == sizeof...(Values)))
+    (requires (sizeof...(Values2) == sizeof...(Values)) AND
+      constructible_from<std::tuple<Values...>, Values2...>)
   explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
@@ -104,8 +105,8 @@ namespace _just_cpo {
   inline const struct just_fn {
     template <typename... Values>
     constexpr auto operator()(Values&&... values) const
-      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, Values...>)
-      -> _just::sender<std::decay_t<Values>...> {
+      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, std::in_place_t, Values...>)
+      -> _just::sender<Values...> {
       return _just::sender<Values...>{std::in_place, (Values&&)values...};
     }
   } just{};
