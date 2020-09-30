@@ -79,7 +79,7 @@ class _sender<Values...>::type {
   static constexpr bool sends_done = false;
 
   template(typename... Values2)
-    (requires (sizeof...(Values2) == sizeof...(Values)) &&
+    (requires (sizeof...(Values2) == sizeof...(Values)) AND
       constructible_from<std::tuple<Values...>, Values2...>)
   explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
