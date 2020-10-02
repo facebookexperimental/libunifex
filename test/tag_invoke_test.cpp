@@ -40,13 +40,13 @@ static_assert(unifex::is_nothrow_tag_invocable_v<test_cpo, X, int>);
 static_assert(!unifex::is_nothrow_tag_invocable_v<test_cpo, Y>);
 
 TEST(tag_invoke, tag_invoke_usage) {
-    unifex::tag_invoke(test_cpo{}, X{});
+    unifex::tag_invoke(test, X{});
     EXPECT_TRUE(unifex::tag_invoke(test_cpo{}, X{}, 42));
 }
 
 TEST(tag_invoke, tag_invoke_constexpr) {
-    constexpr bool result1 = unifex::tag_invoke(test_cpo{}, X{}, 42);
-    constexpr bool result2 = unifex::tag_invoke(test_cpo{}, X{}, -3);
+    constexpr bool result1 = unifex::tag_invoke(test, X{}, 42);
+    constexpr bool result2 = unifex::tag_invoke(test, X{}, -3);
     EXPECT_TRUE(result1);
     EXPECT_FALSE(result2);
 }
