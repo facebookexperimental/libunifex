@@ -65,6 +65,7 @@ TEST(Materialize, Failure) {
           | materialize()
           | dematerialize()
           | sync_wait();
+        EXPECT_FALSE(!!result); // should be unreachable - silences unused warning
       } catch(const std::runtime_error& ex) { 
         EXPECT_STREQ(ex.what(), "failure"); 
         throw;
