@@ -159,16 +159,6 @@ namespace _timed_single_thread_context {
 
   template <typename Receiver>
   class _at_op<Receiver>::type final : task_base {
-    template <typename Receiver2>
-    explicit type(
-        timed_single_thread_context& scheduler,
-        clock_t::time_point dueTime,
-        Receiver2&& receiver)
-        : task_base(scheduler, &type::execute_impl)
-        , receiver_((Receiver2 &&) receiver) {
-      this->dueTime_ = dueTime;
-    }
-
     static void execute_impl(task_base* p) noexcept {
       auto& self = *static_cast<type*>(p);
       self.cancelCallback_.destruct();
@@ -190,6 +180,16 @@ namespace _timed_single_thread_context {
         cancelCallback_;
 
    public:
+    template <typename Receiver2>
+    explicit type(
+        timed_single_thread_context& scheduler,
+        clock_t::time_point dueTime,
+        Receiver2&& receiver)
+        : task_base(scheduler, &type::execute_impl)
+        , receiver_((Receiver2 &&) receiver) {
+      this->dueTime_ = dueTime;
+    }
+
     void start() noexcept;
   };
 

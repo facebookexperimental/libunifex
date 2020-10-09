@@ -47,7 +47,7 @@ TEST(Delay, Smoke) {
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);
               }),
           transform(
-            schedule_after(context.get_scheduler(), 500ms),
+            schedule_at(context.get_scheduler(), start + 500ms),
             [] { std::printf("cancelling\n"); })));
 }
 
@@ -64,7 +64,7 @@ TEST(Delay, Pipeable) {
         std::printf("[%i ms] %i\n", (int)ms.count(), value);
         })
     | stop_when(
-        schedule_after(context.get_scheduler(), 500ms)
+        schedule_at(context.get_scheduler(), start + 500ms)
           | transform([] { std::printf("cancelling\n"); }))
     | sync_wait();
 }
