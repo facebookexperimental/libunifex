@@ -26,6 +26,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/exception.hpp>
 
 #include <atomic>
 #include <exception>
@@ -136,7 +137,7 @@ struct _stream<SourceStream, Values...>::type {
 
     template <typename Error>
     void set_error(Error&& error) && noexcept {
-      std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+      std::move(*this).set_error(make_exception_ptr((Error&&)error));
     }
 
     void set_error(std::exception_ptr ex) && noexcept {

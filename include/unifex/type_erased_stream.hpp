@@ -24,6 +24,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/exception.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -179,7 +180,7 @@ struct _stream<Values...>::type {
         template <typename Error>
         void set_error(Error&& error) && noexcept {
           // Type-erase any errors that come through.
-          std::move(*this).set_error(std::make_exception_ptr((Error&&)error));
+          std::move(*this).set_error(make_exception_ptr((Error&&)error));
         }
 
         friend const inplace_stop_token& tag_invoke(
@@ -213,7 +214,7 @@ struct _stream<Values...>::type {
         template <typename Error>
         void set_error(Error&& error) && noexcept {
           // Type-erase any errors that come through.
-          std::move(*this).set_error(std::make_exception_ptr((Error&)error));
+          std::move(*this).set_error(make_exception_ptr((Error&)error));
         }
 
         template <typename Func>
