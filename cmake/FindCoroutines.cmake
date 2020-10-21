@@ -188,7 +188,7 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
             int result;
             present get_return_object() { return present{*this}; }
             @CXX_COROUTINES_NAMESPACE@::suspend_never initial_suspend() { return {}; }
-            @CXX_COROUTINES_NAMESPACE@::suspend_always final_suspend() { return {}; }
+            @CXX_COROUTINES_NAMESPACE@::suspend_always final_suspend() noexcept { return {}; }
             void return_value(int i) { result = i; }
             void unhandled_exception() {}
           };
