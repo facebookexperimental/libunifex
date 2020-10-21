@@ -108,12 +108,10 @@ cmake_push_check_state()
 
 set(CMAKE_REQUIRED_QUIET ${Coroutines_FIND_QUIETLY})
 
-# All of our tests required C++17 or later
+# figure out correct compiler flags
 if(("x${CMAKE_CXX_COMPILER_ID}" MATCHES "x.*Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC") OR "x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
-    set(_CXX_COROUTINES_STD17 "/std:c++17")
     set(_CXX_COROUTINES_AWAIT "/await")
 else()
-    set(_CXX_COROUTINES_STD17 "-std=c++17")
     set(_CXX_COROUTINES_AWAIT "-fcoroutines-ts")
 endif()
 
@@ -217,21 +215,19 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
     ]] code @ONLY)
 
     # Try to compile a simple coroutines program without any compiler flags
-    set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD17}")
     check_cxx_source_compiles("${code}" CXX_COROUTINES_NO_AWAIT_NEEDED)
 
     set(can_link ${CXX_COROUTINES_NO_AWAIT_NEEDED})
 
     if(NOT CXX_COROUTINES_NO_AWAIT_NEEDED)
         # Add the -fcoroutines-ts (or /await) flag
-        set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_STD17} ${_CXX_COROUTINES_AWAIT}")
+        set(CMAKE_REQUIRED_FLAGS "${_CXX_COROUTINES_AWAIT}")
         check_cxx_source_compiles("${code}" CXX_COROUTINES_AWAIT_NEEDED)
         set(can_link ${CXX_COROUTINES_AWAIT_NEEDED})
     endif()
 
     if(can_link)
         add_library(std::coroutines INTERFACE IMPORTED)
-        target_compile_features(std::coroutines INTERFACE cxx_std_17)
         set(_found TRUE)
 
         if(CXX_COROUTINES_NO_AWAIT_NEEDED)
@@ -249,5 +245,5 @@ cmake_pop_check_state()
 set(Coroutines_FOUND ${_found} CACHE BOOL "TRUE if we can compile and link a program using std::coroutines" FORCE)
 
 if(Coroutines_FIND_REQUIRED AND NOT Coroutines_FOUND)
-    message(FATAL_ERROR "Cannot compile simple program using std::coroutines")
+    message(FATAL_ERROR "Cannot compile simple program using std::coroutines. Is C++17 or later activated?")
 endif()
