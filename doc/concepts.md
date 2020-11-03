@@ -508,7 +508,7 @@ the consumer of the sender to query what types it is going to invoke a
 receiver's `set_value()` and `set_error()` methods with.
 
 A **TypedManySender** concept similarly extends the **ManySender**
-concept, requiring the sender to describe the types it will invoke `set_net()`,
+concept, requiring the sender to describe the types it will invoke `set_next()`,
 via a `next_types` type-alias, in addition to the `value_types` and `error_types`
 type-aliases required by **TypedSender**.
 
