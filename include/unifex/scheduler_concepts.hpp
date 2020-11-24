@@ -161,8 +161,7 @@ UNIFEX_CONCEPT //
 
 namespace _get_scheduler {
   inline const struct _fn {
-    template (typename SchedulerProvider)
-        (requires tag_invocable<_fn, const SchedulerProvider&>)
+    template <typename SchedulerProvider>
     auto operator()(const SchedulerProvider& context) const noexcept
         -> tag_invoke_result_t<_fn, const SchedulerProvider&> {
       static_assert(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider&>);
