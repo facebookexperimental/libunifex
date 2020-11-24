@@ -123,22 +123,27 @@ class delegating_sender {
     }
   };
 
-  template <typename Receiver>
-  auto connect(Receiver&& receiver) {
-    // Attempt to reserve a slot otherwise delegate to the downstream scheduler
+  using SchedSender =
+      schedule_result_t<get_scheduler_result_t<timed_single_thread_context&>>;
 
-    using LC = LocalContextType<remove_cvref_t<decltype(unifex::connect(
-      unifex::schedule(context_->single_thread_context_.get_scheduler()),
-      (Receiver&&)receiver))>>;
-    using op = delegating_operation<
-        remove_cvref_t<decltype(unifex::connect(
-          unifex::schedule(unifex::get_scheduler(std::as_const(receiver))),
-          (Receiver&&)receiver))>,
-        LC>;
+  template <typename Receiver>
+  using operation =
+      delegating_operation<
+          connect_result_t<
+              schedule_result_t<get_scheduler_result_t<Receiver>>,
+              Receiver>,
+          LocalContextType<connect_result_t<SchedSender, Receiver>>>;
+
+  template <typename Receiver>
+  operation<Receiver> connect(Receiver&& receiver) {
+    // Attempt to reserve a slot otherwise delegate to the downstream scheduler
+    using LC = LocalContextType<connect_result_t<SchedSender, Receiver>>;
+    using op = operation<Receiver>;
+
     if(context_->reserve()) {
       auto local_op = [&receiver, context = context_]() mutable {
         return LC{unifex::connect(
-          unifex::schedule(context->single_thread_context_.get_scheduler()),
+          unifex::schedule(unifex::get_scheduler(context->single_thread_context_)),
           (Receiver&&)receiver)};};
       return op{std::move(local_op), context_};
     }
@@ -149,8 +154,9 @@ class delegating_sender {
           unifex::get_scheduler(std::as_const(receiver))),
           (Receiver&&)receiver);
     };
+
     return op{std::move(target_op), context_};
- }
+  }
 
   delegating_context* context_ = nullptr;
 };

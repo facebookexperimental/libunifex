@@ -164,13 +164,14 @@ public:
   }
 
   template(typename Sender, typename Receiver)
-    (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver>)
+    (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver> AND
+        sender_to<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
-      std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
-      is_nothrow_connectable_v<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>>)
-      -> connect_result_t<decltype((static_cast<Sender&&>(s).pred_)), receiver_t<remove_cvref_t<Receiver>>> {
+      std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
+      is_nothrow_connectable_v<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
+      -> connect_result_t<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>> {
     return unifex::connect(
       static_cast<Sender&&>(s).pred_,
       receiver_t<remove_cvref_t<Receiver>>{
