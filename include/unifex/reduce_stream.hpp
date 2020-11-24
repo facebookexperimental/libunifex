@@ -314,21 +314,21 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
   static constexpr bool sends_done = false;
 
   template <typename Receiver>
-  using operation = operation<StreamSender, State, ReducerFunc, Receiver>;
+  using operation_t = operation<StreamSender, State, ReducerFunc, Receiver>;
   template <typename Receiver>
-  using next_receiver = next_receiver<StreamSender, State, ReducerFunc, Receiver>;
+  using next_receiver_t = next_receiver<StreamSender, State, ReducerFunc, Receiver>;
   template <typename Receiver>
-  using error_cleanup_receiver = error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>;
+  using error_cleanup_receiver_t = error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>;
   template <typename Receiver>
-  using done_cleanup_receiver = done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>;
+  using done_cleanup_receiver_t = done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>;
 
   template (typename Self, typename Receiver)
-      (requires same_as<remove_cvref_t<Self>, type> AND
-          //sender_to<next_sender_t<StreamSender>, next_receiver<Receiver>> AND
-          sender_to<cleanup_sender_t<StreamSender>, error_cleanup_receiver<Receiver>> AND
-          sender_to<cleanup_sender_t<StreamSender>, done_cleanup_receiver<Receiver>>)
-  friend operation<Receiver> tag_invoke(tag_t<connect>, Self&& self, Receiver&& receiver) {
-    return operation<Receiver>{
+      (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver> AND
+          sender_to<next_sender_t<StreamSender>, next_receiver_t<Receiver>> AND
+          sender_to<cleanup_sender_t<StreamSender>, error_cleanup_receiver_t<Receiver>> AND
+          sender_to<cleanup_sender_t<StreamSender>, done_cleanup_receiver_t<Receiver>>)
+  friend operation_t<Receiver> tag_invoke(tag_t<connect>, Self&& self, Receiver&& receiver) {
+    return operation_t<Receiver>{
         static_cast<Self&&>(self).stream_,
         static_cast<Self&&>(self).initialState_,
         static_cast<Self&&>(self).reducer_,

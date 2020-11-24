@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
 #include <unifex/sender_concepts.hpp>
@@ -159,58 +160,23 @@ UNIFEX_CONCEPT //
 #endif
 
 namespace _get_scheduler {
-  template <typename SchedulerProvider>
-  using _member_get_scheduler_result_t =
-    decltype(UNIFEX_DECLVAL(SchedulerProvider&&).get_scheduler());
-
-  template <typename SchedulerProvider>
-  UNIFEX_CONCEPT_FRAGMENT( //
-    _has_member_get_schedule_, //
-      requires(SchedulerProvider&& context) (
-        static_cast<SchedulerProvider&&>(context).get_scheduler()
-      ));
-  template <typename SchedulerProvider>
-  UNIFEX_CONCEPT //
-    _with_member_get_schedule = //
-      UNIFEX_FRAGMENT(_get_scheduler::_has_member_get_schedule_, SchedulerProvider);
-
   inline const struct _fn {
-  private:
-    template <typename SchedulerProvider>
-    using _result_t =
-      typename conditional_t<
-        tag_invocable<_fn, SchedulerProvider>,
-        meta_tag_invoke_result<_fn>,
-        meta_quote1<_member_get_scheduler_result_t>>::template
-          apply<SchedulerProvider>;
-
-  public:
     template (typename SchedulerProvider)
-        (requires tag_invocable<_fn, const SchedulerProvider &>)
-    auto operator()(SchedulerProvider &&context) const noexcept
-        -> _result_t<SchedulerProvider> {
-      static_assert(is_nothrow_tag_invocable_v<_fn, SchedulerProvider>);
+        (requires tag_invocable<_fn, const SchedulerProvider&>)
+    auto operator()(const SchedulerProvider& context) const noexcept
+        -> tag_invoke_result_t<_fn, const SchedulerProvider&> {
+      static_assert(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider&>);
       static_assert(
-          scheduler<tag_invoke_result_t<_fn, SchedulerProvider>>);
-      return tag_invoke(*this, (SchedulerProvider&&) context);
-    }
-    template (typename SchedulerProvider)
-        (requires (!tag_invocable<_fn, SchedulerProvider>) AND
-            _with_member_get_schedule<SchedulerProvider>)
-    auto operator()(SchedulerProvider&& context) const noexcept
-        -> _result_t<SchedulerProvider> {
-      static_assert(
-          noexcept(static_cast<SchedulerProvider&&>(context).get_scheduler()));
-      static_assert(
-          scheduler<_member_get_scheduler_result_t<SchedulerProvider>>);
-      return static_cast<SchedulerProvider&&>(context).get_scheduler();
+          scheduler<tag_invoke_result_t<_fn, const SchedulerProvider&>>);
+      return tag_invoke(*this, context);
     }
   } get_scheduler{};
 } // namespace _get_scheduler
 using _get_scheduler::get_scheduler;
 
-template <typename Ctx>
-using get_scheduler_result_t = decltype(get_scheduler(UNIFEX_DECLVAL(Ctx&&)));
+template <typename SchedulerProvider>
+using get_scheduler_result_t =
+    decltype(get_scheduler(UNIFEX_DECLVAL(SchedulerProvider&&)));
 
 struct _schedule::sender {
   template <

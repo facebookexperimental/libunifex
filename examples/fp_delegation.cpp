@@ -124,7 +124,8 @@ class delegating_sender {
   };
 
   using SchedSender =
-      schedule_result_t<get_scheduler_result_t<timed_single_thread_context&>>;
+      schedule_result_t<
+          decltype(UNIFEX_DECLVAL(timed_single_thread_context&).get_scheduler())>;
 
   template <typename Receiver>
   using operation =
@@ -143,7 +144,7 @@ class delegating_sender {
     if(context_->reserve()) {
       auto local_op = [&receiver, context = context_]() mutable {
         return LC{unifex::connect(
-          unifex::schedule(unifex::get_scheduler(context->single_thread_context_)),
+          unifex::schedule(context->single_thread_context_.get_scheduler()),
           (Receiver&&)receiver)};};
       return op{std::move(local_op), context_};
     }

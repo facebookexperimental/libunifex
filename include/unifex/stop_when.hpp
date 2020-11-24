@@ -352,10 +352,11 @@ namespace unifex
   namespace _stop_when_cpo
   {
     struct _fn {
-      template <typename Source, typename Trigger>
+      template(typename Source, typename Trigger)
+          (requires tag_invocable<_fn, Source, Trigger>)
       auto operator()(Source&& source, Trigger&& trigger) const
           noexcept(is_nothrow_tag_invocable_v<_fn, Source, Trigger>)
-              -> tag_invoke_result_t<_fn, Source, Trigger> {
+          -> tag_invoke_result_t<_fn, Source, Trigger> {
         return unifex::tag_invoke(
             *this, (Source &&) source, (Trigger &&) trigger);
       }
