@@ -335,7 +335,7 @@ public:
   }
 
   template(typename... Values)(
-      requires !std::is_void_v<Values...>) void set_next(Values &&... values) &
+      requires (!std::is_void_v<Values...>)) void set_next(Values &&... values) &
       noexcept(is_nothrow_next_receiver_v<Receiver, Values...>) {
     op_->element_start();
     UNIFEX_TRY {
