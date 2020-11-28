@@ -377,6 +377,13 @@ template <
     typename Sender,
     template <typename...> class Variant,
     template <typename...> class Tuple>
+using sender_next_types_t =
+    typename sender_traits<Sender>::template next_types<Variant, Tuple>;
+
+template <
+    typename Sender,
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
 using sender_value_types_t =
     typename sender_traits<Sender>::template value_types<Variant, Tuple>;
 
