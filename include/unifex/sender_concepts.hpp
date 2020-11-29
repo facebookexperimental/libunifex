@@ -96,17 +96,6 @@ namespace detail {
     _has_bulk_sender_types = //
       UNIFEX_FRAGMENT(detail::_has_bulk_sender_types_impl, S);
 
-  template <typename S>
-  UNIFEX_CONCEPT_FRAGMENT(  //
-    _not_has_sender_traits, //
-      requires() (          //
-        typename (typename sender_traits<S>::_unspecialized)
-      ));
-  template <typename S>
-  UNIFEX_CONCEPT         //
-    _has_sender_traits = //
-      !UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S);
-
   struct _void_sender_traits {
     template <
         template <typename...> class Variant,
@@ -143,6 +132,23 @@ namespace detail {
   struct _no_sender_traits {
     using _unspecialized = void;
   };
+
+#ifndef _MSC_VER
+  template <typename S>
+  UNIFEX_CONCEPT_FRAGMENT(  //
+    _not_has_sender_traits, //
+      requires() (          //
+        typename (typename sender_traits<S>::_unspecialized)
+      ));
+  template <typename S>
+  UNIFEX_CONCEPT         //
+    _has_sender_traits = //
+      (!UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S));
+#else
+  template <typename S>
+  inline constexpr bool _has_sender_traits =
+      !std::is_base_of_v<_no_sender_traits, sender_traits<S>>; 
+#endif
 
   template <typename S>
   constexpr auto _select_sender_traits() noexcept {
