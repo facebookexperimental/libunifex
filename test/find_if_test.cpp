@@ -51,7 +51,8 @@ TEST(find_if, find_if_sequential) {
     EXPECT_EQ(**result, 3);
 }
 
-
+// This test causes the MSVC compiler to ICE. Not yet reported.
+#ifndef _MSC_VER
 TEST(find_if, find_if_parallel) {
     using namespace unifex;
 
@@ -97,6 +98,7 @@ TEST(find_if, find_if_parallel) {
     // cannot cancel earlier tasks, which makes find_if's find-fist rule safe.
     EXPECT_EQ(countOfTasksRun, 62);
 }
+#endif
 
 TEST(find_if, Pipeable) {
     using namespace unifex;
