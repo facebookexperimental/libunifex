@@ -278,22 +278,20 @@ struct _operation_state {
   using receiver_type = receiver_t<Predecessor, Receiver, Func, FuncPolicy>;
 
   template <typename... Ts>
-  struct find_if_apply {
-    using type = connect_result_t<
-        callable_result_t<
-            typename receiver_type::find_if_helper,
-            std::decay_t<
-                callable_result_t<decltype(unifex::get_scheduler), const Receiver&>>&&,
-            FuncPolicy,
-            Ts&&...>,
-        typename receiver_type::template unpack_receiver<Receiver>>;
-  };
+  using find_if_apply_t =
+      connect_result_t<
+          callable_result_t<
+              typename receiver_type::find_if_helper,
+              std::decay_t<get_scheduler_result_t<const Receiver&>>&&,
+              FuncPolicy,
+              Ts&&...>,
+          typename receiver_type::template unpack_receiver<Receiver>>;
 
   using operation_state_t =
       typename sender_value_types_t<
           Predecessor,
-          concat_type_lists_unique_t,
-          find_if_apply>::type;
+          single_overload,
+          find_if_apply_t>::type;
 
   template<typename Sender>
   _operation_state(Sender&& s, Receiver&& r) :
@@ -327,7 +325,6 @@ struct _operation_state {
   manual_lifetime<operation_state_t> innerOp_;
   bool started_ = false;
 };
-
 
 template <typename Predecessor, typename Receiver, typename Func, typename FuncPolicy>
 template <typename Iterator, typename... Values>
@@ -393,9 +390,9 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
-      std::is_nothrow_constructible_v<Func, decltype((static_cast<Sender&&>(s).func_))> &&
+      std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
       is_nothrow_connectable_v<
-        decltype((static_cast<Sender&&>(s).pred_)),
+        member_t<Sender, Predecessor>,
         receiver_type<remove_cvref_t<Receiver>>>)
       -> _operation_state<Predecessor, Receiver, Func, FuncPolicy> {
     return _operation_state<Predecessor, Receiver, Func, FuncPolicy>{

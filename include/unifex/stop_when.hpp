@@ -95,14 +95,10 @@ namespace unifex
 
       template(typename CPO)
           (requires is_receiver_query_cpo_v<CPO>)
-      friend auto tag_invoke(
-          CPO cpo,
-          const type& r) noexcept(std::
-                                       is_nothrow_invocable_v<
-                                           CPO,
-                                           const Receiver&>)
-          -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::invoke(std::move(cpo), r.get_receiver());
+      friend auto tag_invoke(CPO cpo, const type& r)
+          noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return std::move(cpo)(r.get_receiver());
       }
 
       inplace_stop_token get_stop_token() const noexcept {
@@ -151,14 +147,10 @@ namespace unifex
 
       template(typename CPO)
           (requires is_receiver_query_cpo_v<CPO>)
-      friend auto tag_invoke(
-          CPO cpo,
-          const type& r) noexcept(std::
-                                       is_nothrow_invocable_v<
-                                           CPO,
-                                           const Receiver&>)
-          -> std::invoke_result_t<CPO, const Receiver&> {
-        return std::invoke(std::move(cpo), r.get_receiver());
+      friend auto tag_invoke(CPO cpo, const type& r)
+          noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+        return std::move(cpo)(r.get_receiver());
       }
 
       inplace_stop_token get_stop_token() const noexcept {
@@ -182,14 +174,10 @@ namespace unifex
       explicit type(
           Source&& source,
           Trigger&& trigger,
-          Receiver2&&
-              receiver) noexcept(is_nothrow_connectable_v<Source, source_receiver>&&
-                                     is_nothrow_connectable_v<
-                                         Trigger,
-                                         trigger_receiver>&&
-                                         std::is_nothrow_constructible_v<
-                                             Receiver,
-                                             Receiver2>)
+          Receiver2&& receiver)
+          noexcept(is_nothrow_connectable_v<Source, source_receiver> &&
+                   is_nothrow_connectable_v<Trigger, trigger_receiver> &&
+                   std::is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_((Receiver2 &&) receiver)
         , sourceOp_(unifex::connect((Source &&) source, source_receiver{this}))
         , triggerOp_(
@@ -296,10 +284,8 @@ namespace unifex
       using decayed_type_list = type_list<type_list<std::decay_t<Values>...>>;
 
       template <
-          template <typename...>
-          class Outer,
-          template <typename...>
-          class Inner>
+          template <typename...> class Outer,
+          template <typename...> class Inner>
       struct compose_nested {
         template <typename... Lists>
         using apply = Outer<typename Lists::template apply<Inner>...>;
@@ -307,10 +293,8 @@ namespace unifex
 
     public:
       template <
-          template <typename...>
-          class Variant,
-          template <typename...>
-          class Tuple>
+          template <typename...> class Variant,
+          template <typename...> class Tuple>
       using value_types = typename sender_traits<Source>::
           template value_types<concat_type_lists_unique_t, decayed_type_list>::
               template apply<compose_nested<Variant, Tuple>::template apply>;
@@ -325,59 +309,38 @@ namespace unifex
 
       template <typename Source2, typename Trigger2>
       explicit type(Source2&& source, Trigger2&& trigger) noexcept(
-          std::is_nothrow_constructible_v<Source, Source2>&&
-              std::is_nothrow_constructible_v<Trigger, Trigger2>)
+          std::is_nothrow_constructible_v<Source, Source2> &&
+          std::is_nothrow_constructible_v<Trigger, Trigger2>)
         : source_((Source2 &&) source)
         , trigger_((Trigger2 &&) trigger) {}
 
-      template(typename Receiver)
+      template(typename Self, typename Receiver)
           (requires
+              same_as<remove_cvref_t<Self>, type> AND
               sender_to<
-                  Source,
+                  member_t<Self, Source>,
                   stop_when_source_receiver<
-                      Source,
-                      Trigger,
+                      member_t<Self, Source>,
+                      member_t<Self, Trigger>,
                       remove_cvref_t<Receiver>>> AND
               sender_to<
-                  Trigger,
+                  member_t<Self, Trigger>,
                   stop_when_trigger_receiver<
-                      Source,
-                      Trigger,
+                      member_t<Self, Source>,
+                      member_t<Self, Trigger>,
                       remove_cvref_t<Receiver>>>)
-      auto connect(Receiver&& r) && -> stop_when_operation<
-          Source,
-          Trigger,
-          remove_cvref_t<Receiver>> {
+      friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r)
+          -> stop_when_operation<
+                member_t<Self, Source>,
+                member_t<Self, Trigger>,
+                remove_cvref_t<Receiver>> {
         return stop_when_operation<
-            Source,
-            Trigger,
+            member_t<Self, Source>,
+            member_t<Self, Trigger>,
             remove_cvref_t<Receiver>>{
-            (Source &&) source_, (Trigger &&) trigger_, (Receiver &&) r};
-      }
-
-      template(typename Receiver)
-          (requires
-              sender_to<
-                  Source&,
-                  stop_when_source_receiver<
-                      const Source&,
-                      const Trigger&,
-                      remove_cvref_t<Receiver>>> AND
-              sender_to<
-                  Trigger&,
-                  stop_when_trigger_receiver<
-                      const Source&,
-                      const Trigger&,
-                      remove_cvref_t<Receiver>>>)
-      auto connect(Receiver&& r) const& -> stop_when_operation<
-          const Source&,
-          const Trigger&,
-          remove_cvref_t<Receiver>> {
-        return stop_when_operation<
-            const Source&,
-            const Trigger&,
-            remove_cvref_t<Receiver>>{
-            std::as_const(source_), std::as_const(trigger_), (Receiver &&) r};
+                ((Self &&) self).source_,
+                ((Self &&) self).trigger_,
+                (Receiver &&) r};
       }
 
     private:
@@ -389,10 +352,11 @@ namespace unifex
   namespace _stop_when_cpo
   {
     struct _fn {
-      template <typename Source, typename Trigger>
-      auto operator()(Source&& source, Trigger& trigger) const
+      template(typename Source, typename Trigger)
+          (requires tag_invocable<_fn, Source, Trigger>)
+      auto operator()(Source&& source, Trigger&& trigger) const
           noexcept(is_nothrow_tag_invocable_v<_fn, Source, Trigger>)
-              -> tag_invoke_result_t<_fn, Source, Trigger> {
+          -> tag_invoke_result_t<_fn, Source, Trigger> {
         return unifex::tag_invoke(
             *this, (Source &&) source, (Trigger &&) trigger);
       }
@@ -400,10 +364,8 @@ namespace unifex
       template(typename Source, typename Trigger)
           (requires (!tag_invocable<_fn, Source, Trigger>))
       auto operator()(Source&& source, Trigger&& trigger) const noexcept(
-          std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>&&
-              std::is_nothrow_constructible_v<
-                  remove_cvref_t<Trigger>,
-                  Trigger>)
+          std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Trigger>, Trigger>)
           -> _stop_when::stop_when_sender<
               remove_cvref_t<Source>,
               remove_cvref_t<Trigger>> {
@@ -414,8 +376,7 @@ namespace unifex
       }
       template <typename Trigger>
       constexpr auto operator()(Trigger&& trigger) const
-          noexcept(is_nothrow_callable_v<
-            tag_t<bind_back>, _fn, Trigger>)
+          noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Trigger>)
           -> bind_back_result_t<_fn, Trigger> {
         return bind_back(*this, (Trigger&&)trigger);
       }
