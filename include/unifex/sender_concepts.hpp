@@ -133,6 +133,7 @@ namespace detail {
     using _unspecialized = void;
   };
 
+// Workaround for unknown MSVC (19.28.29333) bug
 #ifndef _MSC_VER
   template <typename S>
   UNIFEX_CONCEPT_FRAGMENT(  //

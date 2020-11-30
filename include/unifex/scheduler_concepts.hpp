@@ -194,11 +194,11 @@ struct sender {
     (requires receiver<Receiver>)
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
       -> connect_result_t<
-            schedule_result_t<std::decay_t<
-                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&>,
+            schedule_result_t<
+                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>,
             Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
-    return connect(schedule(scheduler), (Receiver &&) r);
+    return connect(schedule(std::move(scheduler)), (Receiver &&) r);
   }
 };
 
