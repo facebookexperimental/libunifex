@@ -144,7 +144,7 @@ namespace _timed_single_thread_context {
     static constexpr bool sends_done = true;
 
     template <typename Receiver>
-    after_operation<Duration, Receiver> connect(Receiver&& receiver) const & {
+    after_operation<Duration, Receiver> connect(Receiver&& receiver) const {
       return after_operation<Duration, Receiver>{
           *context_, duration_, (Receiver &&) receiver};
     }
