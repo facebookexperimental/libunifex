@@ -16,11 +16,12 @@
 #pragma once
 
 #include <unifex/win32/low_latency_iocp_context.hpp>
+
 #include <unifex/scope_guard.hpp>
 
 #include <atomic>
-#include <system_error>
 #include <random>
+#include <system_error>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -46,6 +47,10 @@ low_latency_iocp_context::low_latency_iocp_context(std::size_t maxIoOperations)
 , iocp_(create_iocp())
 , ioPoolSize_(maxIoOperations)
 , ioPool_(std::make_unique<vectored_io_state[]>(maxIoOperations)) {
+    // Make sure the WinNT APIs are initialised and available.
+    // Only need to do this on construction as this will be guaranteed
+    // to run before anything else needs to call them.
+    ntapi::ensure_initialised();
 
     // Build the I/O free-list in reverse so front of free-list
     // is first element in array.
@@ -65,27 +70,29 @@ low_latency_iocp_context::~low_latency_iocp_context() {
 
     if (remaining > 0) {
         constexpr std::uint32_t completionBufferSize = 128;
-        OVERLAPPED_ENTRY completionBuffer[completionBufferSize];
+        ntapi::FILE_IO_COMPLETION_INFORMATION completionBuffer[completionBufferSize];
         std::memset(&completionBuffer, 0, sizeof(completionBuffer));
 
         do {
-            DWORD numEntriesRemoved = 0;
-            BOOL ok = ::GetQueuedCompletionStatusEx(
+            ntapi::ULONG numEntriesRemoved = 0;
+            ntapi::NTSTATUS ntstat = ntapi::NtRemoveIoCompletionEx(
                 iocp_.get(),
                 completionBuffer,
                 completionBufferSize,
                 &numEntriesRemoved,
-                INFINITE,
-                FALSE);
-            if (!ok) {
+                NULL,    // no timeout
+                FALSE);  // not alertable
+            if (!ntapi::ntstatus_success(ntstat)) {
                 std::terminate();
             }
 
             for (std::uint32_t i = 0; i < numEntriesRemoved; ++i) {
                 auto& entry = completionBuffer[i];
-                if (entry.lpOverlapped != nullptr) {
-                    win32::overlapped* o = reinterpret_cast<win32::overlapped*>(entry.lpOverlapped);
-                    auto* state = to_io_state(o);
+                if (entry.ApcContext != nullptr) {
+                    ntapi::IO_STATUS_BLOCK* iosb =
+                        reinterpret_cast<ntapi::IO_STATUS_BLOCK*>(entry.ApcContext);
+                    auto* state = to_io_state(iosb);
+                    assert(state->pendingCompletionNotifications > 0);
                     --state->pendingCompletionNotifications;
                     if (state->pendingCompletionNotifications == 0) {
                         --remaining;
@@ -97,8 +104,14 @@ low_latency_iocp_context::~low_latency_iocp_context() {
 }
 
 void low_latency_iocp_context::run_impl(bool& stopFlag) {
+    ntapi::LARGE_INTEGER zero;
+    zero.QuadPart = 0;
 
-    [[maybe_unused]] auto prevId = activeThreadId_.exchange(std::this_thread::get_id(), std::memory_order_relaxed);
+    const ntapi::PLARGE_INTEGER zeroTimeout = &zero;
+    const ntapi::PLARGE_INTEGER infiniteTimeout = nullptr;
+
+    [[maybe_unused]] auto prevId = activeThreadId_.exchange(
+        std::this_thread::get_id(), std::memory_order_relaxed);
     assert(prevId == std::thread::id());
 
     scope_guard resetActiveThreadIdOnExit = [&]() noexcept {
@@ -106,7 +119,8 @@ void low_latency_iocp_context::run_impl(bool& stopFlag) {
     };
 
     constexpr std::uint32_t completionBufferSize = 128;
-    OVERLAPPED_ENTRY completionBuffer[completionBufferSize];
+    ntapi::FILE_IO_COMPLETION_INFORMATION
+        completionBuffer[completionBufferSize];
     std::memset(&completionBuffer, 0, sizeof(completionBuffer));
 
     bool shouldCheckRemoteQueue = true;
@@ -162,46 +176,53 @@ void low_latency_iocp_context::run_impl(bool& stopFlag) {
 
         // Now check if there are any IOCP events.
     get_iocp_entries:
-        ULONG completionEntriesRetrieved = 0;
-        BOOL ok = ::GetQueuedCompletionStatusEx(
+        const ntapi::BOOLEAN alertable = FALSE;
+        ntapi::ULONG completionEntriesRetrieved = 0;
+        ntapi::NTSTATUS ntstat = ntapi::NtRemoveIoCompletionEx(
             iocp_.get(),
             completionBuffer,
             completionBufferSize,
             &completionEntriesRetrieved,
-            shouldCheckRemoteQueue ? 0 : INFINITE,
-            FALSE);
-        if (!ok) {
-            DWORD errorCode = ::GetLastError();
-            if (errorCode == WAIT_TIMEOUT) {
-                assert(shouldCheckRemoteQueue);
+            shouldCheckRemoteQueue ? zeroTimeout : infiniteTimeout,
+            alertable);
+        if (ntstat == STATUS_TIMEOUT) {
+            assert(shouldCheckRemoteQueue);
 
-                // Previous call was non-blocking.
-                // About to transition to blocking-call, but first need to
-                // mark remote queue inactive so that remote threads know
-                // they need to post an event to wake this thread up.
-                if (remoteQueue_.try_mark_inactive()) {
-                    shouldCheckRemoteQueue = false;
-                    goto get_iocp_entries;
-                } else {
-                    goto process_remote_queue;
-                }
+            // Previous call was non-blocking.
+            // About to transition to blocking-call, but first need to
+            // mark remote queue inactive so that remote threads know
+            // they need to post an event to wake this thread up.
+            if (remoteQueue_.try_mark_inactive()) {
+                shouldCheckRemoteQueue = false;
+                goto get_iocp_entries;
+            } else {
+                goto process_remote_queue;
             }
-
-            throw std::system_error{static_cast<int>(errorCode), std::system_category(), "GetQueuedCompletionStatusEx()"};
+        } else if (!ntapi::ntstatus_success(ntstat)) {
+            DWORD errorCode = ntapi::RtlNtStatusToDosError(ntstat);
+            throw std::system_error{
+                static_cast<int>(errorCode),
+                std::system_category(),
+                "NtRemoveIoCompletionEx()"};
         }
 
         // Process completion-entries we received from the OS.
         for (ULONG i = 0; i < completionEntriesRetrieved; ++i) {
-            auto& entry = completionBuffer[i];
-            if (entry.lpOverlapped != nullptr) {
-                win32::overlapped* o = reinterpret_cast<win32::overlapped*>(entry.lpOverlapped);
+            ntapi::FILE_IO_COMPLETION_INFORMATION& entry = completionBuffer[i];
+            if (entry.ApcContext != nullptr) {
+                ntapi::IO_STATUS_BLOCK* iosb =
+                    reinterpret_cast<ntapi::IO_STATUS_BLOCK*>(entry.ApcContext);
                 // TODO: Do we need to store the error-code/bytes-transferred here?
+                // Is entry.IoStatusBlock just a copy of what is already in 'iosb'.
+                // Should we be copying entry.IoStatusBlock to '*iosb'?
 
-                auto* state = to_io_state(o);
+                assert(iosb->Status != STATUS_PENDING);
+
+                vectored_io_state* state = to_io_state(iosb);
 
                 assert(state->pendingCompletionNotifications > 0);
                 if (--state->pendingCompletionNotifications == 0) {
-                    // This was the last pending notification for this state. 
+                    // This was the last pending notification for this state.
                     if (state->parent != nullptr) {
                         // An operation is still attached to this state.
                         // Notify it if we hadn't already done so.
@@ -230,6 +251,9 @@ bool low_latency_iocp_context::try_dequeue_remote_work() noexcept {
         return false;
     }
 
+    // Note that this ends up enqueueing entries in reverse.
+    // TODO: Modify this so it enqueues items in a way that
+    // preserves order.
     do {
         schedule_local(items.pop_front());
     } while (!items.empty());
@@ -243,11 +267,9 @@ bool low_latency_iocp_context::poll_is_complete(vectored_io_state& state) noexce
     // that it has the appropriate memory semantics.
 
     for (std::size_t i = 0; i < state.operationCount; ++i) {
-        overlapped* o = &state.operations[i];
-
         // Mark volatile to indicate to the compiler that it might change in the
         // background. The kernel might update it as the I/O completes.
-        volatile io_status_block* iosb = reinterpret_cast<io_status_block*>(o);
+        volatile ntapi::IO_STATUS_BLOCK* iosb = &state.operations[i];
         if (iosb->Status == STATUS_PENDING) {
             return false;
         }
@@ -261,13 +283,15 @@ bool low_latency_iocp_context::poll_is_complete(vectored_io_state& state) noexce
     return true;
 }
 
-low_latency_iocp_context::vectored_io_state* low_latency_iocp_context::to_io_state(overlapped* o) noexcept {
+low_latency_iocp_context::vectored_io_state*
+low_latency_iocp_context::to_io_state(ntapi::IO_STATUS_BLOCK* iosb) noexcept {
     vectored_io_state* const pool = ioPool_.get();
-    
-    std::ptrdiff_t offset = reinterpret_cast<char*>(o) - reinterpret_cast<char*>(pool);
+
+    std::ptrdiff_t offset = reinterpret_cast<char*>(iosb) - reinterpret_cast<char*>(pool);
     assert(offset >= 0);
 
     std::ptrdiff_t index = offset / sizeof(vectored_io_state);
+    assert(index < ioPoolSize_);
 
     return &pool[index];
 }
@@ -294,8 +318,14 @@ void low_latency_iocp_context::schedule_remote(operation_base* op) noexcept {
         // BUGBUG: This could potentially fail and if it does then
         // the I/O thread might never respond to remote enqueues.
         // For now we just treat this as a (hopefully rare) unrecoverable error.
-        BOOL ok = ::PostQueuedCompletionStatus(iocp_.get(), 0, 0, nullptr);
-        if (!ok) {
+        ntapi::NTSTATUS ntstat = ntapi::NtSetIoCompletion(
+            iocp_.get(),
+            0,        // KeyContext
+            nullptr,  // ApcContext
+            0,        // NTSTATUS (0 = success)
+            0);       // IoStatusInformation
+        if (!ntapi::ntstatus_success(ntstat)) {
+            // Failed to post an event to the I/O completion port.
             std::terminate();
         }
     }
@@ -405,8 +435,12 @@ void low_latency_iocp_context::io_operation::cancel_io() noexcept {
     // operations being cancelled and later ones completing due to
     // a race.
     for (std::uint16_t i = ioState->operationCount; i != 0; --i) {
-        win32::overlapped* o = &ioState->operations[i-1];
-        (void)::CancelIoEx(fileHandle, reinterpret_cast<OVERLAPPED*>(o));
+        ntapi::IO_STATUS_BLOCK* iosb = &ioState->operations[i - 1];
+        ntapi::IO_STATUS_BLOCK ioStatus;
+        [[maybe_unused]] ntapi::NTSTATUS ntstat =
+            ntapi::NtCancelIoFileEx(fileHandle, iosb, &ioStatus);
+        // TODO: Check ntstat for failure.
+        // Can't really do much here even if there is failure, anyway.
     }
 }
 
@@ -419,11 +453,10 @@ bool low_latency_iocp_context::io_operation::is_complete() noexcept {
     }
 
     for (std::size_t i = 0; i < ioState->operationCount; ++i) {
-        overlapped* o = &ioState->operations[i];
+        volatile ntapi::IO_STATUS_BLOCK* iosb = &ioState->operations[i];
 
         // Mark volatile to indicate to the compiler that it might change in the
         // background. The kernel might update it as the I/O completes.
-        volatile io_status_block* iosb = reinterpret_cast<io_status_block*>(o);
         if (iosb->Status == STATUS_PENDING) {
             return false;
         }
@@ -448,21 +481,20 @@ bool low_latency_iocp_context::io_operation::start_read(
 
     std::size_t offset = 0;
     while (offset < buffer.size()) {
-        auto& op = ioState->operations[ioState->operationCount];
+        ntapi::IO_STATUS_BLOCK& iosb =
+            ioState->operations[ioState->operationCount];
         ++ioState->operationCount;
 
-        op.Internal = 0;
-        op.InternalHigh = 0;
-        op.Offset = 0;
-        op.OffsetHigh = 0;
-        op.hEvent = nullptr;
+        iosb.Status = STATUS_PENDING;
+        iosb.Information = 0;
 
         // Truncate over-large chunks to a number of bytes that will still
         // preserve alignment requirements of the underlying device if this
         // happens to be an unbuffered storage device.
         // In this case we truncate to the largest multiple of 64k less than
         // 2^32 to allow for up to 64k alignment.
-        // TODO: Ideally we'd just use the underlying alignment of the file-handle.
+        // TODO: Ideally we'd just use the underlying alignment of the
+        // file-handle.
         static constexpr std::size_t truncatedChunkSize = 0xFFFF0000u;
         static constexpr std::size_t maxChunkSize = 0xFFFFFFFFu;
 
@@ -471,30 +503,32 @@ bool low_latency_iocp_context::io_operation::start_read(
             chunkSize = truncatedChunkSize;
         }
 
-        BOOL ok = ::ReadFile(
+        ntapi::NTSTATUS status = ntapi::NtReadFile(
             fileHandle,
-            buffer.data() + offset,
-            static_cast<DWORD>(chunkSize),
-            nullptr,
-            reinterpret_cast<OVERLAPPED*>(&op));
-        if (!ok) {
-            DWORD errorCode = ::GetLastError();
-            if (errorCode == ERROR_IO_PENDING) {
-                ++ioState->pendingCompletionNotifications;
-            } else {
-                // Immediate Failure.
-                // Don't launch any more operations.
-                // TODO: Should we cancel the other operations?
-                return false;
-            }
-        } else {
-            // Succceeded synchronously
+            NULL,                                  // Event
+            NULL,                                  // ApcRoutine
+            &iosb,                                 // ApcContext
+            &iosb,                                 // IoStatusBlock
+            buffer.data() + offset,                // Buffer
+            static_cast<ntapi::ULONG>(chunkSize),  // Length
+            nullptr,                               // ByteOffset
+            nullptr);                              // Key
+        if (status == STATUS_PENDING) {
+            ++ioState->pendingCompletionNotifications;
+        } else if (ntapi::ntstatus_success(status)) {
+            // Succeeded synchronously.
             if (!skipNotificationOnSuccess) {
                 ++ioState->pendingCompletionNotifications;
             }
+        } else {
+            // Immediate failure.
+            // Don't launch any more operations.
+            // TODO: Should we cancel any prior launched operations?
+            return false;
         }
 
         if (ioState->operationCount == max_vectored_io_size) {
+            // We've launched as many operations as we can.
             return false;
         }
 
@@ -514,21 +548,20 @@ bool low_latency_iocp_context::io_operation::start_write(
 
     std::size_t offset = 0;
     while (offset < buffer.size()) {
-        auto& op = ioState->operations[ioState->operationCount];
+        ntapi::IO_STATUS_BLOCK& iosb =
+            ioState->operations[ioState->operationCount];
         ++ioState->operationCount;
 
-        op.Internal = 0;
-        op.InternalHigh = 0;
-        op.Offset = 0;
-        op.OffsetHigh = 0;
-        op.hEvent = nullptr;
+        iosb.Status = STATUS_PENDING;
+        iosb.Information = 0;
 
         // Truncate over-large chunks to a number of bytes that will still
         // preserve alignment requirements of the underlying device if this
         // happens to be an unbuffered storage device.
         // In this case we truncate to the largest multiple of 64k less than
         // 2^32 to allow for up to 64k alignment.
-        // TODO: Ideally we'd just use the underlying alignment of the file-handle.
+        // TODO: Ideally we'd just use the underlying alignment of the
+        // file-handle.
         static constexpr std::size_t truncatedChunkSize = 0xFFFF0000u;
         static constexpr std::size_t maxChunkSize = 0xFFFFFFFFu;
 
@@ -537,27 +570,28 @@ bool low_latency_iocp_context::io_operation::start_write(
             chunkSize = truncatedChunkSize;
         }
 
-        BOOL ok = ::WriteFile(
+        ntapi::NTSTATUS status = ntapi::NtWriteFile(
             fileHandle,
-            buffer.data() + offset,
-            static_cast<DWORD>(chunkSize),
-            nullptr,
-            reinterpret_cast<OVERLAPPED*>(&op));
-        if (!ok) {
-            DWORD errorCode = ::GetLastError();
-            if (errorCode == ERROR_IO_PENDING) {
-                ++ioState->pendingCompletionNotifications;
-            } else {
-                // Immediate Failure.
-                // Don't launch any more operations.
-                // TODO: Should we cancel the other operations?
-                return false;
-            }
-        } else {
-            // Succceeded synchronously
+            NULL,                                            // Event
+            NULL,                                            // ApcRoutine
+            &iosb,                                           // ApcContext
+            &iosb,                                           // IoStatusBlock
+            const_cast<std::byte*>(buffer.data()) + offset,  // Buffer
+            static_cast<ntapi::ULONG>(chunkSize),            // Length
+            nullptr,                                         // ByteOffset
+            nullptr);                                        // Key
+        if (status == STATUS_PENDING) {
+            ++ioState->pendingCompletionNotifications;
+        } else if (ntapi::ntstatus_success(status)) {
+            // Succeeded synchronously.
             if (!skipNotificationOnSuccess) {
                 ++ioState->pendingCompletionNotifications;
             }
+        } else {
+            // Immediate failure.
+            // Don't launch any more operations.
+            // TODO: Should we cancel any prior launched operations?
+            return false;
         }
 
         if (ioState->operationCount == max_vectored_io_size) {
@@ -581,20 +615,16 @@ std::size_t low_latency_iocp_context::io_operation::get_result(std::error_code& 
     for (std::size_t i = 0; i < ioState->operationCount; ++i) {
         DWORD bytesTransferred = 0;
 
-        // This (hoepfully) shouldn't involve any kernel calls since it should
-        // already be complete and this can be determined by looking at the OVERLAPPED
-        // structure.
-        BOOL ok = ::GetOverlappedResultEx(
-            fileHandle,
-            reinterpret_cast<OVERLAPPED*>(&ioState->operations[i]),
-            &bytesTransferred,
-            0 /* timeout */,
-            FALSE /* bAlertable */);
-        totalBytesTransferred += bytesTransferred;
-        if (!ok) {
-            // Stop at the first error we encountered.
-            DWORD errorCode = ::GetLastError();
-            ec = std::error_code{static_cast<int>(errorCode), std::system_category()};
+        const ntapi::IO_STATUS_BLOCK& iosb = ioState->operations[i];
+
+        assert(iosb.Status != STATUS_PENDING);
+
+        totalBytesTransferred += iosb.Information;
+
+        if (!ntapi::ntstatus_success(iosb.Status)) {
+            ntapi::ULONG errorCode = ntapi::RtlNtStatusToDosError(iosb.Status);
+            ec = std::error_code(
+                static_cast<int>(errorCode), std::system_category());
             break;
         }
     }
