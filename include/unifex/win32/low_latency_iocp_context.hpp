@@ -29,6 +29,7 @@
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 
 #include <unifex/win32/detail/types.hpp>
+#include <unifex/win32/detail/ntapi.hpp>
 #include <unifex/win32/detail/safe_handle.hpp>
 
 #include <cstdint>
@@ -110,9 +111,9 @@ public:
 private:
     struct vectored_io_state;
 
-    // This value chosen so that vectored_io_state is 1024 bytes on 64-bit architectures
-    // and 512 bytes on 32-bit architectures.
-    static constexpr std::size_t max_vectored_io_size = 31;
+    // This value chosen so that vectored_io_state is 512 bytes on 64-bit architectures
+    // and 256 bytes on 32-bit architectures.
+    static constexpr std::size_t max_vectored_io_size = 30;
 
     struct operation_base {
         explicit operation_base(low_latency_iocp_context& ctx) noexcept
@@ -184,14 +185,14 @@ private:
         std::uint8_t operationCount = 0;
 
         // Number of operations not yet received completion-notification
-        // via the IOCP. This structure is not free to be reused until
-        // this number reaches zero.
+        // via the IOCP. The vectored_io_state structure is not free to
+        // be reused until this number reaches zero.
         std::uint8_t pendingCompletionNotifications = 0;
 
         // Whether or not the 'parent' has already been notified of completion.
         bool completed = false;
 
-        std::array<overlapped, max_vectored_io_size> operations;
+        ntapi::IO_STATUS_BLOCK operations[max_vectored_io_size];
     };
 
     struct stop_operation : operation_base {
@@ -249,8 +250,8 @@ private:
 
     bool poll_is_complete(vectored_io_state& state) noexcept;
 
-    // Obtain the I/O state that contains a given overlapped structure.
-    vectored_io_state* to_io_state(overlapped* o) noexcept;
+    // Obtain the I/O state that contains a given io_status_block structure.
+    vectored_io_state* to_io_state(ntapi::IO_STATUS_BLOCK* io) noexcept;
 
     bool is_running_on_io_thread() const noexcept {
         return activeThreadId_.load(std::memory_order_relaxed) == std::this_thread::get_id();
@@ -265,7 +266,7 @@ private:
     // I/O state is currently available.
     //
     // If 'true' is returned then the caller can populate op->ioState
-    // and initiate the I/O using its OVERLAPPED structures.
+    // and initiate the I/O using its IO_STATUS_BLOCK structures.
     [[nodiscard]] bool try_allocate_io_state_for(io_operation* op) noexcept;
 
     // Schedule the specified 'op' to be called back (calling op->callback)
@@ -748,7 +749,6 @@ public:
 private:
     low_latency_iocp_context& context_;
     safe_handle fileHandle_;
-    bool skipNotificationOnCompletion_;
 };
 
 class low_latency_iocp_context::writable_byte_stream {

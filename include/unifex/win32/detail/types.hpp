@@ -26,7 +26,6 @@ using dword_t = unsigned long;      // DWORD
 using socket_t = std::uintptr_t;    // SOCKET
 using ulong_t = unsigned long;      // ULONG
 using long_t = long;                // LONG
-using ntstatus_t = long_t;          // NTSTATUS
 
 #if defined(_MSC_VER)
 # pragma warning(push)
@@ -45,19 +44,6 @@ using ntstatus_t = long_t;          // NTSTATUS
             void* Pointer;
         };
         handle_t hEvent;
-    };
-
-    // This is the internal structure of the 'overlapped' type's
-    // Internal/InternalHigh fields.
-    struct io_status_block {
-        // overlapped::Internal
-        union {
-            ntstatus_t Status;
-            void* Pointer;
-        };
-
-        // overlapped::InternalHigh
-        ulong_ptr_t Information;
     };
 
 #if defined(_MSC_VER)
