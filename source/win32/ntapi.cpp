@@ -21,8 +21,8 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-namespace unifex::win32::ntapi {
-
+namespace unifex::win32::ntapi
+{
   NtCreateFile_t NtCreateFile = nullptr;
   NtCancelIoFileEx_t NtCancelIoFileEx = nullptr;
   NtReadFile_t NtReadFile = nullptr;
@@ -58,9 +58,7 @@ namespace unifex::win32::ntapi {
 
   void ensure_initialised() noexcept {
     static struct initialiser {
-      initialiser() noexcept {
-        do_initialisation();
-      }
+      initialiser() noexcept { do_initialisation(); }
     } dummy;
   }
-} // namespace unifex::win32::ntapi
+}  // namespace unifex::win32::ntapi
