@@ -18,3 +18,4 @@ if(CXX_MEMORY_RESOURCE_HAVE_PMR)
 endif()
 
 target_link_libraries(any_sender_of_test PUBLIC gmock)
+target_link_libraries(unstoppable_baton_test PUBLIC gmock)

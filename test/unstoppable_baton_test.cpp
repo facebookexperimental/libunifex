@@ -28,8 +28,8 @@
 namespace {
 
 struct mock_receiver_impl {
-  MOCK_METHOD0(set_value, void());
-  MOCK_QUALIFIED_METHOD1(set_error, noexcept, void(std::exception_ptr));
+  MOCK_METHOD(void, set_value, (), ());
+  MOCK_METHOD(void, set_error, (std::exception_ptr), (noexcept));
 };
 
 // mock_receiver_impl cannot be used directly as a receiver because the MOCK
@@ -93,13 +93,13 @@ TEST_F(unstoppable_baton_test, sender_completes_after_post_when_connected_to_unr
 
   {
     EXPECT_CALL(receiverImpl, set_value()).Times(0);
-    EXPECT_CALL(receiverImpl, set_error()).Times(0);
+    EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
 
     start(op);
   }
 
   EXPECT_CALL(receiverImpl, set_value()).Times(1);
-  EXPECT_CALL(receiverImpl, set_error()).Times(0);
+  EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
 
   baton.post();
 }
@@ -110,7 +110,7 @@ TEST_F(unstoppable_baton_test, sender_completes_inline_when_connected_to_ready_b
   auto op = connect(baton.wait(), std::move(receiver));
 
   EXPECT_CALL(receiverImpl, set_value()).Times(1);
-  EXPECT_CALL(receiverImpl, set_error()).Times(0);
+  EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
 
   start(op);
 }
