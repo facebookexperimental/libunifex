@@ -21,6 +21,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/exception.hpp>
 
 #include <unifex/win32/filetime_clock.hpp>
 
@@ -194,7 +195,8 @@ protected:
         if (work_ == nullptr) {
             DWORD errorCode = ::GetLastError();
             ::DestroyThreadpoolEnvironment(&environ_);
-            throw std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolWork()"};
+            throw_(
+                std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolWork()"});
         }
 
         if (isStopPossible) {
@@ -202,7 +204,7 @@ protected:
             if (state_ == nullptr) {
                 ::CloseThreadpoolWork(work_);
                 ::DestroyThreadpoolEnvironment(&environ_);
-                throw std::bad_alloc{};
+                throw_(std::bad_alloc{});
             }
         } else {
             state_ = nullptr;
@@ -482,7 +484,8 @@ protected:
         if (timer_ == nullptr) {
             DWORD errorCode = ::GetLastError();
             ::DestroyThreadpoolEnvironment(&environ_);
-            throw std::system_error(static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolTimer()");
+            throw_(
+                std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolTimer()"});
         }
 
         if (isStopPossible) {
@@ -490,7 +493,7 @@ protected:
             if (state_ == nullptr) {
                 ::CloseThreadpoolTimer(timer_);
                 ::DestroyThreadpoolEnvironment(&environ_);
-                throw std::bad_alloc{};
+                throw_(std::bad_alloc{});
             }
         }
     }

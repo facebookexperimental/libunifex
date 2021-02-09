@@ -18,6 +18,7 @@
 #include <unifex/win32/low_latency_iocp_context.hpp>
 
 #include <unifex/scope_guard.hpp>
+#include <unifex/exception.hpp>
 
 #include <atomic>
 #include <random>
@@ -34,10 +35,10 @@ namespace unifex::win32
       HANDLE h = ::CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, 1);
       if (h == NULL) {
         DWORD errorCode = ::GetLastError();
-        throw std::system_error{
+        throw_(std::system_error{
             static_cast<int>(errorCode),
             std::system_category(),
-            "CreateIoCompletionPort()"};
+            "CreateIoCompletionPort()"});
       }
 
       return safe_handle{h};
@@ -205,10 +206,10 @@ get_iocp_entries:
         }
       } else if (!ntapi::ntstatus_success(ntstat)) {
         DWORD errorCode = ntapi::RtlNtStatusToDosError(ntstat);
-        throw std::system_error{
+        throw_(std::system_error{
             static_cast<int>(errorCode),
             std::system_category(),
-            "NtRemoveIoCompletionEx()"};
+            "NtRemoveIoCompletionEx()"});
       }
 
       // Process completion-entries we received from the OS.
@@ -419,10 +420,10 @@ get_iocp_entries:
         ::CreateIoCompletionPort(fileHandle, iocp_.get(), 0, 0);
     if (result == nullptr) {
       DWORD errorCode = ::GetLastError();
-      throw std::system_error{
+      throw_(std::system_error{
           static_cast<int>(errorCode),
           std::system_category(),
-          "CreateIoCompletionPort"};
+          "CreateIoCompletionPort"});
     }
 
     const BOOL ok = ::SetFileCompletionNotificationModes(
@@ -430,10 +431,10 @@ get_iocp_entries:
         FILE_SKIP_COMPLETION_PORT_ON_SUCCESS | FILE_SKIP_SET_EVENT_ON_HANDLE);
     if (!ok) {
       DWORD errorCode = ::GetLastError();
-      throw std::system_error{
+      throw_(std::system_error{
           static_cast<int>(errorCode),
           std::system_category(),
-          "SetFileCompletionNotificationModes"};
+          "SetFileCompletionNotificationModes"});
     }
   }
 
@@ -689,10 +690,10 @@ get_iocp_entries:
           continue;
         }
 
-        throw std::system_error{
+        throw_(std::system_error{
             static_cast<int>(errorCode),
             std::system_category(),
-            "open_pipe: CreateNamedPipe"};
+            "open_pipe: CreateNamedPipe"});
       }
 
       serverHandle = safe_handle{pipe};
@@ -710,10 +711,10 @@ get_iocp_entries:
         nullptr)};
     if (clientHandle == INVALID_HANDLE_VALUE) {
       DWORD errorCode = ::GetLastError();
-      throw std::system_error{
+      throw_(std::system_error{
           static_cast<int>(errorCode),
           std::system_category(),
-          "open_pipe: CreateFile"};
+          "open_pipe: CreateFile"});
     }
 
     context.associate_file_handle(serverHandle.get());

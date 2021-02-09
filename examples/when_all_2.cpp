@@ -29,6 +29,7 @@ using namespace std::chrono_literals;
 struct my_error {};
 
 int main() {
+#if !UNIFEX_NO_EXCEPTIONS
   timed_single_thread_context context;
 
   auto scheduler = context.get_scheduler();
@@ -81,6 +82,7 @@ int main() {
   assert(ranPart1Callback);
   assert(!ranPart2Callback);
   assert(!ranFinalCallback);
+#endif
 
   return 0;
 }

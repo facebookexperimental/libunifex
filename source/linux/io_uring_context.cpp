@@ -21,6 +21,7 @@
 #include <unifex/linux/io_uring_context.hpp>
 
 #include <unifex/scope_guard.hpp>
+#include <unifex/exception.hpp>
 
 #include "io_uring_syscall.hpp"
 
@@ -256,7 +257,7 @@ io_uring_context::io_uring_context() {
 
   int ret = io_uring_setup(256, &params);
   if (ret < 0) {
-    throw std::system_error{-ret, std::system_category()};
+    throw_(std::system_error{-ret, std::system_category()});
   }
   iouringFd_ = safe_file_descriptor{ret};
 
@@ -271,7 +272,7 @@ io_uring_context::io_uring_context() {
         IORING_OFF_CQ_RING);
     if (cqPtr == MAP_FAILED) {
       int errorCode = errno;
-      throw std::system_error{errorCode, std::system_category()};
+      throw_(std::system_error{errorCode, std::system_category()});
     }
 
     cqMmap_ = mmap_region{cqPtr, cqSize};
@@ -305,7 +306,7 @@ io_uring_context::io_uring_context() {
         IORING_OFF_SQ_RING);
     if (sqPtr == MAP_FAILED) {
       int errorCode = errno;
-      throw std::system_error{errorCode, std::system_category()};
+      throw_(std::system_error{errorCode, std::system_category()});
     }
 
     sqMmap_ = mmap_region{sqPtr, sqSize};
@@ -342,7 +343,7 @@ io_uring_context::io_uring_context() {
         IORING_OFF_SQES);
     if (sqePtr == MAP_FAILED) {
       int errorCode = errno;
-      throw std::system_error{errorCode, std::system_category()};
+      throw_(std::system_error{errorCode, std::system_category()});
     }
 
     sqeMmap_ = mmap_region{sqePtr, sqeSize};
@@ -353,7 +354,7 @@ io_uring_context::io_uring_context() {
     int fd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
     if (fd < 0) {
       int errorCode = errno;
-      throw std::system_error{errorCode, std::system_category()};
+      throw_(std::system_error{errorCode, std::system_category()});
     }
 
     remoteQueueEventFd_ = safe_file_descriptor{fd};
@@ -436,7 +437,7 @@ void io_uring_context::run_impl(const bool& shouldStop) {
           nullptr);
       if (result < 0) {
         int errorCode = errno;
-        throw std::system_error{errorCode, std::system_category()};
+        throw_(std::system_error{errorCode, std::system_category()});
       }
 
       LOG("io_uring_enter() returned");
@@ -657,7 +658,7 @@ void io_uring_context::signal_remote_queue() {
     // Try to dequeue the item before returning?
     LOG("error writing to remote queue eventfd");
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category()};
+    throw_(std::system_error{errorCode, std::system_category()});
   }
 
   assert(bytesWritten == sizeof(value));
@@ -796,7 +797,7 @@ io_uring_context::async_read_only_file tag_invoke(
   int result = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
   if (result < 0) {
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category()};
+    throw_(std::system_error{errorCode, std::system_category()});
   }
 
   return io_uring_context::async_read_only_file{*scheduler.context_, result};
@@ -809,7 +810,7 @@ io_uring_context::async_write_only_file tag_invoke(
   int result = ::open(path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
   if (result < 0) {
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category()};
+    throw_(std::system_error{errorCode, std::system_category()});
   }
 
   return io_uring_context::async_write_only_file{*scheduler.context_, result};
@@ -822,7 +823,7 @@ io_uring_context::async_read_write_file tag_invoke(
   int result = ::open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
   if (result < 0) {
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category()};
+    throw_(std::system_error{errorCode, std::system_category()});
   }
 
   return io_uring_context::async_read_write_file{*scheduler.context_, result};

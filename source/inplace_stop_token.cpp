@@ -27,7 +27,11 @@ inplace_stop_source::~inplace_stop_source() {
   assert((state_.load(std::memory_order_relaxed) & locked_flag) == 0);
 #ifndef NDEBUG
   for (auto* cb = callbacks_; cb != nullptr; cb = cb->next_) {
+#if __cpp_rtti
     printf("dangling inplace_stop_callback: %s\n", typeid(*cb).name());
+#else
+    printf("dangling inplace_stop_callback\n");
+#endif
     fflush(stdout);
   }
 #endif

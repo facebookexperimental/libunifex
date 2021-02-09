@@ -25,6 +25,7 @@
 template <typename T>
 using is_type_index = std::is_same<std::type_index, T>;
 
+#if __cpp_rtti
 inline constexpr struct get_typeid_cpo {
   using type_erased_signature_t =
       std::type_index(const unifex::this_&) noexcept;
@@ -44,6 +45,7 @@ inline constexpr struct get_typeid_cpo {
     return tag_invoke(get_typeid_cpo{}, x);
   }
 } get_typeid;
+#endif
 
 struct destructor {
   explicit destructor(bool& x) : ref_(x) {}
@@ -87,6 +89,7 @@ class counting_memory_resource : public memory_resource {
 #endif
 
 int main() {
+#if __cpp_rtti
   using A = unifex::any_unique_t<get_typeid>;
   using B = unifex::any_unique_t<>;
   {
@@ -108,6 +111,7 @@ int main() {
     }
     assert(hasDestructorRun);
   }
+#endif
 #if !UNIFEX_NO_MEMORY_RESOURCE
   {
     counting_memory_resource res{new_delete_resource()};
