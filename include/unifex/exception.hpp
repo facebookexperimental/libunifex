@@ -61,8 +61,8 @@ struct _fn {
 #else // !UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR
 struct _fn {
   template <typename Obj>
-  UNIFEX_ALWAYS_INLINE
-  [[nodiscard]] std::exception_ptr operator()(Obj&& obj) const noexcept {
+  [[nodiscard]] UNIFEX_ALWAYS_INLINE
+  std::exception_ptr operator()(Obj&& obj) const noexcept {
       return std::make_exception_ptr((Obj&&) obj);
   }
 };
