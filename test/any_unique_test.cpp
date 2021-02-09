@@ -26,7 +26,6 @@
 #include <gtest/gtest.h>
 
 namespace {
-#if __cpp_rtti
 inline constexpr struct get_typeid_cpo {
   using type_erased_signature_t =
       unifex::type_index(const unifex::this_&) noexcept;
@@ -44,7 +43,6 @@ inline constexpr struct get_typeid_cpo {
     return tag_invoke(get_typeid_cpo{}, x);
   }
 } get_typeid{};
-#endif
 
 inline constexpr struct to_string_cpo {
   using type_erased_signature_t =
@@ -108,7 +106,6 @@ class counting_memory_resource : public memory_resource {
 #endif
 } // anonymous namespace
 
-#if __cpp_rtti
 using A = unifex::any_unique_t<get_typeid>;
 using B = unifex::any_unique_t<>;
 
@@ -152,7 +149,6 @@ TEST(AnyRefTest, WithoutTypeid) {
   auto id = get_typeid(b);
   EXPECT_EQ(id, unifex::type_id<Bref>());
 }
-#endif
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
 TEST(AnyUniqueTest, WithCustomAllocator) {
