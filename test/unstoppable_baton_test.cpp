@@ -16,6 +16,7 @@
 
 #include <unifex/unstoppable_baton.hpp>
 
+#include <unifex/inline_scheduler.hpp>
 #include <unifex/sender_concepts.hpp>
 
 #include <gtest/gtest.h>
@@ -24,6 +25,14 @@
 #include <exception>
 #include <memory>
 #include <stdexcept>
+
+using testing::Invoke;
+using testing::_;
+using unifex::unstoppable_baton;
+using unifex::connect;
+using unifex::get_scheduler;
+using unifex::inline_scheduler;
+using unifex::start;
 
 namespace {
 
@@ -35,8 +44,8 @@ struct mock_receiver_impl {
 // mock_receiver_impl cannot be used directly as a receiver because the MOCK
 // macros make the type non-movable, non-copyable. Receivers must be movable.
 struct mock_receiver {
-  mock_receiver()
-      : impl(std::make_unique<mock_receiver_impl>()) {}
+  mock_receiver(inline_scheduler& scheduler)
+      : impl(std::make_unique<mock_receiver_impl>()), scheduler(&scheduler) {}
 
   void set_value() {
     impl->set_value();
@@ -51,20 +60,22 @@ struct mock_receiver {
   }
 
   std::unique_ptr<mock_receiver_impl> impl;
+  inline_scheduler* scheduler;
+
+  friend inline_scheduler tag_invoke(
+      unifex::tag_t<get_scheduler>,
+      const mock_receiver& self) noexcept {
+    return *self.scheduler;
+  }
 };
 
 } // namespace
 
 struct unstoppable_baton_test : testing::Test {
-  mock_receiver receiver;
+  inline_scheduler scheduler;
+  mock_receiver receiver{scheduler};
   mock_receiver_impl& receiverImpl = *receiver.impl;
 };
-
-using testing::Invoke;
-using testing::_;
-using unifex::unstoppable_baton;
-using unifex::connect;
-using unifex::start;
 
 TEST_F(unstoppable_baton_test, default_constructor_leaves_baton_unready) {
   unstoppable_baton baton;

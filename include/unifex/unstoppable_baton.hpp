@@ -17,6 +17,8 @@
 
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
 
 #include <atomic>
 #include <type_traits>
@@ -55,7 +57,7 @@ struct _sender {
   template (typename Receiver)
     (requires receiver_of<Receiver>)
   operation<std::decay_t<Receiver>> connect(Receiver&& r) const noexcept(
-      std::is_nothrow_constructible_v<std::decay_t<Receiver>, Receiver&&>) {
+      std::is_nothrow_constructible_v<std::decay_t<Receiver>, Receiver>) {
     return operation<std::decay_t<Receiver>>{*baton_, (Receiver&&)r};
   }
 
@@ -148,12 +150,9 @@ struct _operation<Receiver>::type : private _op_base {
   static void set_value_impl(_op_base* base) noexcept {
     auto self = static_cast<type*>(base);
 
-    UNIFEX_TRY {
-      unifex::set_value(std::move(self->receiver_));
-    }
-    UNIFEX_CATCH(...) {
-      unifex::set_error(std::move(self->receiver_), std::current_exception());
-    }
+    auto op = connect(schedule(), std::move(self->receiver_));
+
+    unifex::start(op);
   }
 };
 
