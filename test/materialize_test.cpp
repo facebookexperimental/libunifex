@@ -58,6 +58,7 @@ TEST(Materialize, Pipeable) {
     EXPECT_EQ(result.value(), 42);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(Materialize, Failure) {
     EXPECT_THROW({
       try {
@@ -72,3 +73,4 @@ TEST(Materialize, Failure) {
       }
     }, std::runtime_error);
 }
+#endif // !UNIFEX_NO_EXCEPTIONS

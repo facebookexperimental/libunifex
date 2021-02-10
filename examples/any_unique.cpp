@@ -16,6 +16,7 @@
 #include <unifex/any_unique.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/memory_resource.hpp>
+#include <unifex/type_index.hpp>
 
 #include <cassert>
 #include <string>
@@ -27,11 +28,11 @@ using is_type_index = std::is_same<std::type_index, T>;
 
 inline constexpr struct get_typeid_cpo {
   using type_erased_signature_t =
-      std::type_index(const unifex::this_&) noexcept;
+      unifex::type_index(const unifex::this_&) noexcept;
 
   template <typename T>
-  friend std::type_index tag_invoke(get_typeid_cpo, const T& x) {
-    return typeid(x);
+  friend unifex::type_index tag_invoke(get_typeid_cpo, const T& x) {
+    return unifex::type_id<T>();
   }
 
   template <typename T>
@@ -39,7 +40,7 @@ inline constexpr struct get_typeid_cpo {
       unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
     static_assert(
       std::is_same_v<
-          std::type_index,
+          unifex::type_index,
           unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);
   }
@@ -92,22 +93,23 @@ int main() {
   {
     const A a = std::string{"hello"};
     auto id = get_typeid(a);
-    assert(id == typeid(std::string));
+    assert(id == unifex::type_id<std::string>());
   }
   {
     const B b = std::string{"hello"};
     auto id = get_typeid(b);
-    assert(id == typeid(B));
+    assert(id == unifex::type_id<B>());
   }
   {
     bool hasDestructorRun = false;
     {
       const A a{std::in_place_type<destructor>, hasDestructorRun};
-      assert(get_typeid(a) == typeid(destructor));
+      assert(get_typeid(a) == unifex::type_id<destructor>());
       assert(!hasDestructorRun);
     }
     assert(hasDestructorRun);
   }
+
 #if !UNIFEX_NO_MEMORY_RESOURCE
   {
     counting_memory_resource res{new_delete_resource()};

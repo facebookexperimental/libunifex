@@ -369,9 +369,9 @@ namespace unifex::win32
                         Receiver>) {
         unifex::set_value(std::move(self.receiver_));
       } else {
-        try {
+        UNIFEX_TRY {
           unifex::set_value(std::move(self.receiver_));
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           unifex::set_error(
               std::move(self.receiver_), std::current_exception());
         }
@@ -514,9 +514,9 @@ namespace unifex::win32
                           std::size_t>) {
           unifex::set_value(std::move(self.receiver_), totalBytesTransferred);
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(self.receiver_), totalBytesTransferred);
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(
                 std::move(self.receiver_), std::current_exception());
           }
@@ -687,9 +687,9 @@ namespace unifex::win32
                           std::size_t>) {
           unifex::set_value(std::move(self.receiver_), totalBytesTransferred);
         } else {
-          try {
+          UNIFEX_TRY {
             unifex::set_value(std::move(self.receiver_), totalBytesTransferred);
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::set_error(
                 std::move(self.receiver_), std::current_exception());
           }

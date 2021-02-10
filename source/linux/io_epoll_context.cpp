@@ -20,6 +20,7 @@
 #include <unifex/linux/io_epoll_context.hpp>
 
 #include <unifex/scope_guard.hpp>
+#include <unifex/exception.hpp>
 
 #include <cassert>
 #include <cstring>
@@ -74,7 +75,7 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("epoll_create failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category(), "epoll_create(1)"};
+      throw_(std::system_error{errorCode, std::system_category(), "epoll_create(1)"});
     }
     epollFd_ = safe_file_descriptor{fd};
   }
@@ -84,7 +85,7 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("timerfd_create CLOCK_MONOTONIC failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category(), "timerfd_create(CLOCK_MONOTONIC, 0)"};
+      throw_(std::system_error{errorCode, std::system_category(), "timerfd_create(CLOCK_MONOTONIC, 0)"});
     }
 
     timerFd_ = safe_file_descriptor{fd};
@@ -98,7 +99,7 @@ io_epoll_context::io_epoll_context() {
     if (result < 0) {
       int errorCode = errno;
       LOGX("epoll_ctl EPOLL_CTL_ADD timerFd_ failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD timerFd_"};
+      throw_(std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD timerFd_"});
     }
   }
 
@@ -107,7 +108,7 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("eventfd failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category(), "create remoteQueueEventFd_"};
+      throw_(std::system_error{errorCode, std::system_category(), "create remoteQueueEventFd_"});
     }
 
     remoteQueueEventFd_ = safe_file_descriptor{fd};
@@ -121,7 +122,7 @@ io_epoll_context::io_epoll_context() {
     if (result < 0) {
       int errorCode = errno;
       LOGX("epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_ failed with %i\n", errorCode);
-      throw std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_"};
+      throw_(std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_"});
     }
   }
 
@@ -259,7 +260,7 @@ void io_epoll_context::acquire_completion_queue_items() {
     localQueue_.empty() ? -1 : 0);
   if (result < 0) {
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category(), "epoll_wait"};
+    throw_(std::system_error{errorCode, std::system_category(), "epoll_wait"});
   }
   std::uint32_t count = result;
 
@@ -462,7 +463,7 @@ std::pair<io_epoll_context::async_reader, io_epoll_context::async_writer> tag_in
   int result = ::pipe2(fd, O_NONBLOCK | O_CLOEXEC);
   if (result < 0) {
     int errorCode = errno;
-    throw std::system_error{errorCode, std::system_category(), "pipe2"};
+    throw_(std::system_error{errorCode, std::system_category(), "pipe2"});
   }
 
   return {io_epoll_context::async_reader{*scheduler.context_, fd[0]}, io_epoll_context::async_writer{*scheduler.context_, fd[1]}};
