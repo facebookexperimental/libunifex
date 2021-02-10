@@ -16,7 +16,6 @@
 #include <unifex/inplace_stop_token.hpp>
 
 #include <unifex/spin_wait.hpp>
-#include <unifex/type_index.hpp>
 
 #ifndef NDEBUG
 #include <stdio.h>
@@ -28,9 +27,7 @@ inplace_stop_source::~inplace_stop_source() {
   assert((state_.load(std::memory_order_relaxed) & locked_flag) == 0);
 #ifndef NDEBUG
   for (auto* cb = callbacks_; cb != nullptr; cb = cb->next_) {
-    printf(
-      "dangling inplace_stop_callback: %s\n",
-      unifex::type_id<decltype(*cb)>().name());
+    printf("dangling inplace_stop_callback: %s\n", cb->type_name());
     fflush(stdout);
   }
 #endif
