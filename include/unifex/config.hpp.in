@@ -15,6 +15,13 @@
  */
 #pragma once
 
+// Get the library feature test macros:
+#if __has_include(<version>)
+#  include <version>
+#elif __has_include(<ciso646>)
+#  include <ciso646>
+#endif
+
 // the configured options and settings for unifex
 #define UNIFEX_VERSION_MAJOR @libunifex_VERSION_MAJOR@
 #define UNIFEX_VERSION_MINOR @libunifex_VERSION_MINOR@
@@ -35,9 +42,26 @@
 #define UNIFEX_NO_UNIQUE_ADDRESS
 #endif
 
-#cmakedefine01 UNIFEX_NO_COROUTINES
-#cmakedefine UNIFEX_COROUTINES_HEADER <@UNIFEX_COROUTINES_HEADER@>
-#cmakedefine UNIFEX_COROUTINES_NAMESPACE @UNIFEX_COROUTINES_NAMESPACE@
+#if !defined(UNIFEX_NO_COROUTINES)
+#  if defined(__cpp_impl_coroutine) || defined(__cpp_coroutines)
+#    define UNIFEX_NO_COROUTINES 0
+#  else
+#    define UNIFEX_NO_COROUTINES 1
+#  endif
+#endif
+
+#if !UNIFEX_NO_COROUTINES
+#  if __has_include(<coroutine>) && defined(__cpp_lib_coroutine)
+#    define UNIFEX_COROUTINES_HEADER <coroutine>
+#    define UNIFEX_COROUTINES_NAMESPACE std
+#  elif __has_include(<experimental/coroutine>)
+#    define UNIFEX_COROUTINES_HEADER <experimental/coroutine>
+#    define UNIFEX_COROUTINES_NAMESPACE std::experimental
+#  else
+#    undef UNIFEX_NO_COROUTINES
+#    define UNIFEX_NO_COROUTINES 1
+#  endif
+#endif
 
 #if !defined(UNIFEX_NO_EPOLL)
 #  if defined(__ANDROID_API__) && __ANDROID_API__ < 19
