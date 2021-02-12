@@ -46,25 +46,13 @@ class _receiver_wrapper<CPO, Value, Receiver>::type {
     return *r.val_;
   }
 
-  template <typename OtherCPO, typename... Args>
-  friend auto tag_invoke(OtherCPO cpo, const type &r, Args &&... args)
-      noexcept(is_nothrow_callable_v<OtherCPO, const Receiver &, Args...>)
-      -> callable_result_t<OtherCPO, const Receiver &, Args...> {
-    return ((OtherCPO &&) cpo)(std::as_const(r.receiver_), (Args &&) args...);
-  }
-
-  template <typename OtherCPO, typename... Args>
-  friend auto tag_invoke(OtherCPO cpo, type &r, Args &&... args)
-      noexcept(is_nothrow_callable_v<OtherCPO, Receiver &, Args...>)
-      -> callable_result_t<OtherCPO, Receiver &, Args...> {
-    return ((OtherCPO &&) cpo)(r.receiver_, (Args &&) args...);
-  }
-
-  template <typename OtherCPO, typename... Args>
-  friend auto tag_invoke(OtherCPO cpo, type &&r, Args &&... args)
-      noexcept(is_nothrow_callable_v<OtherCPO, Receiver, Args...>)
-      -> callable_result_t<OtherCPO, Receiver, Args...> {
-    return ((OtherCPO &&) cpo)((Receiver &&) r.receiver_, (Args &&) args...);
+  template(typename OtherCPO, typename Self, typename... Args)
+    (requires same_as<remove_cvref_t<Self>, type> AND
+              callable<OtherCPO, member_t<Self, Receiver>, Args...>)
+  friend auto tag_invoke(OtherCPO cpo, Self&& self, Args&&... args)
+      noexcept(is_nothrow_callable_v<OtherCPO, member_t<Self, Receiver>, Args...>)
+      -> callable_result_t<OtherCPO, member_t<Self, Receiver>, Args...> {
+    return static_cast<OtherCPO&&>(cpo)(static_cast<Self&&>(self).receiver_, static_cast<Args&&>(args)...);
   }
 
   Receiver receiver_;

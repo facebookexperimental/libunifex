@@ -20,6 +20,7 @@
 #include <unifex/spin_wait.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/type_index.hpp>
 
 #include <atomic>
 #include <cassert>
@@ -42,11 +43,22 @@ class inplace_stop_callback_base {
     this->execute_(this);
   }
 
+#ifndef NDEBUG
+  char const* type_name() const noexcept {
+    return type_name_;
+  }
+#endif
+
  protected:
   using execute_fn = void(inplace_stop_callback_base* cb) noexcept;
 
+#ifndef NDEBUG
+  explicit inplace_stop_callback_base(inplace_stop_source* source, execute_fn* execute, char const* type_name) noexcept
+      : source_(source), execute_(execute), type_name_(type_name) {}
+#else
   explicit inplace_stop_callback_base(inplace_stop_source* source, execute_fn* execute) noexcept
       : source_(source), execute_(execute) {}
+#endif
 
   void register_callback() noexcept;
 
@@ -58,6 +70,9 @@ class inplace_stop_callback_base {
   inplace_stop_callback_base** prevPtr_ = nullptr;
   bool* removedDuringCallback_ = nullptr;
   std::atomic<bool> callbackCompleted_{false};
+#ifndef NDEBUG
+  char const* type_name_ = nullptr;
+#endif
 };
 
 class inplace_stop_source {
@@ -163,7 +178,11 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
     (requires convertible_to<T, F>)
   explicit inplace_stop_callback(inplace_stop_token token, T&& func) noexcept(
       std::is_nothrow_constructible_v<F, T>)
+#ifndef NDEBUG
+      : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl, unifex::type_id<F>().name())
+#else
       : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl)
+#endif
       , func_((T&&) func) {
     this->register_callback();
   }

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #pragma once
 
 #include <unifex/sender_concepts.hpp>
@@ -130,6 +131,9 @@ namespace _schedule {
 } // namespace _schedule
 using _schedule::schedule;
 
+template <typename S>
+using schedule_result_t = decltype(schedule(UNIFEX_DECLVAL(S&&)));
+
 // Define the scheduler concept without the macros for better diagnostics
 #if UNIFEX_CXX_CONCEPTS
 template <typename S>
@@ -157,19 +161,25 @@ UNIFEX_CONCEPT //
 
 namespace _get_scheduler {
   inline const struct _fn {
-    template <typename SchedulerProvider>
-    auto operator()(const SchedulerProvider &context) const noexcept
-        -> tag_invoke_result_t<_fn, const SchedulerProvider &> {
-      static_assert(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider &>);
+    template (typename SchedulerProvider)
+        (requires tag_invocable<_fn, const SchedulerProvider&>)
+    auto operator()(const SchedulerProvider& context) const noexcept
+        -> tag_invoke_result_t<_fn, const SchedulerProvider&> {
+      static_assert(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider&>);
       static_assert(
-          scheduler<tag_invoke_result_t<_fn, const SchedulerProvider &>>);
+          scheduler<tag_invoke_result_t<_fn, const SchedulerProvider&>>);
       return tag_invoke(*this, context);
     }
   } get_scheduler{};
 } // namespace _get_scheduler
 using _get_scheduler::get_scheduler;
 
-struct _schedule::sender {
+template <typename SchedulerProvider>
+using get_scheduler_result_t =
+    decltype(get_scheduler(UNIFEX_DECLVAL(SchedulerProvider&&)));
+
+namespace _schedule {
+struct sender {
   template <
     template <typename...> class Variant,
     template <typename...> class Tuple>
@@ -180,22 +190,22 @@ struct _schedule::sender {
 
   static constexpr bool sends_done = true;
 
-  template(
-    typename Receiver,
-    typename Scheduler =
-      std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
-    typename ScheduleSender = callable_result_t<decltype(schedule), Scheduler&>)
+  template(typename Receiver)
     (requires receiver<Receiver>)
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
-      -> connect_result_t<ScheduleSender, Receiver> {
+      -> connect_result_t<
+            schedule_result_t<
+                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>,
+            Receiver> {
     auto scheduler = get_scheduler(std::as_const(r));
-    return connect(schedule(scheduler), (Receiver &&) r);
+    return connect(schedule(std::move(scheduler)), (Receiver &&) r);
   }
 };
 
-inline constexpr _schedule::sender _schedule::_fn::operator()() const noexcept {
+inline constexpr sender _fn::operator()() const noexcept {
   return {};
 }
+} // namespace _schedule
 
 namespace _schedule_after {
   template <typename Duration>
@@ -240,6 +250,10 @@ namespace _schedule_after {
     }
   } schedule_after{};
 
+  template <typename TimeScheduler, typename Duration>
+  using schedule_after_result_t =
+      decltype(schedule_after(UNIFEX_DECLVAL(TimeScheduler&&), UNIFEX_DECLVAL(Duration&&)));
+
   template <typename Duration>
   class _sender<Duration>::type {
   public:
@@ -258,15 +272,14 @@ namespace _schedule_after {
   private:
     friend _fn;
 
-    template(
-      typename Receiver,
-      typename Scheduler =
-        std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
-      typename ScheduleAfterSender =
-        callable_result_t<_fn, Scheduler&, const Duration&>)
+    template(typename Receiver)
       (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
-        -> connect_result_t<ScheduleAfterSender, Receiver> {
+        -> connect_result_t<
+            schedule_after_result_t<std::decay_t<
+                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&,
+                const Duration&>,
+            Receiver> {
       auto scheduler = get_scheduler(std::as_const(r));
       return connect(schedule_after(scheduler, std::as_const(s.duration_)), (Receiver&&) r);
     }
@@ -319,6 +332,12 @@ namespace _schedule_at {
     }
   } schedule_at {};
 
+  template <typename TimeScheduler, typename TimePoint>
+  using schedule_at_result_t =
+      decltype(schedule_at(
+          UNIFEX_DECLVAL(TimeScheduler&&),
+          UNIFEX_DECLVAL(TimePoint&&)));
+
   template <typename TimePoint>
   class _sender<TimePoint>::type {
   public:
@@ -337,15 +356,14 @@ namespace _schedule_at {
   private:
     friend _fn;
 
-    template(
-      typename Receiver,
-      typename Scheduler =
-        std::decay_t<callable_result_t<decltype(get_scheduler), const Receiver&>>,
-      typename ScheduleAtSender =
-        callable_result_t<_fn, Scheduler&, const TimePoint&>)
+    template(typename Receiver)
       (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
-        -> connect_result_t<ScheduleAtSender, Receiver> {
+        -> connect_result_t<
+            schedule_at_result_t<std::decay_t<
+                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&,
+                const TimePoint&>,
+            Receiver> {
       auto scheduler = get_scheduler(std::as_const(r));
       return connect(schedule_at(scheduler, std::as_const(s.time_point_)), (Receiver&&) r);
     }

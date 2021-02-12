@@ -52,7 +52,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
   target_sources(unifex
     PRIVATE
       win32/filetime_clock.cpp
-      win32/windows_thread_pool.cpp)
+      win32/safe_handle.cpp
+      win32/windows_thread_pool.cpp
+      win32/low_latency_iocp_context.cpp
+      win32/ntapi.cpp)
 
 endif()
 

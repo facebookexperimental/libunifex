@@ -153,7 +153,7 @@ struct _stream<Values...>::type {
         inplace_stop_token stopToken_;
 
         void set_value(Values&&... values) && noexcept {
-          try {
+          UNIFEX_TRY {
             // Take a copy of the values before destroying the next operation
             // state in case the values are references to objects stored in
             // the operation object.
@@ -161,7 +161,7 @@ struct _stream<Values...>::type {
               unifex::deactivate_union_member(stream_.next_);
               receiver_.set_value((Values &&) values...);
             }((Values &&) values...);
-          } catch (...) {
+          } UNIFEX_CATCH (...) {
             unifex::deactivate_union_member(stream_.next_);
             receiver_.set_error(std::current_exception());
           }
@@ -241,27 +241,27 @@ struct _stream<Values...>::type {
       void start_next(
           next_receiver_base& receiver,
           inplace_stop_token stopToken) noexcept override {
-        try {
+        UNIFEX_TRY {
           unifex::activate_union_member_from(next_, [&] {
               return connect(
                   next(stream_),
                   next_receiver_wrapper{receiver, *this, std::move(stopToken)});
             });
           start(next_.get());
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           receiver.set_error(std::current_exception());
         }
       }
 
       void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
-        try {
+        UNIFEX_TRY {
           unifex::activate_union_member_from(cleanup_, [&] {
               return connect(
                   cleanup(stream_),
                   cleanup_receiver_wrapper{receiver, *this});
             });
           start(cleanup_.get());
-        } catch (...) {
+        } UNIFEX_CATCH (...) {
           receiver.set_error(std::current_exception());
         }
       }

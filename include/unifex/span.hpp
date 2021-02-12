@@ -93,6 +93,10 @@ struct span {
     return Extent;
   }
 
+  constexpr bool empty() const noexcept {
+    return Extent == 0;
+  }
+
   T* begin() const noexcept {
     return data();
   }
@@ -171,6 +175,10 @@ struct span<T, dynamic_extent> {
 
   T* data() const noexcept {
     return data_;
+  }
+
+  bool empty() const noexcept {
+    return size_ == 0;
   }
 
   std::size_t size() const noexcept {
@@ -294,7 +302,7 @@ span<std::byte, Extent * sizeof(T)> as_writable_bytes(
     const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   static_assert(Extent <= maxSize);
-  return span<const std::byte, Extent * sizeof(T)>{
+  return span<std::byte, Extent * sizeof(T)>{
       reinterpret_cast<std::byte*>(s.data())};
 }
 

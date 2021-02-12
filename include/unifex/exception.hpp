@@ -34,6 +34,21 @@
 #endif
 
 namespace unifex {
+namespace _throw {
+struct _fn {
+  template <typename Exception>
+  [[noreturn]] UNIFEX_ALWAYS_INLINE
+  void operator()([[maybe_unused]] Exception&& ex) const {
+  #if __cpp_exceptions
+    throw (Exception&&) ex;
+  #else
+    std::terminate();
+  #endif
+  }
+};
+} // namespace _throw
+inline constexpr _throw::_fn throw_ {};
+
 namespace _except_ptr {
 
 #if !UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR
@@ -45,7 +60,7 @@ struct _ref {
   _ref(Obj&& obj) noexcept
     : p_((void*) std::addressof(obj))
     , throw_([](void* p) {
-        throw (Obj&&) *(std::add_pointer_t<Obj>) p;
+        unifex::throw_((Obj&&) *(std::add_pointer_t<Obj>) p);
       })
   {}
   _ref(_ref&&) = delete;
@@ -61,8 +76,8 @@ struct _fn {
 #else // !UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR
 struct _fn {
   template <typename Obj>
-  UNIFEX_ALWAYS_INLINE
-  [[nodiscard]] std::exception_ptr operator()(Obj&& obj) const noexcept {
+  [[nodiscard]] UNIFEX_ALWAYS_INLINE
+  std::exception_ptr operator()(Obj&& obj) const noexcept {
       return std::make_exception_ptr((Obj&&) obj);
   }
 };
