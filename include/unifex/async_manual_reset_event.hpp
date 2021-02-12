@@ -154,7 +154,7 @@ struct _operation<Receiver>::type : private _op_base {
     auto self = static_cast<type*>(base);
 
     auto op = connect(
-        with_query_vale(schedule(), get_stop_token, unstoppable_token{}),
+        with_query_value(schedule(), get_stop_token, unstoppable_token{}),
         std::move(self->receiver_));
 
     unifex::start(op);
