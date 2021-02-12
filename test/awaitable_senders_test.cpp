@@ -66,7 +66,7 @@ TEST(awaitable_senders, task_cancellation) {
       [&]() -> task<int> {
         co_await schedule_after(sched, 500ms);
         ADD_FAILURE();
-        std::terminate();
+        co_return -1;
       }(),
       schedule_after(sched, 5ms)));
 }
