@@ -92,12 +92,13 @@ public:
       return awaiter{(Func &&) func};
     }
 
-    template(typename Value)
-      (requires callable<decltype(unifex::await_transform), promise_type&, Value>)
-    auto await_transform(Value&& value)
-        noexcept(is_nothrow_callable_v<decltype(unifex::await_transform), promise_type&, Value>)
-        -> callable_result_t<decltype(unifex::await_transform), promise_type&, Value> {
-      return unifex::await_transform(*this, (Value&&)value);
+    template <typename Value>
+    auto await_transform(Value&& value) -> decltype(auto) {
+      if constexpr (callable<decltype(unifex::await_transform), promise_type&, Value>) {
+        return unifex::await_transform(*this, (Value&&)value);
+      } else {
+        return Value((Value &&) value);
+      }
     }
 
     template <typename Func>
@@ -192,10 +193,7 @@ namespace _await_cpo {
                   if constexpr (valueCount == 0) {
                     unifex::set_value(std::move(receiver));
                   } else if constexpr (valueCount == 1) {
-                    using value_type =
-                        typename sender_value_types_t<Awaitable, single_type, single_type>
-                            ::type::type;
-                    unifex::set_value(std::move(receiver), static_cast<value_type&&>(result));
+                    unifex::set_value(std::move(receiver), static_cast<result_type&&>(result));
                   } else {
                     std::apply(set_value_applicator<Receiver>{receiver}, (result_type&&)result);
                   }
