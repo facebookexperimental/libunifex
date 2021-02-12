@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <unifex/unstoppable_baton.hpp>
+#include <unifex/async_manual_reset_event.hpp>
 
 namespace unifex::_ub {
 
-void unstoppable_baton::post() noexcept {
+void async_manual_reset_event::post() noexcept {
   void* const signalledState = this;
 
   // replace the stack of waiting operations with a sentinel indicating we've
@@ -38,7 +38,7 @@ void unstoppable_baton::post() noexcept {
   }
 }
 
-void unstoppable_baton::start_or_wait(_op_base& op, unstoppable_baton& baton) noexcept {
+void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_event& baton) noexcept {
   // Try to push op onto the stack of waiting ops.
   void* const signalledState = &baton;
 

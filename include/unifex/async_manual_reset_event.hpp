@@ -39,7 +39,7 @@ struct _operation {
 template <typename Receiver>
 using operation = typename _operation<Receiver>::type;
 
-struct unstoppable_baton;
+struct async_manual_reset_event;
 
 struct _sender {
   template <template <class...> class Variant,
@@ -51,7 +51,7 @@ struct _sender {
 
   static constexpr bool sends_done = false;
 
-  explicit _sender(unstoppable_baton& baton) noexcept
+  explicit _sender(async_manual_reset_event& baton) noexcept
     : baton_(&baton) {}
 
   template (typename Receiver)
@@ -62,14 +62,14 @@ struct _sender {
   }
 
  private:
-  unstoppable_baton* baton_;
+  async_manual_reset_event* baton_;
 };
 
-struct unstoppable_baton {
-  unstoppable_baton() noexcept
-    : unstoppable_baton(false) {}
+struct async_manual_reset_event {
+  async_manual_reset_event() noexcept
+    : async_manual_reset_event(false) {}
 
-  explicit unstoppable_baton(bool startSignalled) noexcept
+  explicit async_manual_reset_event(bool startSignalled) noexcept
     : state_(startSignalled ? this : nullptr) {}
 
   void post() noexcept;
@@ -100,7 +100,7 @@ struct unstoppable_baton {
 
   friend struct _op_base;
 
-  static void start_or_wait(_op_base& op, unstoppable_baton& baton) noexcept;
+  static void start_or_wait(_op_base& op, async_manual_reset_event& baton) noexcept;
 };
 
 struct _op_base {
@@ -110,10 +110,10 @@ struct _op_base {
   // note: next_ is the first member so that list operations don't have to
   //       offset into this struct; hopefully that leads to smaller code
   _op_base* next_;
-  unstoppable_baton* baton_;
+  async_manual_reset_event* baton_;
   void (*setValue_)(_op_base*) noexcept;
 
-  explicit _op_base(unstoppable_baton& baton, void (*setValue)(_op_base*) noexcept)
+  explicit _op_base(async_manual_reset_event& baton, void (*setValue)(_op_base*) noexcept)
     : baton_(&baton), setValue_(setValue) {}
 
   ~_op_base() = default;
@@ -126,13 +126,13 @@ struct _op_base {
   }
 
   void start() noexcept {
-    unstoppable_baton::start_or_wait(*this, *baton_);
+    async_manual_reset_event::start_or_wait(*this, *baton_);
   }
 };
 
 template <typename Receiver>
 struct _operation<Receiver>::type : private _op_base {
-  explicit type(unstoppable_baton& baton, Receiver r)
+  explicit type(async_manual_reset_event& baton, Receiver r)
       noexcept(std::is_nothrow_move_constructible_v<Receiver>)
     : _op_base(baton, &set_value_impl),
       receiver_(std::move(r)) {}
@@ -158,7 +158,7 @@ struct _operation<Receiver>::type : private _op_base {
 
 } // namespace _ub
 
-using _ub::unstoppable_baton;
+using _ub::async_manual_reset_event;
 
 } // namespace unifex
 

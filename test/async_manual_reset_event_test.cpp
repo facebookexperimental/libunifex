@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <unifex/unstoppable_baton.hpp>
+#include <unifex/async_manual_reset_event.hpp>
 
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -28,7 +28,7 @@
 
 using testing::Invoke;
 using testing::_;
-using unifex::unstoppable_baton;
+using unifex::async_manual_reset_event;
 using unifex::connect;
 using unifex::get_scheduler;
 using unifex::inline_scheduler;
@@ -71,34 +71,34 @@ struct mock_receiver {
 
 } // namespace
 
-struct unstoppable_baton_test : testing::Test {
+struct async_manual_reset_event_test : testing::Test {
   inline_scheduler scheduler;
   mock_receiver receiver{scheduler};
   mock_receiver_impl& receiverImpl = *receiver.impl;
 };
 
-TEST_F(unstoppable_baton_test, default_constructor_leaves_baton_unready) {
-  unstoppable_baton baton;
+TEST_F(async_manual_reset_event_test, default_constructor_leaves_baton_unready) {
+  async_manual_reset_event baton;
 
   EXPECT_FALSE(baton.ready());
 }
 
-TEST_F(unstoppable_baton_test, can_construct_initially_ready_baton) {
-  unstoppable_baton baton{true};
+TEST_F(async_manual_reset_event_test, can_construct_initially_ready_baton) {
+  async_manual_reset_event baton{true};
 
   EXPECT_TRUE(baton.ready());
 }
 
-TEST_F(unstoppable_baton_test, post_makes_unready_baton_ready) {
-  unstoppable_baton baton;
+TEST_F(async_manual_reset_event_test, post_makes_unready_baton_ready) {
+  async_manual_reset_event baton;
 
   baton.post();
 
   EXPECT_TRUE(baton.ready());
 }
 
-TEST_F(unstoppable_baton_test, sender_completes_after_post_when_connected_to_unready_baton) {
-  unstoppable_baton baton;
+TEST_F(async_manual_reset_event_test, sender_completes_after_post_when_connected_to_unready_baton) {
+  async_manual_reset_event baton;
 
   auto op = connect(baton.wait(), std::move(receiver));
 
@@ -115,8 +115,8 @@ TEST_F(unstoppable_baton_test, sender_completes_after_post_when_connected_to_unr
   baton.post();
 }
 
-TEST_F(unstoppable_baton_test, sender_completes_inline_when_connected_to_ready_baton) {
-  unstoppable_baton baton{true};
+TEST_F(async_manual_reset_event_test, sender_completes_inline_when_connected_to_ready_baton) {
+  async_manual_reset_event baton{true};
 
   auto op = connect(baton.wait(), std::move(receiver));
 
@@ -126,8 +126,8 @@ TEST_F(unstoppable_baton_test, sender_completes_inline_when_connected_to_ready_b
   start(op);
 }
 
-TEST_F(unstoppable_baton_test, exception_from_set_value_sent_to_set_error) {
-  unstoppable_baton baton{true};
+TEST_F(async_manual_reset_event_test, exception_from_set_value_sent_to_set_error) {
+  async_manual_reset_event baton{true};
 
   auto op = connect(baton.wait(), std::move(receiver));
 
