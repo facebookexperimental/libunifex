@@ -18,7 +18,7 @@
 
 namespace unifex::_ub {
 
-void async_manual_reset_event::post() noexcept {
+void async_manual_reset_event::set() noexcept {
   void* const signalledState = this;
 
   // replace the stack of waiting operations with a sentinel indicating we've
@@ -38,11 +38,11 @@ void async_manual_reset_event::post() noexcept {
   }
 }
 
-void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_event& baton) noexcept {
+void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_event& evt) noexcept {
   // Try to push op onto the stack of waiting ops.
-  void* const signalledState = &baton;
+  void* const signalledState = &evt;
 
-  void* top = baton.state_.load(std::memory_order_acquire);
+  void* top = evt.state_.load(std::memory_order_acquire);
 
   do {
     if (top == signalledState) {
@@ -54,7 +54,7 @@ void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_ev
     // note: on the first iteration, this line transitions op.next_ from
     //       indeterminate to a well-defined value
     op.next_ = static_cast<_op_base*>(top);
-  } while (!baton.state_.compare_exchange_weak(
+  } while (!evt.state_.compare_exchange_weak(
       top,
       static_cast<void*>(&op),
       std::memory_order_release,

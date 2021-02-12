@@ -78,29 +78,29 @@ struct async_manual_reset_event_test : testing::Test {
 };
 
 TEST_F(async_manual_reset_event_test, default_constructor_leaves_baton_unready) {
-  async_manual_reset_event baton;
+  async_manual_reset_event evt;
 
-  EXPECT_FALSE(baton.ready());
+  EXPECT_FALSE(evt.ready());
 }
 
 TEST_F(async_manual_reset_event_test, can_construct_initially_ready_baton) {
-  async_manual_reset_event baton{true};
+  async_manual_reset_event evt{true};
 
-  EXPECT_TRUE(baton.ready());
+  EXPECT_TRUE(evt.ready());
 }
 
-TEST_F(async_manual_reset_event_test, post_makes_unready_baton_ready) {
-  async_manual_reset_event baton;
+TEST_F(async_manual_reset_event_test, set_makes_unready_baton_ready) {
+  async_manual_reset_event evt;
 
-  baton.post();
+  evt.set();
 
-  EXPECT_TRUE(baton.ready());
+  EXPECT_TRUE(evt.ready());
 }
 
-TEST_F(async_manual_reset_event_test, sender_completes_after_post_when_connected_to_unready_baton) {
-  async_manual_reset_event baton;
+TEST_F(async_manual_reset_event_test, sender_completes_after_set_when_connected_to_unready_baton) {
+  async_manual_reset_event evt;
 
-  auto op = connect(baton.wait(), std::move(receiver));
+  auto op = connect(evt.async_wait(), std::move(receiver));
 
   {
     EXPECT_CALL(receiverImpl, set_value()).Times(0);
@@ -112,13 +112,13 @@ TEST_F(async_manual_reset_event_test, sender_completes_after_post_when_connected
   EXPECT_CALL(receiverImpl, set_value()).Times(1);
   EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
 
-  baton.post();
+  evt.set();
 }
 
 TEST_F(async_manual_reset_event_test, sender_completes_inline_when_connected_to_ready_baton) {
-  async_manual_reset_event baton{true};
+  async_manual_reset_event evt{true};
 
-  auto op = connect(baton.wait(), std::move(receiver));
+  auto op = connect(evt.async_wait(), std::move(receiver));
 
   EXPECT_CALL(receiverImpl, set_value()).Times(1);
   EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
@@ -127,9 +127,9 @@ TEST_F(async_manual_reset_event_test, sender_completes_inline_when_connected_to_
 }
 
 TEST_F(async_manual_reset_event_test, exception_from_set_value_sent_to_set_error) {
-  async_manual_reset_event baton{true};
+  async_manual_reset_event evt{true};
 
-  auto op = connect(baton.wait(), std::move(receiver));
+  auto op = connect(evt.async_wait(), std::move(receiver));
 
   EXPECT_CALL(receiverImpl, set_value())
       .WillOnce(Invoke([]() -> void {

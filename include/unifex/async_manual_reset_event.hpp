@@ -51,18 +51,18 @@ struct _sender {
 
   static constexpr bool sends_done = false;
 
-  explicit _sender(async_manual_reset_event& baton) noexcept
-    : baton_(&baton) {}
+  explicit _sender(async_manual_reset_event& evt) noexcept
+    : evt_(&evt) {}
 
   template (typename Receiver)
     (requires receiver_of<Receiver>)
   operation<std::decay_t<Receiver>> connect(Receiver&& r) const noexcept(
       std::is_nothrow_constructible_v<std::decay_t<Receiver>, Receiver>) {
-    return operation<std::decay_t<Receiver>>{*baton_, (Receiver&&)r};
+    return operation<std::decay_t<Receiver>>{*evt_, (Receiver&&)r};
   }
 
  private:
-  async_manual_reset_event* baton_;
+  async_manual_reset_event* evt_;
 };
 
 struct async_manual_reset_event {
@@ -72,7 +72,7 @@ struct async_manual_reset_event {
   explicit async_manual_reset_event(bool startSignalled) noexcept
     : state_(startSignalled ? this : nullptr) {}
 
-  void post() noexcept;
+  void set() noexcept;
 
   bool ready() const noexcept {
     return state_.load(std::memory_order_acquire) ==
@@ -91,7 +91,7 @@ struct async_manual_reset_event {
         oldState, nullptr, std::memory_order_acq_rel, std::memory_order_relaxed);
   }
 
-  [[nodiscard]] _sender wait() noexcept {
+  [[nodiscard]] _sender async_wait() noexcept {
     return _sender{*this};
   }
 
@@ -100,21 +100,21 @@ struct async_manual_reset_event {
 
   friend struct _op_base;
 
-  static void start_or_wait(_op_base& op, async_manual_reset_event& baton) noexcept;
+  static void start_or_wait(_op_base& op, async_manual_reset_event& evt) noexcept;
 };
 
 struct _op_base {
   // note: next_ is intentionally left indeterminate until the operation is
-  //       pushed on the baton's stack of waiting operations
+  //       pushed on the event's stack of waiting operations
   //
   // note: next_ is the first member so that list operations don't have to
   //       offset into this struct; hopefully that leads to smaller code
   _op_base* next_;
-  async_manual_reset_event* baton_;
+  async_manual_reset_event* evt_;
   void (*setValue_)(_op_base*) noexcept;
 
-  explicit _op_base(async_manual_reset_event& baton, void (*setValue)(_op_base*) noexcept)
-    : baton_(&baton), setValue_(setValue) {}
+  explicit _op_base(async_manual_reset_event& evt, void (*setValue)(_op_base*) noexcept)
+    : evt_(&evt), setValue_(setValue) {}
 
   ~_op_base() = default;
 
@@ -126,15 +126,15 @@ struct _op_base {
   }
 
   void start() noexcept {
-    async_manual_reset_event::start_or_wait(*this, *baton_);
+    async_manual_reset_event::start_or_wait(*this, *evt_);
   }
 };
 
 template <typename Receiver>
 struct _operation<Receiver>::type : private _op_base {
-  explicit type(async_manual_reset_event& baton, Receiver r)
+  explicit type(async_manual_reset_event& evt, Receiver r)
       noexcept(std::is_nothrow_move_constructible_v<Receiver>)
-    : _op_base(baton, &set_value_impl),
+    : _op_base(evt, &set_value_impl),
       receiver_(std::move(r)) {}
 
   ~type() = default;
