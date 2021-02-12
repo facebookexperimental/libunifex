@@ -16,12 +16,15 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/type_traits.hpp>
+#include <unifex/unstoppable_token.hpp>
+#include <unifex/with_query_value.hpp>
 
 #include <atomic>
-#include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -56,9 +59,9 @@ struct _sender {
 
   template (typename Receiver)
     (requires receiver_of<Receiver>)
-  operation<std::decay_t<Receiver>> connect(Receiver&& r) const noexcept(
-      std::is_nothrow_constructible_v<std::decay_t<Receiver>, Receiver>) {
-    return operation<std::decay_t<Receiver>>{*evt_, (Receiver&&)r};
+  operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const noexcept(
+      std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
+    return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver&&)r};
   }
 
  private:
@@ -150,7 +153,9 @@ struct _operation<Receiver>::type : private _op_base {
   static void set_value_impl(_op_base* base) noexcept {
     auto self = static_cast<type*>(base);
 
-    auto op = connect(schedule(), std::move(self->receiver_));
+    auto op = connect(
+        with_query_vale(schedule(), get_stop_token, unstoppable_token{}),
+        std::move(self->receiver_));
 
     unifex::start(op);
   }
