@@ -138,7 +138,7 @@ struct _operation<Receiver>::type : private _op_base {
   explicit type(async_manual_reset_event& evt, Receiver r)
       noexcept(std::is_nothrow_move_constructible_v<Receiver>)
     : _op_base(evt, &set_value_impl),
-      receiver_(std::move(r)) {}
+      op_(create_op(std::move(r))) {}
 
   ~type() = default;
 
@@ -148,16 +148,18 @@ struct _operation<Receiver>::type : private _op_base {
   using _op_base::start;
 
  private:
-  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  static auto create_op(Receiver&& r) {
+    return connect(
+        with_query_value(schedule(), get_stop_token, unstoppable_token{}),
+        std::move(r));
+  }
+
+  UNIFEX_NO_UNIQUE_ADDRESS decltype(create_op(std::declval<Receiver>())) op_;
 
   static void set_value_impl(_op_base* base) noexcept {
     auto self = static_cast<type*>(base);
 
-    auto op = connect(
-        with_query_value(schedule(), get_stop_token, unstoppable_token{}),
-        std::move(self->receiver_));
-
-    unifex::start(op);
+    unifex::start(self->op_);
   }
 };
 

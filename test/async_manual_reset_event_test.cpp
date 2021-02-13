@@ -17,7 +17,12 @@
 #include <unifex/async_manual_reset_event.hpp>
 
 #include <unifex/inline_scheduler.hpp>
+#include <unifex/inplace_stop_token.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/transform.hpp>
+#include <unifex/with_query_value.hpp>
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -25,14 +30,24 @@
 #include <exception>
 #include <memory>
 #include <stdexcept>
+#include <thread>
 
 using testing::Invoke;
 using testing::_;
 using unifex::async_manual_reset_event;
 using unifex::connect;
 using unifex::get_scheduler;
+using unifex::get_stop_token;
 using unifex::inline_scheduler;
+using unifex::inplace_stop_source;
+using unifex::inplace_stop_token;
+using unifex::schedule;
+using unifex::single_thread_context;
 using unifex::start;
+using unifex::sync_wait;
+using unifex::tag_t;
+using unifex::transform;
+using unifex::with_query_value;
 
 namespace {
 
@@ -63,8 +78,7 @@ struct mock_receiver {
   inline_scheduler* scheduler;
 
   friend inline_scheduler tag_invoke(
-      unifex::tag_t<get_scheduler>,
-      const mock_receiver& self) noexcept {
+      tag_t<get_scheduler>, const mock_receiver& self) noexcept {
     return *self.scheduler;
   }
 };
@@ -146,4 +160,93 @@ TEST_F(async_manual_reset_event_test, exception_from_set_value_sent_to_set_error
       }));
 
   start(op);
+}
+
+template <typename Scheduler>
+static std::thread::id getThreadId(Scheduler& scheduler) {
+  return sync_wait(transform(schedule(scheduler), [] {
+    return std::this_thread::get_id();
+  })).value();
+}
+
+TEST_F(
+    async_manual_reset_event_test,
+    set_value_reschedules_when_invoked_from_async_wait) {
+
+  single_thread_context thread;
+  auto scheduler = thread.get_scheduler();
+
+  const auto expectedThreadId = getThreadId(scheduler);
+
+  ASSERT_NE(expectedThreadId, std::this_thread::get_id());
+
+  async_manual_reset_event evt{true};
+
+  auto actualThreadId = sync_wait(transform(
+      with_query_value(evt.async_wait(), get_scheduler, scheduler),
+      [] { return std::this_thread::get_id(); })).value();
+
+  EXPECT_EQ(expectedThreadId, actualThreadId);
+}
+
+TEST_F(
+    async_manual_reset_event_test,
+    set_value_reschedules_when_invoked_from_set) {
+
+  single_thread_context thread;
+  auto scheduler = thread.get_scheduler();
+
+  const auto expectedThreadId = getThreadId(scheduler);
+
+  ASSERT_NE(expectedThreadId, std::this_thread::get_id());
+
+  async_manual_reset_event evt1, evt2;
+
+  auto op = connect(
+      with_query_value(evt1.async_wait(), get_scheduler, scheduler),
+      std::move(receiver));
+
+  start(op);
+
+  std::thread::id actualThreadId{};
+
+  EXPECT_CALL(receiverImpl, set_value())
+      .WillOnce(Invoke([&actualThreadId, &evt2] {
+        actualThreadId = std::this_thread::get_id();
+        evt2.set();
+      }));
+
+  evt1.set();
+
+  sync_wait(evt2.async_wait());
+
+  EXPECT_EQ(expectedThreadId, actualThreadId);
+}
+
+TEST_F(
+    async_manual_reset_event_test,
+    set_value_ignores_the_receivers_stop_token_when_rescheduling) {
+
+  inplace_stop_source stopSource;
+
+  stopSource.request_stop();
+
+  single_thread_context thread;
+  auto scheduler = thread.get_scheduler();
+
+  const auto expectedThreadId = getThreadId(scheduler);
+
+  ASSERT_NE(expectedThreadId, std::this_thread::get_id());
+
+  async_manual_reset_event evt{true};
+
+  auto actualThreadId = sync_wait(transform(
+      with_query_value(
+          with_query_value(evt.async_wait(), get_scheduler, scheduler),
+          get_stop_token,
+          stopSource.get_token()),
+      [] { return std::this_thread::get_id(); }));
+
+  ASSERT_TRUE(actualThreadId);
+  EXPECT_EQ(expectedThreadId, *actualThreadId);
 }
