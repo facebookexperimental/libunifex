@@ -314,7 +314,7 @@ namespace _via_cpo {
   inline const struct _fn {
     template <typename Predecessor, typename Successor>
     auto operator()(Successor&& succ, Predecessor&& pred) const
-        noexcept(std::is_nothrow_constructible_v<
+        noexcept(is_nothrow_constructible_v<
             _via::sender<Predecessor, Successor>, Predecessor, Successor>)
         -> _via::sender<Predecessor, Successor> {
       return _via::sender<Predecessor, Successor>{

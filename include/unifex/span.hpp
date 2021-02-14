@@ -65,14 +65,14 @@ struct span {
   }
 
   template(typename U)
-    (requires (!std::is_const_v<U>) AND same_as<const U, T>)
+    (requires (!is_const_v<U>) AND same_as<const U, T>)
   explicit constexpr span(const span<U, dynamic_extent>& other) noexcept
       : data_(other.data()) {
     assert(other.size() >= Extent);
   }
 
   template(std::size_t OtherExtent, typename U)
-      (requires (!std::is_const_v<U>) AND same_as<const U, T>)
+      (requires (!is_const_v<U>) AND same_as<const U, T>)
   constexpr span(const span<U, OtherExtent>& other) noexcept
       : data_(other.data()) {
     static_assert(
@@ -164,7 +164,7 @@ struct span<T, dynamic_extent> {
 
   template(typename U, std::size_t OtherExtent)
       (requires same_as<U, T> ||
-          (!std::is_const_v<U> && same_as<const U, T>))
+          (!is_const_v<U> && same_as<const U, T>))
   constexpr span(const span<U, OtherExtent>& other) noexcept
       : data_(other.data()), size_(other.size()) {}
 
@@ -297,7 +297,7 @@ span<const std::byte> as_bytes(const span<T>& s) noexcept {
 }
 
 template(typename T, std::size_t Extent)
-    (requires (!std::is_const_v<T>))
+    (requires (!is_const_v<T>))
 span<std::byte, Extent * sizeof(T)> as_writable_bytes(
     const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
@@ -307,7 +307,7 @@ span<std::byte, Extent * sizeof(T)> as_writable_bytes(
 }
 
 template(typename T)
-    (requires (!std::is_const_v<T>))
+    (requires (!is_const_v<T>))
 span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   assert(s.size() <= maxSize);

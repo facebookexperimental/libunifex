@@ -39,7 +39,7 @@ inline constexpr struct get_typeid_cpo {
   auto operator()(const T& x) const noexcept ->
       unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
     static_assert(
-      std::is_same_v<
+      unifex::is_same_v<
           unifex::type_index,
           unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);

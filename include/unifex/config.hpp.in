@@ -124,7 +124,7 @@
 #if defined(_MSC_VER)
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
   typename NAME, \
-  std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0
+  std::enable_if_t<unifex::is_same_v<NAME, __VA_ARGS__>, int> = 0
  # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) NAME
 #else
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
@@ -157,6 +157,13 @@
 #  define UNIFEX_TRY
 #  define UNIFEX_CATCH(...) if constexpr (true) {} else
 #  define UNIFEX_RETHROW() ((void)0)
+#endif
+
+#if (defined(__cpp_lib_type_trait_variable_templates) && \
+  __cpp_lib_type_trait_variable_templates > 0)
+#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
+#else
+#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 0
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)

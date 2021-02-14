@@ -564,8 +564,8 @@ namespace unifex::win32
     template(typename Receiver)(requires receiver_of<Receiver, std::size_t>) friend auto tag_invoke(
         tag_t<unifex::connect>,
         type&& self,
-        Receiver&& r) noexcept(std::is_nothrow_move_constructible_v<Buffer>&&
-                                   std::is_nothrow_constructible_v<
+        Receiver&& r) noexcept(is_nothrow_move_constructible_v<Buffer>&&
+                                   is_nothrow_constructible_v<
                                        remove_cvref_t<Receiver>,
                                        Receiver>)
         -> read_file_op<Buffer, remove_cvref_t<Receiver>> {
@@ -737,8 +737,8 @@ namespace unifex::win32
     template(typename Receiver)(requires receiver_of<Receiver, std::size_t>) friend auto tag_invoke(
         tag_t<unifex::connect>,
         type&& self,
-        Receiver&& r) noexcept(std::is_nothrow_move_constructible_v<Buffer>&&
-                                   std::is_nothrow_constructible_v<
+        Receiver&& r) noexcept(is_nothrow_move_constructible_v<Buffer>&&
+                                   is_nothrow_constructible_v<
                                        remove_cvref_t<Receiver>,
                                        Receiver>)
         -> write_file_op<Buffer, remove_cvref_t<Receiver>> {

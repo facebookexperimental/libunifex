@@ -62,9 +62,9 @@ struct AnySenderOfTestImpl : Test {
 
   static_assert(typed_sender<any_sender>);
   static_assert(sender_to<any_sender, mock_receiver<void(T...)>>);
-  static_assert(std::is_same_v<std::variant<std::tuple<T...>>,
+  static_assert(is_same_v<std::variant<std::tuple<T...>>,
                                sender_value_types_t<any_sender, std::variant, std::tuple>>);
-  static_assert(std::is_same_v<std::variant<std::exception_ptr>,
+  static_assert(is_same_v<std::variant<std::exception_ptr>,
                                sender_error_types_t<any_sender, std::variant>>);
 
   static auto default_just() {

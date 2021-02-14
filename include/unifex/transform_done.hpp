@@ -214,8 +214,8 @@ class _op<Source, Done, Receiver>::type {
 public:
   template <typename Done2, typename Receiver2>
   explicit type(Source&& source, Done2&& done, Receiver2&& dest)
-      noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
-               std::is_nothrow_move_constructible_v<Done> &&
+      noexcept(is_nothrow_move_constructible_v<Receiver> &&
+               is_nothrow_move_constructible_v<Done> &&
                is_nothrow_connectable_v<Source, source_receiver>)
   : done_((Done2&&)done)
   , receiver_((Receiver2&&)dest)
@@ -283,8 +283,8 @@ public:
   template <typename Source2, typename Done2>
   explicit type(Source2&& source, Done2&& done)
     noexcept(
-      std::is_nothrow_constructible_v<Source, Source2> &&
-      std::is_nothrow_constructible_v<Done, Done2>)
+      is_nothrow_constructible_v<Source, Source2> &&
+      is_nothrow_constructible_v<Done, Done2>)
     : source_((Source2&&)source)
     , done_((Done2&&)done)
   {}
@@ -302,8 +302,8 @@ public:
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
         is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
-        std::is_nothrow_constructible_v<Done, member_t<Sender, Done>> &&
-        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+        is_nothrow_constructible_v<Done, member_t<Sender, Done>> &&
+        is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
       -> operation_type<member_t<Sender, Source>, Done, Receiver> {
     return operation_type<member_t<Sender, Source>, Done, Receiver>{
       static_cast<Sender&&>(s).source_,
@@ -337,7 +337,7 @@ inline const struct transform_done_cpo {
         constructible_from<remove_cvref_t<Done>, Done> AND
         callable<remove_cvref_t<Done>>)
   auto operator()(Source&& source, Done&& done) const
-      noexcept(std::is_nothrow_constructible_v<
+      noexcept(is_nothrow_constructible_v<
                    transform_done_sender<Source, Done>,
                    Source, 
                    Done>)

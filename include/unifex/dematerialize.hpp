@@ -24,6 +24,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/functional.hpp>
 
 #include <type_traits>
 
@@ -44,7 +45,7 @@ namespace _demat {
     template(typename Receiver2)
       (requires constructible_from<Receiver, Receiver2>)
     explicit type(Receiver2&& receiver) noexcept(
-        std::is_nothrow_constructible_v<Receiver, Receiver2>)
+        is_nothrow_constructible_v<Receiver, Receiver2>)
       : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
     template(typename CPO, typename... Values)
@@ -96,7 +97,7 @@ namespace _demat {
     template <typename First, typename... Rest>
     struct apply_impl<First, Rest...>
       : std::conditional<
-            std::is_base_of_v<CPO, std::decay_t<First>>,
+            is_base_of_v<CPO, std::decay_t<First>>,
             type_list<Tuple<Rest...>>,
             type_list<>> {};
 
@@ -162,7 +163,7 @@ namespace _demat {
 
     template <typename Source2>
     explicit type(Source2&& source)
-        noexcept(std::is_nothrow_constructible_v<Source, Source2>)
+        noexcept(is_nothrow_constructible_v<Source, Source2>)
       : source_(static_cast<Source2&&>(source)) {}
 
     template(typename Self, typename Receiver)
@@ -170,7 +171,7 @@ namespace _demat {
           sender_to<member_t<Self, Source>, receiver_t<Receiver>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
-                 std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+                 is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
         -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
       return unifex::connect(
           static_cast<Self&&>(self).source_,
@@ -202,7 +203,7 @@ namespace _demat_cpo {
     template(typename Sender)
       (requires (!tag_invocable<_fn, Sender>))
     auto operator()(Sender&& predecessor) const
-        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
+        noexcept(is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
         -> _result_t<Sender> {
       return _demat::sender<Sender>{(Sender &&) predecessor};
     }

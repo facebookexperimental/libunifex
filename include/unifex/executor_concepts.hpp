@@ -122,7 +122,7 @@ concept //
     move_constructible<remove_cvref_t<F>> &&
     copy_constructible<E> &&
     equality_comparable<E> &&
-    std::is_nothrow_copy_constructible_v<E> &&
+    is_nothrow_copy_constructible_v<E> &&
     requires(const E e, F&& f) {
       unifex::execute(e, (F&&) f);
     };
@@ -142,7 +142,7 @@ UNIFEX_CONCEPT        //
     move_constructible<remove_cvref_t<F>> &&
     copy_constructible<E> &&
     equality_comparable<E> &&
-    std::is_nothrow_copy_constructible_v<E> &&
+    is_nothrow_copy_constructible_v<E> &&
     UNIFEX_FRAGMENT(unifex::_executor_of_impl_part, E, F);
 #endif
 

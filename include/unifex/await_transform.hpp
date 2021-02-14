@@ -98,10 +98,10 @@ protected:
 
     template(class... Us)
       (requires (constructible_from<Value, Us...> ||
-          (std::is_void_v<Value> && sizeof...(Us) == 0)))
+          (is_void_v<Value> && sizeof...(Us) == 0)))
     void set_value(Us&&... us) &&
-        noexcept(std::is_nothrow_constructible_v<Value, Us...> ||
-            std::is_void_v<Value>) {
+        noexcept(is_nothrow_constructible_v<Value, Us...> ||
+            is_void_v<Value>) {
       unifex::activate_union_member(result_->value_, (Us&&) us...);
       result_->state_ = _state::value;
       continuation_.resume();

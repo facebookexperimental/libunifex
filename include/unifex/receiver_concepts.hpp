@@ -110,7 +110,7 @@ namespace _rec_cpo {
           is_nothrow_tag_invocable_v<_set_error_fn, Receiver, Error>,
           "set_error() invocation is required to be noexcept.");
       static_assert(
-        std::is_void_v<tag_invoke_result_t<_set_error_fn, Receiver, Error>>
+        is_void_v<tag_invoke_result_t<_set_error_fn, Receiver, Error>>
       );
       return unifex::tag_invoke(
           _set_error_fn{}, (Receiver &&) r, (Error&&) error);
@@ -146,7 +146,7 @@ namespace _rec_cpo {
           is_nothrow_tag_invocable_v<_set_done_fn, Receiver>,
           "set_done() invocation is required to be noexcept.");
       static_assert(
-        std::is_void_v<tag_invoke_result_t<_set_done_fn, Receiver>>
+        is_void_v<tag_invoke_result_t<_set_done_fn, Receiver>>
       );
       return unifex::tag_invoke(_set_done_fn{}, (Receiver &&) r);
     }
@@ -188,7 +188,7 @@ inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
     _connect_cpo::_fn>;
 
 template <typename T>
-using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
+using is_receiver_cpo = bool_constant<is_receiver_cpo_v<T>>;
 
 #if UNIFEX_CXX_CONCEPTS
 // Defined the receiver concepts without the macros for improved diagnostics

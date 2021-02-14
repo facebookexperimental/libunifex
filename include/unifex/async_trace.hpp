@@ -33,7 +33,7 @@ namespace _visit_continuations_cpo {
   inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
     template(typename Promise, typename Func)
-        (requires (!std::is_void_v<Promise>))
+        (requires (!is_void_v<Promise>))
     friend void tag_invoke(
         _fn cpo,
         coro::coroutine_handle<Promise> h,
@@ -50,7 +50,7 @@ namespace _visit_continuations_cpo {
                 const Continuation&,
                 Func&&>) {
       static_assert(
-          std::is_void_v<tag_invoke_result_t<
+          is_void_v<tag_invoke_result_t<
               _fn,
               const Continuation&,
               Func&&>>,

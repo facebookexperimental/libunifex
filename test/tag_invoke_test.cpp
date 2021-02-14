@@ -15,6 +15,7 @@
  */
 
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_traits.hpp>
 
 #include <gtest/gtest.h>
 
@@ -30,8 +31,8 @@ struct Y {};
 } // anonymous namespace
 
 // Tests of the tag_invoke metafunctions.
-static_assert(std::is_same_v<void, unifex::tag_invoke_result_t<test_cpo, X>>);
-static_assert(std::is_same_v<bool, unifex::tag_invoke_result_t<test_cpo, X, int>>);
+static_assert(unifex::is_same_v<void, unifex::tag_invoke_result_t<test_cpo, X>>);
+static_assert(unifex::is_same_v<bool, unifex::tag_invoke_result_t<test_cpo, X, int>>);
 static_assert(unifex::is_tag_invocable_v<test_cpo, X>);
 static_assert(unifex::is_tag_invocable_v<test_cpo, X, int>);
 static_assert(!unifex::is_tag_invocable_v<test_cpo, Y>);

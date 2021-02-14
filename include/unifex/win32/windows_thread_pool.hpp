@@ -813,7 +813,7 @@ public:
 
     template<typename Duration>
     schedule_after_sender<Duration> schedule_after(Duration d) const
-            noexcept(std::is_nothrow_move_constructible_v<Duration>) {
+            noexcept(is_nothrow_move_constructible_v<Duration>) {
         return schedule_after_sender<Duration>{*pool_, std::move(d)};
     }
 

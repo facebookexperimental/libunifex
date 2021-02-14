@@ -24,6 +24,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/functional.hpp>
 
 #include <functional>
 #include <type_traits>
@@ -54,7 +55,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   // sequenced_policy version supports forward range
   template <typename... Values>
   static void apply_func_with_policy(const execution::sequenced_policy&, Range&& range, Func&& func, Values&... values)
-      noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
+      noexcept(is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
     for(auto idx : range) {
       std::invoke(func, idx, values...);
     }
@@ -63,7 +64,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   // parallel_policy version requires random access range
   template <typename... Values>
   static void apply_func_with_policy(const execution::parallel_policy&, Range&& range, Func&& func, Values&... values)
-      noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
+      noexcept(is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
     auto start = range.begin();
     using size_type = decltype(range.size());
     for (size_type idx = 0; idx < range.size(); ++idx) {
@@ -73,7 +74,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
 
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
-    if constexpr (std::is_nothrow_invocable_v<Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
+    if constexpr (is_nothrow_invocable_v<Func&, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
       apply_func_with_policy(policy_, (Range&&) range_, (Func &&) func_, values...);
       unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
     } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright 2019-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,27 +15,28 @@
  */
 #pragma once
 
-#include <type_traits>
+#include <unifex/config.hpp>
 
-#include <unifex/type_traits.hpp>
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 
+#if defined(__cpp_lib_invoke) && __cpp_lib_invoke > 0
+#define UNIFEX_CXX_INVOKE 1
+#else
+#define UNIFEX_CXX_INVOKE 0
+#endif
+
 namespace unifex {
+#if UNIFEX_CXX_INVOKE
 
-template <typename T, typename = void>
-inline constexpr bool is_stop_never_possible_v = false;
+using std::invoke;
 
-template <typename T>
-inline constexpr bool is_stop_never_possible_v<
-    T,
-    std::enable_if_t<is_same_v<
-        std::false_type,
-        bool_constant<(T{}.stop_possible())>>>> = true;
+#else
 
-template <typename T>
-using is_stop_never_possible = bool_constant<is_stop_never_possible_v<T>>;
+#error TODO: IMPLEMENT ME
 
-} // namespace unifex
+#endif
+}
 
 #include <unifex/detail/epilogue.hpp>

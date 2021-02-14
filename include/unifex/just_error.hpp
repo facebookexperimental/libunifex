@@ -72,7 +72,7 @@ class _sender<Error>::type {
 
   template<typename Error2>
   explicit type(std::in_place_t, Error2&& error)
-    noexcept(std::is_nothrow_constructible_v<Error, Error2>)
+    noexcept(is_nothrow_constructible_v<Error, Error2>)
     : error_((Error2 &&) error) {}
 
   template(typename This, typename Receiver)
@@ -80,7 +80,7 @@ class _sender<Error>::type {
         receiver<Receiver, Error> AND
         constructible_from<Error, member_t<This, Error>>)
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
-      noexcept(std::is_nothrow_constructible_v<Error, member_t<This, Error>>)
+      noexcept(is_nothrow_constructible_v<Error, member_t<This, Error>>)
       -> operation<Receiver, Error> {
     return {static_cast<This&&>(that).error_, static_cast<Receiver&&>(r)};
   }
@@ -95,7 +95,7 @@ namespace _just_error_cpo {
   inline const struct just_error_fn {
     template <typename Error>
     constexpr auto operator()(Error&& error) const
-      noexcept(std::is_nothrow_constructible_v<std::decay_t<Error>, Error>)
+      noexcept(is_nothrow_constructible_v<std::decay_t<Error>, Error>)
       -> _just_error::sender<Error> {
       return _just_error::sender<Error>{std::in_place, (Error&&) error};
     }

@@ -145,7 +145,7 @@ namespace _submit_cpo {
           tag_invocable<_fn, Sender, Receiver>)
     void operator()(Sender&& sender, Receiver&& receiver) const {
       static_assert(
-        std::is_void_v<tag_invoke_result_t<_fn, Sender, Receiver>>,
+        is_void_v<tag_invoke_result_t<_fn, Sender, Receiver>>,
         "Customisations of submit() must have a void return value");
       unifex::tag_invoke(*this, (Sender&&) sender, (Receiver&&) receiver);
     }

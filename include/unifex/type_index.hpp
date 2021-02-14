@@ -74,7 +74,7 @@ struct type_index final {
 
   template <typename T>
   static type_index make() noexcept {
-    static_assert(std::is_same_v<T, remove_cvref_t<T>>);
+    static_assert(is_same_v<T, remove_cvref_t<T>>);
 
 #ifdef __FUNCSIG__
     static constexpr auto index = __FUNCSIG__;

@@ -43,11 +43,11 @@ using namespace _util;
 
 template <typename... Types>
 using _is_single_valued_tuple =
-    std::bool_constant<1 >= sizeof...(Types)>;
+    bool_constant<1 >= sizeof...(Types)>;
 
 template <typename... Types>
 using _is_single_valued_variant =
-    std::bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
+    bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
 
 template <typename Sender>
 UNIFEX_CONCEPT_FRAGMENT(     //
@@ -118,7 +118,7 @@ struct _return_value_or_void {
     template(typename Value = T)
         (requires convertible_to<Value, T> AND constructible_from<T, Value>)
     void return_value(Value&& value) noexcept(
-        std::is_nothrow_constructible_v<T, Value>) {
+        is_nothrow_constructible_v<T, Value>) {
       expected_.reset_value();
       unifex::activate_union_member(expected_.value_, (Value &&) value);
       expected_.state_ = _state::value;
@@ -236,7 +236,7 @@ struct _task<T>::type {
     template<typename...> class Tuple>
   using value_types = Variant<
     typename std::conditional_t<
-      std::is_void_v<T>, type_list<>, type_list<T>>
+      is_void_v<T>, type_list<>, type_list<T>>
     ::template apply<Tuple>>;
 
   template<

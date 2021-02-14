@@ -41,7 +41,7 @@ class _join_receiver<Receiver>::type {
 public:
     template(typename Receiver2)
       (requires constructible_from<Receiver, Receiver2>)
-    explicit type(Receiver2&& r) noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2>)
+    explicit type(Receiver2&& r) noexcept(is_nothrow_constructible_v<Receiver, Receiver2>)
     : receiver_((Receiver2&&)r)
     {}
 
@@ -103,7 +103,7 @@ public:
 
     template<typename Source2>
     explicit type(Source2&& s)
-        noexcept(std::is_nothrow_constructible_v<Source, Source2>)
+        noexcept(is_nothrow_constructible_v<Source, Source2>)
     : source_((Source2&&)s)
     {}
 
@@ -113,7 +113,7 @@ public:
             sender_to<member_t<Self, Source>, join_receiver<remove_cvref_t<Receiver>>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            std::is_nothrow_constructible_v<remove_cvref_t<Receiver>> &&
+            is_nothrow_constructible_v<remove_cvref_t<Receiver>> &&
             is_nothrow_connectable_v<member_t<Self, Source>, join_receiver<remove_cvref_t<Receiver>>>)
         -> connect_result_t<member_t<Self, Source>, join_receiver<remove_cvref_t<Receiver>>>
     {
@@ -142,7 +142,7 @@ struct _fn {
             typed_bulk_sender<Source> &&
             (!tag_invocable<_fn, Source>))
     auto operator()(Source&& source) const
-        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>)
+        noexcept(is_nothrow_constructible_v<remove_cvref_t<Source>, Source>)
         -> join_sender<remove_cvref_t<Source>> {
         return join_sender<remove_cvref_t<Source>>{
             (Source&&)source};
