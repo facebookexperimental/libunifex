@@ -20,6 +20,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/type_traits.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -118,7 +119,7 @@ public:
         member_t<Self, Sender>,
         receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Self&& s, Receiver &&receiver)
-      noexcept(std::is_nothrow_constructible_v<Value, member_t<Self, Value>> &&
+      noexcept(is_nothrow_constructible_v<Value, member_t<Self, Value>> &&
                is_nothrow_connectable_v<
                   member_t<Self, Sender>,
                   receiver_wrapper<CPO, Value, remove_cvref_t<Receiver>>>)
@@ -141,7 +142,7 @@ namespace _with_query_value_cpo {
     _with_query_value::sender<CPO, Value, Sender>
     operator()(Sender &&sender, CPO, Value &&value) const {
       static_assert(
-          std::is_empty_v<CPO>,
+          is_empty_v<CPO>,
           "with_query_value() does not support stateful CPOs");
       return _with_query_value::sender<CPO, Value, Sender>{
           (Sender &&) sender,

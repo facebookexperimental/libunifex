@@ -38,7 +38,7 @@ inline constexpr struct get_typeid_cpo {
   auto operator()(const T& x) const noexcept ->
       unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
     static_assert(
-      std::is_same_v<unifex::type_index, unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
+      unifex::is_same_v<unifex::type_index, unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);
   }
 } get_typeid{};
@@ -58,7 +58,7 @@ inline constexpr struct to_string_cpo {
   auto operator()(const T& x) const noexcept ->
       unifex::tag_invoke_result_t<to_string_cpo, const T&> {
     static_assert(
-      std::is_same_v<std::string, unifex::tag_invoke_result_t<to_string_cpo, const T&>>);
+      unifex::is_same_v<std::string, unifex::tag_invoke_result_t<to_string_cpo, const T&>>);
     return tag_invoke(to_string_cpo{}, x);
   }
 } to_string{};

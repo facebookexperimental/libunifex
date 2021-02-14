@@ -176,7 +176,7 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
   template(typename T)
     (requires convertible_to<T, F>)
   explicit inplace_stop_callback(inplace_stop_token token, T&& func) noexcept(
-      std::is_nothrow_constructible_v<F, T>)
+      is_nothrow_constructible_v<F, T>)
 #ifndef NDEBUG
       : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl, unifex::type_id<F>().name())
 #else

@@ -32,7 +32,7 @@ class manual_lifetime_union {
 
   template <typename T, typename... Args>
   [[maybe_unused]] T& construct(Args&&... args) noexcept(
-      std::is_nothrow_constructible_v<T, Args...>) {
+      is_nothrow_constructible_v<T, Args...>) {
     return unifex::activate_union_member(
       *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
       static_cast<Args&&>(args)...);
@@ -80,7 +80,7 @@ class manual_lifetime_union<> {};
 template <typename T, typename... Ts, typename... Args>
 [[maybe_unused]] //
 T& activate_union_member(manual_lifetime_union<Ts...>& box, Args&&... args) //
-    noexcept(std::is_nothrow_constructible_v<T, Args...>) {
+    noexcept(is_nothrow_constructible_v<T, Args...>) {
   auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
   scope_guard guard = [=]() noexcept { p->~manual_lifetime_union(); };
   auto& t = p->template construct<T>(static_cast<Args&&>(args)...);

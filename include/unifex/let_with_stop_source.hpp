@@ -23,6 +23,7 @@
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/functional.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -120,8 +121,8 @@ public:
         (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            std::is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_source&> &&
-            std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+            is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_source&> &&
+            is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
         -> operation<member_t<Self, SuccessorFactory>, Receiver> {
         return operation<member_t<Self, SuccessorFactory>, Receiver>(
             static_cast<Self&&>(self).func_, static_cast<Receiver&&>(r));
@@ -179,7 +180,7 @@ struct _fn {
 
     template<typename SuccessorFactory>
     auto operator()(SuccessorFactory&& factory) const
-        noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory>)
+        noexcept(is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory>)
         -> stop_source_sender<std::decay_t<SuccessorFactory>> {
         return stop_source_sender<std::decay_t<SuccessorFactory>>{(SuccessorFactory&&)factory};
     }

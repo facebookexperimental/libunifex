@@ -18,6 +18,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <unifex/type_traits.hpp>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -25,7 +27,7 @@ namespace unifex {
 template <typename Func>
 struct scope_guard {
 private:
-  static_assert(std::is_nothrow_move_constructible_v<Func>);
+  static_assert(is_nothrow_move_constructible_v<Func>);
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   bool released_ = false;
 

@@ -21,19 +21,12 @@
 
 #include <unifex/detail/prologue.hpp>
 
-#if (defined(__cpp_lib_type_trait_variable_templates) && \
-  __cpp_lib_type_trait_variable_templates > 0)
-#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
-#else
-#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 0
-#endif
-
 #if defined(__clang__)
 #define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
 #elif defined(__GNUC__) && __GNUC__ >= 6
 #define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
+#define UNIFEX_IS_SAME(...) is_same_v<__VA_ARGS__>
 #else
 #define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
 #endif
@@ -41,7 +34,7 @@
 #if defined(__GNUC__) || defined(_MSC_VER)
 #define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
+#define UNIFEX_IS_BASE_OF(...) is_base_of_v<__VA_ARGS__>
 #else
 #define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
 #endif
@@ -50,7 +43,7 @@
   (defined(__GNUC__) && __GNUC__ >= 8)
 #define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
+#define UNIFEX_IS_CONSTRUCTIBLE(...) is_constructible_v<__VA_ARGS__>
 #else
 #define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
 #endif
@@ -58,6 +51,69 @@
 #define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__(*)()noexcept>(nullptr)()
 
 namespace unifex {
+
+#if UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+
+using std::is_same_v;
+using std::is_void_v;
+using std::is_const_v;
+using std::is_empty_v;
+using std::is_object_v;
+using std::is_base_of_v;
+using std::is_invocable_v;
+using std::is_reference_v;
+using std::is_convertible_v;
+using std::is_lvalue_reference_v;
+using std::is_nothrow_invocable_v;
+using std::is_nothrow_destructible_v;
+using std::is_nothrow_constructible_v;
+using std::is_nothrow_copy_constructible_v;
+using std::is_nothrow_move_constructible_v;
+
+#else
+
+template <typename A, typename B>
+inline constexpr bool is_same_v = false;
+template <typename A>
+inline constexpr bool is_same_v<A, A> = true;
+template <typename A>
+inline constexpr bool is_void_v = std::is_void<A>::value;
+template <typename A>
+inline constexpr bool is_const_v = std::is_const<A>::value;
+template <typename A>
+inline constexpr bool is_empty_v = std::is_empty<A>::value;
+template <typename A>
+inline constexpr bool is_object_v = std::is_object<A>::value;
+template <typename A, typename B>
+inline constexpr bool is_base_of_v = std::is_base_of<A, B>::value;
+template <typename Fn, typename... Args>
+inline constexpr bool is_invocable_v = std::is_invocable<Fn, Args...>::value;
+template <typename A>
+inline constexpr bool is_reference_v = std::is_reference<A>::value;
+template <typename A, typename B>
+inline constexpr bool is_convertible_v = std::is_convertible<A, B>::value;
+template <typename A>
+inline constexpr bool is_lvalue_reference_v = std::is_lvalue_reference<A>::value;
+template <typename Fn, typename... Args>
+inline constexpr bool is_nothrow_invocable_v = std::is_nothrow_invocable<Fn, Args...>::value;
+template <typename A>
+inline constexpr bool is_nothrow_destructible_v = std::is_nothrow_destructible<A>::value;
+template <typename A, typename... Args>
+inline constexpr bool is_nothrow_constructible_v = std::is_nothrow_constructible<A, Args...>::value;
+template <typename A>
+inline constexpr bool is_nothrow_copy_constructible_v = std::is_nothrow_copy_constructible<A>::value;
+template <typename A>
+inline constexpr bool is_nothrow_move_constructible_v = std::is_nothrow_move_constructible<A>::value;
+
+#endif
+
+#if defined(__cpp_lib_bool_constant) && \
+  __cpp_lib_bool_constant > 0
+using std::bool_constant;
+#else
+template <bool Bool>
+using bool_constant = std::integral_constant<bool, Bool>;
+#endif
 
 namespace _ti {
 template <typename T>
@@ -105,7 +161,7 @@ template <template <typename...> class T, typename... Args>
 inline constexpr bool instance_of_v<T, T<Args...>> = true;
 
 template <template <typename...> class T, typename X>
-using instance_of = std::bool_constant<instance_of_v<T, X>>;
+using instance_of = bool_constant<instance_of_v<T, X>>;
 
 namespace _unit {
 struct unit {};
@@ -127,11 +183,11 @@ template <bool B, typename T, typename U>
 using conditional_t = typename _if<B>::template apply<T, U>;
 
 template <typename T>
-using non_void_t = conditional_t<std::is_void_v<T>, unit, T>;
+using non_void_t = conditional_t<is_void_v<T>, unit, T>;
 
 template <typename T>
 using wrap_reference_t = conditional_t<
-    std::is_reference_v<T>,
+    is_reference_v<T>,
     std::reference_wrapper<std::remove_reference_t<T>>,
     T>;
 
@@ -145,10 +201,10 @@ using member_t = decltype(
 
 template <typename T>
 using decay_rvalue_t =
-    conditional_t<std::is_lvalue_reference_v<T>, T, remove_cvref_t<T>>;
+    conditional_t<is_lvalue_reference_v<T>, T, remove_cvref_t<T>>;
 
 template <typename... Args>
-using is_empty_list = std::bool_constant<(sizeof...(Args) == 0)>;
+using is_empty_list = bool_constant<(sizeof...(Args) == 0)>;
 
 template <typename T>
 struct is_nothrow_constructible_from {
@@ -188,14 +244,14 @@ inline constexpr bool is_callable_v =
   sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) == sizeof(_is_callable::yes_type);
 
 template <typename Fn, typename... As>
-struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
+struct is_callable : bool_constant<is_callable_v<Fn, As...>> {};
 
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
     noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
-struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
+struct is_nothrow_callable : bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
 template <typename T>
 struct type_always {
@@ -280,6 +336,7 @@ struct meta_quote1_ {
     using apply = T<A, Bs..., Cs...>;
   };
 };
+
 
 } // namespace unifex
 

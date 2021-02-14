@@ -257,7 +257,7 @@ using sender = typename _sender<
     remove_cvref_t<SuccessorFactory>>::type;
 
 template<typename Sender>
-struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {};
+struct sends_done_impl : bool_constant<sender_traits<Sender>::sends_done> {};
 
 template <typename... Successors>
 using any_sends_done = std::disjunction<sends_done_impl<Successors>...>;
@@ -325,8 +325,8 @@ public:
  public:
   template <typename Predecessor2, typename SuccessorFactory2>
   explicit type(Predecessor2&& pred, SuccessorFactory2&& func)
-      noexcept(std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
-          std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
+      noexcept(is_nothrow_constructible_v<Predecessor, Predecessor2> &&
+          is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
     : pred_((Predecessor2 &&) pred), func_((SuccessorFactory2 &&) func) {}
 
   template(typename CPO, typename Sender, typename Receiver)
@@ -347,7 +347,7 @@ namespace _let_cpo {
   inline const struct _fn {
     template <typename Predecessor, typename SuccessorFactory>
     auto operator()(Predecessor&& pred, SuccessorFactory&& func) const
-        noexcept(std::is_nothrow_constructible_v<
+        noexcept(is_nothrow_constructible_v<
             _let::sender<Predecessor, SuccessorFactory>, Predecessor, SuccessorFactory>)
         -> _let::sender<Predecessor, SuccessorFactory> {
       return _let::sender<Predecessor, SuccessorFactory>{

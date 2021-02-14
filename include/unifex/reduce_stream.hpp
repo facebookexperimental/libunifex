@@ -344,7 +344,7 @@ namespace _reduce_cpo {
         StreamSender&& stream,
         State&& initialState,
         ReducerFunc&& reducer) const
-        noexcept(std::is_nothrow_constructible_v<
+        noexcept(is_nothrow_constructible_v<
             _reduce::sender<StreamSender, State, ReducerFunc>,
             StreamSender, State, ReducerFunc>)
         -> _reduce::sender<StreamSender, State, ReducerFunc> {

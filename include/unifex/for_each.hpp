@@ -19,6 +19,7 @@
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/functional.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -31,7 +32,7 @@ namespace _for_each {
       template(typename... Ts)
         (requires invocable<Func&, Ts...>)
       unit operator()(unit s, Ts&&... values)
-          noexcept(std::is_nothrow_invocable_v<Func&, Ts...>) {
+          noexcept(is_nothrow_invocable_v<Func&, Ts...>) {
         std::invoke(func_, (Ts&&) values...);
         return s;
       }

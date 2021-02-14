@@ -42,7 +42,7 @@ namespace detail {
     using type = type_list<Result>;
   };
   template <typename Result>
-  struct result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
+  struct result_overload<Result, std::enable_if_t<is_void_v<Result>>> {
     using type = type_list<>;
   };
 }
@@ -62,7 +62,7 @@ struct _receiver<Receiver, Func>::type {
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
     using result_type = std::invoke_result_t<Func, Values...>;
-    if constexpr (std::is_void_v<result_type>) {
+    if constexpr (is_void_v<result_type>) {
       if constexpr (noexcept(std::invoke(
                         (Func &&) func_, (Values &&) values...))) {
         std::invoke((Func &&) func_, (Values &&) values...);
@@ -168,8 +168,8 @@ public:
         sender_to<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
-      std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
-      std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
+      is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+      is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
       is_nothrow_connectable_v<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
       -> connect_result_t<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>> {
     return unifex::connect(
@@ -201,7 +201,7 @@ namespace _tfx_cpo {
     template(typename Sender, typename Func)
       (requires (!tag_invocable<_fn, Sender, Func>))
     auto operator()(Sender&& predecessor, Func&& func) const
-        noexcept(std::is_nothrow_constructible_v<
+        noexcept(is_nothrow_constructible_v<
           _tfx::sender<Sender, Func>, Sender, Func>)
         -> _result_t<Sender, Func> {
       return _tfx::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};

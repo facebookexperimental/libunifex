@@ -22,6 +22,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/functional.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -70,7 +71,7 @@ public:
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
             is_nothrow_callable_v<member_t<Self, StateFactory>> &&
-            std::is_nothrow_invocable_v<
+            is_nothrow_invocable_v<
                 member_t<Self, SuccessorFactory>,
                 callable_result_t<member_t<Self, StateFactory>>&> &&
             is_nothrow_connectable_v<
@@ -131,8 +132,8 @@ namespace _let_with_cpo {
                       std::decay_t<SuccessorFactory>,
                       callable_result_t<std::decay_t<StateFactory>>&>>)
         auto operator()(StateFactory&& stateFactory, SuccessorFactory&& successor_factory) const
-            noexcept(std::is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory> &&
-                    std::is_nothrow_constructible_v<std::decay_t<StateFactory>, StateFactory>)
+            noexcept(is_nothrow_constructible_v<std::decay_t<SuccessorFactory>, SuccessorFactory> &&
+                    is_nothrow_constructible_v<std::decay_t<StateFactory>, StateFactory>)
             -> _let_with::let_with_sender<
                  std::decay_t<StateFactory>, std::decay_t<SuccessorFactory>> {
             return _let_with::let_with_sender<

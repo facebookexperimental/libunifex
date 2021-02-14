@@ -73,7 +73,7 @@ namespace detail {
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_sender_types_impl, //
       requires() (          //
-        typename (std::bool_constant<S::sends_done>),
+        typename (bool_constant<S::sends_done>),
         typename (_has_value_types<S::template value_types>),
         typename (_has_error_types<S::template error_types>)
       ));
@@ -86,7 +86,7 @@ namespace detail {
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_bulk_sender_types_impl, //
       requires() (          //
-        typename (std::bool_constant<S::sends_done>),
+        typename (bool_constant<S::sends_done>),
         typename (_has_value_types<S::template value_types>),
         typename (_has_value_types<S::template next_types>),
         typename (_has_error_types<S::template error_types>)
@@ -148,7 +148,7 @@ namespace detail {
 #else
   template <typename S>
   inline constexpr bool _has_sender_traits =
-      !std::is_base_of_v<_no_sender_traits, sender_traits<S>>; 
+      !is_base_of_v<_no_sender_traits, sender_traits<S>>; 
 #endif
 
   template <typename S>
@@ -159,7 +159,7 @@ namespace detail {
       return _typed_sender_traits<S>{};
     } else if constexpr (_is_executor<S>) {
       return _void_sender_traits{};
-    } else if constexpr (std::is_base_of_v<sender_base, S>) {
+    } else if constexpr (is_base_of_v<sender_base, S>) {
       return sender_base{};
     } else {
       return _no_sender_traits{};
@@ -299,7 +299,7 @@ namespace _connect_cpo {
           (!_with_member_connect<Executor, Receiver>) AND
           _with_execute<Executor, Receiver>)
     auto operator()(Executor&& e, Receiver&& r) const
-        noexcept(std::is_nothrow_constructible_v<
+        noexcept(is_nothrow_constructible_v<
           _as_operation<Executor, Receiver>, Executor, Receiver>) ->
         _result_t<Executor, Receiver> {
       return _as_operation<Executor, Receiver>{(Executor &&) e, (Receiver &&) r};

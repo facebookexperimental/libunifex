@@ -23,6 +23,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/functional.hpp>
 
 #include <type_traits>
 
@@ -45,7 +46,7 @@ namespace unifex
       template(typename Receiver2)
         (requires constructible_from<Receiver, Receiver2>)
       explicit type(Receiver2&& receiver) noexcept(
-          std::is_nothrow_constructible_v<Receiver, Receiver2>)
+          is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
       template(typename... Values)
@@ -119,7 +120,7 @@ namespace unifex
       friend void tag_invoke(
           UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<visit_continuations>),
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, type)& r,
-          Func&& func) noexcept(std::is_nothrow_invocable_v<
+          Func&& func) noexcept(is_nothrow_invocable_v<
                                         Func&,
                                         const Receiver&>) {
         std::invoke(func, std::as_const(r.receiver_));
@@ -185,7 +186,7 @@ namespace unifex
       template(typename Source2)
           (requires constructible_from<Source, Source2>)
       explicit type(Source2&& source) noexcept(
-          std::is_nothrow_constructible_v<Source, Source2>)
+          is_nothrow_constructible_v<Source, Source2>)
         : source_(static_cast<Source2&&>(source)) {}
 
       template(typename Self, typename Receiver)
@@ -194,7 +195,7 @@ namespace unifex
             sender_to<member_t<Self, Source>, receiver_t<Receiver>>)
       friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
           is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
-              std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+              is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
           -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
         return unifex::connect(
             static_cast<Self&&>(self).source_,
@@ -226,7 +227,7 @@ namespace unifex
       template(typename Source)
         (requires (!tag_invocable<_fn, Source>))
       auto operator()(Source&& source) const
-          noexcept(std::is_nothrow_constructible_v<_mat::sender<Source>, Source>)
+          noexcept(is_nothrow_constructible_v<_mat::sender<Source>, Source>)
           -> _result_t<Source> {
         return _mat::sender<Source>{(Source&&) source};
       }

@@ -263,7 +263,7 @@ struct _stream<SourceStream, Values...>::type {
           }
 
           static_assert(
-            std::is_same_v<decltype(stopToken), ST>);
+            is_same_v<decltype(stopToken), ST>);
 
           UNIFEX_TRY {
             stream_.nextOp_.construct_with([&] {
