@@ -28,7 +28,6 @@
 #endif
 
 #include <cassert>
-#include <optional>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>

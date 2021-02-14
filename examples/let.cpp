@@ -41,7 +41,7 @@ int main() {
   // Simple usage of 'let()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  std::optional<int> result =
+  optional<int> result =
       sync_wait(let(async([] { return 42; }), [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
@@ -89,7 +89,7 @@ int main() {
   // Simple usage of 'let_with()'
   // - defines an async scope in which the result of a passed invocable
   //   is in-scope for the duration of an operation.
-  std::optional<int> let_with_result =
+  optional<int> let_with_result =
       sync_wait(let_with([] { return 42; }, [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
@@ -103,7 +103,7 @@ int main() {
 
    // let_with example showing use with a non-moveable type and
    // in-place construction.
-  std::optional<int> let_with_atomic_result =
+  optional<int> let_with_atomic_result =
       sync_wait(let_with([] { return std::atomic<int>{42}; },
         [&](std::atomic<int>& x) {
           ++x;

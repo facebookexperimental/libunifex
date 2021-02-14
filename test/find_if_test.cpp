@@ -36,7 +36,7 @@ TEST(find_if, find_if_sequential) {
     // onwards to the result.
     // Precise API shape for the data being passed through is TBD, this is
     // one option only.
-    std::optional<std::vector<int>::iterator> result = sync_wait(transform(
+    optional<std::vector<int>::iterator> result = sync_wait(transform(
         find_if(
             just(begin(input), end(input), 3),
             [&](const int& v, int another_parameter) noexcept {
@@ -64,7 +64,7 @@ TEST(find_if, find_if_parallel) {
       input.push_back(i);
     }
     static_thread_pool ctx;
-    std::optional<std::vector<int>::iterator> result = sync_wait(
+    optional<std::vector<int>::iterator> result = sync_wait(
       unifex::on(
         transform(
           find_if(
@@ -113,7 +113,7 @@ TEST(find_if, Pipeable) {
     // onwards to the result.
     // Precise API shape for the data being passed through is TBD, this is
     // one option only.
-    std::optional<std::vector<int>::iterator> result = just(begin(input), end(input), 3)
+    optional<std::vector<int>::iterator> result = just(begin(input), end(input), 3)
       | find_if(
           [&](const int& v, int another_parameter) noexcept {
             return v == another_parameter;

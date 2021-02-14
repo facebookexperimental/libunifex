@@ -61,26 +61,26 @@ auto done_as_optional(Sender&& sender) {
   using value_type = sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
   return transform_done(
     transform((Sender&&)sender, [](auto&&... values) {
-      return std::optional<value_type>{std::in_place, static_cast<decltype(values)>(values)...};
+      return optional<value_type>{std::in_place, static_cast<decltype(values)>(values)...};
     }), []() {
-      return just(std::optional<value_type>(std::nullopt));
+      return just(optional<value_type>(nullopt));
     });
 }
 } // <anonymous namespace>
 
 TEST(TaskCancel, Cancel) {
-    std::optional<int> j = sync_wait(bar());
+    optional<int> j = sync_wait(bar());
     EXPECT_TRUE(!j);
 }
 
 TEST(TaskCancel, DoneAsOptional) {
-    std::optional<std::optional<int>> i = sync_wait(done_as_optional(bar()));
+    optional<optional<int>> i = sync_wait(done_as_optional(bar()));
     EXPECT_TRUE(i);
     EXPECT_TRUE(!*i);
 }
 
 TEST(TaskCancel, VoidTask) {
-    std::optional<unit> i = sync_wait(void_test());
+    optional<unit> i = sync_wait(void_test());
     EXPECT_TRUE(!i);
 }
 

@@ -52,7 +52,7 @@ TEST(Let, Simple) {
   // Simple usage of 'let()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  std::optional<int> result =
+  optional<int> result =
       sync_wait(let(async(context, [] { return 42; }), [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async(context, [&]() -> int {
@@ -105,7 +105,7 @@ TEST(Let, Pipeable) {
   // Simple usage of 'let()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  std::optional<int> result = async(context, [] { return 42; })
+  optional<int> result = async(context, [] { return 42; })
     | let(
         [&](int& x) {
           printf("addressof x = %p, val = %i\n", (void*)&x, x);

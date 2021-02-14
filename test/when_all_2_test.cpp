@@ -122,7 +122,7 @@ struct string_const_ref_sender {
 };
 
 TEST(WhenAll2, ResultsAreDecayCopied) {
-  std::optional<std::tuple<
+  optional<std::tuple<
       std::variant<std::tuple<std::string>>,
       std::variant<std::tuple<std::string>>>>
       result = sync_wait(

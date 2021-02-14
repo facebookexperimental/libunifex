@@ -38,7 +38,7 @@ TEST(awaitable_senders, non_void) {
     co_return co_await just(42);
   };
 
-  std::optional<int> answer =
+  optional<int> answer =
       sync_wait(makeTask());
 
   EXPECT_TRUE(answer.has_value());
@@ -52,7 +52,7 @@ TEST(awaitable_senders, void) {
     co_return unifex::unit{};
   };
 
-  std::optional<unifex::unit> answer =
+  optional<unifex::unit> answer =
       sync_wait(makeTask());
 
   EXPECT_TRUE(answer.has_value());
@@ -72,7 +72,7 @@ TEST(awaitable_senders, task_cancellation) {
 }
 
 TEST(awaitable_senders, await_multi_value_sender) {
-  std::optional<int> result = sync_wait([]() -> task<int> {
+  optional<int> result = sync_wait([]() -> task<int> {
     auto [a, b] = co_await just(10, 42);
     EXPECT_EQ(10, a);
     EXPECT_EQ(42, b);

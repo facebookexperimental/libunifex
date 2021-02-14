@@ -21,8 +21,8 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/optional.hpp>
 
-#include <optional>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
@@ -86,10 +86,10 @@ using stream = typename _stream<remove_cvref_t<Sender>>::type;
 
 template <typename Sender>
 struct _stream<Sender>::type {
-  std::optional<Sender> sender_;
+  optional<Sender> sender_;
 
   struct next_sender {
-    std::optional<Sender> sender_;
+    optional<Sender> sender_;
 
     template <template <typename...> class Variant,
              template <typename...> class Tuple>

@@ -24,10 +24,10 @@
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/optional.hpp>
 
 #include <atomic>
 #include <functional>
-#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -259,7 +259,7 @@ namespace unifex
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       std::atomic<int> activeOpCount_ = 2;
       inplace_stop_source stopSource_;
-      std::optional<typename stop_token_type_t<
+      optional<typename stop_token_type_t<
           Receiver>::template callback_type<cancel_callback>>
           stopCallback_;
       UNIFEX_NO_UNIQUE_ADDRESS result_variant result_;

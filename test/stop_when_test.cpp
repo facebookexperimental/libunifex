@@ -20,9 +20,9 @@
 #include <unifex/transform.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/on.hpp>
+#include <unifex/optional.hpp>
 
 #include <chrono>
-#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -34,7 +34,7 @@ TEST(StopWhen, SourceCompletesFirst) {
     bool sourceExecuted = false;
     bool triggerExecuted = false;
     
-    std::optional<int> result = unifex::sync_wait(
+    unifex::optional<int> result = unifex::sync_wait(
         unifex::on(
             unifex::stop_when(
                 unifex::transform(
@@ -63,7 +63,7 @@ TEST(StopWhen, TriggerCompletesFirst) {
     bool sourceExecuted = false;
     bool triggerExecuted = false;
     
-    std::optional<int> result = unifex::sync_wait(
+    unifex::optional<int> result = unifex::sync_wait(
         unifex::on(
             unifex::stop_when(
                 unifex::transform(
@@ -90,7 +90,7 @@ TEST(StopWhen, CancelledFromParent) {
     bool sourceExecuted = false;
     bool triggerExecuted = false;
     
-    std::optional<int> result = unifex::sync_wait(
+    unifex::optional<int> result = unifex::sync_wait(
         unifex::on(
             unifex::stop_when(
                 unifex::stop_when(
@@ -121,7 +121,7 @@ TEST(StopWhen, Pipeable) {
     bool sourceExecuted = false;
     bool triggerExecuted = false;
     
-    std::optional<int> result = unifex::schedule_after(1s)
+    unifex::optional<int> result = unifex::schedule_after(1s)
       | unifex::transform(
         [&] {
             sourceExecuted = true;

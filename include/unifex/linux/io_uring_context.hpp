@@ -28,6 +28,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/span.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/optional.hpp>
 
 #include <unifex/linux/mmap_region.hpp>
 #include <unifex/linux/monotonic_clock.hpp>
@@ -36,7 +37,6 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <system_error>
 #include <utility>
 
@@ -253,7 +253,7 @@ class io_uring_context {
 
   // The time that the current timer operation submitted to the kernel
   // is due to elapse.
-  std::optional<time_point> currentDueTime_;
+  optional<time_point> currentDueTime_;
 
   // Number of unflushed I/O submission entries.
   std::uint32_t sqUnflushedCount_ = 0;

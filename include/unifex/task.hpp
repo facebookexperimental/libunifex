@@ -26,13 +26,13 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/optional.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
 #endif
 
 #include <exception>
-#include <optional>
 #include <cassert>
 
 #include <unifex/detail/prologue.hpp>
@@ -108,7 +108,7 @@ struct _promise_base {
 
   coro::coroutine_handle<> continuation_;
   done_callback* doneCallback_ = &default_unhandled_done_callback;
-  std::optional<continuation_info> info_;
+  optional<continuation_info> info_;
   inplace_stop_token stoken_;
 };
 
