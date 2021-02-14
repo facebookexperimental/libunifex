@@ -23,13 +23,14 @@
 #include <unifex/with_query_value.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/optional.hpp>
 
 #include <condition_variable>
 #include <exception>
 #include <mutex>
 #include <type_traits>
 #include <utility>
-#include <optional>
+#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -113,7 +114,7 @@ using receiver_t = typename _receiver<T>::type;
 
 template <typename Result, typename Sender>
 UNIFEX_CLANG_DISABLE_OPTIMIZATION
-std::optional<Result> _impl(Sender&& sender) {
+optional<Result> _impl(Sender&& sender) {
   using promise_t = _sync_wait::promise<Result>;
   promise_t promise;
   manual_event_loop ctx;
@@ -129,7 +130,7 @@ std::optional<Result> _impl(Sender&& sender) {
 
   switch (promise.state_) {
     case promise_t::state::done:
-      return std::nullopt;
+      return nullopt;
     case promise_t::state::value:
       return std::move(promise.value_).get();
     case promise_t::state::error:
@@ -145,7 +146,7 @@ namespace _sync_wait_cpo {
     template(typename Sender)
       (requires typed_sender<Sender>)
     auto operator()(Sender&& sender) const
-        -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
+        -> optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
       using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
       return _sync_wait::_impl<Result>((Sender&&) sender);
     }

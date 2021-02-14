@@ -29,7 +29,6 @@
 #include <unifex/manual_lifetime.hpp>
 
 #include <exception>
-#include <optional>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>

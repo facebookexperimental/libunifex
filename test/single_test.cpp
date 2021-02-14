@@ -21,10 +21,10 @@
 #include <unifex/take_until.hpp>
 #include <unifex/thread_unsafe_event_loop.hpp>
 #include <unifex/typed_via_stream.hpp>
+#include <unifex/optional.hpp>
 
 #include <chrono>
 #include <cstdio>
-#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -38,7 +38,7 @@ TEST(single, Smoke) {
 
   auto startTime = steady_clock::now();
 
-  [[maybe_unused]] std::optional<unit> result =
+  [[maybe_unused]] optional<unit> result =
       eventLoop.sync_wait(for_each(
           take_until(
               stop_immediately<int>(
@@ -57,7 +57,7 @@ TEST(single, Pipeable) {
 
   auto startTime = steady_clock::now();
 
-  [[maybe_unused]] std::optional<unit> result = 
+  [[maybe_unused]] optional<unit> result =
     eventLoop.sync_wait(
       range_stream{0, 100} 
         | delay(eventLoop.get_scheduler(), 50ms)

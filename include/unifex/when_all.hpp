@@ -25,10 +25,10 @@
 #include <unifex/type_list.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/optional.hpp>
 
 #include <atomic>
 #include <cstddef>
-#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -253,8 +253,8 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
-  std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
+  std::tuple<optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
+  optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;

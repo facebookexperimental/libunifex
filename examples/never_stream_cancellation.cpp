@@ -25,7 +25,6 @@
 
 #include <chrono>
 #include <cstdio>
-#include <optional>
 #include <thread>
 
 using namespace std::literals::chrono_literals;
@@ -34,7 +33,7 @@ using namespace unifex;
 int main() {
   timed_single_thread_context context;
 
-  std::optional<unit> result = sync_wait(
+  optional<unit> result = sync_wait(
     stop_when(
       for_each(
           never_stream{},

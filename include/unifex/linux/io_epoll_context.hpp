@@ -27,6 +27,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/span.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/optional.hpp>
 
 #include <unifex/linux/monotonic_clock.hpp>
 #include <unifex/linux/safe_file_descriptor.hpp>
@@ -34,7 +35,6 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <system_error>
 #include <utility>
 
@@ -185,7 +185,7 @@ class io_epoll_context {
 
   // The time that the current timer operation submitted to the kernel
   // is due to elapse.
-  std::optional<time_point> currentDueTime_;
+  optional<time_point> currentDueTime_;
 
   bool remoteQueueReadSubmitted_ = false;
   bool timersAreDirty_ = false;

@@ -21,10 +21,10 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/optional.hpp>
 
 #include <chrono>
 #include <exception>
-#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -338,10 +338,10 @@ namespace _thread_unsafe_event_loop {
       return receiver{*this};
     }
 
-    std::optional<T> get() && {
+    optional<T> get() && {
       switch (state_) {
         case state::done:
-          return std::nullopt;
+          return nullopt;
         case state::value:
           return std::move(value_).get();
         case state::error:
@@ -385,7 +385,7 @@ class thread_unsafe_event_loop {
   template <
       typename Sender,
       typename Result = sender_single_value_result_t<remove_cvref_t<Sender>>>
-  std::optional<Result> sync_wait(Sender&& sender) {
+  optional<Result> sync_wait(Sender&& sender) {
     using promise_t = _thread_unsafe_event_loop::sync_wait_promise<Result>;
     promise_t promise;
 

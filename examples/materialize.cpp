@@ -22,14 +22,14 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
-#include <optional>
+#include <cassert>
 
 using namespace unifex;
 
 int main() {
     single_thread_context ctx;
 
-    std::optional<int> result = sync_wait(
+    optional<int> result = sync_wait(
         dematerialize(
             materialize(
                 transform(

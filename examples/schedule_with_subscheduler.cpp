@@ -24,7 +24,7 @@ int main() {
   timed_single_thread_context context;
   auto scheduler = context.get_scheduler();
 
-  std::optional<bool> result = sync_wait(transform(
+  optional<bool> result = sync_wait(transform(
       schedule_with_subscheduler(scheduler),
       [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
 
