@@ -121,7 +121,7 @@ struct _stream<Sender>::type {
 
   template <typename Sender2>
   explicit type(Sender2&& sender)
-    : sender_(std::in_place, (Sender2&&)sender) {}
+    : sender_(opt::in_place_t{}, (Sender2&&)sender) {}
 };
 } // namespace _single
 

@@ -65,10 +65,10 @@ int main() {
         [&](auto&& a, auto&& b) {
           ranFinalCallback = true;
           std::cout << "when_all finished - ["
-                    << duration_cast<milliseconds>(std::get<0>(std::get<0>(a)))
+                    << duration_cast<milliseconds>(std::get<0>(var::get<0>(a)))
                            .count()
                     << "ms, "
-                    << duration_cast<milliseconds>(std::get<0>(std::get<0>(b)))
+                    << duration_cast<milliseconds>(std::get<0>(var::get<0>(b)))
                            .count()
                     << "ms]\n";
         }));

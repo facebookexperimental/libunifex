@@ -26,7 +26,7 @@
 
 #include <atomic>
 #include <chrono>
-#include <variant>
+#include <unifex/variant.hpp>
 
 using namespace unifex;
 using namespace std::chrono_literals;
@@ -81,24 +81,24 @@ class delegating_operation final {
   template<class InitFunc>
   delegating_operation(InitFunc&& func, delegating_context* context) :
     op_{
-      std::in_place_type_t<remove_cvref_t<decltype(func())>>{},
+      var::in_place_type<remove_cvref_t<decltype(func())>>,
       FuncWrapper<InitFunc>{std::forward<InitFunc>(func)}},
     context_{context} {
   }
 
 
   inline void start() noexcept {
-    if(std::holds_alternative<DelegatedOperationState>(op_)) {
+    if(unifex::holds_alternative<DelegatedOperationState>(op_)) {
       // Start a delegated operation
-      std::get<DelegatedOperationState>(op_).start();
+      var::get<DelegatedOperationState>(op_).start();
     } else {
       // Start immediately on the local context
       context_->run();
-      std::get<LocalOperationState>(op_).start();;
+      var::get<LocalOperationState>(op_).start();
     }
   }
 
-  std::variant<DelegatedOperationState, LocalOperationState> op_;
+  variant<DelegatedOperationState, LocalOperationState> op_;
   delegating_context* context_ = nullptr;
 };
 

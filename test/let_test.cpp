@@ -24,6 +24,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <unifex/variant.hpp>
 
 #include <gtest/gtest.h>
 
@@ -90,12 +91,12 @@ TEST(Let, Nested) {
                   return async(context, [&] { return x + y; });
                 });
               })),
-      [](std::variant<std::tuple<>> a, std::variant<std::tuple<int>> b) {
+      [](variant<std::tuple<>> a, variant<std::tuple<int>> b) {
         std::cout << "when_all finished - [" << a.index() << ", "
-                  << std::get<0>(std::get<0>(b)) << "]\n";
+                  << std::get<0>(var::get<0>(b)) << "]\n";
         EXPECT_EQ(a.index(), 0);
         EXPECT_EQ(b.index(), 0);
-        EXPECT_EQ(std::get<0>(std::get<0>(b)), 63);
+        EXPECT_EQ(std::get<0>(var::get<0>(b)), 63);
       }));
 }
 

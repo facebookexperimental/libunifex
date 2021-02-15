@@ -30,7 +30,7 @@
 #include <functional>
 #include <tuple>
 #include <type_traits>
-#include <variant>
+#include <unifex/variant.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -218,7 +218,7 @@ namespace unifex
 
       void deliver_result() noexcept {
         UNIFEX_TRY {
-          std::visit(
+          unifex::visit(
               [this](auto&& tuple) {
                 if constexpr (
                     std::tuple_size<
@@ -254,7 +254,7 @@ namespace unifex
               type_list<std::tuple<>, std::tuple<tag_t<unifex::set_done>>>,
               sender_value_types_t<remove_cvref_t<Source>, type_list, value_decayed_tuple>,
               sender_error_types_t<remove_cvref_t<Source>, error_tuples>>::template
-                  apply<std::variant>;
+                  apply<variant>;
 
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       std::atomic<int> activeOpCount_ = 2;

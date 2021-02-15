@@ -31,7 +31,7 @@
 #include <cstddef>
 #include <tuple>
 #include <type_traits>
-#include <variant>
+#include <unifex/variant.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -123,7 +123,7 @@ using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
 template <typename Sender>
 using value_variant_for_sender =
   typename sender_value_types_t<Sender, concat_type_lists_unique_t, decayed_value_tuple>
-      ::template apply<std::variant>;
+      ::template apply<variant>;
 
 template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver {
@@ -143,7 +143,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
     UNIFEX_TRY {
       std::get<Index>(op_.values_)
           .emplace(
-              std::in_place_type<std::tuple<std::decay_t<Values>...>>,
+              var::in_place_type<std::tuple<std::decay_t<Values>...>>,
               (Values &&) values...);
       op_.element_complete();
     } UNIFEX_CATCH (...) {
@@ -154,7 +154,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-      op_.error_.emplace(std::in_place_type<std::decay_t<Error>>, (Error &&) error);
+      op_.error_.emplace(var::in_place_type<std::decay_t<Error>>, (Error &&) error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
@@ -229,7 +229,7 @@ struct _op<Receiver, Senders...>::type {
       unifex::set_done(std::move(receiver_));
     } else if (doneOrError_.load(std::memory_order_relaxed)) {
       if (error_.has_value()) {
-        std::visit(
+        unifex::visit(
             [this](auto&& error) {
               unifex::set_error(std::move(receiver_), (decltype(error))error);
             },
@@ -254,7 +254,7 @@ struct _op<Receiver, Senders...>::type {
   }
 
   std::tuple<optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
-  optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
+  optional<error_types<variant, remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;

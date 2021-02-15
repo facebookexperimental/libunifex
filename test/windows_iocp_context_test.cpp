@@ -124,8 +124,8 @@ TEST(low_latency_iocp_context, read_write_pipe) {
 
     assert(results.has_value());
 
-    auto [bytesRead] = std::get<0>(std::get<0>(results.value()));
-    auto [bytesWritten] = std::get<0>(std::get<1>(results.value()));
+    auto [bytesRead] = std::get<0>(unifex::var::get<0>(results.value()));
+    auto [bytesWritten] = std::get<0>(unifex::var::get<1>(results.value()));
 
     assert(bytesRead == 10);
     assert(bytesWritten == 10);
