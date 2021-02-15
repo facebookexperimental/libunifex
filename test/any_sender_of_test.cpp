@@ -29,7 +29,7 @@
 
 #include <string>
 #include <tuple>
-#include <variant>
+#include <unifex/variant.hpp>
 
 using namespace unifex;
 using namespace unifex_test;
@@ -38,10 +38,10 @@ using namespace testing;
 namespace {
 // We need to validate the following contract:
 //  - any_sender_of<T...> is a typed_sender
-//  - sender_traits<any_sender_of<T...>>::value_types<std::variant, std::tuple>
-//    is std::variant<std::tuple<T...>>
-//  - sender_traits<any_sender_of<T...>>::error_types<std::variant> is
-//    std::variant<std::exception_ptr>
+//  - sender_traits<any_sender_of<T...>>::value_types<variant, std::tuple>
+//    is variant<std::tuple<T...>>
+//  - sender_traits<any_sender_of<T...>>::error_types<variant> is
+//    variant<std::exception_ptr>
 //  - any_sender_of<T...> is constructible from just(declval<T>()...)
 //  - connect(any_sender_of<T...>{}, mock_receiver<T...>{}):
 //     - invokes nothing on the receiver immediately, but
@@ -63,10 +63,10 @@ struct AnySenderOfTestImpl : Test {
 
   static_assert(typed_sender<any_sender>);
   static_assert(sender_to<any_sender, mock_receiver<void(T...)>>);
-  static_assert(is_same_v<std::variant<std::tuple<T...>>,
-                               sender_value_types_t<any_sender, std::variant, std::tuple>>);
-  static_assert(is_same_v<std::variant<std::exception_ptr>,
-                               sender_error_types_t<any_sender, std::variant>>);
+  static_assert(is_same_v<variant<std::tuple<T...>>,
+                               sender_value_types_t<any_sender, variant, std::tuple>>);
+  static_assert(is_same_v<variant<std::exception_ptr>,
+                               sender_error_types_t<any_sender, variant>>);
 
   static auto default_just() {
     if constexpr (value_count == 0) {

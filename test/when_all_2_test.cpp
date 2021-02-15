@@ -22,6 +22,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
+#include <unifex/variant.hpp>
 
 #include <gtest/gtest.h>
 
@@ -71,10 +72,10 @@ TEST(WhenAll2, Smoke) {
         [&](auto&& a, auto&& b) {
           ranFinalCallback = true;
           std::cout << "when_all finished - ["
-                    << duration_cast<milliseconds>(std::get<0>(std::get<0>(a)))
+                    << duration_cast<milliseconds>(std::get<0>(var::get<0>(a)))
                            .count()
                     << "ms, "
-                    << duration_cast<milliseconds>(std::get<0>(std::get<0>(b)))
+                    << duration_cast<milliseconds>(std::get<0>(var::get<0>(b)))
                            .count()
                     << "ms]\n";
         }));
@@ -123,13 +124,13 @@ struct string_const_ref_sender {
 
 TEST(WhenAll2, ResultsAreDecayCopied) {
   optional<std::tuple<
-      std::variant<std::tuple<std::string>>,
-      std::variant<std::tuple<std::string>>>>
+      variant<std::tuple<std::string>>,
+      variant<std::tuple<std::string>>>>
       result = sync_wait(
           when_all(string_const_ref_sender{}, string_const_ref_sender{}));
   EXPECT_TRUE(result.has_value());
   EXPECT_EQ(
-      "hello world", std::get<0>(std::get<0>(std::get<0>(result.value()))));
+      "hello world", std::get<0>(var::get<0>(std::get<0>(result.value()))));
   EXPECT_EQ(
-      "hello world", std::get<0>(std::get<0>(std::get<1>(result.value()))));
+      "hello world", std::get<0>(var::get<0>(std::get<1>(result.value()))));
 }

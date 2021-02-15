@@ -24,6 +24,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <unifex/variant.hpp>
 
 using namespace unifex;
 using namespace std::chrono;
@@ -79,9 +80,9 @@ int main() {
                   return async([&] { return x + y; });
                 });
               })),
-      [](std::variant<std::tuple<>> a, std::variant<std::tuple<int>> b) {
+      [](variant<std::tuple<>> a, variant<std::tuple<int>> b) {
         std::cout << "when_all finished - [" << a.index() << ", "
-                  << std::get<0>(std::get<0>(b)) << "]\n";
+                  << std::get<0>(var::get<0>(b)) << "]\n";
       }));
 
   std::cout << "let done " << *result << "\n";

@@ -42,12 +42,18 @@ using std::nullopt;
 using std::nullopt_t;
 using std::make_optional;
 using std::bad_optional_access;
+namespace opt {
+using std::in_place_t;
+}
 #elif UNIFEX_CXX_EXPERIMENTAL_OPTIONAL
 using std::experimental::optional;
 using std::experimental::nullopt;
 using std::experimental::nullopt_t;
 using std::experimental::make_optional;
 using std::experimental::bad_optional_access;
+namespace opt {
+using std::experimental::in_place_t;
+}
 #endif
 }
 

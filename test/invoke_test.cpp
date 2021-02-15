@@ -21,8 +21,7 @@
 #include <unifex/invoke.hpp>
 #include <unifex/task.hpp>
 #include <unifex/sync_wait.hpp>
-
-#include <optional>
+#include <unifex/optional.hpp>
 
 #include <gtest/gtest.h>
 
