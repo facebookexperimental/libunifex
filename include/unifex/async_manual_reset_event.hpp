@@ -30,7 +30,7 @@
 
 namespace unifex {
 
-namespace _ub {
+namespace _amre {
 
 struct _op_base;
 
@@ -163,9 +163,9 @@ struct _operation<Receiver>::type : private _op_base {
   }
 };
 
-} // namespace _ub
+} // namespace _amre
 
-using _ub::async_manual_reset_event;
+using _amre::async_manual_reset_event;
 
 } // namespace unifex
 

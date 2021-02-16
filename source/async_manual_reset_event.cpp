@@ -16,7 +16,7 @@
 
 #include <unifex/async_manual_reset_event.hpp>
 
-namespace unifex::_ub {
+namespace unifex::_amre {
 
 void async_manual_reset_event::set() noexcept {
   void* const signalledState = this;
@@ -61,4 +61,4 @@ void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_ev
       std::memory_order_acquire));
 }
 
-} // namespace unfiex::_ub
+} // namespace unfiex::_amre
