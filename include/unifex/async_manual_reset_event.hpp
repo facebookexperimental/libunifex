@@ -60,7 +60,7 @@ struct _sender {
   template (typename Receiver)
     (requires receiver_of<Receiver>)
   operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const noexcept(
-      std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
+      noexcept(operation<remove_cvref_t<Receiver>>{*evt_, (Receiver&&)r})) {
     return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver&&)r};
   }
 
@@ -116,7 +116,7 @@ struct _op_base {
   async_manual_reset_event* evt_;
   void (*setValue_)(_op_base*) noexcept;
 
-  explicit _op_base(async_manual_reset_event& evt, void (*setValue)(_op_base*) noexcept)
+  explicit _op_base(async_manual_reset_event& evt, void (*setValue)(_op_base*) noexcept) noexcept
     : evt_(&evt), setValue_(setValue) {}
 
   ~_op_base() = default;
@@ -136,7 +136,7 @@ struct _op_base {
 template <typename Receiver>
 struct _operation<Receiver>::type : private _op_base {
   explicit type(async_manual_reset_event& evt, Receiver r)
-      noexcept(std::is_nothrow_move_constructible_v<Receiver>)
+      noexcept(noexcept(create_op(std::move(r))))
     : _op_base(evt, &set_value_impl),
       op_(create_op(std::move(r))) {}
 
@@ -148,7 +148,11 @@ struct _operation<Receiver>::type : private _op_base {
   using _op_base::start;
 
  private:
-  static auto create_op(Receiver&& r) {
+  static auto create_op(Receiver&& r)
+      noexcept(
+          is_nothrow_connectable_v<
+              decltype(with_query_value(schedule(), get_stop_token, unstoppable_token{})),
+              Receiver>) {
     return connect(
         with_query_value(schedule(), get_stop_token, unstoppable_token{}),
         std::move(r));
