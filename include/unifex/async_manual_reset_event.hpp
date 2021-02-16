@@ -91,7 +91,7 @@ struct async_manual_reset_event {
     // spuriously; if it fails, it means it wasn't previously in the signalled
     // state so resetting is a no-op.
     (void)state_.compare_exchange_strong(
-        oldState, nullptr, std::memory_order_acq_rel, std::memory_order_relaxed);
+        oldState, nullptr, std::memory_order_acq_rel);
   }
 
   [[nodiscard]] _sender async_wait() noexcept {
