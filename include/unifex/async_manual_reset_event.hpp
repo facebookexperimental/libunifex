@@ -103,6 +103,10 @@ struct async_manual_reset_event {
 
   friend struct _op_base;
 
+  // note: this is a static method that takes evt *second* because the caller
+  //       a member function on _op_base and so will already have op in first
+  //       argument position; making this function a member would require some
+  //       register-juggling code, which would increase binary size
   static void start_or_wait(_op_base& op, async_manual_reset_event& evt) noexcept;
 };
 
@@ -110,11 +114,14 @@ struct _op_base {
   // note: next_ is intentionally left indeterminate until the operation is
   //       pushed on the event's stack of waiting operations
   //
-  // note: next_ is the first member so that list operations don't have to
-  //       offset into this struct; hopefully that leads to smaller code
+  // note: next_ and setValue_ are the first two members because this ordering
+  //       leads to smaller code than others; on ARM, the first two members can
+  //       be loaded into a pair of registers in one instruction, which turns
+  //       out to be important in both async_manual_reset_event::set() and
+  //       start_or_wait().
   _op_base* next_;
-  async_manual_reset_event* evt_;
   void (*setValue_)(_op_base*) noexcept;
+  async_manual_reset_event* evt_;
 
   explicit _op_base(async_manual_reset_event& evt, void (*setValue)(_op_base*) noexcept) noexcept
     : evt_(&evt), setValue_(setValue) {}
