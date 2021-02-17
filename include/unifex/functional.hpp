@@ -19,24 +19,82 @@
 
 #include <functional>
 
-#include <unifex/detail/prologue.hpp>
+#include <unifex/detail/concept_macros.hpp>
 
-#if defined(__cpp_lib_invoke) && __cpp_lib_invoke > 0
-#define UNIFEX_CXX_INVOKE 1
-#else
-#define UNIFEX_CXX_INVOKE 0
-#endif
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 #if UNIFEX_CXX_INVOKE
 
 using std::invoke;
 
-#else
+#else // UNIFEX_CXX_INVOKE
 
-#error TODO: IMPLEMENT ME
+namespace _invoke {
+struct _any {
+  template <typename T>
+  constexpr _any(T&&) noexcept {}
+};
 
-#endif
+constexpr bool _can_deref(_any) noexcept {
+  return false;
+}
+template <typename T>
+constexpr auto _can_deref(T&& t) noexcept -> decltype(_can_deref(*(T&&) t)) {
+  return true;
+}
+
+template<typename T, typename U = std::decay_t<T>>
+inline constexpr bool _is_reference_wrapper_v = false;
+
+template<typename T, typename U>
+inline constexpr bool _is_reference_wrapper_v<T, std::reference_wrapper<U>> = true;
+
+template<typename T, typename U>
+inline constexpr bool _is_base_of_v = UNIFEX_IS_BASE_OF(T, U);
+
+template(typename, typename T1)
+  (requires _invoke::_can_deref<T1>(UNIFEX_DECLVAL(T1&&)))
+constexpr decltype(auto) coerce(T1 && t1, long)
+    noexcept(noexcept(*static_cast<T1 &&>(t1))) {
+  return *static_cast<T1 &&>(t1);
+}
+
+template(typename T, typename T1)
+  (requires _is_base_of_v<T, std::decay_t<T1>>)
+constexpr T1 && coerce(T1 && t1, int) noexcept {
+  return static_cast<T1 &&>(t1);
+}
+
+template(typename, typename T1)
+  (requires _is_reference_wrapper_v<T1>)
+constexpr decltype(auto) coerce(T1 && t1, int) noexcept {
+  return static_cast<T1 &&>(t1).get();
+}
+} // _invoke
+
+template<typename F, typename T, typename T1, typename... Args>
+constexpr auto invoke(F T::*f, T1&& t1, Args&&... args)
+  noexcept(noexcept((_invoke::coerce<T>((T1&&) t1, 0).*f)((Args&&) args...)))
+  -> decltype((_invoke::coerce<T>((T1&&) t1, 0).*f)((Args&&) args...)) {
+  return (_invoke::coerce<T>((T1&&) t1, 0).*f)((Args&&) args...);
+}
+
+template<typename D, typename T, typename T1>
+constexpr auto invoke(D T::*f, T1&& t1)
+  noexcept(noexcept(_invoke::coerce<T>((T1&&) t1, 0).*f))
+  -> decltype(_invoke::coerce<T>((T1&&) t1, 0).*f) {
+  return _invoke::coerce<T>((T1&&) t1, 0).*f;
+}
+
+template<typename F, typename... Args>
+constexpr auto invoke(F&& f, Args&&... args)
+  noexcept(noexcept(((F&&) f)((Args&&) args...)))
+  -> decltype(((F&&) f)((Args&&) args...)) {
+  return ((F&&) f)((Args&&) args...);
+}
+
+#endif // UNIFEX_CXX_INVOKE
 }
 
 #include <unifex/detail/epilogue.hpp>

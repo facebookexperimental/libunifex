@@ -97,7 +97,7 @@ struct _error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type
 
   template <typename Func>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
-    std::invoke(func, r.op_.receiver_);
+    unifex::invoke(func, r.op_.receiver_);
   }
 };
 
@@ -146,7 +146,7 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type 
 
   template <typename Func>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
-    std::invoke(func, r.op_.receiver_);
+    unifex::invoke(func, r.op_.receiver_);
   }
 };
 
@@ -182,7 +182,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
       tag_t<visit_continuations>,
       const type& r,
       Func&& func) {
-    std::invoke(func, r.op_.receiver_);
+    unifex::invoke(func, r.op_.receiver_);
   }
 
   template <typename... Values>
@@ -190,7 +190,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
     auto& op = op_;
     unifex::deactivate_union_member(op.next_);
     UNIFEX_TRY {
-      op.state_ = std::invoke(
+      op.state_ = unifex::invoke(
           op.reducer_,
           std::forward<State>(op.state_),
           (Values &&) values...);

@@ -50,7 +50,7 @@ using let_with_sender = typename _sender<StateFactory, SuccessorFactory>::type;
 template<typename StateFactory, typename SuccessorFactory>
 class _sender<StateFactory, SuccessorFactory>::type {
 public:
-    using InnerOp = std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>;
+    using InnerOp = unifex::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
     using value_types = sender_value_types_t<InnerOp, Variant, Tuple>;

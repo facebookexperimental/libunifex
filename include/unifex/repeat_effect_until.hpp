@@ -132,7 +132,7 @@ private:
       VisitFunc&& func) noexcept(is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
-    std::invoke(func, r.get_rcvr());
+    unifex::invoke(func, r.get_rcvr());
   }
 
   const Receiver& get_rcvr() const noexcept {

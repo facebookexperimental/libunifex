@@ -80,7 +80,7 @@ struct _value_receiver<Receiver, Values...>::type {
       tag_t<visit_continuations>,
       const value_receiver& r,
       Func&& func) {
-    std::invoke(func, r.receiver_);
+    unifex::invoke(func, r.receiver_);
   }
 };
 
@@ -124,7 +124,7 @@ struct _error_receiver<Receiver, Error>::type {
       tag_t<visit_continuations>,
       const error_receiver& r,
       Func&& func) {
-    std::invoke(func, r.receiver_);
+    unifex::invoke(func, r.receiver_);
   }
 };
 
@@ -167,7 +167,7 @@ struct _done_receiver<Receiver>::type {
       tag_t<visit_continuations>,
       const done_receiver& r,
       Func&& func) {
-    std::invoke(func, r.receiver_);
+    unifex::invoke(func, r.receiver_);
   }
 };
 
@@ -235,7 +235,7 @@ struct _predecessor_receiver<Successor, Receiver>::type {
       tag_t<visit_continuations>,
       const predecessor_receiver& r,
       Func&& func) {
-    std::invoke(func, r.receiver_);
+    unifex::invoke(func, r.receiver_);
   }
 };
 

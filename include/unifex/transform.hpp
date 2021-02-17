@@ -61,31 +61,31 @@ struct _receiver<Receiver, Func>::type {
 
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
-    using result_type = std::invoke_result_t<Func, Values...>;
+    using result_type = unifex::invoke_result_t<Func, Values...>;
     if constexpr (is_void_v<result_type>) {
-      if constexpr (noexcept(std::invoke(
+      if constexpr (noexcept(unifex::invoke(
                         (Func &&) func_, (Values &&) values...))) {
-        std::invoke((Func &&) func_, (Values &&) values...);
+        unifex::invoke((Func &&) func_, (Values &&) values...);
         unifex::set_value((Receiver &&) receiver_);
       } else {
         UNIFEX_TRY {
-          std::invoke((Func &&) func_, (Values &&) values...);
+          unifex::invoke((Func &&) func_, (Values &&) values...);
           unifex::set_value((Receiver &&) receiver_);
         } UNIFEX_CATCH (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
       }
     } else {
-      if constexpr (noexcept(std::invoke(
+      if constexpr (noexcept(unifex::invoke(
                         (Func &&) func_, (Values &&) values...))) {
         unifex::set_value(
             (Receiver &&) receiver_,
-            std::invoke((Func &&) func_, (Values &&) values...));
+            unifex::invoke((Func &&) func_, (Values &&) values...));
       } else {
         UNIFEX_TRY {
           unifex::set_value(
               (Receiver &&) receiver_,
-              std::invoke((Func &&) func_, (Values &&) values...));
+              unifex::invoke((Func &&) func_, (Values &&) values...));
         } UNIFEX_CATCH (...) {
           unifex::set_error((Receiver &&) receiver_, std::current_exception());
         }
@@ -112,7 +112,7 @@ struct _receiver<Receiver, Func>::type {
 
   template <typename Visit>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Visit&& visit) {
-    std::invoke(visit, r.receiver_);
+    unifex::invoke(visit, r.receiver_);
   }
 };
 
@@ -135,7 +135,7 @@ private:
   // - type_list<type_list<>>       - if Result is void
   template <typename... Args>
   using result = type_list<
-    typename detail::result_overload<std::invoke_result_t<Func, Args...>>::type>;
+    typename detail::result_overload<unifex::invoke_result_t<Func, Args...>>::type>;
 
 public:
 

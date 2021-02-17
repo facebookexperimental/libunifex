@@ -33,7 +33,7 @@ namespace _for_each {
         (requires invocable<Func&, Ts...>)
       unit operator()(unit s, Ts&&... values)
           noexcept(is_nothrow_invocable_v<Func&, Ts...>) {
-        std::invoke(func_, (Ts&&) values...);
+        unifex::invoke(func_, (Ts&&) values...);
         return s;
       }
     };

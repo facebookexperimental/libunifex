@@ -98,7 +98,7 @@ private:
       tag_t<visit_continuations>,
       const successor_receiver& r,
       Func&& f) {
-    std::invoke(f, r.get_receiver());
+    unifex::invoke(f, r.get_receiver());
   }
 };
 
@@ -176,7 +176,7 @@ struct _predecessor_receiver<Operation>::type {
       tag_t<visit_continuations>,
       const predecessor_receiver& r,
       Func&& f) {
-    std::invoke(f, r.get_receiver());
+    unifex::invoke(f, r.get_receiver());
   }
 };
 
@@ -197,7 +197,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
 
   template <typename... Values>
   using successor_type =
-      std::invoke_result_t<SuccessorFactory, std::decay_t<Values>&...>;
+      unifex::invoke_result_t<SuccessorFactory, std::decay_t<Values>&...>;
 
   template <typename... Values>
   using successor_operation =
@@ -269,7 +269,7 @@ class _sender<Predecessor, SuccessorFactory>::type {
   SuccessorFactory func_;
 
   template <typename... Values>
-  using successor_type = std::invoke_result_t<SuccessorFactory, std::decay_t<Values>&...>;
+  using successor_type = unifex::invoke_result_t<SuccessorFactory, std::decay_t<Values>&...>;
 
   template <template <typename...> class List>
   using successor_types =

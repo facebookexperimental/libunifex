@@ -50,24 +50,24 @@ public:
     template(typename... Values)
         (requires
             invocable<Func&, Values...> AND
-            is_void_v<std::invoke_result_t<Func&, Values...>>)
+            is_void_v<unifex::invoke_result_t<Func&, Values...>>)
     void set_next(Values&&... values) &
         noexcept(
             is_nothrow_invocable_v<Func&, Values...> &&
             is_nothrow_next_receiver_v<Receiver>) {
-        std::invoke(func_, (Values&&)values...);
+        unifex::invoke(func_, (Values&&)values...);
         unifex::set_next(receiver_);
     }
 
     template(typename... Values)
         (requires
             invocable<Func&, Values...> AND
-            (!is_void_v<std::invoke_result_t<Func&, Values...>>))
+            (!is_void_v<unifex::invoke_result_t<Func&, Values...>>))
     void set_next(Values&&... values) &
         noexcept(
             is_nothrow_invocable_v<Func&, Values...> &&
-            is_nothrow_next_receiver_v<Receiver, std::invoke_result_t<Func&, Values...>>) {
-        unifex::set_next(receiver_, std::invoke(func_, (Values&&)values...));
+            is_nothrow_next_receiver_v<Receiver, unifex::invoke_result_t<Func&, Values...>>) {
+        unifex::set_next(receiver_, unifex::invoke(func_, (Values&&)values...));
     }
 
     template(typename... Values)
@@ -143,7 +143,7 @@ template<typename Source, typename Func, typename Policy>
 class _tfx_sender<Source, Func, Policy>::type {
     template<typename... Values>
     using result = type_list<
-        typename result_overload<std::invoke_result_t<Func&, Values...>>::type>;
+        typename result_overload<unifex::invoke_result_t<Func&, Values...>>::type>;
 
 public:
     template<

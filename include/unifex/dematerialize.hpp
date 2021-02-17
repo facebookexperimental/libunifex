@@ -81,7 +81,7 @@ namespace _demat {
                                   is_nothrow_invocable_v<
                                       Func&,
                                       const Receiver&>) {
-      std::invoke(func, std::as_const(r.receiver_));
+      unifex::invoke(func, std::as_const(r.receiver_));
     }
 
    private:

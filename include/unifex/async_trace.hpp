@@ -89,7 +89,7 @@ class continuation_info {
     c.vtable_->visit_(
         c.address_,
         [](const continuation_info& info, void* data) {
-          std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
+          unifex::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
         },
         static_cast<void*>(std::addressof(f)));
   }
