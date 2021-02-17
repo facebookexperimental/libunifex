@@ -25,10 +25,10 @@
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/tuple.hpp>
 
 #include <exception>
 #include <functional>
-#include <tuple>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
@@ -140,7 +140,7 @@ struct _predecessor_receiver<Operation>::type {
             op.succOp_,
             [&] {
               return unifex::connect(
-                  std::apply(std::move(op.func_), valueTuple),
+                  unifex::apply(std::move(op.func_), valueTuple),
                   successor_receiver<Operation, Values...>{op});
             });
       unifex::start(succOp);

@@ -25,11 +25,11 @@
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/tuple.hpp>
 
 #include <cassert>
 #include <exception>
 #include <functional>
-#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -109,7 +109,7 @@ namespace unifex
           }
           ();
 
-          std::apply(
+          unifex::apply(
               [&](Values&&... values) {
                 unifex::set_value(
                     static_cast<Receiver&&>(op->receiver_),

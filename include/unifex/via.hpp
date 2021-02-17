@@ -23,8 +23,8 @@
 #include <unifex/submit.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/tuple.hpp>
 
-#include <tuple>
 #include <utility>
 #include <exception>
 #include <type_traits>
@@ -50,7 +50,7 @@ struct _value_receiver<Receiver, Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
   void set_value() noexcept {
-    std::apply(
+    unifex::apply(
         [&](Values && ... values) noexcept {
           unifex::set_value(
               std::forward<Receiver>(receiver_), (Values &&) values...);
