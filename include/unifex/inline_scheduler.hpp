@@ -48,14 +48,18 @@ namespace _inline_sched {
       : receiver_((Receiver2 &&) r) {}
 
     void start() noexcept {
-      if constexpr (is_stop_never_possible_v<stop_token_type>) {
-        unifex::set_value((Receiver &&) receiver_);
-      } else {
-        if (get_stop_token(receiver_).stop_requested()) {
-          unifex::set_done((Receiver &&) receiver_);
-        } else {
+      UNIFEX_TRY {
+        if constexpr (is_stop_never_possible_v<stop_token_type>) {
           unifex::set_value((Receiver &&) receiver_);
+        } else {
+          if (get_stop_token(receiver_).stop_requested()) {
+            unifex::set_done((Receiver &&) receiver_);
+          } else {
+            unifex::set_value((Receiver &&) receiver_);
+          }
         }
+      } UNIFEX_CATCH (...) {
+        unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
     }
   };
@@ -68,7 +72,7 @@ namespace _inline_sched {
       using value_types = Variant<Tuple<>>;
 
       template <template <typename...> class Variant>
-      using error_types = Variant<>;
+      using error_types = Variant<std::exception_ptr>;
 
       static constexpr bool sends_done = true;
 
