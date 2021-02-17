@@ -22,6 +22,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/tuple.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use <unifex/connect_awaitable.hpp>"
@@ -194,7 +195,7 @@ namespace _await_cpo {
                   } else if constexpr (valueCount == 1) {
                     unifex::set_value(std::move(receiver), static_cast<result_type&&>(result));
                   } else {
-                    std::apply(set_value_applicator<Receiver>{receiver}, (result_type&&)result);
+                    unifex::apply(set_value_applicator<Receiver>{receiver}, (result_type&&)result);
                   }
                 } else {
                   // Shouldn't complete with a value if there are no value_types

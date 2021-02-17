@@ -139,6 +139,12 @@
 #define UNIFEX_CXX_INVOKE 0
 #endif
 
+#if defined(__cpp_lib_apply) && __cpp_lib_apply > 0
+#define UNIFEX_CXX_APPLY 1
+#else
+#define UNIFEX_CXX_APPLY 0
+#endif
+
 #if !defined(UNIFEX_CXX_CONCEPTS)
 #ifdef UNIFEX_DOXYGEN_INVOKED
 #define UNIFEX_CXX_CONCEPTS 201800L

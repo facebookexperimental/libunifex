@@ -25,10 +25,10 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/optional.hpp>
+#include <unifex/tuple.hpp>
 
 #include <atomic>
 #include <functional>
-#include <tuple>
 #include <type_traits>
 #include <unifex/variant.hpp>
 
@@ -223,7 +223,7 @@ namespace unifex
                 if constexpr (
                     std::tuple_size<
                         std::remove_reference_t<decltype(tuple)>>::value != 0) {
-                  std::apply(
+                  unifex::apply(
                       [&](auto set_xxx, auto&&... args) {
                         set_xxx(
                             std::move(receiver_),

@@ -18,7 +18,8 @@
 #include <unifex/config.hpp>
 
 #include <type_traits>
-#include <tuple>
+
+#include <unifex/tuple.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -83,14 +84,14 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
       callable<Cpo const&, Target, ArgN const&...>)
   decltype(auto) operator()(Target&& target) const &
     noexcept(is_nothrow_callable_v<Cpo const&, Target, ArgN const&...>) {
-    return std::apply(_apply_fn<Cpo const&, Target>{cpo_, (Target&&) target}, argN_);
+    return unifex::apply(_apply_fn<Cpo const&, Target>{cpo_, (Target&&) target}, argN_);
   }
   template (typename Target)
     (requires (!derived_from<remove_cvref_t<Target>, _result_base>) AND
       callable<Cpo, Target, ArgN...>)
   decltype(auto) operator()(Target&& target) &&
     noexcept(is_nothrow_callable_v<Cpo, Target, ArgN...>) {
-    return std::apply(
+    return unifex::apply(
         _apply_fn<Cpo, Target>{(Cpo&&) cpo_, (Target&&) target},
         std::move(argN_));
   }
@@ -102,7 +103,7 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
   friend decltype(auto) operator|(Target&& target, Self&& self)
     noexcept(
       is_nothrow_callable_v<member_t<Self, Cpo>, Target, member_t<Self, ArgN>...>) {
-    return std::apply(
+    return unifex::apply(
         _apply_fn<member_t<Self, Cpo>, Target>{((Self&&) self).cpo_, (Target&&) target},
         ((Self&&) self).argN_);
   }
