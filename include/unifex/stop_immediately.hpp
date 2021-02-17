@@ -195,7 +195,7 @@ struct _stream<SourceStream, Values...>::type {
         tag_t<visit_continuations>,
         const next_receiver& r,
         Func&& func) {
-      std::invoke(func, r.op_->receiver_);
+      unifex::invoke(func, r.op_->receiver_);
     }
   };
 

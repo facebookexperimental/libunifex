@@ -194,7 +194,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
       tag_t<visit_continuations>,
       const element_receiver& r,
       Func&& func) {
-    std::invoke(func, r.get_receiver());
+    unifex::invoke(func, r.get_receiver());
   }
 };
 

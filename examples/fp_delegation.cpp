@@ -23,6 +23,7 @@
 #include <unifex/transform_stream.hpp>
 #include <unifex/via_stream.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/functional.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -70,7 +71,7 @@ class delegating_context {
 template<typename T>
 struct FuncWrapper {
   T func_;
-  operator std::invoke_result_t<T>() {
+  operator invoke_result_t<T>() {
     return func_();
   }
 };

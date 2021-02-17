@@ -18,7 +18,6 @@
 #include <type_traits>
 
 #include <unifex/config.hpp>
-#include <unifex/type_traits.hpp>
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #define UNIFEX_WORKAROUND_MSVC_779763 // FATAL_UNREACHABLE calling constexpr function via template parameter
@@ -283,21 +282,6 @@ namespace unifex {
 #else
   template <bool B>
   inline constexpr std::enable_if_t<B, int> requires_ = 0;
-#endif
-
-#if UNIFEX_CXX_CONCEPTS
-  template <typename Fn, typename... As>
-  concept //
-    callable = //
-      requires (Fn&& fn, As&&... as) {
-        ((Fn&&) fn)((As&&) as...);
-      };
-#else
-  template <typename Fn, typename... As>
-  UNIFEX_CONCEPT //
-    callable = //
-      sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) ==
-      sizeof(_is_callable::yes_type);
 #endif
 
 } // namespace unifex

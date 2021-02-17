@@ -133,6 +133,12 @@
 # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
 #endif
 
+#if defined(__cpp_lib_invoke) && __cpp_lib_invoke > 0
+#define UNIFEX_CXX_INVOKE 1
+#else
+#define UNIFEX_CXX_INVOKE 0
+#endif
+
 #if !defined(UNIFEX_CXX_CONCEPTS)
 #ifdef UNIFEX_DOXYGEN_INVOKED
 #define UNIFEX_CXX_CONCEPTS 201800L
@@ -225,6 +231,35 @@
 #else
   #define UNIFEX_ASSUME_UNREACHABLE std::terminate()
 #endif
+
+#if defined(__clang__)
+#define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
+#elif defined(__GNUC__) && __GNUC__ >= 6
+#define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
+#endif
+
+#if defined(__GNUC__) || defined(_MSC_VER)
+#define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
+#endif
+
+#if defined(__clang__) || defined(_MSC_VER) || \
+  (defined(__GNUC__) && __GNUC__ >= 8)
+#define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
+#elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
+#else
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
+#endif
+
+#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__(*)()noexcept>(nullptr)()
 
 #ifndef UNIFEX_ASSERT
 # define UNIFEX_ASSERT assert

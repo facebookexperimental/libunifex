@@ -103,7 +103,7 @@ class _stop_source_sender<SuccessorFactory>::type {
     using additional_arguments = type_list<type_list<Values...>>;
 
 public:
-    using InnerOp = std::invoke_result_t<SuccessorFactory, inplace_stop_source&>;
+    using InnerOp = unifex::invoke_result_t<SuccessorFactory, inplace_stop_source&>;
 
     template<template<typename...> class Variant, template<typename...> class Tuple>
     using value_types = sender_value_types_t<InnerOp, Variant, Tuple>;

@@ -139,7 +139,7 @@ private:
       VisitFunc&& func) noexcept(is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
-    std::invoke(func, r.get_receiver());
+    unifex::invoke(func, r.get_receiver());
   }
 
   const Receiver& get_receiver() const noexcept {
@@ -188,7 +188,7 @@ public:
     op->isSourceOpConstructed_ = false;
     unifex::deactivate_union_member(op->sourceOp_);
 
-    using trigger_sender_t = std::invoke_result_t<Func&, Error>;
+    using trigger_sender_t = unifex::invoke_result_t<Func&, Error>;
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
     using trigger_op_t = unifex::connect_result_t<trigger_sender_t, trigger_receiver_t>;
 
@@ -198,7 +198,7 @@ public:
         op->triggerOps_,
         [&]() noexcept {
           return unifex::connect(
-            std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
+            unifex::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
         });
       unifex::start(triggerOp);
     } else {
@@ -207,7 +207,7 @@ public:
           op->triggerOps_,
             [&]() {
               return unifex::connect(
-                std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
+                unifex::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
             });
           unifex::start(triggerOp);
       } UNIFEX_CATCH (...) {
@@ -233,7 +233,7 @@ private:
       VisitFunc&& func) noexcept(is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
-    std::invoke(func, r.get_receiver());
+    unifex::invoke(func, r.get_receiver());
   }
 
   const Receiver& get_receiver() const noexcept {
@@ -282,7 +282,7 @@ private:
   using source_op_t = connect_result_t<Source&, source_receiver_t>;
 
   template <typename Error>
-  using trigger_sender_t = std::invoke_result_t<Func&, remove_cvref_t<Error>>;
+  using trigger_sender_t = unifex::invoke_result_t<Func&, remove_cvref_t<Error>>;
 
   template <typename Error>
   using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t<Error>>;
@@ -323,7 +323,7 @@ class _sender<Source, Func>::type {
   using sender = type;
 
   template <typename Error>
-  using trigger_sender = std::invoke_result_t<Func&, remove_cvref_t<Error>>;
+  using trigger_sender = unifex::invoke_result_t<Func&, remove_cvref_t<Error>>;
 
   template <typename... Errors>
   using make_error_type_list =

@@ -174,7 +174,7 @@ namespace _await_cpo {
 
         // This is a bit mind bending control-flow wise.
         // We are first evaluating the co_await expression.
-        // Then the result of that is passed into std::invoke
+        // Then the result of that is passed into unifex::invoke
         // which curries a reference to the result into another
         // lambda which is then returned to 'co_yield'.
         // The 'co_yield' expression then invokes this lambda
