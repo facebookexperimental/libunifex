@@ -28,6 +28,7 @@
 #include <unifex/span.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/optional.hpp>
+#include <unifex/cstddef.hpp>
 
 #include <unifex/linux/monotonic_clock.hpp>
 #include <unifex/linux/safe_file_descriptor.hpp>
@@ -709,7 +710,7 @@ class io_epoll_context::read_sender {
   explicit read_sender(
       io_epoll_context& context,
       int fd,
-      span<std::byte> buffer) noexcept
+      span<unifex::byte> buffer) noexcept
       : context_(context), fd_(fd), buffer_(buffer) {}
 
   template <typename Receiver>
@@ -720,7 +721,7 @@ class io_epoll_context::read_sender {
  private:
   io_epoll_context& context_;
   int fd_;
-  span<std::byte> buffer_;
+  span<unifex::byte> buffer_;
 };
 
 class io_epoll_context::write_sender {
@@ -922,7 +923,7 @@ class io_epoll_context::write_sender {
   explicit write_sender(
       io_epoll_context& context,
       int fd,
-      span<const std::byte> buffer) noexcept
+      span<const unifex::byte> buffer) noexcept
       : context_(context), fd_(fd), buffer_(buffer) {}
 
   template <typename Receiver>
@@ -933,7 +934,7 @@ class io_epoll_context::write_sender {
  private:
   io_epoll_context& context_;
   int fd_;
-  span<const std::byte> buffer_;
+  span<const unifex::byte> buffer_;
 };
 
 class io_epoll_context::async_reader {
@@ -948,7 +949,7 @@ class io_epoll_context::async_reader {
   friend read_sender tag_invoke(
       tag_t<async_read_some>,
       async_reader& reader,
-      span<std::byte> buffer) noexcept {
+      span<unifex::byte> buffer) noexcept {
     return read_sender{reader.context_, reader.fd_.get(), buffer};
   }
 
@@ -968,7 +969,7 @@ class io_epoll_context::async_writer {
   friend write_sender tag_invoke(
       tag_t<async_write_some>,
       async_writer& writer,
-      span<const std::byte> buffer) noexcept {
+      span<const unifex::byte> buffer) noexcept {
     return write_sender{writer.context_, writer.fd_.get(), buffer};
   }
 
