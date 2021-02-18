@@ -496,7 +496,7 @@ class io_uring_context::read_sender {
       io_uring_context& context,
       int fd,
       offset_t offset,
-      span<std::byte> buffer) noexcept
+      span<unifex::byte> buffer) noexcept
       : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
 
   template <typename Receiver>
@@ -508,7 +508,7 @@ class io_uring_context::read_sender {
   io_uring_context& context_;
   int fd_;
   offset_t offset_;
-  span<std::byte> buffer_;
+  span<unifex::byte> buffer_;
 };
 
 class io_uring_context::write_sender {
@@ -614,7 +614,7 @@ class io_uring_context::write_sender {
       io_uring_context& context,
       int fd,
       offset_t offset,
-      span<const std::byte> buffer) noexcept
+      span<const unifex::byte> buffer) noexcept
       : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
 
   template <typename Receiver>
@@ -626,7 +626,7 @@ class io_uring_context::write_sender {
   io_uring_context& context_;
   int fd_;
   offset_t offset_;
-  span<const std::byte> buffer_;
+  span<const unifex::byte> buffer_;
 };
 
 class io_uring_context::async_read_only_file {
@@ -643,7 +643,7 @@ class io_uring_context::async_read_only_file {
       tag_t<async_read_some_at>,
       async_read_only_file& file,
       offset_t offset,
-      span<std::byte> buffer) noexcept {
+      span<unifex::byte> buffer) noexcept {
     return read_sender{file.context_, file.fd_.get(), offset, buffer};
   }
 
@@ -665,7 +665,7 @@ class io_uring_context::async_write_only_file {
       tag_t<async_write_some_at>,
       async_write_only_file& file,
       offset_t offset,
-      span<const std::byte> buffer) noexcept {
+      span<const unifex::byte> buffer) noexcept {
     return write_sender{file.context_, file.fd_.get(), offset, buffer};
   }
 
@@ -687,7 +687,7 @@ class io_uring_context::async_read_write_file {
       tag_t<async_write_some_at>,
       async_read_write_file& file,
       offset_t offset,
-      span<const std::byte> buffer) noexcept {
+      span<const unifex::byte> buffer) noexcept {
     return write_sender{file.context_, file.fd_.get(), offset, buffer};
   }
 
@@ -695,7 +695,7 @@ class io_uring_context::async_read_write_file {
       tag_t<async_read_some_at>,
       async_read_write_file& file,
       offset_t offset,
-      span<std::byte> buffer) noexcept {
+      span<unifex::byte> buffer) noexcept {
     return read_sender{file.context_, file.fd_.get(), offset, buffer};
   }
 

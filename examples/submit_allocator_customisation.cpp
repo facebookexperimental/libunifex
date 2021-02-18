@@ -24,6 +24,7 @@
 #include <unifex/when_all.hpp>
 #include <unifex/with_allocator.hpp>
 #include <unifex/memory_resource.hpp>
+#include <unifex/cstddef.hpp>
 
 #include <memory>
 
@@ -85,7 +86,7 @@ void test(Scheduler scheduler, Allocator allocator) {
 int main() {
   {
     single_thread_context thread;
-    test(thread.get_scheduler(), std::allocator<std::byte>{});
+    test(thread.get_scheduler(), std::allocator<unifex::byte>{});
   }
 
 #if !UNIFEX_NO_MEMORY_RESOURCE

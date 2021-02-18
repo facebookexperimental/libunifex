@@ -21,6 +21,8 @@
 #include <type_traits>
 
 #include <unifex/std_concepts.hpp>
+#include <unifex/cstddef.hpp>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -279,39 +281,39 @@ template <typename T>
 span(T*, std::size_t)->span<T>;
 
 template <typename T, std::size_t Extent>
-span<const std::byte, Extent * sizeof(T)> as_bytes(
+span<const unifex::byte, Extent * sizeof(T)> as_bytes(
     const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   static_assert(Extent <= maxSize);
-  return span<const std::byte, Extent * sizeof(T)>{
-      reinterpret_cast<const std::byte*>(s.data())};
+  return span<const unifex::byte, Extent * sizeof(T)>{
+      reinterpret_cast<const unifex::byte*>(s.data())};
 }
 
 template <typename T>
-span<const std::byte> as_bytes(const span<T>& s) noexcept {
+span<const unifex::byte> as_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   UNIFEX_ASSERT(s.size() <= maxSize);
-  return span<const std::byte>{reinterpret_cast<const std::byte*>(s.data()),
-                               s.size() * sizeof(T)};
+  return span<const unifex::byte>{reinterpret_cast<const unifex::byte*>(s.data()),
+                                  s.size() * sizeof(T)};
 }
 
 template(typename T, std::size_t Extent)
     (requires (!is_const_v<T>))
-span<std::byte, Extent * sizeof(T)> as_writable_bytes(
+span<unifex::byte, Extent * sizeof(T)> as_writable_bytes(
     const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   static_assert(Extent <= maxSize);
-  return span<std::byte, Extent * sizeof(T)>{
-      reinterpret_cast<std::byte*>(s.data())};
+  return span<unifex::byte, Extent * sizeof(T)>{
+      reinterpret_cast<unifex::byte*>(s.data())};
 }
 
 template(typename T)
     (requires (!is_const_v<T>))
-span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
+span<unifex::byte> as_writable_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   UNIFEX_ASSERT(s.size() <= maxSize);
-  return span<std::byte>{reinterpret_cast<std::byte*>(s.data()),
-                         s.size() * sizeof(T)};
+  return span<unifex::byte>{reinterpret_cast<unifex::byte*>(s.data()),
+                            s.size() * sizeof(T)};
 }
 
 } // namespace unifex
