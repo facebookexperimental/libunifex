@@ -26,9 +26,9 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/utility.hpp>
 
 #include <memory>
-#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -92,7 +92,7 @@ class _op<Sender, Receiver>::type {
     friend auto tag_invoke(CPO cpo, const wrapped_receiver& r) noexcept(
         is_nothrow_callable_v<CPO, const Receiver&>)
         -> callable_result_t<CPO, const Receiver&> {
-      return std::move(cpo)(std::as_const(r.get_receiver()));
+      return std::move(cpo)(unifex::as_const(r.get_receiver()));
     }
 
     template <typename Func>
@@ -100,7 +100,7 @@ class _op<Sender, Receiver>::type {
         tag_t<visit_continuations>,
         const wrapped_receiver& r,
         Func&& func) {
-      unifex::invoke(func, std::as_const(r.get_receiver()));
+      unifex::invoke(func, unifex::as_const(r.get_receiver()));
     }
   };
 

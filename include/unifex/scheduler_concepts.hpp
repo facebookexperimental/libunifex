@@ -18,6 +18,7 @@
 
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/utility.hpp>
 
 #include <type_traits>
 #include <exception>
@@ -218,7 +219,7 @@ struct sender {
             schedule_result_t<
                 get_scheduler_result_t<const remove_cvref_t<Receiver>&>>,
             Receiver> {
-    auto scheduler = get_scheduler(std::as_const(r));
+    auto scheduler = get_scheduler(unifex::as_const(r));
     return connect(schedule(std::move(scheduler)), (Receiver &&) r);
   }
 };
@@ -301,8 +302,8 @@ namespace _schedule_after {
                 get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&,
                 const Duration&>,
             Receiver> {
-      auto scheduler = get_scheduler(std::as_const(r));
-      return connect(schedule_after(scheduler, std::as_const(s.duration_)), (Receiver&&) r);
+      auto scheduler = get_scheduler(unifex::as_const(r));
+      return connect(schedule_after(scheduler, unifex::as_const(s.duration_)), (Receiver&&) r);
     }
 
     Duration duration_;
@@ -385,8 +386,8 @@ namespace _schedule_at {
                 get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&,
                 const TimePoint&>,
             Receiver> {
-      auto scheduler = get_scheduler(std::as_const(r));
-      return connect(schedule_at(scheduler, std::as_const(s.time_point_)), (Receiver&&) r);
+      auto scheduler = get_scheduler(unifex::as_const(r));
+      return connect(schedule_at(scheduler, unifex::as_const(s.time_point_)), (Receiver&&) r);
     }
 
     TimePoint time_point_;

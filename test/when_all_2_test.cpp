@@ -18,11 +18,12 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/utility.hpp>
+#include <unifex/variant.hpp>
 
 #include <chrono>
 #include <iostream>
 #include <string>
-#include <unifex/variant.hpp>
 
 #include <gtest/gtest.h>
 
@@ -111,7 +112,7 @@ struct string_const_ref_sender {
     unifex::remove_cvref_t<Receiver> receiver_;
     void start() & noexcept {
       std::string s = "hello world";
-      unifex::set_value(std::move(receiver_), std::as_const(s));
+      unifex::set_value(std::move(receiver_), unifex::as_const(s));
       s = "goodbye old value";
     }
   };

@@ -24,6 +24,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/functional.hpp>
+#include <unifex/utility.hpp>
 
 #include <type_traits>
 
@@ -110,7 +111,7 @@ namespace unifex
                                            CPO,
                                            const Receiver&>)
           -> callable_result_t<CPO, const Receiver&> {
-        return static_cast<CPO&&>(cpo)(std::as_const(r.receiver_));
+        return static_cast<CPO&&>(cpo)(unifex::as_const(r.receiver_));
       }
 
       template <
@@ -123,7 +124,7 @@ namespace unifex
           Func&& func) noexcept(is_nothrow_invocable_v<
                                         Func&,
                                         const Receiver&>) {
-        unifex::invoke(func, std::as_const(r.receiver_));
+        unifex::invoke(func, unifex::as_const(r.receiver_));
       }
 
     private:
