@@ -24,8 +24,8 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/tuple.hpp>
+#include <unifex/utility.hpp>
 
-#include <utility>
 #include <exception>
 #include <type_traits>
 
@@ -72,7 +72,7 @@ struct _value_receiver<Receiver, Values...>::type {
   friend auto tag_invoke(CPO cpo, const value_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.receiver_));
+    return std::move(cpo)(unifex::as_const(r.receiver_));
   }
 
   template <typename Func>
@@ -116,7 +116,7 @@ struct _error_receiver<Receiver, Error>::type {
   friend auto tag_invoke(CPO cpo, const error_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.receiver_));
+    return std::move(cpo)(unifex::as_const(r.receiver_));
   }
 
   template <typename Func>
@@ -159,7 +159,7 @@ struct _done_receiver<Receiver>::type {
   friend auto tag_invoke(CPO cpo, const done_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.receiver_));
+    return std::move(cpo)(unifex::as_const(r.receiver_));
   }
 
   template <typename Func>
@@ -227,7 +227,7 @@ struct _predecessor_receiver<Successor, Receiver>::type {
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.receiver_));
+    return std::move(cpo)(unifex::as_const(r.receiver_));
   }
 
   template <typename Func>

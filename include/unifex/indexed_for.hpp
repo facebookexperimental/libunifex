@@ -25,6 +25,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/functional.hpp>
+#include <unifex/utility.hpp>
 
 #include <functional>
 #include <type_traits>
@@ -101,7 +102,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   friend auto tag_invoke(CPO cpo, const type& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.receiver_));
+    return std::move(cpo)(unifex::as_const(r.receiver_));
   }
 
   template <typename Visit>

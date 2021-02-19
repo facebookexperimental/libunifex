@@ -26,6 +26,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/tuple.hpp>
+#include <unifex/utility.hpp>
 
 #include <exception>
 #include <functional>
@@ -90,7 +91,7 @@ private:
   friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const typename Operation::receiver_type&>)
       -> callable_result_t<CPO, const typename Operation::receiver_type&> {
-    return std::move(cpo)(std::as_const(r.get_receiver()));
+    return std::move(cpo)(unifex::as_const(r.get_receiver()));
   }
 
   template <typename Func>
@@ -168,7 +169,7 @@ struct _predecessor_receiver<Operation>::type {
   friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
       is_nothrow_callable_v<CPO, const receiver_type&>)
       -> callable_result_t<CPO, const receiver_type&> {
-    return std::move(cpo)(std::as_const(r.get_receiver()));
+    return std::move(cpo)(unifex::as_const(r.get_receiver()));
   }
 
   template <typename Func>

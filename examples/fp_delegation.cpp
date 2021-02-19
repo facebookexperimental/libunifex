@@ -23,10 +23,11 @@
 #include <unifex/transform_stream.hpp>
 #include <unifex/via_stream.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/utility.hpp>
+#include <unifex/variant.hpp>
 
 #include <atomic>
 #include <chrono>
-#include <unifex/variant.hpp>
 
 using namespace unifex;
 using namespace std::chrono_literals;
@@ -152,7 +153,7 @@ class delegating_sender {
     auto target_op = [&receiver]() mutable {
       return unifex::connect(
         unifex::schedule(
-          unifex::get_scheduler(std::as_const(receiver))),
+          unifex::get_scheduler(unifex::as_const(receiver))),
           (Receiver&&)receiver);
     };
 
