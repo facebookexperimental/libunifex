@@ -101,7 +101,7 @@ auto done_as_optional(Sender&& sender) {
   using value_type = sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
   return transform_done(
     transform((Sender&&)sender, [](auto&&... values) {
-      return optional<value_type>{opt::in_place_t{}, static_cast<decltype(values)>(values)...};
+      return optional<value_type>{in_place, static_cast<decltype(values)>(values)...};
     }), []() {
       return just(optional<value_type>(nullopt));
     });

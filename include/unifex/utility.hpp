@@ -18,29 +18,29 @@
 #include <unifex/config.hpp>
 
 #if defined(UNIFEX_USE_ABSEIL)
-#include <absl/types/optional.h>
+#include <absl/utility/utility.h>
 #else
-#include <optional>
+#include <utility>
 #endif
-
-#include <unifex/utility.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex
 {
 #if defined(UNIFEX_USE_ABSEIL)
-using absl::optional;
-using absl::nullopt;
-using absl::nullopt_t;
-using absl::make_optional;
-using absl::bad_optional_access;
+using absl::in_place_t;
+using absl::in_place_index_t;
+using absl::in_place_type_t;
+using absl::in_place;
+// using absl::in_place_index;
+// using absl::in_place_type;
 #else
-using std::optional;
-using std::nullopt;
-using std::nullopt_t;
-using std::make_optional;
-using std::bad_optional_access;
+using std::in_place_t;
+using std::in_place_index_t;
+using std::in_place_type_t;
+using std::in_place;
+// using std::in_place_index;
+// using std::in_place_type;
 #endif
 } // namespace unifex
 

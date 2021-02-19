@@ -125,7 +125,7 @@ TEST(AnyUniqueTest, WithoutTypeid) {
 TEST(AnyUniqueTest, TestDestructor) {
   bool hasDestructorRun = false;
   {
-    const A a{std::in_place_type<destructor>, hasDestructorRun};
+    const A a{unifex::in_place_type_t<destructor>{}, hasDestructorRun};
     EXPECT_EQ(get_typeid(a), unifex::type_id<destructor>());
     EXPECT_FALSE(hasDestructorRun);
   }
@@ -158,7 +158,7 @@ TEST(AnyUniqueTest, WithCustomAllocator) {
   {
     A a1{std::string("hello"), alloc};
     EXPECT_GE(res.total_allocated_bytes(), sizeof(std::string));
-    A a2{std::allocator_arg, alloc, std::in_place_type<std::string>, "hello"};
+    A a2{std::allocator_arg, alloc, unifex::in_place_type_t<std::string>{}, "hello"};
     EXPECT_GE(res.total_allocated_bytes(), 2 * sizeof(std::string));
   }
   EXPECT_EQ(res.total_allocated_bytes(), 0);
