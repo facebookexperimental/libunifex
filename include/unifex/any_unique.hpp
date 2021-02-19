@@ -21,9 +21,9 @@
 #include <unifex/this.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/utility.hpp>
 
 #include <memory>
-#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -341,7 +341,7 @@ class _byval<CPOs...>::type
   explicit type(
       std::allocator_arg_t,
       Allocator alloc,
-      std::in_place_type_t<Concrete>,
+      unifex::in_place_type_t<Concrete>,
       Args&&... args)
     : vtable_(vtable_holder_t::template create<
               concrete_impl<Concrete, Allocator, CPOs...>>()) {
@@ -370,24 +370,24 @@ class _byval<CPOs...>::type
 
   template(typename Concrete, typename Allocator)
       (requires (!same_as<std::allocator_arg_t, std::decay_t<Concrete>>) AND
-          (!instance_of_v<std::in_place_type_t, std::decay_t<Concrete>>))
+          (!instance_of_v<unifex::in_place_type_t, std::decay_t<Concrete>>))
   type(Concrete&& concrete, Allocator alloc)
     : type(
           std::allocator_arg,
           std::move(alloc),
-          std::in_place_type<remove_cvref_t<Concrete>>,
+          unifex::in_place_type_t<remove_cvref_t<Concrete>>{},
           (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
-  explicit type(std::in_place_type_t<Concrete> tag, Args&&... args)
+  explicit type(unifex::in_place_type_t<Concrete> tag, Args&&... args)
     : impl_(new Concrete((Args&&) args...))
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
   template(typename Concrete)
-    (requires (!instance_of_v<std::in_place_type_t, Concrete>))
+    (requires (!instance_of_v<unifex::in_place_type_t, Concrete>))
   type(Concrete&& concrete)
     : type(
-          std::in_place_type<remove_cvref_t<Concrete>>,
+          unifex::in_place_type_t<remove_cvref_t<Concrete>>{},
           (Concrete &&) concrete) {}
 
   type(type&& other) noexcept

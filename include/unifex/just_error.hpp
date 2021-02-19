@@ -72,7 +72,7 @@ class _sender<Error>::type {
   static constexpr bool sends_done = false;
 
   template<typename Error2>
-  explicit type(opt::in_place_t, Error2&& error)
+  explicit type(in_place_t, Error2&& error)
     noexcept(is_nothrow_constructible_v<Error, Error2>)
     : error_((Error2 &&) error) {}
 
@@ -98,7 +98,7 @@ namespace _just_error_cpo {
     constexpr auto operator()(Error&& error) const
       noexcept(is_nothrow_constructible_v<std::decay_t<Error>, Error>)
       -> _just_error::sender<Error> {
-      return _just_error::sender<Error>{opt::in_place_t{}, (Error&&) error};
+      return _just_error::sender<Error>{in_place, (Error&&) error};
     }
   } just_error{};
 } // namespace _just_error_cpo

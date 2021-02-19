@@ -17,25 +17,34 @@
 
 #include <unifex/config.hpp>
 
-#if defined(__cpp_lib_variant) && __cpp_lib_variant > 0
-#define UNIFEX_CXX_VARIANT 1
+#if defined(UNIFEX_USE_ABSEIL)
+#include <absl/types/variant.h>
 #else
-#define UNIFEX_CXX_VARIANT 0
+#include <variant>
 #endif
 
-#if UNIFEX_CXX_VARIANT
-#include <variant>
-#else
-#include <unifex/detail/mpark/variant.hpp>
-#endif
+#include <unifex/utility.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex {
-#if UNIFEX_CXX_VARIANT
+namespace unifex
+{
+#if defined(UNIFEX_USE_ABSEIL)
+using absl::variant;
+using absl::variant_size;
+using absl::variant_alternative;
+using absl::variant_npos;
+using absl::holds_alternative;
+using absl::visit;
+using absl::monostate;
+using absl::bad_variant_access;
+namespace var {
+using absl::get;
+using absl::get_if;
+}
+#else
 using std::variant;
 using std::variant_size;
-using std::variant_size_v;
 using std::variant_alternative;
 using std::variant_npos;
 using std::holds_alternative;
@@ -45,35 +54,8 @@ using std::bad_variant_access;
 namespace var {
 using std::get;
 using std::get_if;
-using std::in_place_t;
-using std::in_place_index_t;
-using std::in_place_type_t;
-using std::in_place;
-using std::in_place_index;
-using std::in_place_type;
-} // namespace var
-#else
-using mpark::variant;
-using mpark::variant_size;
-using mpark::variant_size_v;
-using mpark::variant_alternative;
-using mpark::variant_npos;
-using mpark::holds_alternative;
-using mpark::visit;
-using mpark::monostate;
-using mpark::bad_variant_access;
-namespace var {
-using mpark::get;
-using mpark::get_if;
-using mpark::in_place_t;
-using mpark::in_place_index_t;
-using mpark::in_place_type_t;
-using mpark::in_place;
-using mpark::in_place_index;
-using mpark::in_place_type;
-} // namespace var
+}
 #endif
-
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

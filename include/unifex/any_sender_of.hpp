@@ -109,7 +109,7 @@ struct _connect_fn<CPOs, Values...>::type {
   friend _operation_state
   tag_invoke(const type&, Sender&& s, _rec_ref_t r) {
     using Op = connect_result_t<Sender, _rec_ref_t>;
-    return _operation_state{std::in_place_type<Op>, _rvo{(Sender &&) s, std::move(r)}};
+    return _operation_state{unifex::in_place_type_t<Op>{}, _rvo{(Sender &&) s, std::move(r)}};
   }
 
 #ifdef _MSC_VER

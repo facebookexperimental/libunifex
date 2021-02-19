@@ -143,7 +143,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
     UNIFEX_TRY {
       std::get<Index>(op_.values_)
           .emplace(
-              var::in_place_type<std::tuple<std::decay_t<Values>...>>,
+              in_place_type_t<std::tuple<std::decay_t<Values>...>>{},
               (Values &&) values...);
       op_.element_complete();
     } UNIFEX_CATCH (...) {
@@ -154,7 +154,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-      op_.error_.emplace(var::in_place_type<std::decay_t<Error>>, (Error &&) error);
+      op_.error_.emplace(in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
