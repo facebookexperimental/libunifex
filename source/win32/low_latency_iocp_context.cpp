@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
 
 #include <unifex/win32/low_latency_iocp_context.hpp>
 
@@ -24,7 +23,10 @@
 #include <random>
 #include <system_error>
 
-#define WIN32_LEAN_AND_MEAN
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
+
 #include <Windows.h>
 
 namespace unifex::win32
@@ -488,8 +490,6 @@ get_iocp_entries:
     assert(ioState != nullptr);
     assert(ioState->operationCount < max_vectored_io_size);
 
-    bool allowStartingMore = false;
-
     std::size_t offset = 0;
     while (offset < buffer.size()) {
       ntapi::IO_STATUS_BLOCK& iosb =
@@ -554,8 +554,6 @@ get_iocp_entries:
     assert(context.is_running_on_io_thread());
     assert(ioState != nullptr);
     assert(ioState->operationCount < max_vectored_io_size);
-
-    bool allowStartingMore = false;
 
     std::size_t offset = 0;
     while (offset < buffer.size()) {
@@ -625,8 +623,6 @@ get_iocp_entries:
 
     std::size_t totalBytesTransferred = 0;
     for (std::size_t i = 0; i < ioState->operationCount; ++i) {
-      DWORD bytesTransferred = 0;
-
       const ntapi::IO_STATUS_BLOCK& iosb = ioState->operations[i];
 
       assert(iosb.Status != STATUS_PENDING);
