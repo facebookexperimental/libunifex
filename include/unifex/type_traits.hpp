@@ -81,6 +81,13 @@ template <bool Bool>
 using bool_constant = std::integral_constant<bool, Bool>;
 #endif
 
+#if defined(__cpp_lib_void_t) && __cpp_lib_void_t > 0
+using std::void_t;
+#else
+template <typename...>
+using void_t = void;
+#endif
+
 #if UNIFEX_CXX_INVOKE
 using std::invoke_result;
 using std::invoke_result_t;
