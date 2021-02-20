@@ -74,3 +74,10 @@ target_compile_features(unifex PUBLIC cxx_std_17)
 if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)
 endif()
+
+install(DIRECTORY ${PROJECT_BINARY_DIR}/include/unifex ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/include
+)
+install(TARGETS unifex
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+)

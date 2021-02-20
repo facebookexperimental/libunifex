@@ -96,6 +96,14 @@ If you want to build libunifex as C++20, add:
       -DCMAKE_CXX_STANDARD:STRING=20
 ```
 
+To specify install path, add:
+
+```sh
+      -DCMAKE_INSTALL_PREFIX=/path/to/install
+```
+
+The default value for `CMAKE_INSTALL_PREFIX` is `/usr/local` in Unix-like systems.
+
 ## Building Library + Running Tests
 
 To build the library and tests.
