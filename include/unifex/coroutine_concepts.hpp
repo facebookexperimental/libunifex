@@ -15,13 +15,14 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
+
+#include <unifex/type_traits.hpp>
 #include <unifex/coroutine.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use <unifex/coroutine_concepts.hpp>"
 #endif
-
-#include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -34,7 +35,7 @@ constexpr bool has_member_operator_co_await_v = false;
 template <typename Awaitable>
 constexpr bool has_member_operator_co_await_v<
     Awaitable,
-    std::void_t<decltype(std::declval<Awaitable>().operator co_await())>> =
+    unifex::void_t<decltype(std::declval<Awaitable>().operator co_await())>> =
     true;
 
 template <typename Awaitable, typename = void>
@@ -43,7 +44,7 @@ constexpr bool has_free_operator_co_await_v = false;
 template <typename Awaitable>
 constexpr bool has_free_operator_co_await_v<
     Awaitable,
-    std::void_t<decltype(operator co_await(std::declval<Awaitable>()))>> = true;
+    unifex::void_t<decltype(operator co_await(std::declval<Awaitable>()))>> = true;
 
 template <typename Awaiter, typename = void>
 struct await_result_impl {};
@@ -51,7 +52,7 @@ struct await_result_impl {};
 template <typename Awaiter>
 struct await_result_impl<
     Awaiter,
-    std::void_t<
+    unifex::void_t<
         decltype(std::declval<Awaiter&>().await_ready() ? (void)0 : (void)0),
         decltype(std::declval<Awaiter&>().await_resume())>> {
   using type = decltype(std::declval<Awaiter&>().await_resume());
