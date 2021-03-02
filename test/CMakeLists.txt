@@ -19,3 +19,4 @@ endif()
 
 target_link_libraries(any_sender_of_test PUBLIC gmock)
 target_link_libraries(async_manual_reset_event_test PUBLIC gmock)
+target_link_libraries(unnamed_primitive_test PUBLIC gmock)
