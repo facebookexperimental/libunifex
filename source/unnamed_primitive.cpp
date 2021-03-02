@@ -57,7 +57,7 @@ void unnamed_primitive::cancel(std::uintptr_t opAddr) noexcept {
   //    b. start() completed by registering us to wait and cancellation lost a
   //       race to signalling.
   //
-  //  3. it was "this"; we were waiting for a signal but cancellation happened
+  //  3. it was opAddr; we were waiting for a signal but cancellation happened
   //     before the signal arrived.
   //
   // If we observe anything else, there's a bug somewhere.
