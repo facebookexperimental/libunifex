@@ -18,6 +18,26 @@
 
 namespace unifex::_unnamed {
 
+namespace {
+
+void complete_operation(std::uintptr_t opAddr) noexcept {
+  auto op = reinterpret_cast<_op_base*>(opAddr);
+  op->complete();
+}
+
+void clear_cancelled_state(
+    std::atomic<std::uintptr_t>& state, std::uintptr_t cancelled) noexcept {
+
+  // if state is still in the cancelled state, return it to the empty state
+  (void)state.compare_exchange_strong(
+      cancelled,
+      to_addr(nullptr),
+      // we're not synchronizing with anything here
+      std::memory_order_relaxed);
+}
+
+} // namespace
+
 void unnamed_primitive::set() noexcept {
   std::uintptr_t signalledState = to_addr(this);
   const std::uintptr_t cancelledState = signalledState + 1;
@@ -37,11 +57,10 @@ void unnamed_primitive::set() noexcept {
   }
 
   // resume the waiting operation
-  auto op = reinterpret_cast<_op_base*>(opAddr);
-  op->complete();
+  complete_operation(opAddr);
 }
 
-void unnamed_primitive::cancel(std::uintptr_t opAddr) noexcept {
+void unnamed_primitive::cancel(_op_base* op) noexcept {
   // This is only invoked from the stop_callback, so our stop_token has
   // requested cancellation.
   //
@@ -65,45 +84,58 @@ void unnamed_primitive::cancel(std::uintptr_t opAddr) noexcept {
   // We're going to assume we're in state 3, and respond appropriately if not.
   //
   // In state 1, we need to CAS again from nullptr to cancelled so that the call
-  // to start_or_wait can observe we've been cancelled and do nothing.  If the
-  // CAS from nullptr succeeds then we've been successful and we need to invoke
-  // unifex::done after destroying the callback.  We can't enter state 3 from
-  // here because we're being cancelled before calling start_or_wait, which is
-  // the only way to update state_ to this so, if the CAS from nullptr fails, it
-  // must be that we're in state 2a.
+  // to start_or_wait can observe we've been cancelled.  If the CAS from nullptr
+  // succeeds then we've been successful and we'll need to invoke set_done after
+  // destroying the callback, which we'll do in start_or_wait.  We can't enter
+  // state 3 from here because we're being cancelled before calling
+  // start_or_wait, which is the only way to update state_ to opAddr, so if the
+  // CAS from nullptr fails then we must have transitioned to state 2a.
   //
   // In state 2a, we'll do nothing, start_or_wait will see that state_ is
   // signalled, and immediately invoke complete, whereupon we'll check whether
   // the stop_token has had stop requested (which it has), and we'll invoke
-  // unifex::set_done instead of set_value.
+  // set_done instead of set_value.
   //
   // In state 2b, the signalling thread is racing with the cancelling thread,
   // which will be synchronized in complete when we destroy the stop callback.
   // We'll then check whether the stop token has had stop requested, find that
-  // it has, and invoke unifex::set_done so we'll do nothing here.
+  // it has, and invoke set_done so we'll do nothing here.
   //
   // In state 3, our first CAS will succeed, signalling in state_ that we've
   // been cancelled.  No future signal attempt will invoke complete so we'll
   // call unifex::set_done ourselves after destroying the callback.
 
-  auto expectedState = opAddr;
+  const auto opAddr = to_addr(op);
   const auto signalledState = to_addr(this);
   const auto cancelledState = signalledState + 1;
 
-try_again:
+  auto expectedState = opAddr;
+
   if (state_.compare_exchange_strong(
       expectedState,
       cancelledState,
       std::memory_order_acq_rel)) {
-    // state 3 or successful retry in state 1
-    auto op = reinterpret_cast<_op_base*>(opAddr);
-    op->complete();
+    // state 3
+
+    // leave it in the no-waiter state
+    clear_cancelled_state(state_, cancelledState);
+
+    complete_operation(opAddr);
+    return;
   }
-  else if (expectedState == to_addr(nullptr)) {
+
+  if (expectedState == to_addr(nullptr)) {
     // state 1
-    goto try_again;
+    if (state_.compare_exchange_strong(
+        expectedState,
+        cancelledState,
+        std::memory_order_acq_rel)) {
+      // do nothing and let start_or_wait invoke complete
+      return;
+    }
   }
-  else if (expectedState == signalledState) {
+
+  if (expectedState == signalledState) {
     // state 2 (a or b) or failed retry in state 1
     return;
   }
@@ -113,7 +145,8 @@ try_again:
 }
 
 
-void unnamed_primitive::start_or_wait(std::uintptr_t opAddr) noexcept {
+void unnamed_primitive::start_or_wait(_op_base* op) noexcept {
+  const std::uintptr_t opAddr = to_addr(op);
   const std::uintptr_t signalledState = to_addr(this);
   const std::uintptr_t cancelledState = signalledState + 1;
 
@@ -128,12 +161,16 @@ void unnamed_primitive::start_or_wait(std::uintptr_t opAddr) noexcept {
   }
   else if (expectedState == signalledState) {
     // already signalled; don't wait
-    auto op = reinterpret_cast<_op_base*>(opAddr);
-    op->complete();
+    complete_operation(opAddr);
     return;
   }
   else if (expectedState == cancelledState) {
-    // cancelled before starting; do nothing
+    // cancelled before starting; clean up then complete
+
+    // leave it in the no-waiter state
+    clear_cancelled_state(state_, cancelledState);
+
+    complete_operation(opAddr);
     return;
   }
   else {

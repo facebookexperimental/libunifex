@@ -384,3 +384,38 @@ TEST_F(
 
   EXPECT_EQ(expectedThreadId, actualThreadId);
 }
+
+TEST_F(
+    unnamed_primitive_test,
+    reconnecting_to_a_cancelled_primitive_works_like_normal) {
+
+  unnamed_primitive evt;
+
+  {
+    inplace_stop_source newStopSource;
+
+    newStopSource.request_stop();
+
+    auto result = sync_wait(transform(
+        with_query_value(
+            evt.async_wait(), get_stop_token, newStopSource.get_token()),
+        [] { return 0; }));
+
+    EXPECT_FALSE(result);
+  }
+
+  {
+    // use a distinct stop source so that its stopped status is distinct
+    inplace_stop_source newStopSource;
+
+    evt.set();
+
+    auto result = sync_wait(transform(
+        with_query_value(
+            evt.async_wait(), get_stop_token, newStopSource.get_token()),
+        [] { return 0; }));
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(0, *result);
+  }
+}

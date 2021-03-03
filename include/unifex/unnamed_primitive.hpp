@@ -116,9 +116,9 @@ struct unnamed_primitive {
   template <typename T>
   friend struct _operation;
 
-  void cancel(std::uintptr_t opAddr) noexcept;
+  void cancel(_op_base* op) noexcept;
 
-  void start_or_wait(std::uintptr_t opAddr) noexcept;
+  void start_or_wait(_op_base* op) noexcept;
 };
 
 struct _op_base {
@@ -204,30 +204,33 @@ struct _operation<Receiver>::type : private _op_base {
   type& operator=(type&&) = delete;
 
   void start() noexcept {
-    // we could be cancelled anywhere between now (before constructing the
-    // callback) through until start_or_wait tries to update evt->state_,
-    // which means we need to be very careful here that we don't invoke UB.
+    // we could be cancelled or signalled anywhere between now through until we
+    // return from start_or_wait, which means we need to be very careful here
+    // that we don't invoke UB.  The dance between stop callback registration
+    // and start_or_wait ensures that this stays valid through the call to
+    // start_or_wait, but if we're signalled or cancelled before start_or_wait
+    // returns then this will be on its way to being destroyed and will thus not
+    // be safe to touch.
 
-    // store this locally before constructing the cancellation callback in
-    // case we get cancelled and destroyed before trying to start_or_wait.
-    auto thisAddr = to_addr(this);
-    auto evt = evt_;
+    // register for cancellation callbacks; we might get cancelled as a side-
+    // effect of this, but, if we do, the callback will defer tear-down until
+    // start_or_wait.
+    callback_.construct(stopToken_, stop_callback{this});
 
-    // register for cancellation callbacks; this might cause us to invoke
-    // unifex::set_done on our receiver, invalidating it and us
-    callback_.construct(stopToken_, stop_callback{*this});
+    // either register for completion signals or complete immediately; immediate
+    // completion will mean calling set_done rather than set_value if we lose a
+    // race with cancellation.
+    evt_->start_or_wait(this);
 
-    // either register for completion signals, or complete immediately,
-    // assuming we haven't already been cancelled
-    evt->start_or_wait(thisAddr);
+    // don't touch this anymore!
   }
 
  private:
   struct stop_callback {
-    type& op_;
+    type* op_;
 
     void operator()() noexcept {
-      op_.cancel();
+      op_->cancel();
     }
   };
 
@@ -238,7 +241,7 @@ struct _operation<Receiver>::type : private _op_base {
   UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<stop_callback_t> callback_;
 
   void cancel() noexcept {
-    evt_->cancel(to_addr(this));
+    evt_->cancel(this);
   }
 
   static void complete_impl(_op_base* base) noexcept {
