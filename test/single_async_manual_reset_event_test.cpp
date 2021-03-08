@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <unifex/unnamed_primitive.hpp>
+#include <unifex/single_async_manual_reset_event.hpp>
 
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/inplace_stop_token.hpp>
@@ -36,7 +36,7 @@
 
 using testing::Invoke;
 using testing::_;
-using unifex::unnamed_primitive;
+using unifex::single_async_manual_reset_event;
 using unifex::connect;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
@@ -98,43 +98,43 @@ struct mock_receiver {
 
 } // namespace
 
-struct unnamed_primitive_test : testing::Test {
+struct single_async_manual_reset_event_test : testing::Test {
   inplace_stop_source stopSource;
   inline_scheduler scheduler;
   mock_receiver receiver{scheduler, stopSource};
   mock_receiver_impl& receiverImpl = *receiver.impl;
 };
 
-TEST_F(unnamed_primitive_test, default_constructor_leaves_primitive_unready) {
-  unnamed_primitive evt;
+TEST_F(single_async_manual_reset_event_test, default_constructor_leaves_primitive_unready) {
+  single_async_manual_reset_event evt;
 
   EXPECT_FALSE(evt.ready());
 }
 
-TEST_F(unnamed_primitive_test, can_construct_initially_ready_primitive) {
-  unnamed_primitive evt{true};
+TEST_F(single_async_manual_reset_event_test, can_construct_initially_ready_primitive) {
+  single_async_manual_reset_event evt{true};
 
   EXPECT_TRUE(evt.ready());
 }
 
-TEST_F(unnamed_primitive_test, set_makes_unready_primitive_ready) {
-  unnamed_primitive evt;
+TEST_F(single_async_manual_reset_event_test, set_makes_unready_primitive_ready) {
+  single_async_manual_reset_event evt;
 
   evt.set();
 
   EXPECT_TRUE(evt.ready());
 }
 
-TEST_F(unnamed_primitive_test, reset_makes_ready_primitive_unready) {
-  unnamed_primitive evt{true};
+TEST_F(single_async_manual_reset_event_test, reset_makes_ready_primitive_unready) {
+  single_async_manual_reset_event evt{true};
 
   evt.reset();
 
   EXPECT_FALSE(evt.ready());
 }
 
-TEST_F(unnamed_primitive_test, sender_completes_after_set_when_connected_to_unready_primitive) {
-  unnamed_primitive evt;
+TEST_F(single_async_manual_reset_event_test, sender_completes_after_set_when_connected_to_unready_primitive) {
+  single_async_manual_reset_event evt;
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
@@ -153,8 +153,8 @@ TEST_F(unnamed_primitive_test, sender_completes_after_set_when_connected_to_unre
   evt.set();
 }
 
-TEST_F(unnamed_primitive_test, sender_connected_to_unready_primitive_can_be_cancelled) {
-  unnamed_primitive evt;
+TEST_F(single_async_manual_reset_event_test, sender_connected_to_unready_primitive_can_be_cancelled) {
+  single_async_manual_reset_event evt;
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
@@ -173,8 +173,8 @@ TEST_F(unnamed_primitive_test, sender_connected_to_unready_primitive_can_be_canc
   stopSource.request_stop();
 }
 
-TEST_F(unnamed_primitive_test, sender_cancels_immediately_if_stopped_before_start) {
-  unnamed_primitive evt;
+TEST_F(single_async_manual_reset_event_test, sender_cancels_immediately_if_stopped_before_start) {
+  single_async_manual_reset_event evt;
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
@@ -188,10 +188,10 @@ TEST_F(unnamed_primitive_test, sender_cancels_immediately_if_stopped_before_star
 }
 
 TEST_F(
-    unnamed_primitive_test,
+    single_async_manual_reset_event_test,
     sender_connected_to_ready_primitive_cancels_immediately_if_stopped_before_start) {
 
-  unnamed_primitive evt{true};
+  single_async_manual_reset_event evt{true};
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
@@ -204,8 +204,8 @@ TEST_F(
   start(op);
 }
 
-TEST_F(unnamed_primitive_test, sender_completes_inline_when_connected_to_ready_primitive) {
-  unnamed_primitive evt{true};
+TEST_F(single_async_manual_reset_event_test, sender_completes_inline_when_connected_to_ready_primitive) {
+  single_async_manual_reset_event evt{true};
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
@@ -216,8 +216,8 @@ TEST_F(unnamed_primitive_test, sender_completes_inline_when_connected_to_ready_p
   start(op);
 }
 
-TEST_F(unnamed_primitive_test, exception_from_set_value_sent_to_set_error) {
-  unnamed_primitive evt{true};
+TEST_F(single_async_manual_reset_event_test, exception_from_set_value_sent_to_set_error) {
+  single_async_manual_reset_event evt{true};
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
@@ -246,7 +246,7 @@ static std::thread::id getThreadId(Scheduler& scheduler) {
 }
 
 TEST_F(
-    unnamed_primitive_test,
+    single_async_manual_reset_event_test,
     set_value_reschedules_when_invoked_from_async_wait) {
 
   single_thread_context thread;
@@ -256,7 +256,7 @@ TEST_F(
 
   ASSERT_NE(expectedThreadId, std::this_thread::get_id());
 
-  unnamed_primitive evt{true};
+  single_async_manual_reset_event evt{true};
 
   auto actualThreadId = sync_wait(transform(
       with_query_value(evt.async_wait(), get_scheduler, scheduler),
@@ -266,7 +266,7 @@ TEST_F(
 }
 
 TEST_F(
-    unnamed_primitive_test,
+    single_async_manual_reset_event_test,
     set_value_reschedules_when_invoked_from_set) {
 
   single_thread_context thread;
@@ -276,7 +276,7 @@ TEST_F(
 
   ASSERT_NE(expectedThreadId, std::this_thread::get_id());
 
-  unnamed_primitive evt1, evt2;
+  single_async_manual_reset_event evt1, evt2;
 
   auto op = connect(
       with_query_value(evt1.async_wait(), get_scheduler, scheduler),
@@ -300,7 +300,7 @@ TEST_F(
 }
 
 TEST_F(
-    unnamed_primitive_test,
+    single_async_manual_reset_event_test,
     cancellation_is_rescheduled_when_starting_after_stopping) {
 
   single_thread_context thread;
@@ -310,7 +310,7 @@ TEST_F(
 
   ASSERT_NE(expectedThreadId, std::this_thread::get_id());
 
-  unnamed_primitive evt1, evt2;
+  single_async_manual_reset_event evt1, evt2;
 
   auto op = connect(
       with_query_value(evt1.async_wait(), get_scheduler, scheduler),
@@ -343,7 +343,7 @@ TEST_F(
 }
 
 TEST_F(
-    unnamed_primitive_test,
+    single_async_manual_reset_event_test,
     cancellation_is_rescheduled_when_stopping_after_starting) {
 
   single_thread_context thread;
@@ -353,7 +353,7 @@ TEST_F(
 
   ASSERT_NE(expectedThreadId, std::this_thread::get_id());
 
-  unnamed_primitive evt1, evt2;
+  single_async_manual_reset_event evt1, evt2;
 
   auto op = connect(
       with_query_value(evt1.async_wait(), get_scheduler, scheduler),
@@ -386,10 +386,10 @@ TEST_F(
 }
 
 TEST_F(
-    unnamed_primitive_test,
+    single_async_manual_reset_event_test,
     reconnecting_to_a_cancelled_primitive_works_like_normal) {
 
-  unnamed_primitive evt;
+  single_async_manual_reset_event evt;
 
   {
     inplace_stop_source newStopSource;

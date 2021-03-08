@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <unifex/unnamed_primitive.hpp>
+#include <unifex/single_async_manual_reset_event.hpp>
 
-namespace unifex::_unnamed {
+namespace unifex::_samre {
 
 namespace {
 
@@ -38,7 +38,7 @@ void clear_cancelled_state(
 
 } // namespace
 
-void unnamed_primitive::set() noexcept {
+void single_async_manual_reset_event::set() noexcept {
   std::uintptr_t signalledState = to_addr(this);
   const std::uintptr_t cancelledState = signalledState + 1;
 
@@ -60,7 +60,7 @@ void unnamed_primitive::set() noexcept {
   complete_operation(opAddr);
 }
 
-void unnamed_primitive::cancel(_op_base* op) noexcept {
+void single_async_manual_reset_event::cancel(_op_base* op) noexcept {
   // This is only invoked from the stop_callback, so our stop_token has
   // requested cancellation.
   //
@@ -145,7 +145,7 @@ void unnamed_primitive::cancel(_op_base* op) noexcept {
 }
 
 
-void unnamed_primitive::start_or_wait(_op_base* op) noexcept {
+void single_async_manual_reset_event::start_or_wait(_op_base* op) noexcept {
   const std::uintptr_t opAddr = to_addr(op);
   const std::uintptr_t signalledState = to_addr(this);
   const std::uintptr_t cancelledState = signalledState + 1;
@@ -179,4 +179,4 @@ void unnamed_primitive::start_or_wait(_op_base* op) noexcept {
   }
 }
 
-} // namespace unfiex::_unnamed
+} // namespace unfiex::_samre

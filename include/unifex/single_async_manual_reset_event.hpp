@@ -32,7 +32,7 @@
 
 namespace unifex {
 
-namespace _unnamed {
+namespace _samre {
 
 struct _op_base;
 
@@ -44,7 +44,7 @@ struct _operation {
 template <typename Receiver>
 using operation = typename _operation<Receiver>::type;
 
-struct unnamed_primitive;
+struct single_async_manual_reset_event;
 
 struct _sender {
   template <template <class...> class Variant,
@@ -56,29 +56,29 @@ struct _sender {
 
   static constexpr bool sends_done = true;
 
-  explicit _sender(unnamed_primitive& evt) noexcept
+  explicit _sender(single_async_manual_reset_event& evt) noexcept
     : evt_(&evt) {}
 
   template (typename Receiver)
     (requires receiver_of<Receiver>)
   operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const noexcept(
-      noexcept(operation<remove_cvref_t<Receiver>>{std::declval<unnamed_primitive&>(), (Receiver&&)r})) {
+      noexcept(operation<remove_cvref_t<Receiver>>{std::declval<single_async_manual_reset_event&>(), (Receiver&&)r})) {
     return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver&&)r};
   }
 
  private:
-  unnamed_primitive* evt_;
+  single_async_manual_reset_event* evt_;
 };
 
 inline std::uintptr_t to_addr(const void* ptr) noexcept {
   return reinterpret_cast<std::uintptr_t>(ptr);
 }
 
-struct unnamed_primitive {
-  unnamed_primitive() noexcept
-    : unnamed_primitive(false) {}
+struct single_async_manual_reset_event {
+  single_async_manual_reset_event() noexcept
+    : single_async_manual_reset_event(false) {}
 
-  explicit unnamed_primitive(bool startSignalled) noexcept
+  explicit single_async_manual_reset_event(bool startSignalled) noexcept
     : state_(to_addr(startSignalled ? this : nullptr)) {}
 
   void set() noexcept;
@@ -123,9 +123,9 @@ struct unnamed_primitive {
 
 struct _op_base {
   void (*completeImpl_)(_op_base*) noexcept;
-  unnamed_primitive* evt_;
+  single_async_manual_reset_event* evt_;
 
-  explicit _op_base(unnamed_primitive& evt, void (*completeImpl)(_op_base*) noexcept) noexcept
+  explicit _op_base(single_async_manual_reset_event& evt, void (*completeImpl)(_op_base*) noexcept) noexcept
     : evt_(&evt), completeImpl_(completeImpl) {}
 
   ~_op_base() = default;
@@ -191,7 +191,7 @@ struct _receiver<Receiver>::type {
 
 template <typename Receiver>
 struct _operation<Receiver>::type : private _op_base {
-  explicit type(unnamed_primitive& evt, Receiver r)
+  explicit type(single_async_manual_reset_event& evt, Receiver r)
       // TODO: noexceptness is incomplete
       noexcept(std::is_nothrow_move_constructible<Receiver>::value)
     : _op_base(evt, &complete_impl),
@@ -254,9 +254,9 @@ struct _operation<Receiver>::type : private _op_base {
   }
 };
 
-} // namespace _unnamed
+} // namespace _samre
 
-using _unnamed::unnamed_primitive;
+using _samre::single_async_manual_reset_event;
 
 } // namespace unifex
 

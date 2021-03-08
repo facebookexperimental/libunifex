@@ -16,7 +16,7 @@ target_sources(unifex
     timed_single_thread_context.cpp
     trampoline_scheduler.cpp
     async_manual_reset_event.cpp
-    unnamed_primitive.cpp)
+    single_async_manual_reset_event.cpp)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(unifex
