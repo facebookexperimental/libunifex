@@ -109,7 +109,7 @@ TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
 }
 
 TEST_F(async_scope_test, lots_of_threads_works) {
-  constexpr int maxCount = 5'000;
+  constexpr int maxCount = 1'000;
 
   std::array<single_thread_context, maxCount> threads;
 
