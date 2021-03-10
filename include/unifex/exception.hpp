@@ -39,7 +39,7 @@ struct _fn {
   template <typename Exception>
   [[noreturn]] UNIFEX_ALWAYS_INLINE
   void operator()([[maybe_unused]] Exception&& ex) const {
-  #if __cpp_exceptions
+  #if !UNIFEX_NO_EXCEPTIONS
     throw (Exception&&) ex;
   #else
     std::terminate();
