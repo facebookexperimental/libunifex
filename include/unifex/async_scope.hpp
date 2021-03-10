@@ -133,7 +133,7 @@ struct async_scope {
   template (typename Sender, typename Scheduler)
     (requires scheduler<Scheduler> AND
      sender_to<Sender, receiver<Sender, remove_cvref_t<Scheduler>>>)
-  void submit(Sender&& sender, Scheduler&& scheduler) {
+  void spawn(Sender&& sender, Scheduler&& scheduler) {
     using receiver_t = receiver<Sender, remove_cvref_t<Scheduler>>;
     using op_t = connect_result_t<Sender, receiver_t>;
 

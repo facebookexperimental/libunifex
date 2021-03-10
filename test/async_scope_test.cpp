@@ -49,13 +49,13 @@ struct async_scope_test : testing::Test {
   async_scope scope;
   single_thread_context thread;
 
-  void submit_work_after_cleanup() {
+  void spawn_work_after_cleanup() {
     sync_wait(scope.cleanup());
 
     async_manual_reset_event destroyed;
     bool executed = false;
 
-    scope.submit(
+    scope.spawn(
         let_with([&]() noexcept {
           return scope_guard{[&]() noexcept {
             destroyed.set();
@@ -75,7 +75,7 @@ struct async_scope_test : testing::Test {
   void expect_work_to_run() {
     async_manual_reset_event evt;
 
-    scope.submit(transform(just(), [&]() noexcept {
+    scope.spawn(transform(just(), [&]() noexcept {
       evt.set();
     }), thread.get_scheduler());
 
@@ -84,17 +84,17 @@ struct async_scope_test : testing::Test {
   }
 };
 
-TEST_F(async_scope_test, submitting_after_cleaning_up_destroys_the_sender) {
-  submit_work_after_cleanup();
+TEST_F(async_scope_test, spawning_after_cleaning_up_destroys_the_sender) {
+  spawn_work_after_cleanup();
 }
 
 TEST_F(async_scope_test, cleanup_is_idempotent) {
   sync_wait(scope.cleanup());
 
-  submit_work_after_cleanup();
+  spawn_work_after_cleanup();
 }
 
-TEST_F(async_scope_test, submitting_work_makes_it_run) {
+TEST_F(async_scope_test, spawning_work_makes_it_run) {
   expect_work_to_run();
 
   sync_wait(scope.cleanup());
@@ -134,15 +134,15 @@ TEST_F(async_scope_test, lots_of_threads_works) {
   };
 
   for (auto& thread : threads) {
-    // Submit maxCount jobs that are all waiting on unique threads to submit a
+    // Spawn maxCount jobs that are all waiting on unique threads to spawn a
     // job each that increments count and then waits. The last job to increment
     // count will unblock the waiting jobs, so the group will then race to tear
     // themselves down.  On tear-down, decrement count again so that it can be
     // expected to be zero once everything's done.
     //
     // This should stress-test job submission and cancellation.
-    scope.submit(transform(evt1.async_wait(), [&]() noexcept {
-      scope.submit(
+    scope.spawn(transform(evt1.async_wait(), [&]() noexcept {
+      scope.spawn(
           let_with([&] { return decr{count, evt3}; }, [&](decr&) noexcept {
             return sequence(
                 transform(just(), [&]() noexcept {
@@ -157,7 +157,7 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     }), thread.get_scheduler());
   }
 
-  // launch the race to submit work
+  // launch the race to spawn work
   evt1.set();
 
   // wait until count has been incremented to maxCount
