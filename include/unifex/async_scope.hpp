@@ -171,9 +171,15 @@ struct async_scope {
   }
 
   [[nodiscard]] auto cleanup() noexcept {
-    return sequence(transform(just(), [this]() noexcept {
-      request_stop();
-    }), evt_.async_wait());
+    return sequence(
+        transform(just(), [this]() noexcept {
+          request_stop();
+        }),
+        transform(evt_.async_wait(), [this]() noexcept {
+          // make sure to synchronize with all the fetch_subs being done while
+          // operations complete
+          (void)opState_.load(std::memory_order_acquire);
+        }));
   }
 
  private:
