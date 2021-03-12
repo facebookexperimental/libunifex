@@ -28,6 +28,7 @@ namespace unifex {
 namespace _get_stop_token {
   inline const struct _fn {
   private:
+#if !UNIFEX_NO_COROUTINES
     struct awaiter_ {
       // This will fail for coroutine promises storing other kinds of
       // stop tokens, but we don't currently have examples of that right
@@ -48,6 +49,7 @@ namespace _get_stop_token {
     friend awaiter_ operator co_await(_fn) noexcept {
       return {};
     }
+#endif
   public:
     template <typename T>
     constexpr auto operator()(const T&) const noexcept
