@@ -33,22 +33,22 @@ namespace _get_stop_token {
   inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
   private:
-    template <typename StopToken>
-    struct _awaiter {
-      StopToken stoken_;
-      bool await_ready() const noexcept {
-        return true;
-      }
-      void await_suspend(coro::coroutine_handle<>) const noexcept {
-      }
-      StopToken await_resume() noexcept {
-        return (StopToken&&) stoken_;
-      }
-    };
-    template <typename StopToken>
-    _awaiter(StopToken) -> _awaiter<StopToken>;
+    class _awaitable {
+      template <typename StopToken>
+      struct _awaiter {
+        StopToken stoken_;
+        bool await_ready() const noexcept {
+          return true;
+        }
+        void await_suspend(coro::coroutine_handle<>) const noexcept {
+        }
+        StopToken await_resume() noexcept {
+          return (StopToken&&) stoken_;
+        }
+      };
+      template <typename StopToken>
+      _awaiter(StopToken) -> _awaiter<StopToken>;
 
-    struct _awaitable {
       template <typename Promise>
       friend auto tag_invoke(tag_t<await_transform>, Promise& promise, _awaitable) noexcept {
         return _awaiter{_fn{}(promise)};
