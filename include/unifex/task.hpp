@@ -26,6 +26,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/just_done.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -226,6 +227,20 @@ struct _awaiter {
   };
 };
 
+struct _stop_if_requested {
+  bool await_ready() const noexcept {
+    return false;
+  }
+  coro::coroutine_handle<> await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
+    if (get_stop_token(coro.promise()).stop_requested()) {
+      return coro.promise().unhandled_done();
+    }
+    return coro; // don't suspend
+  }
+  void await_resume() const noexcept {
+  }
+};
+
 template <typename T>
 struct _task<T>::type {
   using promise_type = typename _promise<T>::type;
@@ -281,6 +296,15 @@ private:
 
 template <typename T>
 using task = typename _task::_task<T>::type;
+
+// Await this to cancel and unwind if stop has been requested:
+inline constexpr _task::_stop_if_requested stop_if_requested {};
+
+// Await this to cancel unconditionally:
+inline constexpr auto stop = just_done();
+
+// NOTE: await get_stop_token to get the coroutine's current
+// stop token.
 
 } // namespace unifex
 

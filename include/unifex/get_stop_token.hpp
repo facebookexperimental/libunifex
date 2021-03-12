@@ -16,8 +16,10 @@
 #pragma once
 
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/inplace_stop_token.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -25,6 +27,28 @@
 namespace unifex {
 namespace _get_stop_token {
   inline const struct _fn {
+  private:
+    struct awaiter_ {
+      // This will fail for coroutine promises storing other kinds of
+      // stop tokens, but we don't currently have examples of that right
+      // now.
+      inplace_stop_token stoken_;
+      bool await_ready() const noexcept {
+        return false;
+      }
+      template <typename Promise>
+      bool await_suspend(coro::coroutine_handle<Promise> coro) noexcept {
+        stoken_ = _fn{}(coro.promise());
+        return false; // don't suspend
+      }
+      inplace_stop_token await_resume() const noexcept {
+        return stoken_;
+      }
+    };
+    friend awaiter_ operator co_await(_fn) noexcept {
+      return {};
+    }
+  public:
     template <typename T>
     constexpr auto operator()(const T&) const noexcept
         -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,
