@@ -25,7 +25,7 @@
 #include <unifex/transform.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/just.hpp>
-#include <unifex/just_done.hpp>
+#include <unifex/stop_if_requested.hpp>
 
 #include <gtest/gtest.h>
 
