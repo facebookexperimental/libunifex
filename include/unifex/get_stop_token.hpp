@@ -21,7 +21,10 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
+
+#if !UNIFEX_NO_COROUTINES
 #include <unifex/await_transform.hpp>
+#endif
 
 #include <unifex/detail/prologue.hpp>
 
@@ -34,15 +37,12 @@ namespace _get_stop_token {
     struct awaiter_ {
       StopToken stoken_;
       bool await_ready() const noexcept {
-        return false;
+        return true;
       }
-      template <typename Promise>
-      bool await_suspend(coro::coroutine_handle<Promise> coro) noexcept {
-        stoken_ = _fn{}(coro.promise());
-        return false; // don't suspend
+      void await_suspend(coro::coroutine_handle<>) const noexcept {
       }
-      StopToken await_resume() const noexcept {
-        return stoken_;
+      StopToken await_resume() noexcept {
+        return (StopToken&&) stoken_;
       }
     };
     template <typename StopToken>
