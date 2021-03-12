@@ -21,6 +21,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
+#include <unifex/await_transform.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -29,11 +30,9 @@ namespace _get_stop_token {
   inline const struct _fn {
   private:
 #if !UNIFEX_NO_COROUTINES
+    template <typename StopToken>
     struct awaiter_ {
-      // This will fail for coroutine promises storing other kinds of
-      // stop tokens, but we don't currently have examples of that right
-      // now.
-      inplace_stop_token stoken_;
+      StopToken stoken_;
       bool await_ready() const noexcept {
         return false;
       }
@@ -42,12 +41,16 @@ namespace _get_stop_token {
         stoken_ = _fn{}(coro.promise());
         return false; // don't suspend
       }
-      inplace_stop_token await_resume() const noexcept {
+      StopToken await_resume() const noexcept {
         return stoken_;
       }
     };
-    friend awaiter_ operator co_await(_fn) noexcept {
-      return {};
+    template <typename StopToken>
+    awaiter_(StopToken) -> awaiter_<StopToken>;
+
+    template <typename Promise>
+    friend auto tag_invoke(tag_t<await_transform>, Promise& promise, _fn get_stop_token) noexcept {
+      return awaiter_{get_stop_token(promise)};
     }
 #endif
   public:
