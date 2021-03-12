@@ -31,8 +31,8 @@
 namespace unifex {
 namespace _get_stop_token {
   inline const struct _fn {
-  private:
 #if !UNIFEX_NO_COROUTINES
+  private:
     template <typename StopToken>
     struct _awaiter {
       StopToken stoken_;
@@ -54,8 +54,14 @@ namespace _get_stop_token {
         return _awaiter{_fn{}(promise)};
       }
     };
-#endif
+
   public:
+    // `co_await get_stop_token()` to fetch a coroutine's current stop token.
+    [[nodiscard]] constexpr _awaitable operator()() const noexcept {
+      return {};
+    }
+#endif
+
     template (typename T)
       (requires (!tag_invocable<_fn, const T&>))
     constexpr auto operator()(const T&) const noexcept
@@ -71,11 +77,6 @@ namespace _get_stop_token {
           is_nothrow_tag_invocable_v<_fn, const T&>,
           "get_stop_token() customisations must be declared noexcept");
       return tag_invoke(_fn{}, object);
-    }
-
-    // `co_await get_stop_token()` to fetch a coroutine's current stop token.
-    [[nodiscard]] constexpr _awaitable operator()() const noexcept {
-      return {};
     }
   } get_stop_token{};
 } // namespace _get_stop_token
