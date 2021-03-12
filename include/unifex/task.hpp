@@ -231,6 +231,7 @@ struct _stop_if_requested {
   bool await_ready() const noexcept {
     return false;
   }
+  template <typename Promise>
   coro::coroutine_handle<> await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
     if (get_stop_token(coro.promise()).stop_requested()) {
       return coro.promise().unhandled_done();
