@@ -227,18 +227,29 @@ struct _awaiter {
   };
 };
 
-struct _stop_if_requested {
-  bool await_ready() const noexcept {
-    return false;
+struct _stop_fn {
+  [[nodiscard]] constexpr auto operator()() const noexcept {
+    return just_done();
   }
-  template <typename Promise>
-  coro::coroutine_handle<> await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
-    if (get_stop_token(coro.promise()).stop_requested()) {
-      return coro.promise().unhandled_done();
+};
+
+struct _stop_if_requested_fn {
+  struct _awaiter {
+    bool await_ready() const noexcept {
+      return false;
     }
-    return coro; // don't suspend
-  }
-  void await_resume() const noexcept {
+    template <typename Promise>
+    coro::coroutine_handle<> await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
+      if (get_stop_token(coro.promise()).stop_requested()) {
+        return coro.promise().unhandled_done();
+      }
+      return coro; // don't suspend
+    }
+    void await_resume() const noexcept {
+    }
+  };
+  [[nodiscard]] constexpr _awaiter operator()() const noexcept {
+    return {};
   }
 };
 
@@ -299,10 +310,10 @@ template <typename T>
 using task = typename _task::_task<T>::type;
 
 // Await this to cancel and unwind if stop has been requested:
-inline constexpr _task::_stop_if_requested stop_if_requested {};
+inline constexpr _task::_stop_if_requested_fn stop_if_requested {};
 
 // Await this to cancel unconditionally:
-inline constexpr auto stop = just_done();
+inline constexpr _task::_stop_fn stop {};
 
 // NOTE: await get_stop_token to get the coroutine's current
 // stop token.

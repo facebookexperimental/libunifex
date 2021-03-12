@@ -34,7 +34,7 @@ namespace _get_stop_token {
   private:
 #if !UNIFEX_NO_COROUTINES
     template <typename StopToken>
-    struct awaiter_ {
+    struct _awaiter {
       StopToken stoken_;
       bool await_ready() const noexcept {
         return true;
@@ -46,28 +46,36 @@ namespace _get_stop_token {
       }
     };
     template <typename StopToken>
-    awaiter_(StopToken) -> awaiter_<StopToken>;
+    _awaiter(StopToken) -> _awaiter<StopToken>;
 
-    template <typename Promise>
-    friend auto tag_invoke(tag_t<await_transform>, Promise& promise, _fn get_stop_token) noexcept {
-      return awaiter_{get_stop_token(promise)};
-    }
+    struct _awaitable {
+      template <typename Promise>
+      friend auto tag_invoke(tag_t<await_transform>, Promise& promise, _awaitable) noexcept {
+        return _awaiter{_fn{}(promise)};
+      }
+    };
 #endif
   public:
-    template <typename T>
+    template (typename T)
+      (requires (!tag_invocable<_fn, const T&>))
     constexpr auto operator()(const T&) const noexcept
-        -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,
-                            unstoppable_token> {
+        -> unstoppable_token {
       return unstoppable_token{};
     }
 
-    template <typename T>
+    template (typename T)
+      (requires tag_invocable<_fn, const T&>)
     constexpr auto operator()(const T& object) const noexcept
         -> tag_invoke_result_t<_fn, const T&> {
       static_assert(
           is_nothrow_tag_invocable_v<_fn, const T&>,
           "get_stop_token() customisations must be declared noexcept");
       return tag_invoke(_fn{}, object);
+    }
+
+    // `co_await get_stop_token()` to fetch a coroutine's current stop token.
+    [[nodiscard]] constexpr _awaitable operator()() const noexcept {
+      return {};
     }
   } get_stop_token{};
 } // namespace _get_stop_token

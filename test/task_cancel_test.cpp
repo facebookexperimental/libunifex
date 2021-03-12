@@ -32,10 +32,8 @@
 using namespace unifex;
 
 namespace {
-inline constexpr auto stop = just_done();
-
 task<int> foo() {
-  co_await stop; // sends a done signal, unwinds the coroutine stack
+  co_await stop(); // sends a done signal, unwinds the coroutine stack
   ADD_FAILURE();
   co_return 42;
 }
@@ -52,28 +50,28 @@ task<int> bar() {
 }
 
 task<inplace_stop_token> get_token_inner() {
-  co_return co_await get_stop_token;
+  co_return co_await get_stop_token();
 }
 
 task<inplace_stop_token> get_token_outer() {
-  auto a = co_await get_stop_token;
+  auto a = co_await get_stop_token();
   auto b = co_await get_token_inner();
   EXPECT_EQ(a, b);
   co_return b;
 }
 
 task<void> void_test() {
-  co_await stop;
+  co_await stop();
   co_return;
 }
 
-bool didNotStopWhenNotAskedTo = false;
+bool continuedWhenStopWasNotYetRequested = false;
 
 task<int> test_stop_if_requested(inplace_stop_source& stopSource) {
-  co_await stop_if_requested; // shouldn't stop
-  didNotStopWhenNotAskedTo = true;
+  co_await stop_if_requested(); // shouldn't stop
+  continuedWhenStopWasNotYetRequested = true;
   stopSource.request_stop();
-  co_await stop_if_requested; // should stop
+  co_await stop_if_requested(); // should stop
   ADD_FAILURE() << "didn't stop but should have";
   co_return 42;
 }
@@ -127,7 +125,7 @@ TEST(TaskCancel, StopIfRequested) {
         get_stop_token,
         stopSource.get_token()));
   EXPECT_TRUE(!i);
-  EXPECT_TRUE(didNotStopWhenNotAskedTo);
+  EXPECT_TRUE(continuedWhenStopWasNotYetRequested);
 }
 
 #endif // !UNIFEX_NO_COROUTINES
