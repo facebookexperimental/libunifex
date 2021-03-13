@@ -26,7 +26,7 @@ namespace unifex {
 namespace _stop_if {
 struct _fn {
 private:
-  struct _awaiter {
+  struct _sender {
   private:
     template <typename Receiver>
     struct _op {
@@ -85,7 +85,7 @@ private:
   };
 
 public:
-  [[nodiscard]] constexpr _awaiter operator()() const noexcept {
+  [[nodiscard]] constexpr _sender operator()() const noexcept {
     return {};
   }
 };
