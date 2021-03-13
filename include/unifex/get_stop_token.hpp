@@ -16,23 +16,61 @@
 #pragma once
 
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/inplace_stop_token.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
+
+#if !UNIFEX_NO_COROUTINES
+#include <unifex/await_transform.hpp>
+#endif
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _get_stop_token {
   inline const struct _fn {
-    template <typename T>
+#if !UNIFEX_NO_COROUTINES
+  private:
+    class _awaitable {
+      template <typename StopToken>
+      struct _awaiter {
+        StopToken stoken_;
+        bool await_ready() const noexcept {
+          return true;
+        }
+        void await_suspend(coro::coroutine_handle<>) const noexcept {
+        }
+        StopToken await_resume() noexcept {
+          return (StopToken&&) stoken_;
+        }
+      };
+      template <typename StopToken>
+      _awaiter(StopToken) -> _awaiter<StopToken>;
+
+      template <typename Promise>
+      friend auto tag_invoke(tag_t<await_transform>, Promise& promise, _awaitable) noexcept {
+        return _awaiter{_fn{}(promise)};
+      }
+    };
+
+  public:
+    // `co_await get_stop_token()` to fetch a coroutine's current stop token.
+    [[nodiscard]] constexpr _awaitable operator()() const noexcept {
+      return {};
+    }
+#endif
+
+    template (typename T)
+      (requires (!tag_invocable<_fn, const T&>))
     constexpr auto operator()(const T&) const noexcept
-        -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,
-                            unstoppable_token> {
+        -> unstoppable_token {
       return unstoppable_token{};
     }
 
-    template <typename T>
+    template (typename T)
+      (requires tag_invocable<_fn, const T&>)
     constexpr auto operator()(const T& object) const noexcept
         -> tag_invoke_result_t<_fn, const T&> {
       static_assert(

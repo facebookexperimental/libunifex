@@ -5,6 +5,11 @@
   * `get_scheduler()`
   * `get_allocator()`
   * `get_execution_policy()`
+* Sender Factories
+  * `just()`
+  * `just_done()` / `stop()`
+  * `just_error()`
+  * `stop_if_requested()`
 * Sender Algorithms
   * `transform()`
   * `transform_done()`
@@ -133,6 +138,28 @@ the `sequenced_policy`.
 
 If a receiver does not customise the `get_execution_policy()` CPO then it
 will default to returning the `sequenced_policy`.
+
+# Sender Factories
+
+### `just(args...)`
+
+Returns a sender that completes synchronously by calling `set_value()`
+with `args...`.
+
+### `just_done()` / `stop()`
+
+Returns a sender that completes synchronously by calling `set_done()`.
+
+### `just_error(e)`
+
+Returns a sender that completes synchronously by calling `set_error()` with `e`.
+
+### `stop_if_requested()`
+
+Returns a sender that queries the receiver with `get_stop_token()`, tests the
+resulting stop token with `stop_requested()`. If the result is `true`, then
+the sender completes synchronously with `set_done()`. Otherwise, the sender
+completes synchronously by calling `set_value()` with no arguments.
 
 # Sender Algorithms
 

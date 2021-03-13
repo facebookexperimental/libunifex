@@ -195,16 +195,16 @@ struct _fn {
   template(typename Promise, typename Value)
     (requires (!tag_invocable<_fn, Promise&, Value>))
   decltype(auto) operator()(Promise& promise, Value&& value) const {
-    // Note we don't fold the two '(Value&&)value'-returning cases here
+    // Note we don't fold the two '(Value&&) value'-returning cases here
     // to avoid instantiating 'unifex::sender<Value>' concept check in
     // the case that _awaitable<Value> evaluates to true.
     if constexpr (detail::_awaitable<Value>) {
-      return (Value&&)value;
+      return (Value&&) value;
     } else if constexpr (unifex::sender<Value>) {
       auto h = coro::coroutine_handle<Promise>::from_promise(promise);
-      return _as_awaitable<Promise, Value>{(Value&&)value, h};
+      return _as_awaitable<Promise, Value>{(Value&&) value, h};
     } else {
-      return (Value&&)value;
+      return (Value&&) value;
     }
   }
 };

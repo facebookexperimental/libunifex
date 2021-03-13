@@ -25,17 +25,15 @@
 #include <unifex/transform.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/just.hpp>
-#include <unifex/just_done.hpp>
+#include <unifex/stop_if_requested.hpp>
 
 #include <gtest/gtest.h>
 
 using namespace unifex;
 
 namespace {
-inline constexpr auto stop = just_done();
-
 task<int> foo() {
-  co_await stop; // sends a done signal, unwinds the coroutine stack
+  co_await stop(); // sends a done signal, unwinds the coroutine stack
   ADD_FAILURE();
   co_return 42;
 }
@@ -51,9 +49,31 @@ task<int> bar() {
   co_return -1;
 }
 
+task<inplace_stop_token> get_token_inner() {
+  co_return co_await get_stop_token();
+}
+
+task<inplace_stop_token> get_token_outer() {
+  auto a = co_await get_stop_token();
+  auto b = co_await get_token_inner();
+  EXPECT_EQ(a, b);
+  co_return b;
+}
+
 task<void> void_test() {
-  co_await stop;
+  co_await stop();
   co_return;
+}
+
+bool continuedWhenStopWasNotYetRequested = false;
+
+task<int> test_stop_if_requested(inplace_stop_source& stopSource) {
+  co_await stop_if_requested(); // shouldn't stop
+  continuedWhenStopWasNotYetRequested = true;
+  stopSource.request_stop();
+  co_await stop_if_requested(); // should stop
+  ADD_FAILURE() << "didn't stop but should have";
+  co_return 42;
 }
 
 template<typename Sender>
@@ -69,19 +89,43 @@ auto done_as_optional(Sender&& sender) {
 } // <anonymous namespace>
 
 TEST(TaskCancel, Cancel) {
-    optional<int> j = sync_wait(bar());
-    EXPECT_TRUE(!j);
+  optional<int> j = sync_wait(bar());
+  EXPECT_TRUE(!j);
 }
 
 TEST(TaskCancel, DoneAsOptional) {
-    optional<optional<int>> i = sync_wait(done_as_optional(bar()));
-    EXPECT_TRUE(i);
-    EXPECT_TRUE(!*i);
+  optional<optional<int>> i = sync_wait(done_as_optional(bar()));
+  EXPECT_TRUE(i);
+  EXPECT_TRUE(!*i);
 }
 
 TEST(TaskCancel, VoidTask) {
-    optional<unit> i = sync_wait(void_test());
-    EXPECT_TRUE(!i);
+  optional<unit> i = sync_wait(void_test());
+  EXPECT_TRUE(!i);
+}
+
+TEST(TaskCancel, PropagatesStopToken) {
+  inplace_stop_source stopSource;
+  optional<inplace_stop_token> i =
+    sync_wait(
+      with_query_value(
+        get_token_outer(),
+        get_stop_token,
+        stopSource.get_token()));
+  EXPECT_TRUE(i);
+  EXPECT_EQ(*i, stopSource.get_token());
+}
+
+TEST(TaskCancel, StopIfRequested) {
+  inplace_stop_source stopSource;
+  optional<int> i =
+    sync_wait(
+      with_query_value(
+        test_stop_if_requested(stopSource),
+        get_stop_token,
+        stopSource.get_token()));
+  EXPECT_TRUE(!i);
+  EXPECT_TRUE(continuedWhenStopWasNotYetRequested);
 }
 
 #endif // !UNIFEX_NO_COROUTINES
