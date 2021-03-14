@@ -15,16 +15,13 @@
  */
 #pragma once
 
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
-
-#if !UNIFEX_NO_COROUTINES
-#include <unifex/await_transform.hpp>
-#endif
 
 #include <unifex/detail/prologue.hpp>
 
@@ -49,8 +46,9 @@ namespace _get_stop_token {
       template <typename StopToken>
       _awaiter(StopToken) -> _awaiter<StopToken>;
 
-      template <typename Promise>
-      friend auto tag_invoke(tag_t<await_transform>, Promise& promise, _awaitable) noexcept {
+      template (typename Tag, typename Promise)
+        (requires same_as<Tag, tag_t<await_transform>>)
+      friend auto tag_invoke(Tag, Promise& promise, _awaitable) noexcept {
         return _awaiter{_fn{}(promise)};
       }
     };

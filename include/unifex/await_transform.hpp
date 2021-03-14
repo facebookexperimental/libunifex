@@ -66,7 +66,7 @@ private:
     }
   }
 };
-}
+} // namespace _util
 
 namespace _await_tfx {
 using namespace _util;
@@ -182,7 +182,7 @@ public:
 template <typename Promise, typename Sender>
 using _as_awaitable = typename _awaitable<Promise, Sender>::type;
 
-struct _fn {
+inline constexpr struct _fn {
   // Call custom implementation if present.
   template(typename Promise, typename Value)
     (requires tag_invocable<_fn, Promise&, Value>)
@@ -208,7 +208,7 @@ struct _fn {
       return (Value&&) value;
     }
   }
-};
+} await_transform {};
 
 } // namespace _await_tfx
 
@@ -221,7 +221,7 @@ struct _fn {
 //
 // Coroutine promise_types can implement their .await_transform() methods to
 // forward to this customisation point to enable use of type customisations.
-inline constexpr _await_tfx::_fn await_transform;
+using _await_tfx::await_transform;
 
 } // namespace unifex
 
