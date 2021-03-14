@@ -42,4 +42,12 @@ namespace unifex {
     extern const struct _fn connect;
   } // namespace _connect_cpo
   using _connect_cpo::connect;
+
+#if !UNIFEX_NO_COROUTINES
+  namespace _await_tfx {
+    extern const struct _fn await_transform;
+  }
+  using _await_tfx::await_transform;
+#endif
+
 } // namespace unifex
