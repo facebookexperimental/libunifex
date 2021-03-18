@@ -5,10 +5,12 @@
 
 cmake_minimum_required(VERSION 3.12)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+include(DefaultBuildType)
+
 project(libunifex LANGUAGES CXX
                   VERSION 0.1)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(unifex_options)
 include(unifex_env)
