@@ -19,16 +19,18 @@ include(unifex_flags)
 add_subdirectory(source)
 
 if(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
+  # We enable testing in both cases
   enable_testing()
-
-  include(gtest)
   include(CTest)
-
-  target_compile_features(gtest PUBLIC cxx_std_17)
-  target_compile_features(gtest_main PUBLIC cxx_std_17)
-
-  add_subdirectory(examples)
+  # Examples do not use gtest
+  if(UNIFEX_BUILD_EXAMPLES)
+    add_subdirectory(examples)
+  endif(UNIFEX_BUILD_EXAMPLES)
+  # Tests do use gtest
   if(BUILD_TESTING)
+    include(gtest)
+    target_compile_features(gtest PUBLIC cxx_std_17)
+    target_compile_features(gtest_main PUBLIC cxx_std_17)
     add_subdirectory(test)
   endif(BUILD_TESTING)
 endif(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
