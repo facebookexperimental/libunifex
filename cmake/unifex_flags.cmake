@@ -42,7 +42,7 @@ else()
 # Probe for libUring support
 find_package(LibUring COMPONENTS)
 # Set some variables to be used by configure_file.
-if(LIBURING_FOUND)
+if(LibUring_FOUND)
   set(UNIFEX_NO_LIBURING FALSE)
 else()
   set(UNIFEX_NO_LIBURING TRUE)
