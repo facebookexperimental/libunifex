@@ -131,7 +131,8 @@
 # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
 #endif
 
-#if defined(__cpp_lib_invoke) && __cpp_lib_invoke > 0
+#if defined(__cpp_lib_invoke) && __cpp_lib_invoke >= 201411 && \
+  defined(__cpp_lib_is_invocable) && __cpp_lib_is_invocable >= 201703
 #define UNIFEX_CXX_INVOKE 1
 #else
 #define UNIFEX_CXX_INVOKE 0
