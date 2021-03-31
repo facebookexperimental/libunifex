@@ -124,7 +124,7 @@ struct _op_base {
   async_manual_reset_event* evt_;
 
   explicit _op_base(async_manual_reset_event& evt, void (*setValue)(_op_base*) noexcept) noexcept
-    : evt_(&evt), setValue_(setValue) {}
+    : setValue_(setValue), evt_(&evt) {}
 
   ~_op_base() = default;
 

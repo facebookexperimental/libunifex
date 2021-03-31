@@ -251,7 +251,7 @@ template<>
 class inplace_stop_token_adapter<inplace_stop_token, void> {
 public:
   inplace_stop_token subscribe(inplace_stop_token stoken) noexcept {
-    return std::move(stoken);
+    return stoken;
   }
 
   void unsubscribe() noexcept {}
