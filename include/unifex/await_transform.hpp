@@ -83,7 +83,6 @@ struct _awaitable {
 
 template <typename Promise, typename Value>
 struct _awaitable_base<Promise, Value>::type {
-protected:
   struct _rec {
   public:
     explicit _rec(_expected<Value>* result, coro::coroutine_handle<Promise> continuation) noexcept
@@ -138,9 +137,6 @@ protected:
     coro::coroutine_handle<Promise> continuation_;
   };
 
-  _expected<Value> result_;
-
-public:
   bool await_ready() const noexcept {
     return false;
   }
@@ -154,6 +150,9 @@ public:
       std::rethrow_exception(result_.exception_.get());
     }
   }
+
+protected:
+  _expected<Value> result_;
 };
 
 template <typename Promise, typename Sender>
@@ -163,10 +162,13 @@ using _awaitable_base_t =
     sender_single_value_return_type_t<remove_cvref_t<Sender>>>::type;
 
 template <typename Promise, typename Sender>
+using _receiver_t = typename _awaitable_base_t<Promise, Sender>::_rec;
+
+template <typename Promise, typename Sender>
 struct _awaitable<Promise, Sender>::type
   : _awaitable_base_t<Promise, Sender> {
 private:
-  using _rec = typename _awaitable_base_t<Promise, Sender>::_rec;
+  using _rec = _receiver_t<Promise, Sender>;
   connect_result_t<Sender, _rec> op_;
 public:
   explicit type(Sender&& sender, coro::coroutine_handle<Promise> h)
@@ -202,8 +204,15 @@ inline constexpr struct _fn {
     if constexpr (detail::_awaitable<Value>) {
       return (Value&&) value;
     } else if constexpr (unifex::sender<Value>) {
-      auto h = coro::coroutine_handle<Promise>::from_promise(promise);
-      return _as_awaitable<Promise, Value>{(Value&&) value, h};
+      if constexpr (unifex::sender_to<Value, _receiver_t<Promise, Value>>) {
+        auto h = coro::coroutine_handle<Promise>::from_promise(promise);
+        return _as_awaitable<Promise, Value>{(Value&&) value, h};
+      } else {
+        static_assert(
+          unifex::sender_to<Value, _receiver_t<Promise, Value>>,
+          "This sender is not awaitable in this coroutine type.");
+        return (Value&&) value;
+      }
     } else {
       return (Value&&) value;
     }
