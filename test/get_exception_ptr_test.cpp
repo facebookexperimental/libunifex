@@ -28,7 +28,7 @@ namespace unifex
   }
 }  // namespace unifex
 
-static_assert(exception_ptr_convertible<std::error_code>);
+static_assert(is_exception_ptr_convertible_v<std::error_code>);
 
 TEST(get_exception_ptr, error_code) {
   try {
@@ -49,7 +49,7 @@ std::exception_ptr tag_invoke(tag_t<get_exception_ptr>, test_error&& error) {
       std::runtime_error(std::to_string(error.error_code)));
 }
 
-static_assert(exception_ptr_convertible<test_error>);
+static_assert(is_exception_ptr_convertible_v<test_error>);
 
 TEST(get_exception_ptr, custom_error) {
   try {

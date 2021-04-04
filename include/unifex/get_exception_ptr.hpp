@@ -16,10 +16,9 @@
 #pragma once
 
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_traits.hpp>
 
-#include <concepts>
 #include <memory>
-#include <system_error>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -33,11 +32,9 @@ namespace unifex
     }
   } get_exception_ptr{};
 
-  template <typename Error>
-  concept exception_ptr_convertible = requires(Error error) {
-    { get_exception_ptr(std::move(error)) } -> std::same_as<std::exception_ptr>;
-  };
-
+  template <typename T>
+  constexpr bool is_exception_ptr_convertible_v =
+      is_callable_v<_get_exception_ptr_cpo, remove_cvref_t<T>>;
 }  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

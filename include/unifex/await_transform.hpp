@@ -115,7 +115,7 @@ protected:
     }
 
     template (class Error)
-      (requires exception_ptr_convertible<Error>)
+      (requires is_exception_ptr_convertible_v<Error>)
     void set_error(Error &&error) && noexcept {
       unifex::activate_union_member(result_->exception_, get_exception_ptr(std::forward<Error>(error)));
       result_->state_ = _state::exception;
