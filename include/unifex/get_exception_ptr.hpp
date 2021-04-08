@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/exception.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
 
@@ -24,17 +25,40 @@
 
 namespace unifex
 {
-  inline const struct _get_exception_ptr_cpo {
-    template <typename ErrorCode>
-    constexpr auto operator()(ErrorCode&& error) const noexcept
-        -> tag_invoke_result_t<_get_exception_ptr_cpo, ErrorCode> {
-      return unifex::tag_invoke(*this, (ErrorCode &&) error);
-    }
-  } get_exception_ptr{};
+  namespace _get_exception_ptr
+  {
+    inline const struct _fn {
+      // forward std::exception_ptr
+      std::exception_ptr operator()(std::exception_ptr &&eptr) const noexcept {
+        return std::forward<std::exception_ptr>(eptr);
+      }
 
-  template <typename T>
-  constexpr bool is_exception_ptr_convertible_v =
-      is_callable_v<_get_exception_ptr_cpo, remove_cvref_t<T>>;
+      // convert std::exception based types to std::exception_ptr
+      template(typename Exception)(
+          requires std::is_base_of_v<std::exception, Exception>)
+          std::exception_ptr
+          operator()(Exception &&ex) const noexcept {
+        return make_exception_ptr(std::forward<Exception>(ex));
+      }
+
+      // use customization point
+      // to resolve ErrorCode -> std::exception_ptr conversion
+      template(typename ErrorCode)
+          (requires is_tag_invocable_v<_fn, ErrorCode>)
+      std::exception_ptr operator()(ErrorCode &&error) const noexcept {
+        return tag_invoke(*this, std::forward<ErrorCode>(error));
+      }
+    } get_exception_ptr{};
+
+    // default std::error_code -> std::exception_ptr conversion
+    std::exception_ptr tag_invoke(tag_t<get_exception_ptr>, std::error_code &&error) noexcept {
+      return make_exception_ptr(
+          std::system_error{std::forward<std::error_code>(error)});
+    }
+
+  }  // namespace _get_exception_ptr_cpo
+
+  using _get_exception_ptr::get_exception_ptr;
 }  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

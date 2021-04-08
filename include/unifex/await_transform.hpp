@@ -108,14 +108,7 @@ protected:
       continuation_.resume();
     }
 
-    void set_error(std::exception_ptr eptr) && noexcept {
-      unifex::activate_union_member(result_->exception_, std::move(eptr));
-      result_->state_ = _state::exception;
-      continuation_.resume();
-    }
-
-    template (class Error)
-      (requires is_exception_ptr_convertible_v<Error>)
+    template <typename Error>
     void set_error(Error &&error) && noexcept {
       unifex::activate_union_member(result_->exception_, get_exception_ptr(std::forward<Error>(error)));
       result_->state_ = _state::exception;
