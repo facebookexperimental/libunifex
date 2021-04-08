@@ -27,6 +27,7 @@
 #include <unifex/sequence.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/get_exception_ptr.hpp>
 
 #include <atomic>
 #include <memory>
@@ -40,7 +41,8 @@ namespace _async_scope {
 struct async_scope;
 
 struct _receiver_base {
-  [[noreturn]] void set_error(std::exception_ptr) noexcept {
+  template <typename Error>
+  void set_error(Error &&error) && noexcept {
     std::terminate();
   }
 
