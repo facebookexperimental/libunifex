@@ -178,6 +178,27 @@ template <typename SchedulerProvider>
 using get_scheduler_result_t =
     decltype(get_scheduler(UNIFEX_DECLVAL(SchedulerProvider&&)));
 
+// Define the scheduler concept without the macros for better diagnostics
+#if UNIFEX_CXX_CONCEPTS
+template <typename SP>
+concept //
+  scheduler_provider = //
+    requires(SP&& sp) {
+      get_scheduler((SP&&) sp);
+    };
+#else
+template <typename SP>
+UNIFEX_CONCEPT_FRAGMENT( //
+  _scheduler_provider,
+    requires(SP&& sp) (
+      get_scheduler((SP&&) sp)
+    ));
+template <typename SP>
+UNIFEX_CONCEPT //
+  scheduler_provider = //
+    UNIFEX_FRAGMENT(unifex::_scheduler_provider, SP);
+#endif
+
 namespace _schedule {
 struct sender {
   template <

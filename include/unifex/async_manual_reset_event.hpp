@@ -58,9 +58,10 @@ struct _sender {
     : evt_(&evt) {}
 
   template (typename Receiver)
-    (requires receiver_of<Receiver>)
+    (requires receiver_of<Receiver> AND scheduler_provider<Receiver>)
   operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const noexcept(
-      noexcept(operation<remove_cvref_t<Receiver>>{std::declval<async_manual_reset_event&>(), (Receiver&&)r})) {
+      noexcept(operation<remove_cvref_t<Receiver>>{
+          UNIFEX_DECLVAL(async_manual_reset_event&), (Receiver&&)r})) {
     return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver&&)r};
   }
 
