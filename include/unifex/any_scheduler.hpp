@@ -33,12 +33,12 @@ namespace _any_sched {
 struct any_scheduler;
 
 template <typename Ret>
-struct as_fn {
+struct copy_as_fn {
   using type_erased_signature_t = Ret(const this_&);
 
   template <typename T>
   Ret operator()(const T& t) const {
-    if constexpr (tag_invocable<as_fn, const T&>) {
+    if constexpr (tag_invocable<copy_as_fn, const T&>) {
       return tag_invoke(*this, t);
     } else {
       return Ret{t};
@@ -46,7 +46,7 @@ struct as_fn {
   }
 };
 template <typename Ret>
-inline constexpr as_fn<Ret> as{};
+inline constexpr copy_as_fn<Ret> copy_as{};
 
 inline constexpr struct get_type_id_fn {
   using type_erased_signature_t = type_index(const this_&) noexcept;
@@ -76,7 +76,7 @@ inline constexpr struct equal_to_fn {
 using any_scheduler_impl =
   any_unique_t<
     overload<any_sender_of<>(this_ const&)>(schedule),
-    as<any_scheduler>,
+    copy_as<any_scheduler>,
     get_type_id,
     overload<bool(const this_&, const any_scheduler&)>(equal_to)>;
 
@@ -88,11 +88,11 @@ struct any_scheduler {
 
   any_scheduler(any_scheduler&&) noexcept = default;
   any_scheduler(const any_scheduler& that)
-    : impl_(as<any_scheduler>(that.impl_).impl_) {}
+    : impl_(copy_as<any_scheduler>(that.impl_).impl_) {}
 
   any_scheduler& operator=(any_scheduler&&) noexcept = default;
   any_scheduler& operator=(const any_scheduler& that) {
-    impl_ = as<any_scheduler>(that.impl_).impl_;
+    impl_ = copy_as<any_scheduler>(that.impl_).impl_;
     return *this;
   }
 

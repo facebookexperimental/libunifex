@@ -35,8 +35,13 @@ TEST(AnySchedulerTest, EqualityComparable) {
   EXPECT_EQ(sched1, sched2);
   EXPECT_FALSE(sched1 != sched2);
 
-  single_thread_context ctx;
-  sched2 = ctx.get_scheduler();
+  single_thread_context ctx1;
+  sched1 = ctx1.get_scheduler();
+  EXPECT_NE(sched1, sched2);
+  EXPECT_TRUE(sched1 != sched2);
+
+  single_thread_context ctx2;
+  sched2 = ctx2.get_scheduler();
   EXPECT_NE(sched1, sched2);
   EXPECT_TRUE(sched1 != sched2);
 }
