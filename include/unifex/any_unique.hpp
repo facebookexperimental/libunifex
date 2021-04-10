@@ -395,15 +395,11 @@ class _byval<CPOs...>::type
     , vtable_(other.vtable_) {}
 
   UNIFEX_ALWAYS_INLINE ~type() {
-    if (nullptr != impl_) {
-      static_assert(noexcept(vtable_->template get<_deallocate_cpo>()));
-      auto* deallocateFn = vtable_->template get<_deallocate_cpo>();
-      static_assert(noexcept(deallocateFn(_deallocate_cpo{}, impl_)));
-      deallocateFn(_deallocate_cpo{}, impl_);
-    }
+    unsafe_deallocate();
   }
 
   type& operator=(type&& other) noexcept {
+    unsafe_deallocate();
     impl_ = std::exchange(other.impl_, nullptr);
     vtable_ = std::move(other.vtable_);
     return *this;
@@ -411,6 +407,16 @@ class _byval<CPOs...>::type
 
  private:
   using vtable_holder_t = vtable_holder<_deallocate_cpo, CPOs...>;
+
+  UNIFEX_ALWAYS_INLINE void unsafe_deallocate() noexcept {
+    // This leaves the any_unique in an invalid state.
+    if (nullptr != impl_) {
+      static_assert(noexcept(vtable_->template get<_deallocate_cpo>()));
+      auto* deallocateFn = vtable_->template get<_deallocate_cpo>();
+      static_assert(noexcept(deallocateFn(_deallocate_cpo{}, impl_)));
+      deallocateFn(_deallocate_cpo{}, impl_);
+    }
+  }
 
   friend const vtable_holder_t& get_vtable(const type& self) noexcept {
     return self.vtable_;
