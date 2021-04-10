@@ -121,18 +121,18 @@ struct indirect_vtable_holder {
   }
 
   const vtable<CPOs...>& operator*() const noexcept {
-    return vtable_;
+    return *vtable_;
   }
 
   const vtable<CPOs...>* operator->() const noexcept {
-    return &vtable_;
+    return vtable_;
   }
 
  private:
   constexpr indirect_vtable_holder(const vtable<CPOs...>& vtable)
-    : vtable_(vtable) {}
+    : vtable_(&vtable) {}
 
-  const vtable<CPOs...>& vtable_;
+  const vtable<CPOs...>* vtable_;
 };
 
 template <typename... CPOs>
@@ -401,6 +401,12 @@ class _byval<CPOs...>::type
       static_assert(noexcept(deallocateFn(_deallocate_cpo{}, impl_)));
       deallocateFn(_deallocate_cpo{}, impl_);
     }
+  }
+
+  type& operator=(type&& other) noexcept {
+    impl_ = std::exchange(other.impl_, nullptr);
+    vtable_ = std::move(other.vtable_);
+    return *this;
   }
 
  private:

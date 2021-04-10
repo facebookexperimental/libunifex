@@ -259,9 +259,6 @@ using any_operation_state_for = typename _any::_op_for<Receiver>::type;
 template <typename... Values>
 using any_sender_of = typename _any::_sender<Values...>::type;
 
-using any_scheduler =
-    any_unique_t<overload<any_sender_of<>(const this_&)>(schedule)>;
-
 template <auto&... CPOs>
 using with_receiver_queries = _any::_with_receiver_queries<tag_t<CPOs>...>;
 
