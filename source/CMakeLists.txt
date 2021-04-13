@@ -64,13 +64,28 @@ configure_file(
   ../include/unifex/config.hpp.in
   "${PROJECT_BINARY_DIR}/include/unifex/config.hpp")
 
+include(GNUInstallDirs)
 target_include_directories(unifex
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include/>
-    "${PROJECT_BINARY_DIR}/include")
+    PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include/>
+      $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include/>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(unifex PUBLIC cxx_std_17)
 
 if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)
 endif()
+
+# install unifex with its configure file into the default paths
+
+install(TARGETS unifex EXPORT unifexTargets)
+install(FILES ${PROJECT_BINARY_DIR}/include/unifex/config.hpp
+        DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/unifex/)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+        TYPE INCLUDE
+        PATTERN "*.in" EXCLUDE)
+install(EXPORT unifexTargets
+        FILE unifexConfig.cmake
+        NAMESPACE unifex::
+        DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/unifex/)
