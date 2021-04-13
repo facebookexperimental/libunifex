@@ -30,8 +30,6 @@
 namespace unifex {
 namespace _any_sched {
 
-struct any_scheduler;
-
 template <typename Ret>
 struct copy_as_fn {
   using type_erased_signature_t = Ret(const this_&);
@@ -73,48 +71,54 @@ inline constexpr struct equal_to_fn {
   }
 } equal_to{};
 
+template <typename... CPOs>
+using _any_void_sender_of =
+  typename _any::_with_receiver_queries<CPOs...>::template any_sender_of<>;
+
+template <typename... CPOs>
 using any_scheduler_impl =
   any_unique_t<
-    overload<any_sender_of<>(this_ const&)>(schedule),
-    copy_as<any_scheduler>,
+    overload<_any_void_sender_of<CPOs...>(this_ const&)>(schedule),
+    copy_as<any_scheduler<CPOs...>>,
     get_type_id,
-    overload<bool(const this_&, const any_scheduler&)>(equal_to)>;
+    overload<bool(const this_&, const any_scheduler<CPOs...>&)>(equal_to)>;
 
-struct any_scheduler {
+template <typename... CPOs>
+struct _any_scheduler<CPOs...>::type {
   template (typename Scheduler)
-    (requires (!same_as<Scheduler, any_scheduler>) AND scheduler<Scheduler>)
-  /* implicit */ any_scheduler(Scheduler sched)
+    (requires (!same_as<Scheduler, type>) AND scheduler<Scheduler>)
+  /* implicit */ type(Scheduler sched)
     : impl_((Scheduler&&) sched) {}
 
-  any_scheduler(any_scheduler&&) noexcept = default;
-  any_scheduler(const any_scheduler& that)
-    : impl_(copy_as<any_scheduler>(that.impl_).impl_) {}
+  type(type&&) noexcept = default;
+  type(const type& that)
+    : impl_(copy_as<type>(that.impl_).impl_) {}
 
-  any_scheduler& operator=(any_scheduler&&) noexcept = default;
-  any_scheduler& operator=(const any_scheduler& that) {
-    impl_ = copy_as<any_scheduler>(that.impl_).impl_;
+  type& operator=(type&&) noexcept = default;
+  type& operator=(const type& that) {
+    impl_ = copy_as<type>(that.impl_).impl_;
     return *this;
   }
 
-  any_sender_of<> schedule() const {
+  _any_void_sender_of<CPOs...> schedule() const {
     return unifex::schedule(impl_);
   }
 
 private:
   friend equal_to_fn;
-  friend bool operator==(const any_scheduler& left, const any_scheduler& right) {
+  friend bool operator==(const type& left, const type& right) {
     return equal_to(left.impl_, right);
   }
-  friend bool operator!=(const any_scheduler& left, const any_scheduler& right) {
-    return !equal_to(left.impl_, right);
+  friend bool operator!=(const type& left, const type& right) {
+    return !(left == right);
   }
 
-  any_scheduler_impl impl_;
+  any_scheduler_impl<CPOs...> impl_;
 };
 
 } // namespace _any_sched
 
-using _any_sched::any_scheduler;
+using any_scheduler = _any_sched::any_scheduler<>;
 
 } // namespace unifex
 

@@ -28,6 +28,19 @@
 
 namespace unifex {
 
+// Forward-declaration for any_scheduler, defined in
+// <any_scheduler.hpp>
+namespace _any_sched {
+
+template <typename... CPOs>
+struct _any_scheduler {
+  struct type;
+};
+template <typename... CPOs>
+using any_scheduler = typename _any_scheduler<CPOs...>::type;
+
+} // _any_sched
+
 namespace _any {
 
 using _operation_state =
@@ -208,7 +221,7 @@ struct _with_receiver_queries {
   template <typename... Values>
   using any_sender_of = typename _sender<Values...>::type;
 
-  using any_scheduler = any_unique_t<overload<any_sender_of<>(const this_&)>(schedule)>;
+  using any_scheduler = _any_sched::any_scheduler<CPOs...>;
 };
 
 template <typename... CPOs>
