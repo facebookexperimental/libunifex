@@ -19,7 +19,6 @@
 #include <unifex/receiver_concepts.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <condition_variable>
 #include <exception>
 #include <mutex>
@@ -46,7 +45,7 @@ class _op<Receiver>::type final {
     : ctx_(ctx), receiver_((Receiver2&&)r) {}
 
   ~type() {
-      assert(!thread_.joinable());
+      UNIFEX_ASSERT(!thread_.joinable());
   }
 
   void start() & noexcept;

@@ -30,7 +30,6 @@
 #include <type_traits>
 #include <utility>
 #include <optional>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 

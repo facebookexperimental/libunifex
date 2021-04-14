@@ -25,7 +25,6 @@
 
 #include "io_uring_syscall.hpp"
 
-#include <cassert>
 #include <cstring>
 #include <system_error>
 
@@ -279,13 +278,13 @@ io_uring_context::io_uring_context() {
 
     char* cqBlock = static_cast<char*>(cqPtr);
     cqEntryCount_ = params.cq_entries;
-    assert(
+    UNIFEX_ASSERT(
         cqEntryCount_ ==
         *reinterpret_cast<unsigned*>(
             cqBlock +
             params.cq_off.ring_entries)); // Is this a valid assumption?
     cqMask_ = *reinterpret_cast<unsigned*>(cqBlock + params.cq_off.ring_mask);
-    assert(cqMask_ == (cqEntryCount_ - 1));
+    UNIFEX_ASSERT(cqMask_ == (cqEntryCount_ - 1));
     cqHead_ =
         reinterpret_cast<std::atomic<unsigned>*>(cqBlock + params.cq_off.head);
     cqTail_ =
@@ -314,13 +313,13 @@ io_uring_context::io_uring_context() {
     char* sqBlock = static_cast<char*>(sqPtr);
 
     sqEntryCount_ = params.sq_entries;
-    assert(
+    UNIFEX_ASSERT(
         sqEntryCount_ ==
         *reinterpret_cast<unsigned*>(
             sqBlock +
             params.sq_off.ring_entries)); // Is this a valid assumption?
     sqMask_ = *reinterpret_cast<unsigned*>(sqBlock + params.sq_off.ring_mask);
-    assert(sqMask_ == (sqEntryCount_ - 1));
+    UNIFEX_ASSERT(sqMask_ == (sqEntryCount_ - 1));
     sqHead_ =
         reinterpret_cast<std::atomic<unsigned>*>(sqBlock + params.sq_off.head);
     sqTail_ =
@@ -453,7 +452,7 @@ bool io_uring_context::is_running_on_io_thread() const noexcept {
 }
 
 void io_uring_context::schedule_impl(operation_base* op) {
-  assert(op != nullptr);
+  UNIFEX_ASSERT(op != nullptr);
   if (is_running_on_io_thread()) {
     schedule_local(op);
   } else {
@@ -480,17 +479,17 @@ void io_uring_context::schedule_remote(operation_base* op) noexcept {
 }
 
 void io_uring_context::schedule_pending_io(operation_base* op) noexcept {
-  assert(is_running_on_io_thread());
+  UNIFEX_ASSERT(is_running_on_io_thread());
   pendingIoQueue_.push_back(op);
 }
 
 void io_uring_context::reschedule_pending_io(operation_base* op) noexcept {
-  assert(is_running_on_io_thread());
+  UNIFEX_ASSERT(is_running_on_io_thread());
   pendingIoQueue_.push_front(op);
 }
 
 void io_uring_context::schedule_at_impl(schedule_at_operation* op) noexcept {
-  assert(is_running_on_io_thread());
+  UNIFEX_ASSERT(is_running_on_io_thread());
   timers_.insert(op);
   if (timers_.top() == op) {
     timersAreDirty_ = true;
@@ -526,7 +525,7 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
   if (cqHead != cqTail) {
     const auto mask = cqMask_;
     const auto count = cqTail - cqHead;
-    assert(count <= cqEntryCount_);
+    UNIFEX_ASSERT(count <= cqEntryCount_);
 
     operation_base head;
     operation_base* tail = &head;
@@ -561,7 +560,7 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
           std::terminate();
         }
 
-        assert(bytesRead == sizeof(buffer));
+        UNIFEX_ASSERT(bytesRead == sizeof(buffer));
 
         // Skip processing this item and let the loop check
         // for the remote-queued items next time around.
@@ -569,7 +568,7 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
         continue;
       } else if (cqe.user_data == timer_user_data()) {
         LOGX("got timer completion result %i\n", cqe.res);
-        assert(activeTimerCount_ > 0);
+        UNIFEX_ASSERT(activeTimerCount_ > 0);
         --activeTimerCount_;
 
         LOGX("now %u active timers\n", activeTimerCount_);
@@ -607,7 +606,7 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
 }
 
 void io_uring_context::acquire_remote_queued_items() noexcept {
-  assert(!remoteQueueReadSubmitted_);
+  UNIFEX_ASSERT(!remoteQueueReadSubmitted_);
   auto items = remoteQueue_.dequeue_all();
   LOG(items.empty() ? "remote queue is empty"
                     : "acquired items from remote queue");
@@ -661,13 +660,13 @@ void io_uring_context::signal_remote_queue() {
     throw_(std::system_error{errorCode, std::system_category()});
   }
 
-  assert(bytesWritten == sizeof(value));
+  UNIFEX_ASSERT(bytesWritten == sizeof(value));
 }
 
 void io_uring_context::remove_timer(schedule_at_operation* op) noexcept {
   LOGX("remove_timer(%p)\n", (void*)op);
 
-  assert(!timers_.empty());
+  UNIFEX_ASSERT(!timers_.empty());
   if (timers_.top() == op) {
     timersAreDirty_ = true;
   }

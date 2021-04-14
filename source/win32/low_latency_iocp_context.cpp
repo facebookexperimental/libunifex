@@ -100,7 +100,7 @@ namespace unifex::win32
             ntapi::IO_STATUS_BLOCK* iosb =
                 reinterpret_cast<ntapi::IO_STATUS_BLOCK*>(entry.ApcContext);
             auto* state = to_io_state(iosb);
-            assert(state->pendingCompletionNotifications > 0);
+            UNIFEX_ASSERT(state->pendingCompletionNotifications > 0);
             --state->pendingCompletionNotifications;
             if (state->pendingCompletionNotifications == 0) {
               --remaining;
@@ -120,7 +120,7 @@ namespace unifex::win32
 
     [[maybe_unused]] auto prevId = activeThreadId_.exchange(
         std::this_thread::get_id(), std::memory_order_relaxed);
-    assert(prevId == std::thread::id());
+    UNIFEX_ASSERT(prevId == std::thread::id());
 
     scope_guard resetActiveThreadIdOnExit = [&]() noexcept {
       activeThreadId_.store(std::thread::id(), std::memory_order_relaxed);
@@ -162,8 +162,8 @@ process_ready_queue:
       while (!pollQueue_.empty()) {
         io_operation* op = static_cast<io_operation*>(pollQueue_.pop_front());
         auto* state = op->ioState;
-        assert(state->pendingCompletionNotifications > 0);
-        assert(!state->completed);
+        UNIFEX_ASSERT(state->pendingCompletionNotifications > 0);
+        UNIFEX_ASSERT(!state->completed);
 
         if (poll_is_complete(*state)) {
           // Completed before we received any notifications via IOCP.
@@ -194,7 +194,7 @@ get_iocp_entries:
           shouldCheckRemoteQueue ? zeroTimeout : infiniteTimeout,
           alertable);
       if (ntstat == STATUS_TIMEOUT) {
-        assert(shouldCheckRemoteQueue);
+        UNIFEX_ASSERT(shouldCheckRemoteQueue);
 
         // Previous call was non-blocking.
         // About to transition to blocking-call, but first need to
@@ -224,11 +224,11 @@ get_iocp_entries:
           // Is entry.IoStatusBlock just a copy of what is already in 'iosb'.
           // Should we be copying entry.IoStatusBlock to '*iosb'?
 
-          assert(iosb->Status != STATUS_PENDING);
+          UNIFEX_ASSERT(iosb->Status != STATUS_PENDING);
 
           vectored_io_state* state = to_io_state(iosb);
 
-          assert(state->pendingCompletionNotifications > 0);
+          UNIFEX_ASSERT(state->pendingCompletionNotifications > 0);
           if (--state->pendingCompletionNotifications == 0) {
             // This was the last pending notification for this state.
             if (state->parent != nullptr) {
@@ -298,10 +298,10 @@ get_iocp_entries:
 
     std::ptrdiff_t offset =
         reinterpret_cast<char*>(iosb) - reinterpret_cast<char*>(pool);
-    assert(offset >= 0);
+    UNIFEX_ASSERT(offset >= 0);
 
     std::ptrdiff_t index = offset / sizeof(vectored_io_state);
-    assert(index < ioPoolSize_);
+    UNIFEX_ASSERT(index < ioPoolSize_);
 
     return &pool[index];
   }
@@ -315,12 +315,12 @@ get_iocp_entries:
   }
 
   void low_latency_iocp_context::schedule_local(operation_base* op) noexcept {
-    assert(is_running_on_io_thread());
+    UNIFEX_ASSERT(is_running_on_io_thread());
     readyQueue_.push_back(op);
   }
 
   void low_latency_iocp_context::schedule_remote(operation_base* op) noexcept {
-    assert(!is_running_on_io_thread());
+    UNIFEX_ASSERT(!is_running_on_io_thread());
     if (remoteQueue_.enqueue(op)) {
       // I/O thread is potentially sleeping.
       // Post a wake-up NOP event to the queue.
@@ -343,13 +343,13 @@ get_iocp_entries:
 
   bool low_latency_iocp_context::try_allocate_io_state_for(
       io_operation* op) noexcept {
-    assert(is_running_on_io_thread());
+    UNIFEX_ASSERT(is_running_on_io_thread());
 
     if (ioFreeList_.empty()) {
       return false;
     }
 
-    assert(pendingIoQueue_.empty());
+    UNIFEX_ASSERT(pendingIoQueue_.empty());
 
     // An operation is already available
     auto* state = ioFreeList_.pop_front();
@@ -364,14 +364,14 @@ get_iocp_entries:
 
   void low_latency_iocp_context::schedule_when_io_state_available(
       io_operation* op) noexcept {
-    assert(is_running_on_io_thread());
-    assert(ioFreeList_.empty());
+    UNIFEX_ASSERT(is_running_on_io_thread());
+    UNIFEX_ASSERT(ioFreeList_.empty());
     pendingIoQueue_.push_back(op);
   }
 
   void low_latency_iocp_context::release_io_state(
       vectored_io_state* state) noexcept {
-    assert(is_running_on_io_thread());
+    UNIFEX_ASSERT(is_running_on_io_thread());
 
     if (state->pendingCompletionNotifications == 0) {
       // Can be freed immediately.
@@ -379,7 +379,7 @@ get_iocp_entries:
       if (pendingIoQueue_.empty()) {
         ioFreeList_.push_front(state);
       } else {
-        assert(ioFreeList_.empty());
+        UNIFEX_ASSERT(ioFreeList_.empty());
 
         // Another operation was waiting for an I/O state.
         // Give the I/O state directly to the operation instead
@@ -404,9 +404,9 @@ get_iocp_entries:
   }
 
   void low_latency_iocp_context::schedule_poll_io(io_operation* op) noexcept {
-    assert(is_running_on_io_thread());
-    assert(op != nullptr);
-    assert(op->ioState != nullptr);
+    UNIFEX_ASSERT(is_running_on_io_thread());
+    UNIFEX_ASSERT(op != nullptr);
+    UNIFEX_ASSERT(op->ioState != nullptr);
 
     if (op->ioState->pendingCompletionNotifications > 0) {
       pollQueue_.push_back(op);
@@ -441,7 +441,7 @@ get_iocp_entries:
   }
 
   void low_latency_iocp_context::io_operation::cancel_io() noexcept {
-    assert(ioState != nullptr);
+    UNIFEX_ASSERT(ioState != nullptr);
 
     // Cancel operations in reverse order so that later operations
     // are cancelled first and don't accidentally end up with earlier
@@ -458,8 +458,8 @@ get_iocp_entries:
   }
 
   bool low_latency_iocp_context::io_operation::is_complete() noexcept {
-    assert(context.is_running_on_io_thread());
-    assert(ioState != nullptr);
+    UNIFEX_ASSERT(context.is_running_on_io_thread());
+    UNIFEX_ASSERT(ioState != nullptr);
 
     if (ioState->pendingCompletionNotifications == 0) {
       return true;
@@ -486,9 +486,9 @@ get_iocp_entries:
 
   bool low_latency_iocp_context::io_operation::start_read(
       span<std::byte> buffer) noexcept {
-    assert(context.is_running_on_io_thread());
-    assert(ioState != nullptr);
-    assert(ioState->operationCount < max_vectored_io_size);
+    UNIFEX_ASSERT(context.is_running_on_io_thread());
+    UNIFEX_ASSERT(ioState != nullptr);
+    UNIFEX_ASSERT(ioState->operationCount < max_vectored_io_size);
 
     std::size_t offset = 0;
     while (offset < buffer.size()) {
@@ -551,9 +551,9 @@ get_iocp_entries:
 
   bool low_latency_iocp_context::io_operation::start_write(
       span<const std::byte> buffer) noexcept {
-    assert(context.is_running_on_io_thread());
-    assert(ioState != nullptr);
-    assert(ioState->operationCount < max_vectored_io_size);
+    UNIFEX_ASSERT(context.is_running_on_io_thread());
+    UNIFEX_ASSERT(ioState != nullptr);
+    UNIFEX_ASSERT(ioState->operationCount < max_vectored_io_size);
 
     std::size_t offset = 0;
     while (offset < buffer.size()) {
@@ -615,9 +615,9 @@ get_iocp_entries:
 
   std::size_t low_latency_iocp_context::io_operation::get_result(
       std::error_code& ec) noexcept {
-    assert(context.is_running_on_io_thread());
-    assert(ioState != nullptr);
-    assert(ioState->completed);
+    UNIFEX_ASSERT(context.is_running_on_io_thread());
+    UNIFEX_ASSERT(ioState != nullptr);
+    UNIFEX_ASSERT(ioState->completed);
 
     ec = std::error_code{};
 
@@ -625,7 +625,7 @@ get_iocp_entries:
     for (std::size_t i = 0; i < ioState->operationCount; ++i) {
       const ntapi::IO_STATUS_BLOCK& iosb = ioState->operations[i];
 
-      assert(iosb.Status != STATUS_PENDING);
+      UNIFEX_ASSERT(iosb.Status != STATUS_PENDING);
 
       totalBytesTransferred += iosb.Information;
 

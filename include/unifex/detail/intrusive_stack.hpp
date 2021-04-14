@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <cassert>
 #include <utility>
 
 namespace unifex {
@@ -32,7 +31,7 @@ public:
     intrusive_stack& operator=(intrusive_stack&&) = delete;
 
     ~intrusive_stack() {
-        assert(empty());
+        UNIFEX_ASSERT(empty());
     }
 
     // Adopt an existing linked-list as a stack.
@@ -56,7 +55,7 @@ public:
     }
 
     [[nodiscard]] T* pop_front() noexcept {
-        assert(!empty());
+        UNIFEX_ASSERT(!empty());
         T* item = head_;
         head_ = item->*Next;
         return item;

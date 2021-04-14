@@ -22,7 +22,6 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 
-#include <cassert>
 #include <chrono>
 #include <exception>
 #include <optional>
@@ -348,7 +347,7 @@ namespace _thread_unsafe_event_loop {
         case state::error:
           std::rethrow_exception(exception_.get());
         default:
-          assert(false);
+          UNIFEX_ASSERT(false);
           std::terminate();
       }
     }

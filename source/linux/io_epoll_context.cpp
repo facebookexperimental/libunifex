@@ -22,7 +22,6 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/exception.hpp>
 
-#include <cassert>
 #include <cstring>
 #include <system_error>
 #include <thread>
@@ -178,7 +177,7 @@ bool io_epoll_context::is_running_on_io_thread() const noexcept {
 }
 
 void io_epoll_context::schedule_impl(operation_base* op) {
-  assert(op != nullptr);
+  UNIFEX_ASSERT(op != nullptr);
   if (is_running_on_io_thread()) {
     LOG("schedule_impl - local");
     schedule_local(op);
@@ -190,8 +189,8 @@ void io_epoll_context::schedule_impl(operation_base* op) {
 
 void io_epoll_context::schedule_local(operation_base* op) noexcept {
   LOG("schedule_local");
-  assert(op->execute_);
-  assert(op->enqueued_.load() == 0);
+  UNIFEX_ASSERT(op->execute_);
+  UNIFEX_ASSERT(op->enqueued_.load() == 0);
   ++op->enqueued_;
   localQueue_.push_back(op);
 }
@@ -202,8 +201,8 @@ void io_epoll_context::schedule_local(operation_queue ops) noexcept {
 
 void io_epoll_context::schedule_remote(operation_base* op) noexcept {
   LOG("schedule_remote");
-  assert(op->execute_);
-  assert(op->enqueued_.load() == 0);
+  UNIFEX_ASSERT(op->execute_);
+  UNIFEX_ASSERT(op->enqueued_.load() == 0);
   ++op->enqueued_;
   bool ioThreadWasInactive = remoteQueue_.enqueue(op);
   if (ioThreadWasInactive) {
@@ -216,7 +215,7 @@ void io_epoll_context::schedule_remote(operation_base* op) noexcept {
 
 void io_epoll_context::schedule_at_impl(schedule_at_operation* op) noexcept {
   LOG("schedule_at_impl");
-  assert(is_running_on_io_thread());
+  UNIFEX_ASSERT(is_running_on_io_thread());
   timers_.insert(op);
   if (timers_.top() == op) {
     timersAreDirty_ = true;
@@ -236,7 +235,7 @@ void io_epoll_context::execute_pending_local() noexcept {
   while (!pending.empty()) {
     auto* item = pending.pop_front();
 
-    assert(item->enqueued_.load() == 1);
+    UNIFEX_ASSERT(item->enqueued_.load() == 1);
     --item->enqueued_;
     std::exchange(item->next_, nullptr);
     auto execute = std::exchange(item->execute_, nullptr);
@@ -286,7 +285,7 @@ void io_epoll_context::acquire_completion_queue_items() {
         std::terminate();
       }
 
-      assert(bytesRead == sizeof(buffer));
+      UNIFEX_ASSERT(bytesRead == sizeof(buffer));
 
       // Skip processing this item and let the loop check
       // for the remote-queued items next time around.
@@ -309,14 +308,14 @@ void io_epoll_context::acquire_completion_queue_items() {
         std::terminate();
       }
 
-      assert(bytesRead == sizeof(buffer));
+      UNIFEX_ASSERT(bytesRead == sizeof(buffer));
       continue;
     }
 
     LOGX("completion event %i\n", completed.events);
     auto& completionState = *reinterpret_cast<completion_base*>(completed.data.ptr);
 
-    assert(completionState.enqueued_.load() == 0);
+    UNIFEX_ASSERT(completionState.enqueued_.load() == 0);
     ++completionState.enqueued_;
 
     // Save the result in the completion state.
@@ -356,13 +355,13 @@ void io_epoll_context::signal_remote_queue() {
     std::terminate();
   }
 
-  assert(bytesWritten == sizeof(value));
+  UNIFEX_ASSERT(bytesWritten == sizeof(value));
 }
 
 void io_epoll_context::remove_timer(schedule_at_operation* op) noexcept {
   LOGX("remove_timer(%p)\n", (void*)op);
 
-  assert(!timers_.empty());
+  UNIFEX_ASSERT(!timers_.empty());
   if (timers_.top() == op) {
     timersAreDirty_ = true;
   }

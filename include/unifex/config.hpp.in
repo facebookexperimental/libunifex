@@ -22,6 +22,8 @@
 #  include <ciso646>
 #endif
 
+#include <cassert>
+
 // the configured options and settings for unifex
 #define UNIFEX_VERSION_MAJOR @libunifex_VERSION_MAJOR@
 #define UNIFEX_VERSION_MINOR @libunifex_VERSION_MINOR@
@@ -207,4 +209,8 @@
   #define UNIFEX_ASSUME_UNREACHABLE __assume(0)
 #else
   #define UNIFEX_ASSUME_UNREACHABLE std::terminate()
+#endif
+
+#ifndef UNIFEX_ASSERT
+# define UNIFEX_ASSERT assert
 #endif

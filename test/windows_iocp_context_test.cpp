@@ -34,7 +34,6 @@
 #include <unifex/finally.hpp>
 #include <unifex/on.hpp>
 
-#include <cassert>
 #include <chrono>
 #include <thread>
 
@@ -91,7 +90,7 @@ TEST(low_latency_iocp_context, schedule_multiple) {
         unifex::transform(
             unifex::schedule(s),
             [&]() {
-                assert(std::this_thread::get_id() == ioThread.get_id());
+                UNIFEX_ASSERT(std::this_thread::get_id() == ioThread.get_id());
             }),
         unifex::schedule(s)));
 
@@ -122,16 +121,16 @@ TEST(low_latency_iocp_context, read_write_pipe) {
             unifex::async_read_some(readPipe, unifex::as_writable_bytes(unifex::span{readBuffer})),
             unifex::async_write_some(writePipe, unifex::as_bytes(unifex::span{writeBuffer}))));
 
-    assert(results.has_value());
+    UNIFEX_ASSERT(results.has_value());
 
     auto [bytesRead] = std::get<0>(std::get<0>(results.value()));
     auto [bytesWritten] = std::get<0>(std::get<1>(results.value()));
 
-    assert(bytesRead == 10);
-    assert(bytesWritten == 10);
+    UNIFEX_ASSERT(bytesRead == 10);
+    UNIFEX_ASSERT(bytesWritten == 10);
 
     for (int i = 0; i < 10; ++i) {
-        assert(readBuffer[i] == writeBuffer[i]);
+        UNIFEX_ASSERT(readBuffer[i] == writeBuffer[i]);
     }
 
     stopSource.request_stop();

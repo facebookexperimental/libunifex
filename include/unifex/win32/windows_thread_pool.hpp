@@ -33,7 +33,6 @@
 #include <new>
 #include <system_error>
 #include <atomic>
-#include <cassert>
 #include <cstdio>
 
 #include <unifex/detail/prologue.hpp>
@@ -304,7 +303,7 @@ private:
     void request_stop() noexcept {
         auto prevState = state_->load(std::memory_order_relaxed);
         do {
-            assert((prevState & running_flag) == 0);
+            UNIFEX_ASSERT((prevState & running_flag) == 0);
             if ((prevState & starting_flag) != 0) {
                 // Work callback won the race and will be waiting for
                 // us to return so it can deregister the stop-callback.
@@ -317,7 +316,7 @@ private:
             std::memory_order_acq_rel,
             std::memory_order_relaxed));
 
-        assert((prevState & starting_flag) == 0);
+        UNIFEX_ASSERT((prevState & starting_flag) == 0);
 
         if ((prevState & submit_complete_flag) != 0) {
             // start() has finished calling SubmitThreadpoolWork() and the work has not
@@ -418,7 +417,7 @@ private:
         if constexpr (!is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
             unifex::set_done(std::move(receiver_));
         } else {
-            assert(false);
+            UNIFEX_ASSERT(false);
         }
     }
 
@@ -577,7 +576,7 @@ protected:
     void request_stop() noexcept {
         auto prevState = state_->load(std::memory_order_relaxed);
         do {
-            assert((prevState & running_flag) == 0);
+            UNIFEX_ASSERT((prevState & running_flag) == 0);
             if ((prevState & starting_flag) != 0) {
                 return;
             }
@@ -587,7 +586,7 @@ protected:
             std::memory_order_acq_rel,
             std::memory_order_relaxed));
 
-        assert((prevState & starting_flag) == 0);
+        UNIFEX_ASSERT((prevState & starting_flag) == 0);
 
         if ((prevState & submit_complete_flag) != 0) {
             complete_with_done();

@@ -79,7 +79,7 @@ void test(Scheduler scheduler, Allocator allocator) {
 
   sync_wait(with_allocator(when_all(addToValue(1), addToValue(2)), allocator));
 
-  assert(value == 3);
+  UNIFEX_ASSERT(value == 3);
 }
 
 int main() {

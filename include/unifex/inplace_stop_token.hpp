@@ -23,7 +23,6 @@
 #include <unifex/type_index.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <thread>
 #include <cstdint>
 #include <type_traits>

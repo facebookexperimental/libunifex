@@ -118,7 +118,7 @@ int main() {
           async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))
           | discard
           | transform([&] {
-              assert(data[(reps + offset) % sizeof(data)] == buffer[0]);
+              UNIFEX_ASSERT(data[(reps + offset) % sizeof(data)] == buffer[0]);
               ++reps;
             });
       })

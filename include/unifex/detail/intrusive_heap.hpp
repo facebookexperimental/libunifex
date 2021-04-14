@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -31,16 +30,16 @@ class intrusive_heap {
   ~intrusive_heap() {
     T* item = head_;
     if (item != nullptr) {
-      assert(item->*Prev == nullptr);
+      UNIFEX_ASSERT(item->*Prev == nullptr);
     }
     while (item != nullptr) {
       if (item->*Next != nullptr) {
-        assert(item->*Next->*Prev == item);
+        UNIFEX_ASSERT(item->*Next->*Prev == item);
       }
       item = item->*Next;
     }
 
-    assert(empty());
+    UNIFEX_ASSERT(empty());
   }
 
   bool empty() const noexcept {
@@ -48,12 +47,12 @@ class intrusive_heap {
   }
 
   T* top() const noexcept {
-    assert(!empty());
+    UNIFEX_ASSERT(!empty());
     return head_;
   }
 
   T* pop() noexcept {
-    assert(!empty());
+    UNIFEX_ASSERT(!empty());
     T* item = head_;
     head_ = item->*Next;
     if (head_ != nullptr) {
@@ -99,7 +98,7 @@ class intrusive_heap {
     if (prev != nullptr) {
       prev->*Next = next;
     } else {
-      assert(head_ == item);
+      UNIFEX_ASSERT(head_ == item);
       head_ = next;
     }
     if (next != nullptr) {
