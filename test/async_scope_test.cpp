@@ -97,6 +97,17 @@ struct async_scope_test : testing::Test {
     // we'll hang here if the above work doesn't start
     sync_wait(evt.async_wait());
   }
+
+  void expect_work_to_run_with() {
+    async_manual_reset_event evt;
+
+    scope.spawn_call_on(
+      [&]() noexcept { evt.set(); },
+      thread.get_scheduler());
+
+    // we'll hang here if the above work doesn't start
+    sync_wait(evt.async_wait());
+  }
 };
 
 TEST_F(async_scope_test, spawning_after_cleaning_up_destroys_the_sender) {
@@ -111,6 +122,12 @@ TEST_F(async_scope_test, cleanup_is_idempotent) {
 
 TEST_F(async_scope_test, spawning_work_makes_it_run) {
   expect_work_to_run();
+
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, spawning_work_makes_it_run_with_lambda) {
+  expect_work_to_run_with();
 
   sync_wait(scope.cleanup());
 }
