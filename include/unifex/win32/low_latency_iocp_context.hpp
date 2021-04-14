@@ -33,7 +33,6 @@
 #include <unifex/win32/detail/types.hpp>
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 #include <system_error>
 #include <thread>

@@ -28,7 +28,6 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/manual_lifetime.hpp>
 
-#include <cassert>
 #include <exception>
 #include <optional>
 #include <type_traits>

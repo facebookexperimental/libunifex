@@ -33,7 +33,6 @@
 
 #include <exception>
 #include <optional>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 

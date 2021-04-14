@@ -30,7 +30,6 @@
 #include <atomic>
 #include <type_traits>
 #include <utility>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 

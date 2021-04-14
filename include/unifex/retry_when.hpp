@@ -27,7 +27,6 @@
 #include <unifex/bind_back.hpp>
 
 #include <utility>
-#include <cassert>
 #include <exception>
 
 #include <unifex/detail/prologue.hpp>

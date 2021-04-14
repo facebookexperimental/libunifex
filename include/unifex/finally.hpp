@@ -26,7 +26,6 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 
-#include <cassert>
 #include <exception>
 #include <functional>
 #include <tuple>

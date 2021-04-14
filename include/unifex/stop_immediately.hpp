@@ -32,7 +32,6 @@
 #include <exception>
 #include <utility>
 #include <type_traits>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 

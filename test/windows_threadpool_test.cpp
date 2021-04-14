@@ -26,7 +26,6 @@
 #include <unifex/just.hpp>
 #include <unifex/materialize.hpp>
 
-#include <cassert>
 #include <chrono>
 
 #include <gtest/gtest.h>

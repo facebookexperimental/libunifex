@@ -19,7 +19,6 @@
 #include <unifex/detail/intrusive_stack.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <utility>
 
 #include <unifex/detail/prologue.hpp>

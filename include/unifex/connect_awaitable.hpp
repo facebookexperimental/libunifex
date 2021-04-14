@@ -27,7 +27,6 @@
 # error "Coroutine support is required to use <unifex/connect_awaitable.hpp>"
 #endif
 
-#include <cassert>
 #include <optional>
 #include <type_traits>
 

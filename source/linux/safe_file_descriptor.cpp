@@ -15,7 +15,6 @@
  */
 #include <unifex/linux/safe_file_descriptor.hpp>
 
-#include <cassert>
 
 #include <unistd.h>
 

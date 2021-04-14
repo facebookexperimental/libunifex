@@ -21,7 +21,6 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 
-#include <cassert>
 #include <chrono>
 #include <condition_variable>
 #include <mutex>

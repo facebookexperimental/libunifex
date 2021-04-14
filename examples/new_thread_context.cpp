@@ -22,7 +22,6 @@
 #include <unifex/when_all.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <thread>

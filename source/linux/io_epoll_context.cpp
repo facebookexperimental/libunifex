@@ -22,7 +22,6 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/exception.hpp>
 
-#include <cassert>
 #include <cstring>
 #include <system_error>
 #include <thread>

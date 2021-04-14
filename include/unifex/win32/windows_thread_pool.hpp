@@ -33,7 +33,6 @@
 #include <new>
 #include <system_error>
 #include <atomic>
-#include <cassert>
 #include <cstdio>
 
 #include <unifex/detail/prologue.hpp>

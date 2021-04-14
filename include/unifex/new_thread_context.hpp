@@ -19,7 +19,6 @@
 #include <unifex/receiver_concepts.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <condition_variable>
 #include <exception>
 #include <mutex>

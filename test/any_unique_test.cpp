@@ -18,7 +18,6 @@
 #include <unifex/memory_resource.hpp>
 #include <unifex/type_index.hpp>
 
-#include <cassert>
 #include <string>
 #include <atomic>
 #include <sstream>

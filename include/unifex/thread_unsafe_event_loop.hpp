@@ -22,7 +22,6 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 
-#include <cassert>
 #include <chrono>
 #include <exception>
 #include <optional>

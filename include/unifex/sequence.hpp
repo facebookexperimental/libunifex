@@ -27,7 +27,6 @@
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 
-#include <cassert>
 #include <exception>
 #include <type_traits>
 #include <utility>

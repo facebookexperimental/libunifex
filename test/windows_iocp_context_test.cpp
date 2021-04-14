@@ -34,7 +34,6 @@
 #include <unifex/finally.hpp>
 #include <unifex/on.hpp>
 
-#include <cassert>
 #include <chrono>
 #include <thread>
 

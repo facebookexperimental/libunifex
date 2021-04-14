@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 

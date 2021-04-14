@@ -22,7 +22,6 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
-#include <cassert>
 #include <optional>
 
 using namespace unifex;
