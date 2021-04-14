@@ -22,9 +22,9 @@
 namespace unifex::linuxos {
 
 void safe_file_descriptor::close() noexcept {
-  assert(valid());
+  UNIFEX_ASSERT(valid());
   [[maybe_unused]] int result = ::close(std::exchange(fd_, -1));
-  assert(result == 0);
+  UNIFEX_ASSERT(result == 0);
 }
 
 } // namespace unifex::linuxos

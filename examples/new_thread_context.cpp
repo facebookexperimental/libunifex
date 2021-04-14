@@ -80,5 +80,5 @@ int main() {
   // new_thread_context destructor should have waited for all threads to finish
   // destroying thread-locals.
 
-  assert(trace_construction_destruction::instanceCount.load() == 0);
+  UNIFEX_ASSERT(trace_construction_destruction::instanceCount.load() == 0);
 }

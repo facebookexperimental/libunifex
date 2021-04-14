@@ -92,7 +92,7 @@ namespace _timed_single_thread_context {
         : task_base(context, &type::execute_impl),
           duration_(duration),
           receiver_((Receiver2 &&) receiver) {
-      assert(context_ != nullptr);
+      UNIFEX_ASSERT(context_ != nullptr);
     }
 
     static void execute_impl(task_base* t) noexcept {

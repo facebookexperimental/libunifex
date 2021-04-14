@@ -126,8 +126,8 @@ struct async_scope {
   ~async_scope() {
     [[maybe_unused]] auto state = opState_.load(std::memory_order_relaxed);
 
-    assert(is_stopping(state));
-    assert(op_count(state) == 0);
+    UNIFEX_ASSERT(is_stopping(state));
+    UNIFEX_ASSERT(op_count(state) == 0);
   }
 
   template (typename Sender, typename Scheduler)
@@ -207,7 +207,7 @@ struct async_scope {
         return false;
       }
 
-      assert(opState + 2 > opState);
+      UNIFEX_ASSERT(opState + 2 > opState);
     } while (!opState_.compare_exchange_weak(
         opState,
         opState + 2,

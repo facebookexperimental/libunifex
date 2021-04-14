@@ -70,7 +70,7 @@ public:
   {}
 
   void set_value() && noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
 
     // This signals to retry the operation.
     auto* const op = op_;
@@ -100,7 +100,7 @@ public:
   template(typename R = Receiver)
     (requires receiver<R>)
   void set_done() && noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
 
     auto* const op = op_;
     destroy_trigger_op();
@@ -110,7 +110,7 @@ public:
   template(typename Error)
     (requires receiver<Receiver, Error>)
   void set_error(Error error) && noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
 
     auto* const op = op_;
 
@@ -143,7 +143,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -170,19 +170,19 @@ public:
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values)
       noexcept(is_nothrow_receiver_of_v<Receiver, Values...>) {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   void set_done() noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
   }
 
   template(typename Error)
     (requires std::is_invocable_v<Func&, Error>)
   void set_error(Error error) noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     auto* const op = op_;
 
     op->isSourceOpConstructed_ = false;
@@ -237,7 +237,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 

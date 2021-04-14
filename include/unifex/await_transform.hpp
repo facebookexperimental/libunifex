@@ -146,7 +146,7 @@ struct _awaitable_base<Promise, Value>::type {
     case _state::value:
       return std::move(result_.value_).get();
     default:
-      assert(result_.state_ == _state::exception);
+      UNIFEX_ASSERT(result_.state_ == _state::exception);
       std::rethrow_exception(result_.exception_.get());
     }
   }

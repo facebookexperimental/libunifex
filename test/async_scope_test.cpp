@@ -125,7 +125,7 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     decr(decr&& other) = delete;
 
     ~decr() {
-      assert(evt_->ready());
+      UNIFEX_ASSERT(evt_->ready());
       count_->fetch_sub(1, std::memory_order_relaxed);
     }
 

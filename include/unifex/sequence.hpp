@@ -249,7 +249,7 @@ namespace unifex
       }
 
       void start() & noexcept {
-        assert(status_ == status::predecessor_operation_constructed);
+        UNIFEX_ASSERT(status_ == status::predecessor_operation_constructed);
         unifex::start(predOp_.get());
       }
 

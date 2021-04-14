@@ -461,7 +461,7 @@ namespace unifex::win32
 
     static void start_io(operation_base* op) noexcept {
       type& self = *static_cast<type*>(op);
-      assert(self.context.is_running_on_io_thread());
+      UNIFEX_ASSERT(self.context.is_running_on_io_thread());
 
       // TODO: Add support for a BufferSequence concept to allow
       // vectorised I/O here.
@@ -489,7 +489,7 @@ namespace unifex::win32
 
     static void on_cancellable_complete(operation_base* op) noexcept {
       auto& self = *static_cast<type*>(op);
-      assert(self.context.is_running_on_io_thread());
+      UNIFEX_ASSERT(self.context.is_running_on_io_thread());
 
       self.stopCallback_.destruct();
 
@@ -619,7 +619,7 @@ namespace unifex::win32
 
     static void acquire_io_state(operation_base* op) noexcept {
       type& self = *static_cast<type*>(op);
-      assert(self.context.is_running_on_io_thread());
+      UNIFEX_ASSERT(self.context.is_running_on_io_thread());
 
       if (self.context.try_allocate_io_state_for(&self)) {
         start_io(op);
@@ -634,7 +634,7 @@ namespace unifex::win32
 
     static void start_io(operation_base* op) noexcept {
       type& self = *static_cast<type*>(op);
-      assert(self.context.is_running_on_io_thread());
+      UNIFEX_ASSERT(self.context.is_running_on_io_thread());
 
       // TODO: Add support for a BufferSequence concept to allow
       // vectorised I/O here.
@@ -662,7 +662,7 @@ namespace unifex::win32
 
     static void on_cancellable_complete(operation_base* op) noexcept {
       auto& self = *static_cast<type*>(op);
-      assert(self.context.is_running_on_io_thread());
+      UNIFEX_ASSERT(self.context.is_running_on_io_thread());
 
       self.stopCallback_.destruct();
 

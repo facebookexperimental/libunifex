@@ -204,7 +204,7 @@ struct _awaiter {
 
     coro::coroutine_handle<ThisPromise> await_suspend(
         coro::coroutine_handle<OtherPromise> h) noexcept {
-      assert(coro_);
+      UNIFEX_ASSERT(coro_);
       auto& promise = coro_.promise();
       promise.continuation_ = h;
       promise.doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;

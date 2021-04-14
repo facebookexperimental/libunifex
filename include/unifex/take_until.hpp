@@ -439,7 +439,7 @@ struct _stream<SourceStream, TriggerStream>::type {
       // Otherwise, the cleanup(stream) operation has already been started
       // before the next(trigger) operation finished.
       // We have the responsibility for launching cleanup(trigger).
-      assert(cleanupOperation_ != nullptr);
+      UNIFEX_ASSERT(cleanupOperation_ != nullptr);
       cleanupOperation_->start_trigger_cleanup();
   }
 

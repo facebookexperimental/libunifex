@@ -64,12 +64,12 @@ public:
   {}
  
   void set_value() noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
 
     // This signals to repeat_effect_until the operation.
     auto* op = op_;
 
-    assert(op->isSourceOpConstructed_);
+    UNIFEX_ASSERT(op->isSourceOpConstructed_);
     op->isSourceOpConstructed_ = false;
     op->sourceOp_.destruct();
 
@@ -103,14 +103,14 @@ public:
   }
 
   void set_done() noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     unifex::set_done(std::move(op_->receiver_));
   }
 
   template(typename Error)
     (requires receiver<Receiver, Error>)
   void set_error(Error&& error) noexcept {
-    assert(op_ != nullptr);
+    UNIFEX_ASSERT(op_ != nullptr);
     unifex::set_error(std::move(op_->receiver_), (Error&&)error);
   }
 
@@ -135,7 +135,7 @@ private:
   }
 
   const Receiver& get_rcvr() const noexcept {
-    assert(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);   
     return op_->receiver_;
   }
 

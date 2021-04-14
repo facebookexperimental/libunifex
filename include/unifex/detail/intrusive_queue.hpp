@@ -39,7 +39,7 @@ class intrusive_queue {
   }
 
   ~intrusive_queue() {
-    assert(empty());
+    UNIFEX_ASSERT(empty());
   }
 
   static intrusive_queue make_reversed(Item* list) noexcept {
@@ -63,7 +63,7 @@ class intrusive_queue {
   }
 
   [[nodiscard]] Item* pop_front() noexcept {
-    assert(!empty());
+    UNIFEX_ASSERT(!empty());
     Item* item = std::exchange(head_, head_->*Next);
     if (head_ == nullptr) {
       tail_ = nullptr;
@@ -72,7 +72,7 @@ class intrusive_queue {
   }
 
   void push_front(Item* item) noexcept {
-    assert(item != nullptr);
+    UNIFEX_ASSERT(item != nullptr);
     item->*Next = head_;
     head_ = item;
     if (tail_ == nullptr) {
@@ -81,7 +81,7 @@ class intrusive_queue {
   }
 
   void push_back(Item* item) noexcept {
-    assert(item != nullptr);
+    UNIFEX_ASSERT(item != nullptr);
     item->*Next = nullptr;
     if (tail_ == nullptr) {
       head_ = item;

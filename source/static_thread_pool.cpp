@@ -24,7 +24,7 @@ namespace _static_thread_pool {
     : threadCount_(threadCount)
     , threadStates_(threadCount)
     , nextThread_(0) {
-    assert(threadCount > 0);
+    UNIFEX_ASSERT(threadCount > 0);
 
     threads_.reserve(threadCount);
 

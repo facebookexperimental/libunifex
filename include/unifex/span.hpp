@@ -43,7 +43,7 @@ struct span {
 
   explicit constexpr span(const span<T, dynamic_extent>& other) noexcept
       : data_(other.data()) {
-    assert(other.size() >= Extent);
+    UNIFEX_ASSERT(other.size() >= Extent);
   }
 
   template <std::size_t N>
@@ -68,7 +68,7 @@ struct span {
     (requires (!std::is_const_v<U>) AND same_as<const U, T>)
   explicit constexpr span(const span<U, dynamic_extent>& other) noexcept
       : data_(other.data()) {
-    assert(other.size() >= Extent);
+    UNIFEX_ASSERT(other.size() >= Extent);
   }
 
   template(std::size_t OtherExtent, typename U)
@@ -81,7 +81,7 @@ struct span {
   }
 
   T& operator[](std::size_t index) const noexcept {
-    assert(index < size());
+    UNIFEX_ASSERT(index < size());
     return data_[index];
   }
 
@@ -169,7 +169,7 @@ struct span<T, dynamic_extent> {
       : data_(other.data()), size_(other.size()) {}
 
   T& operator[](std::size_t index) const noexcept {
-    assert(index < size());
+    UNIFEX_ASSERT(index < size());
     return data_[index];
   }
 
@@ -196,14 +196,14 @@ struct span<T, dynamic_extent> {
   template <std::size_t N>
   span<T, N> first() const noexcept {
     static_assert(N != dynamic_extent);
-    assert(
+    UNIFEX_ASSERT(
         N <= size() &&
         "Cannot slice to more elements than were in original span");
     return span<T, N>{data()};
   }
 
   span<T, dynamic_extent> first(std::size_t count) const noexcept {
-    assert(
+    UNIFEX_ASSERT(
         count <= size() &&
         "Cannot slice to more elements than were in original span");
     return span<T, dynamic_extent>{data(), count};
@@ -212,14 +212,14 @@ struct span<T, dynamic_extent> {
   template <std::size_t N>
   span<T, N> last() const noexcept {
     static_assert(N != dynamic_extent);
-    assert(
+    UNIFEX_ASSERT(
         N <= size() &&
         "Cannot slice to more elements than were in original span");
     return span<T, N>{data() + (size() - N)};
   }
 
   span<T, dynamic_extent> last(std::size_t count) const noexcept {
-    assert(
+    UNIFEX_ASSERT(
         count <= size() &&
         "Cannot slice to more elements than were in original span");
     return span<T, dynamic_extent>{data() + (size() - count), count};
@@ -228,14 +228,14 @@ struct span<T, dynamic_extent> {
   template <std::size_t N>
   span<T, dynamic_extent> after() const noexcept {
     static_assert(N != dynamic_extent);
-    assert(
+    UNIFEX_ASSERT(
         N <= size() &&
         "Cannot slice to more elements than were in original span");
     return span<T, dynamic_extent>{data() + N, size() - N};
   }
 
   span<T, dynamic_extent> after(std::size_t count) const noexcept {
-    assert(
+    UNIFEX_ASSERT(
         count <= size() &&
         "Cannot slice to more elements than were in original span");
     return span<T, dynamic_extent>{data() + count, size() - count};
@@ -249,21 +249,21 @@ struct span<T, dynamic_extent> {
 template <typename T, std::size_t Extent>
 inline span<T, dynamic_extent> span<T, Extent>::first(std::size_t count) const
     noexcept {
-  assert(count <= Extent);
+  UNIFEX_ASSERT(count <= Extent);
   return span<T, dynamic_extent>{data(), count};
 }
 
 template <typename T, std::size_t Extent>
 inline span<T, dynamic_extent> span<T, Extent>::last(std::size_t count) const
     noexcept {
-  assert(count <= Extent);
+  UNIFEX_ASSERT(count <= Extent);
   return span<T, dynamic_extent>{data() + (Extent - count), count};
 }
 
 template <typename T, std::size_t Extent>
 inline span<T, dynamic_extent> span<T, Extent>::after(std::size_t count) const
     noexcept {
-  assert(count <= Extent);
+  UNIFEX_ASSERT(count <= Extent);
   return span<T, dynamic_extent>{data() + count, Extent - count};
 }
 
@@ -291,7 +291,7 @@ span<const std::byte, Extent * sizeof(T)> as_bytes(
 template <typename T>
 span<const std::byte> as_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
-  assert(s.size() <= maxSize);
+  UNIFEX_ASSERT(s.size() <= maxSize);
   return span<const std::byte>{reinterpret_cast<const std::byte*>(s.data()),
                                s.size() * sizeof(T)};
 }
@@ -310,7 +310,7 @@ template(typename T)
     (requires (!std::is_const_v<T>))
 span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
-  assert(s.size() <= maxSize);
+  UNIFEX_ASSERT(s.size() <= maxSize);
   return span<std::byte>{reinterpret_cast<std::byte*>(s.data()),
                          s.size() * sizeof(T)};
 }

@@ -72,16 +72,16 @@ int main() {
                            .count()
                     << "ms]\n";
         }));
-    assert(false);
+    UNIFEX_ASSERT(false);
   } catch (my_error) {
     auto time = steady_clock::now() - start;
     auto timeMs = duration_cast<milliseconds>(time).count();
     std::cout << "caught my_error after " << timeMs << "ms\n";
   }
 
-  assert(ranPart1Callback);
-  assert(!ranPart2Callback);
-  assert(!ranFinalCallback);
+  UNIFEX_ASSERT(ranPart1Callback);
+  UNIFEX_ASSERT(!ranPart2Callback);
+  UNIFEX_ASSERT(!ranFinalCallback);
 #endif
 
   return 0;

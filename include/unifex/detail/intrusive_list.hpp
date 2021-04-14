@@ -31,7 +31,7 @@ public:
     {}
 
     ~intrusive_list() {
-        assert(empty());
+        UNIFEX_ASSERT(empty());
     }
 
     intrusive_list& operator=(const intrusive_list&) = delete;
@@ -69,7 +69,7 @@ public:
     }
 
     [[nodiscard]] T* pop_front() noexcept {
-        assert(!empty());
+        UNIFEX_ASSERT(!empty());
         T* item = head_;
         head_ = item->*Next;
         if (head_ != nullptr) {
@@ -81,7 +81,7 @@ public:
     }
 
     [[nodiscard]] T* pop_back() noexcept {
-        assert(!empty());
+        UNIFEX_ASSERT(!empty());
         T* item = tail_;
         tail_ = item->*Prev;
         if (tail_ != nullptr) {
@@ -93,7 +93,7 @@ public:
     }
 
     void remove(T* item) noexcept {
-        assert(!empty());
+        UNIFEX_ASSERT(!empty());
         auto* prev = item->*Prev;
         auto* next = item->*Next;
         if (prev != nullptr) {

@@ -67,7 +67,7 @@ struct _op<Receiver>::type {
     : receiver_((Receiver2 &&) receiver) {}
 
   void start() noexcept {
-    assert(get_stop_token(receiver_).stop_possible());
+    UNIFEX_ASSERT(get_stop_token(receiver_).stop_possible());
     stopCallback_.construct(
         get_stop_token(receiver_), cancel_callback{*this});
   }

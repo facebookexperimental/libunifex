@@ -52,7 +52,7 @@ int main() {
         std::printf("task 3\n");
       })));
 
-  assert(x == 3);
+  UNIFEX_ASSERT(x == 3);
 
   return 0;
 }

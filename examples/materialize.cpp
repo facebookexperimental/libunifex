@@ -36,7 +36,7 @@ int main() {
                 transform(
                     schedule(ctx.get_scheduler()),
                     []() { return 42; }))));
-    assert(result.value() == 42);
+    UNIFEX_ASSERT(result.value() == 42);
 
     return 0;
 }

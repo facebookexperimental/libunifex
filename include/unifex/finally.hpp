@@ -563,7 +563,7 @@ namespace unifex
       }
 
       void start() & noexcept {
-        assert(!started_);
+        UNIFEX_ASSERT(!started_);
         started_ = true;
         unifex::start(sourceOp_.get());
       }
