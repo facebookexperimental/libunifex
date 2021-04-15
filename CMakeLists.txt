@@ -17,7 +17,9 @@ include(unifex_flags)
 add_subdirectory(source)
 
 if(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
-  # We enable testing in both, either if doing tests of build examples
+  # We enable testing in both, either if doing tests or build examples
+  # Note, that examples are also registered as tests by subsequent calls to add_test()
+  # You can run all tests or examples at once by using `ctest` or `ninja test`
   enable_testing()
 
   # Examples do not use gtest
