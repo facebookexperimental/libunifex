@@ -34,7 +34,7 @@ struct test_error {
   int error_code;
 };
 
-std::exception_ptr tag_invoke(tag_t<as_exception_ptr>, test_error&& error) {
+std::exception_ptr tag_invoke(tag_t<as_exception_ptr>, test_error&& error) noexcept {
   return std::make_exception_ptr(
       std::runtime_error(std::to_string(std::forward<test_error>(error).error_code)));
 }

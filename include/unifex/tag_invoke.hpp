@@ -104,6 +104,10 @@ namespace unifex {
       (sizeof(_tag_invoke::try_tag_invoke<CPO, Args...>(0)) ==
        sizeof(_tag_invoke::yes_type));
 
+  template <typename CPO, typename... Args>
+  UNIFEX_CONCEPT nothrow_tag_invocable =
+      (tag_invocable<CPO, Args...> && is_nothrow_tag_invocable_v<CPO, Args...>);
+
   template <typename Fn>
   using meta_tag_invoke_result =
       meta_quote1_<tag_invoke_result_t>::bind_front<Fn>;
