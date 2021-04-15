@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/as_exception_ptr.hpp>
 #include <unifex/async_manual_reset_event.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
@@ -27,7 +28,6 @@
 #include <unifex/sequence.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/get_exception_ptr.hpp>
 
 #include <atomic>
 #include <memory>
