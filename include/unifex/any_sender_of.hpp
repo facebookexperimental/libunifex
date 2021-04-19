@@ -172,6 +172,9 @@ struct _op_for {
 };
 
 template <typename Receiver>
+using _operation_state_for = typename _op_for<Receiver>::type;
+
+template <typename Receiver>
 struct _op_for<Receiver>::type {
   template <typename Fn>
   explicit type(Receiver r, Fn fn)
@@ -239,9 +242,9 @@ struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
   template (typename Receiver)
     (requires receiver_of<Receiver, Values...> AND
       (invocable<CPOs, Receiver const&> &&...))
-  typename _op_for<Receiver>::type connect(Receiver r) && {
+  _operation_state_for<Receiver> connect(Receiver r) && {
     any_unique_t<_connect<type_list<CPOs...>, Values...>>& self = *this;
-    return typename _op_for<Receiver>::type{
+    return _operation_state_for<Receiver>{
         std::move(r),
         [&self](_receiver_ref<type_list<CPOs...>, Values...> rec) {
           return _connect<type_list<CPOs...>, Values...>(std::move(self), std::move(rec));
@@ -267,7 +270,7 @@ struct _sender<Values...>::type : _with_receiver_queries<>::_sender<Values...>::
 } // namespace _any
 
 template <typename Receiver>
-using any_operation_state_for = typename _any::_op_for<Receiver>::type;
+using any_operation_state_for = _any::_operation_state_for<Receiver>;
 
 template <typename... Values>
 using any_sender_of = typename _any::_sender<Values...>::type;
