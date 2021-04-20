@@ -46,30 +46,30 @@ struct _copy_as_fn {
 template <typename Ret>
 inline constexpr _copy_as_fn<Ret> _copy_as{};
 
-inline constexpr struct _get_type_id_fn {
+inline constexpr struct _get_type_index_fn {
   using type_erased_signature_t = type_index(const this_&) noexcept;
 
   template <typename T>
   type_index operator()(const T& x) const noexcept {
-    if constexpr (tag_invocable<_get_type_id_fn, const T&>) {
+    if constexpr (tag_invocable<_get_type_index_fn, const T&>) {
       return tag_invoke(*this, x);
     } else {
       return type_id<T>();
     }
   }
-} _get_type_id{};
+} _get_type_index{};
 
-inline constexpr struct equal_to_fn {
+inline constexpr struct _equal_to_fn {
   template <typename T, typename U>
   bool operator()(const T& t, const U& u) const noexcept {
-    if constexpr (tag_invocable<equal_to_fn, const T&, const U&>) {
+    if constexpr (tag_invocable<_equal_to_fn, const T&, const U&>) {
       return tag_invoke(*this, t, u);
     } else {
-      return type_id<T>() == _get_type_id(u.impl_) &&
+      return type_id<T>() == _get_type_index(u.impl_) &&
           t == *static_cast<const T*>(get_object_address(u.impl_));
     }
   }
-} equal_to{};
+} _equal_to{};
 
 template <typename... CPOs>
 using _void_receiver_ref = _any::_receiver_ref<type_list<CPOs...>>;
@@ -80,11 +80,21 @@ struct _schedule_and_connect_fn {
     using _rec_ref_t = _void_receiver_ref<CPOs...>;
     using type_erased_signature_t = _any::_operation_state(this_ const&, _rec_ref_t);
 
+#ifdef _MSC_VER
+  // MSVC (_MSC_VER == 1927) doesn't seem to like the requires
+  // clause here. Use SFINAE instead.
+    template <typename Scheduler>
+    tag_invoke_result_t<type, Scheduler const&, _rec_ref_t>
+    operator()(Scheduler const& sched, _rec_ref_t rec) const {
+      return tag_invoke(*this, sched, (_rec_ref_t&&) rec);
+    }
+#else
     template (typename Scheduler)
       (requires tag_invocable<type, Scheduler const&, _rec_ref_t>)
     _any::_operation_state operator()(Scheduler const& sched, _rec_ref_t rec) const {
       return tag_invoke(*this, sched, (_rec_ref_t&&) rec);
     }
+#endif
 
     template (typename Scheduler)
       (requires (!tag_invocable<type, Scheduler const&, _rec_ref_t>) AND
@@ -107,8 +117,8 @@ using any_scheduler_impl =
   any_unique_t<
     _schedule_and_connect<CPOs...>,
     _copy_as<any_scheduler<CPOs...>>,
-    _get_type_id,
-    overload<bool(const this_&, const any_scheduler<CPOs...>&)>(equal_to)>;
+    _get_type_index,
+    overload<bool(const this_&, const any_scheduler<CPOs...>&)>(_equal_to)>;
 
 template <typename... CPOs>
 struct _any_scheduler<CPOs...>::type {
@@ -165,9 +175,9 @@ struct _any_scheduler<CPOs...>::type {
   }
 
 private:
-  friend equal_to_fn;
+  friend _equal_to_fn;
   friend bool operator==(const type& left, const type& right) {
-    return equal_to(left.impl_, right);
+    return _equal_to(left.impl_, right);
   }
   friend bool operator!=(const type& left, const type& right) {
     return !(left == right);
