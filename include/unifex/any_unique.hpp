@@ -398,10 +398,13 @@ class _byval<CPOs...>::type
     unsafe_deallocate();
   }
 
-  type& operator=(type&& other) noexcept {
-    unsafe_deallocate();
-    impl_ = std::exchange(other.impl_, nullptr);
-    vtable_ = std::move(other.vtable_);
+  void swap(type& other) noexcept {
+    std::swap(vtable_, other.vtable_);
+    std::swap(impl_, other.impl_);
+  }
+
+  type& operator=(type other) noexcept {
+    swap(other);
     return *this;
   }
 
@@ -444,6 +447,11 @@ class _byref<CPOs...>::type
   /*implicit*/ type(Concrete& impl)
     : vtable_(vtable_holder_t::template create<Concrete>())
     , impl_(std::addressof(impl)) {}
+
+  void swap(type& other) noexcept {
+    std::swap(vtable_, other.vtable_);
+    std::swap(impl_, other.impl_);
+  }
 
  private:
   using vtable_holder_t = vtable_holder<CPOs...>;
