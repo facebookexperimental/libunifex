@@ -123,6 +123,21 @@ TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
   sync_wait(std::move(cleanup));
 }
 
+TEST_F(async_scope_test, work_spawned_in_correct_context) {
+  async_manual_reset_event evt;
+  std::thread::id id;
+  scope.spawn(
+      transform(just(), [&]{
+        id = std::this_thread::get_id();
+        evt.set();
+      }),
+      thread.get_scheduler());
+  sync_wait(evt.async_wait());
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(id, thread.get_id());
+  EXPECT_NE(id, std::this_thread::get_id());
+}
+
 TEST_F(async_scope_test, lots_of_threads_works) {
   constexpr int maxCount = 1'000;
 
