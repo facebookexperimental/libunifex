@@ -45,6 +45,20 @@ using unifex::sync_wait;
 using unifex::tag_t;
 using unifex::transform;
 
+struct signal_on_destruction {
+  async_manual_reset_event* destroyed_;
+  signal_on_destruction(async_manual_reset_event* destroyed) noexcept
+    : destroyed_(destroyed)
+  {}
+  signal_on_destruction(signal_on_destruction&& other) noexcept
+    : destroyed_(std::exchange(other.destroyed_, nullptr))
+  {}
+  ~signal_on_destruction() {
+    if (destroyed_)
+      destroyed_->set();
+  }
+};
+
 struct async_scope_test : testing::Test {
   async_scope scope;
   single_thread_context thread;
@@ -56,15 +70,16 @@ struct async_scope_test : testing::Test {
     bool executed = false;
 
     scope.spawn(
-        let_with([&]() noexcept {
-          return scope_guard{[&]() noexcept {
-            destroyed.set();
-          }};
-        }, [&](auto&) noexcept {
-          return transform(just(), [&]() noexcept {
+        let_with(
+          [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
             executed = true;
-          });
-        }),
+            return 42;
+          },
+          [&](auto&) noexcept {
+            return transform(just(), [&]() noexcept {
+              executed = true;
+            });
+          }),
         thread.get_scheduler());
 
     sync_wait(destroyed.async_wait());
