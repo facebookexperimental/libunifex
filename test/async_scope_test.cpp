@@ -98,7 +98,7 @@ struct async_scope_test : testing::Test {
     sync_wait(evt.async_wait());
   }
 
-  void expect_work_to_run_with() {
+  void expect_work_to_run_call_on() {
     async_manual_reset_event evt;
 
     scope.spawn_call_on(
@@ -127,7 +127,7 @@ TEST_F(async_scope_test, spawning_work_makes_it_run) {
 }
 
 TEST_F(async_scope_test, spawning_work_makes_it_run_with_lambda) {
-  expect_work_to_run_with();
+  expect_work_to_run_call_on();
 
   sync_wait(scope.cleanup());
 }
