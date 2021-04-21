@@ -15,7 +15,6 @@
  */
 
 #include <unifex/as_exception_ptr.hpp>
-#include <unifex/with_query_value.hpp>
 
 #include <gtest/gtest.h>
 
@@ -32,12 +31,12 @@ TEST(as_exception_ptr, error_code) {
 
 struct test_error {
   int error_code;
-};
 
-std::exception_ptr tag_invoke(tag_t<as_exception_ptr>, test_error&& error) noexcept {
-  return std::make_exception_ptr(
-      std::runtime_error(std::to_string(std::forward<test_error>(error).error_code)));
-}
+  friend std::exception_ptr tag_invoke(tag_t<as_exception_ptr>, test_error&& error) noexcept {
+    return std::make_exception_ptr(
+        std::runtime_error(std::to_string(std::forward<test_error>(error).error_code)));
+  }
+};
 
 TEST(as_exception_ptr, custom_error) {
   try {

@@ -38,25 +38,22 @@ int main() {
     t.join();
   };
   sync_wait([&]() -> task<void> {
-    auto this_file = open_file_read_only(sched, filesystem::path{__FILE__});
-    auto output_file = open_file_write_only(
-        sched, filesystem::path{"file_coroutine_test_copy.cpp"});
-    std::array<std::byte, 32> buffer{};
+    auto file = open_file_write_only(
+        sched, filesystem::path{"file_coroutine_test.txt"});
+    constexpr char hello[]{"hello\n"};
     size_t offset = 0;
-    while (size_t read_bytes = co_await async_read_some_at(
-               this_file, offset, as_writable_bytes(span{buffer}))) {
-      co_await async_write_some_at(
-          output_file, offset, as_bytes(span{buffer.data(), read_bytes}));
-      offset += read_bytes;
+    for (int ii = 0; ii < 42; ++ii) {
+      offset += co_await async_write_some_at(
+          file, offset, as_bytes(span{hello, sizeof(hello) - 1}));
     }
-    std::printf("copied %zu bytes\n", offset);
+    std::printf("wrote %zu bytes\n", offset);
   }());
   return 0;
 }
 #else
 #  include <cstdio>
 int main() {
-  printf("neither io_ring or coroutine support found\n");
+  printf("neither io_uring or coroutine support found\n");
   return 0;
 }
 #endif

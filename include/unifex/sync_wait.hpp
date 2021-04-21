@@ -78,9 +78,8 @@ struct _receiver {
       signal_complete();
     }
 
-    template <typename Error>
-    void set_error(Error &&e) && noexcept {
-      unifex::activate_union_member(promise_.exception_, as_exception_ptr(std::forward<Error>(e)));
+    void set_error(std::exception_ptr err) && noexcept {
+      unifex::activate_union_member(promise_.exception_, std::move(err));
       promise_.state_ = promise<T>::state::error;
       signal_complete();
     }

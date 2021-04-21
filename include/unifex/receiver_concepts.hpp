@@ -20,6 +20,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/detail/unifex_fwd.hpp>
+#include <unifex/as_exception_ptr.hpp>
 
 #include <exception>
 #include <type_traits>
@@ -116,13 +117,24 @@ namespace _rec_cpo {
           _set_error_fn{}, (Receiver &&) r, (Error&&) error);
     }
     template(typename Receiver, typename Error)
-      (requires (!tag_invocable<_set_error_fn, Receiver, Error>))
+      (requires (!tag_invocable<_set_error_fn, Receiver, Error>) &&
+         (!tag_invocable<decltype(as_exception_ptr), Error>))
     auto operator()(Receiver&& r, Error&& error) const noexcept
         -> _result_t<Receiver, Error> {
       static_assert(
           noexcept(static_cast<Receiver&&>(r).set_error((Error &&) error)),
           "receiver.set_error() method must be nothrow invocable");
       return static_cast<Receiver&&>(r).set_error((Error&&) error);
+    }
+    template(typename Receiver, typename Error)
+      (requires (!tag_invocable<_set_error_fn, Receiver, Error>) &&
+         tag_invocable<decltype(as_exception_ptr), Error>)
+    auto operator()(Receiver&& r, Error&& error) const noexcept
+    -> _result_t<Receiver, std::exception_ptr> {
+      static_assert(
+          noexcept(static_cast<Receiver&&>(r).set_error(as_exception_ptr((Error&&) error))),
+          "receiver.set_error() method must be nothrow invocable");
+      return static_cast<Receiver&&>(r).set_error(as_exception_ptr((Error&&) error));
     }
   } set_error{};
 

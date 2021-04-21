@@ -16,14 +16,13 @@
 #pragma once
 
 #include <unifex/any_unique.hpp>
-#include <unifex/as_exception_ptr.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -70,11 +69,6 @@ struct _rec_ref<CPOs, Values...>::type
   type(inplace_stop_token st, Op* op)
     : _rec_ref_base<CPOs>::template type<Values...>(*op)
     , stoken_(st) {}
-
-  template<typename Error>
-  void set_error(Error &&error) const noexcept {
-    unifex::set_error(*this, as_exception_ptr(std::forward<Error>(error)));
-  }
 
 private:
   friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& self) noexcept {

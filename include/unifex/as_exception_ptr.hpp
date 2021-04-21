@@ -28,7 +28,7 @@ namespace unifex
 {
   namespace _as_exception_ptr
   {
-    inline const struct _fn {
+    inline constexpr struct _fn {
       // forward std::exception_ptr
       std::exception_ptr operator()(std::exception_ptr eptr) const noexcept {
         return eptr;
@@ -51,7 +51,7 @@ namespace unifex
     } as_exception_ptr{};
 
     // default std::error_code -> std::exception_ptr conversion
-    std::exception_ptr
+    inline std::exception_ptr
     tag_invoke(tag_t<as_exception_ptr>, std::error_code&& error) noexcept {
       return make_exception_ptr(
           std::system_error{std::forward<std::error_code>(error)});

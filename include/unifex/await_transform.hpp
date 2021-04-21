@@ -21,13 +21,12 @@
 # error "Coroutine support is required to use <unifex/await_transform.hpp>"
 #endif
 
-#include <unifex/as_exception_ptr.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/coroutine_concepts.hpp>
-#include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/manual_lifetime.hpp>
 
 #include <cassert>
 #include <exception>
@@ -108,9 +107,8 @@ protected:
       continuation_.resume();
     }
 
-    template <typename Error>
-    void set_error(Error &&error) && noexcept {
-      unifex::activate_union_member(result_->exception_, as_exception_ptr(std::forward<Error>(error)));
+    void set_error(std::exception_ptr eptr) && noexcept {
+      unifex::activate_union_member(result_->exception_, std::move(eptr));
       result_->state_ = _state::exception;
       continuation_.resume();
     }

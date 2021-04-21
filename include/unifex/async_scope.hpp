@@ -16,7 +16,6 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/as_exception_ptr.hpp>
 #include <unifex/async_manual_reset_event.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
@@ -41,8 +40,7 @@ namespace _async_scope {
 struct async_scope;
 
 struct _receiver_base {
-  template <typename Error>
-  void set_error(Error &&error) && noexcept {
+  [[noreturn]] void set_error(std::exception_ptr) noexcept {
     std::terminate();
   }
 

@@ -101,12 +101,11 @@ namespace unifex {
 
   template <typename CPO, typename... Args>
   UNIFEX_CONCEPT tag_invocable =
-      (sizeof(_tag_invoke::try_tag_invoke<CPO, Args...>(0)) ==
-       sizeof(_tag_invoke::yes_type));
+      (is_tag_invocable_v<CPO, Args...>);
 
   template <typename CPO, typename... Args>
   UNIFEX_CONCEPT nothrow_tag_invocable =
-      (tag_invocable<CPO, Args...> && is_nothrow_tag_invocable_v<CPO, Args...>);
+      (is_nothrow_tag_invocable_v<CPO, Args...>);
 
   template <typename Fn>
   using meta_tag_invoke_result =
