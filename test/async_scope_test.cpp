@@ -45,6 +45,20 @@ using unifex::sync_wait;
 using unifex::tag_t;
 using unifex::transform;
 
+struct signal_on_destruction {
+  async_manual_reset_event* destroyed_;
+  signal_on_destruction(async_manual_reset_event* destroyed) noexcept
+    : destroyed_(destroyed)
+  {}
+  signal_on_destruction(signal_on_destruction&& other) noexcept
+    : destroyed_(std::exchange(other.destroyed_, nullptr))
+  {}
+  ~signal_on_destruction() {
+    if (destroyed_)
+      destroyed_->set();
+  }
+};
+
 struct async_scope_test : testing::Test {
   async_scope scope;
   single_thread_context thread;
@@ -55,16 +69,17 @@ struct async_scope_test : testing::Test {
     async_manual_reset_event destroyed;
     bool executed = false;
 
-    scope.spawn(
-        let_with([&]() noexcept {
-          return scope_guard{[&]() noexcept {
-            destroyed.set();
-          }};
-        }, [&](auto&) noexcept {
-          return transform(just(), [&]() noexcept {
+    scope.spawn_on(
+        let_with(
+          [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
             executed = true;
-          });
-        }),
+            return 42;
+          },
+          [&](auto&) noexcept {
+            return transform(just(), [&]() noexcept {
+              executed = true;
+            });
+          }),
         thread.get_scheduler());
 
     sync_wait(destroyed.async_wait());
@@ -75,7 +90,7 @@ struct async_scope_test : testing::Test {
   void expect_work_to_run() {
     async_manual_reset_event evt;
 
-    scope.spawn(transform(just(), [&]() noexcept {
+    scope.spawn_on(transform(just(), [&]() noexcept {
       evt.set();
     }), thread.get_scheduler());
 
@@ -106,6 +121,21 @@ TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
   expect_work_to_run();
 
   sync_wait(std::move(cleanup));
+}
+
+TEST_F(async_scope_test, work_spawned_in_correct_context) {
+  async_manual_reset_event evt;
+  std::thread::id id;
+  scope.spawn_on(
+      transform(just(), [&]{
+        id = std::this_thread::get_id();
+        evt.set();
+      }),
+      thread.get_scheduler());
+  sync_wait(evt.async_wait());
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(id, thread.get_thread_id());
+  EXPECT_NE(id, std::this_thread::get_id());
 }
 
 TEST_F(async_scope_test, lots_of_threads_works) {
@@ -141,8 +171,8 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     // expected to be zero once everything's done.
     //
     // This should stress-test job submission and cancellation.
-    scope.spawn(transform(evt1.async_wait(), [&]() noexcept {
-      scope.spawn(
+    scope.spawn_on(transform(evt1.async_wait(), [&]() noexcept {
+      scope.spawn_on(
           let_with([&] { return decr{count, evt3}; }, [&](decr&) noexcept {
             return sequence(
                 transform(just(), [&]() noexcept {
