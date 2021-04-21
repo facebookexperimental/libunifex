@@ -157,7 +157,7 @@ public:
   }
 
   template (typename Fun, typename Scheduler)
-    (requires callable<Fun> && scheduler<Scheduler>)
+    (requires callable<Fun> AND scheduler<Scheduler>)
   void spawn_call_on(Fun&& fun, Scheduler&& scheduler) {
     static_assert(
       is_nothrow_callable_v<Fun>,
