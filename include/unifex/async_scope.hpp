@@ -152,7 +152,7 @@ public:
      sender_to<
         _on_result_t<Sender, Scheduler>,
         receiver<_on_result_t<Sender, Scheduler>>>)
-  void spawn(Sender&& sender, Scheduler&& scheduler) {
+  void spawn_on(Sender&& sender, Scheduler&& scheduler) {
     spawn(on((Sender&&) sender, (Scheduler&&) scheduler));
   }
 
