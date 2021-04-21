@@ -70,6 +70,8 @@
   * `inplace_stop_token` / `inplace_stop_source`
 * Synchronisation Primitives
   * `async_mutex`
+* Other
+  * `async_scope`
 
 # Receiver Queries
 
@@ -921,4 +923,55 @@ namespace unifex
     void unlock() noexcept;
   };
 };
+```
+
+## Other
+
+### `async_scope`
+
+A place to safely spawn work such that it can be joined later.
+
+```c++
+namespace unifex
+{
+  struct async_scope {
+    async_scope() noexcept;
+    async_scope(async_scope&&) = delete;
+    async_scope(const async_scope&) = delete;
+
+    // Asserts if the sender returned from cleanup has not yet completed.
+    ~async_scope();
+
+    // Returns a sender that, when started, marks this scope as cleaned up,
+    // requests stop on the internal stop source, and then waits for all
+    // outstanding work to complete.
+    //
+    // The sender returned from cleanup must complete before this scope is
+    // destroyed.
+    //
+    // cleanup is thread-safe and idempotent (i.e. it can be invoked multiple
+    // times in series or in parallel).
+    [[nodiscard]] sender cleanup() noexcept;
+
+    // Connects sender to an internal receiver and starts the operation.  Once
+    // started, the given sender must complete with void or done; completing
+    // with an error will result in a call to std::terminate.
+    //
+    // The receiver to which the sender is connected responds to get_stop_token
+    // with a stoppable token that becomes stopped when clean-up begins.
+    //
+    // Space for the operation state is allocated with std::make_unique and
+    // so this operation may throw if the allocation fails.  This operation may
+    // also throw if connect throws.
+    //
+    // Once connect has succeeded, start will only be called if this scope has
+    // not yet been cleaned up; if a call to spawn loses a race with a call to
+    // cleanup, the operation state created by connect will be destroyed and
+    // deallocated without being started.
+    void spawn(sender);
+
+    // Implemented as spawn(on(sender, scheduler)).
+    void spawn(sender, scheduler);
+  };
+}
 ```
