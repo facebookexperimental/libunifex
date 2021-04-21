@@ -134,7 +134,7 @@ TEST_F(async_scope_test, work_spawned_in_correct_context) {
       thread.get_scheduler());
   sync_wait(evt.async_wait());
   sync_wait(scope.cleanup());
-  EXPECT_EQ(id, thread.get_id());
+  EXPECT_EQ(id, thread.get_thread_id());
   EXPECT_NE(id, std::this_thread::get_id());
 }
 
