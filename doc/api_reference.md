@@ -936,7 +936,7 @@ namespace unifex
     // Regardless of whether the sender completes immediately or waits first,
     // the completion will first be scheduled onto the receiver's scheduler with
     // schedule().
-    [[nodiscard]] sender async_wait() noexcept;
+    [[nodiscard]] sender auto async_wait() noexcept;
   };
 }
 ```
