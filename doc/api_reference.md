@@ -161,6 +161,9 @@ the result of invoking the callable with no arguments. If the callable returns
 `void`, then the sender completes synchronously by first invoking the callable
 and then calling `set_value()` with no arguments.
 
+If the invocation of the callable exits with an exception, the exception is
+caught and passed to the receiver's `set_error` with `std::current_exception()`.
+
 `just_with(callable)` is synonymous with `transform(just(), callable)`.
 
 ### `stop_if_requested()`
@@ -174,6 +177,9 @@ completes synchronously by calling `set_value()` with no arguments.
 
 Accepts a callable that returns a sender. Returns a sender that, when it
 is started, invokes the callable and connects and starts the returned sender.
+
+If the invocation of the callable exits with an exception, the exception is
+caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
 `defer(callable)` is synonymous with `let(just(), callable)`.
 
