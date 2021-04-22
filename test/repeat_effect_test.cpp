@@ -21,6 +21,7 @@
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
+#include <unifex/just_with.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -30,11 +31,6 @@
 using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
-
-template <typename F>
-auto lazy(F&& f) {
-  return transform(just(), (F &&) f);
-}
 
 TEST(RepeatEffect, Smoke) {
   timed_single_thread_context context;
@@ -48,7 +44,7 @@ TEST(RepeatEffect, Smoke) {
       repeat_effect(
         sequence(
           schedule_after(scheduler, 50ms), 
-          lazy([&]{ ++count; }))),
+          just_with([&]{ ++count; }))),
       schedule_after(scheduler, 500ms)));
 
   EXPECT_GT(count.load(), 1);
@@ -63,7 +59,7 @@ TEST(RepeatEffect, Pipeable) {
 
   sequence(
     schedule_after(scheduler, 50ms), 
-    lazy([&]{ ++count; }))
+    just_with([&]{ ++count; }))
     | repeat_effect()
     | stop_when(schedule_after(scheduler, 500ms))
     | sync_wait();

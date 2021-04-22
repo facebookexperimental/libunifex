@@ -21,11 +21,11 @@
 
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/defer.hpp>
 
 #if !UNIFEX_NO_COROUTINES
 #include <unifex/task.hpp>
@@ -40,11 +40,6 @@
 using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
-
-template <typename F>
-auto defer(F&& f) {
-  return let(just(), (F&&)f);
-}
 
 auto dump_async_trace(std::string tag = {}) {
   return transform(

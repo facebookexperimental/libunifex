@@ -20,7 +20,7 @@
 
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_with.hpp>
 #include <unifex/linux/io_uring_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/scope_guard.hpp>
@@ -29,6 +29,7 @@
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/just_with.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -40,11 +41,6 @@ using namespace unifex;
 using namespace unifex::linuxos;
 using namespace std::chrono_literals;
 
-template <typename F>
-auto lazy(F&& f) {
-  return transform(just(), (F &&) f);
-}
-
 template<typename S>
 auto discard_value(S&& s) {
   return transform((S&&)s, [](auto&&...) noexcept {});
@@ -55,13 +51,13 @@ static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
 // This could be made generic across any scheduler that supports the
 // async_write_only_file() CPO.
 auto write_new_file(io_uring_context::scheduler s, const char* path) {
-  return let(
-      lazy([s, path]() {
+  return let_with(
+      [s, path]() {
         // Call the 'open_file_write_only' CPO with the scheduler.
         // This will return a file object that satisfies an
         // async-write-file concept.
         return open_file_write_only(s, path);
-      }),
+      },
       [](io_uring_context::async_write_only_file& file) {
         const auto buffer = as_bytes(span{data});
         // Start 8 concurrent writes to the file at different offsets.
@@ -80,8 +76,8 @@ auto write_new_file(io_uring_context::scheduler s, const char* path) {
 }
 
 auto read_file(io_uring_context::scheduler s, const char* path) {
-  return let(
-      lazy([s, path]() { return open_file_read_only(s, path); }),
+  return let_with(
+      [s, path]() { return open_file_read_only(s, path); },
       [buffer = std::vector<char>{}](auto& file) mutable {
         buffer.resize(100);
         return transform(
@@ -140,13 +136,13 @@ int main() {
     }
 
     sync_wait(sequence(
-        lazy([] { std::printf("writing file\n"); }),
+        just_with([] { std::printf("writing file\n"); }),
         write_new_file(scheduler, "test.txt"),
-        lazy([] { std::printf("write completed, waiting 1s\n"); }),
+        just_with([] { std::printf("write completed, waiting 1s\n"); }),
         transform(
             schedule_at(scheduler, now(scheduler) + 1s),
             []() { std::printf("timer 1 completed (1s)\n"); }),
-        lazy([] { std::printf("reading file concurrently\n"); }),
+        just_with([] { std::printf("reading file concurrently\n"); }),
         when_all(
             read_file(scheduler, "test.txt"),
             read_file(scheduler, "test.txt"))));
