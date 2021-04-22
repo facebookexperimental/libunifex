@@ -58,8 +58,7 @@ TEST(StaticThreadPool, Smoke) {
         std::printf("task 3\n");
       })));
 
-  sync_wait(
-    on(just(), tp));
+  sync_wait(on(tp, just()));
 
   EXPECT_EQ(x, 3);
 }

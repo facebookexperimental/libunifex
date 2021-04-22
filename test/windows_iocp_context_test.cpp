@@ -200,6 +200,7 @@ TEST(low_latency_iocp_context, loop_read_write_pipe) {
     unifex::sync_wait(
         measure_time(
             unifex::on(
+                s,
                 unifex::when_all(
                     repeat_n(
                         unifex::defer([&, &readPipe=readPipe] {
@@ -210,8 +211,7 @@ TEST(low_latency_iocp_context, loop_read_write_pipe) {
                         unifex::defer([&, &writePipe=writePipe] {
                             return discard_value(
                                 unifex::async_write_some(writePipe, unifex::span{writeBuffer}));
-                        }), 1'000)),
-                s),
+                        }), 1'000))),
             "read + write"));
 
     stopSource.request_stop();

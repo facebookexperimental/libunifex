@@ -101,9 +101,9 @@ struct _receiver<Sender>::type final : _receiver_base {
 
 struct async_scope {
 private:
-  template <typename Sender, typename Scheduler>
+  template <typename Scheduler, typename Sender>
   using _on_result_t =
-    decltype(on(UNIFEX_DECLVAL(Sender&&), UNIFEX_DECLVAL(Scheduler&&)));
+    decltype(on(UNIFEX_DECLVAL(Scheduler&&), UNIFEX_DECLVAL(Sender&&)));
 
 public:
   async_scope() noexcept = default;
@@ -150,21 +150,21 @@ public:
   template (typename Sender, typename Scheduler)
     (requires scheduler<Scheduler> AND
      sender_to<
-        _on_result_t<Sender, Scheduler>,
-        receiver<_on_result_t<Sender, Scheduler>>>)
-  void spawn_on(Sender&& sender, Scheduler&& scheduler) {
-    spawn(on((Sender&&) sender, (Scheduler&&) scheduler));
+        _on_result_t<Scheduler, Sender>,
+        receiver<_on_result_t<Scheduler, Sender>>>)
+  void spawn_on(Scheduler&& scheduler, Sender&& sender) {
+    spawn(on((Scheduler&&) scheduler, (Sender&&) sender));
   }
 
-  template (typename Fun, typename Scheduler)
-    (requires callable<Fun> AND scheduler<Scheduler>)
-  void spawn_call_on(Fun&& fun, Scheduler&& scheduler) {
+  template (typename Scheduler, typename Fun)
+    (requires scheduler<Scheduler> AND callable<Fun>)
+  void spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     static_assert(
       is_nothrow_callable_v<Fun>,
       "Please annotate your callable with noexcept.");
     spawn_on(
-      transform(just(), (Fun&&) fun),
-      (Scheduler&&) scheduler);
+      (Scheduler&&) scheduler,
+      transform(just(), (Fun&&) fun));
   }
 
   [[nodiscard]] auto cleanup() noexcept {

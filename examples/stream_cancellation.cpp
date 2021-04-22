@@ -37,15 +37,14 @@ int main() {
 
   auto start = steady_clock::now();
 
-  on_stream(current_scheduler, range_stream{0, 20})
+  auto op = on_stream(current_scheduler, range_stream{0, 20})
     | for_each([](int value) {
         // Simulate some work
         std::printf("processing %i\n", value);
         std::this_thread::sleep_for(10ms);
       })
-    | stop_when(schedule_after(100ms))
-    | on(context.get_scheduler())
-    | sync_wait();
+    | stop_when(schedule_after(100ms));
+  sync_wait(on(context.get_scheduler(), std::move(op)));
 
   auto end = steady_clock::now();
 
