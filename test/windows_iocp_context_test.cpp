@@ -23,7 +23,6 @@
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/transform_done.hpp>
-#include <unifex/just.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/materialize.hpp>
 #include <unifex/span.hpp>
@@ -169,7 +168,7 @@ auto measure_time(Sender&& sender, std::string tag = {}) {
         [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& start) {
             return unifex::finally(
                 std::move(sender),
-                just_with([&]() noexcept {
+                unifex::just_with([&]() noexcept {
                     auto dur = steady_clock::now() - start;
                     auto durUs = duration_cast<microseconds>(dur).count();
                     std::printf("[%s] took %ius\n", tag.c_str(), (int)durUs);
