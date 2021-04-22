@@ -194,12 +194,12 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
           op.reducer_,
           std::forward<State>(op.state_),
           (Values &&) values...);
-      unifex::activate_union_member_from(op.next_, [&] {
+      unifex::activate_union_member_with(op.next_, [&] {
         return unifex::connect(next(op.stream_), next_receiver_t{op});
       });
       unifex::start(op.next_.get());
     } UNIFEX_CATCH (...) {
-      unifex::activate_union_member_from(op.errorCleanup_, [&] {
+      unifex::activate_union_member_with(op.errorCleanup_, [&] {
         return unifex::connect(
             cleanup(op.stream_),
             error_cleanup_receiver_t{op, std::current_exception()});
@@ -211,7 +211,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
   void set_done() && noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.next_);
-    unifex::activate_union_member_from(op.doneCleanup_, [&] {
+    unifex::activate_union_member_with(op.doneCleanup_, [&] {
       return unifex::connect(
           cleanup(op.stream_), done_cleanup_receiver_t{op});
     });
@@ -221,7 +221,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
   void set_error(std::exception_ptr ex) && noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.next_);
-    unifex::activate_union_member_from(op.errorCleanup_, [&] {
+    unifex::activate_union_member_with(op.errorCleanup_, [&] {
       return unifex::connect(
           cleanup(op.stream_),
           error_cleanup_receiver_t{op, std::move(ex)});
@@ -271,7 +271,7 @@ struct _op<StreamSender, State, ReducerFunc, Receiver>::type {
 
   void start() noexcept {
     UNIFEX_TRY {
-      unifex::activate_union_member_from(next_, [&] {
+      unifex::activate_union_member_with(next_, [&] {
         return unifex::connect(next(stream_), next_receiver_t{*this});
       });
       unifex::start(next_.get());

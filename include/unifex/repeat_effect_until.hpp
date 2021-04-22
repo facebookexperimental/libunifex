@@ -78,7 +78,7 @@ public:
         unifex::set_value(std::move(op->receiver_));
         return;
       }
-      auto& sourceOp = op->sourceOp_.construct_from([&]() noexcept {
+      auto& sourceOp = op->sourceOp_.construct_with([&]() noexcept {
           return unifex::connect(op->source_, type{op});
         });
       op->isSourceOpConstructed_ = true;
@@ -90,7 +90,7 @@ public:
           unifex::set_value(std::move(op->receiver_));
           return;
         }
-        auto& sourceOp = op->sourceOp_.construct_from([&] {
+        auto& sourceOp = op->sourceOp_.construct_with([&] {
             return unifex::connect(op->source_, type{op});
           });
         op->isSourceOpConstructed_ = true;
@@ -156,7 +156,7 @@ public:
   , predicate_((Predicate2&&)predicate)
   , receiver_((Receiver2&&)dest)
   {
-    sourceOp_.construct_from([&] {
+    sourceOp_.construct_with([&] {
         return unifex::connect(source_, _receiver_t{this});
       });
   }

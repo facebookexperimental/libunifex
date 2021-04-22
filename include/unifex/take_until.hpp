@@ -169,7 +169,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             stream_.triggerNextStarted_ = true;
 
             UNIFEX_TRY {
-              stream_.triggerNextOp_.construct_from([&] {
+              stream_.triggerNextOp_.construct_with([&] {
                 return unifex::connect(
                   next(stream_.trigger_),
                   trigger_next_receiver{stream_});
@@ -293,7 +293,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
         void start() noexcept {
           UNIFEX_TRY {
-            sourceOp_.construct_from([&] {
+            sourceOp_.construct_with([&] {
               return unifex::connect(
                 cleanup(stream_.source_),
                 source_receiver{*this});
@@ -319,7 +319,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
         void start_trigger_cleanup() noexcept final {
           UNIFEX_TRY {
-            triggerOp_.construct_from([&] {
+            triggerOp_.construct_with([&] {
               return unifex::connect(
                 cleanup(stream_.trigger_),
                 trigger_receiver{*this});

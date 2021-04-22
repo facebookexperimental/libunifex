@@ -124,7 +124,7 @@ public:
     // this could throw; if it does, the only clean-up we need is to
     // deallocate the manual_lifetime, which is handled by opToStart's
     // destructor so we're good
-    opToStart->construct_from([&] {
+    opToStart->construct_with([&] {
       return connect(
           (Sender&&) sender,
           receiver<Sender>{stopSource_.get_token(), opToStart.get(), this});

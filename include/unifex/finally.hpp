@@ -395,7 +395,7 @@ namespace unifex
           using completion_value_op_t =
             connect_result_t<CompletionSender, value_receiver>;
           auto& completionOp =
-              unifex::activate_union_member_from<completion_value_op_t>(
+              unifex::activate_union_member_with<completion_value_op_t>(
                   op->completionValueOp_,
                   [&] {
                     return unifex::connect(
@@ -431,7 +431,7 @@ namespace unifex
           using completion_error_op_t =
             connect_result_t<CompletionSender, error_receiver_t>;
           auto& completionOp =
-              unifex::activate_union_member_from<completion_error_op_t>(
+              unifex::activate_union_member_with<completion_error_op_t>(
                   op->completionErrorOp_,
                   [&] {
                     return unifex::connect(
@@ -454,7 +454,7 @@ namespace unifex
         UNIFEX_TRY {
           using done_receiver =
               done_receiver<SourceSender, CompletionSender, Receiver>;
-          auto& completionOp = unifex::activate_union_member_from(
+          auto& completionOp = unifex::activate_union_member_with(
             op->completionDoneOp_,
             [&] {
               return unifex::connect(
@@ -548,7 +548,7 @@ namespace unifex
         : completionSender_(static_cast<CompletionSender2&&>(completionSender))
         , receiver_(static_cast<Receiver2&&>(r))
         , sourceOp_{} {
-        sourceOp_.construct_from([&] {
+        sourceOp_.construct_with([&] {
           return unifex::connect(
               static_cast<SourceSender&&>(sourceSender),
               receiver_t<SourceSender, CompletionSender, Receiver>{this});

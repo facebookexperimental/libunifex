@@ -266,7 +266,7 @@ struct _stream<SourceStream, Values...>::type {
             std::is_same_v<decltype(stopToken), ST>);
 
           UNIFEX_TRY {
-            stream_.nextOp_.construct_from([&] {
+            stream_.nextOp_.construct_with([&] {
               return unifex::connect(
                 next(stream_.source_),
                 next_receiver{stream_});
@@ -398,7 +398,7 @@ struct _stream<SourceStream, Values...>::type {
 
         void start_cleanup() noexcept final {
           UNIFEX_TRY {
-            cleanupOp_.construct_from([&] {
+            cleanupOp_.construct_with([&] {
               return unifex::connect(
                 cleanup(stream_.source_),
                 receiver_wrapper{*this});
