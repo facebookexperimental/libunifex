@@ -69,6 +69,7 @@
   * `unstoppable_token`
   * `inplace_stop_token` / `inplace_stop_source`
 * Synchronisation Primitives
+  * `async_manual_reset_event`
   * `async_mutex`
 * Other
   * `async_scope`
@@ -888,6 +889,59 @@ proposed in [P0660R10](https://wg21.link/P0660R10).
 
 
 ## Synchronisation Primitives
+
+### `async_manual_reset_event`
+
+A thread synchronisation event that, when set, must be manually reset.  Waiting
+for an event to be set is an (unstoppable) asynchronous operation.
+
+```c++
+namespace unifex
+{
+  struct async_manual_reset_event {
+    // Constructs an event in the "unset" state.
+    async_manual_reset_event() noexcept;
+
+    // Constructs an event in the "set" state if startSet is true, or the
+    // default, "unset" state if startSet is false.
+    explicit async_manual_reset_event(bool startSet) noexcept;
+
+    async_manual_reset_event(async_manual_reset_event&&) = delete;
+    async_manual_reset_event(const async_manual_reset_event&) = delete;
+
+    ~async_manual_reset_event();
+
+    // Puts the event into the "set" state.  If the event was not already in the
+    // "set" state then there may be waiters waiting, in which case they will be
+    // resumed.
+    //
+    // This method has acquire-release semantics.
+    void set() noexcept;
+
+    // Returns true iff the event is in the "set" state.
+    //
+    // This method has acquire semantics.
+    bool ready() const noexcept;
+
+    // Puts the event into the "unset" state.
+    //
+    // This method has acquire-release semantics.
+    void reset() noexcept;
+
+    // Returns a sender that will complete when the event is "set".
+    //
+    // The sender will complete immediately if the event is already "set".
+    //
+    // Regardless of the receiver to which this sender is connected, the sender
+    // is unstoppable.
+    //
+    // Regardless of whether the sender completes immediately or waits first,
+    // the completion will first be scheduled onto the receiver's scheduler with
+    // schedule().
+    [[nodiscard]] sender auto async_wait() noexcept;
+  };
+}
+```
 
 ### `async_mutex`
 
