@@ -158,8 +158,8 @@ Returns a sender that completes synchronously by calling `set_error()` with `e`.
 
 Returns a sender that completes synchronously by calling `set_value()` with
 the result of invoking the callable with no arguments. If the callable returns
-`void`, then the sender completes synchronously by calling `set_value()` with
-no arguments.
+`void`, then the sender completes synchronously by first invoking the callable
+and then calling `set_value()` with no arguments.
 
 `just_with(callable)` is synonymous with `transform(just(), callable)`.
 
