@@ -42,7 +42,7 @@ class manual_lifetime {
   }
 
   template <typename Func>
-  [[maybe_unused]] T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(
         std::is_same_v<callable_result_t<Func>, T>,
         "Return type of func() must be exactly T to permit copy-elision.");
@@ -85,7 +85,7 @@ class manual_lifetime<T&> {
   }
 
   template <typename Func>
-  [[maybe_unused]] T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
@@ -113,7 +113,7 @@ class manual_lifetime<T&&> {
   }
 
   template <typename Func>
-  [[maybe_unused]] T&& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T&& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
@@ -137,7 +137,7 @@ class manual_lifetime<void> {
 
   void construct() noexcept {}
   template <typename Func>
-  void construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  void construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(std::is_void_v<callable_result_t<Func>>);
     ((Func &&) func)();
   }
@@ -169,11 +169,11 @@ inline void activate_union_member(manual_lifetime<void>& box) noexcept {
 // its value from the result of calling a function.
 template <typename T, typename Func>
 [[maybe_unused]] //
-T& activate_union_member_from(manual_lifetime<T>& box, Func&& func) noexcept(
+T& activate_union_member_with(manual_lifetime<T>& box, Func&& func) noexcept(
     is_nothrow_callable_v<Func>) {
   auto* p = ::new (&box) manual_lifetime<T>{};
   scope_guard guard = [=]() noexcept { p->~manual_lifetime(); };
-  auto& t = p->construct_from(static_cast<Func&&>(func));
+  auto& t = p->construct_with(static_cast<Func&&>(func));
   guard.release();
   return t;
 }

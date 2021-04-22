@@ -242,7 +242,7 @@ struct _stream<Values...>::type {
           next_receiver_base& receiver,
           inplace_stop_token stopToken) noexcept override {
         UNIFEX_TRY {
-          unifex::activate_union_member_from(next_, [&] {
+          unifex::activate_union_member_with(next_, [&] {
               return connect(
                   next(stream_),
                   next_receiver_wrapper{receiver, *this, std::move(stopToken)});
@@ -255,7 +255,7 @@ struct _stream<Values...>::type {
 
       void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
         UNIFEX_TRY {
-          unifex::activate_union_member_from(cleanup_, [&] {
+          unifex::activate_union_member_with(cleanup_, [&] {
               return connect(
                   cleanup(stream_),
                   cleanup_receiver_wrapper{receiver, *this});

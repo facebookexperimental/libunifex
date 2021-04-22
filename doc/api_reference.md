@@ -157,12 +157,34 @@ Returns a sender that completes synchronously by calling `set_done()`.
 
 Returns a sender that completes synchronously by calling `set_error()` with `e`.
 
+### `just_with(callable)`
+
+Returns a sender that completes synchronously by calling `set_value()` with
+the result of invoking the callable with no arguments. If the callable returns
+`void`, then the sender completes synchronously by first invoking the callable
+and then calling `set_value()` with no arguments.
+
+If the invocation of the callable exits with an exception, the exception is
+caught and passed to the receiver's `set_error` with `std::current_exception()`.
+
+`just_with(callable)` is synonymous with `transform(just(), callable)`.
+
 ### `stop_if_requested()`
 
 Returns a sender that queries the receiver with `get_stop_token()`, tests the
 resulting stop token with `stop_requested()`. If the result is `true`, then
 the sender completes synchronously with `set_done()`. Otherwise, the sender
 completes synchronously by calling `set_value()` with no arguments.
+
+### `defer(callable)`
+
+Accepts a callable that returns a sender. Returns a sender that, when it
+is started, invokes the callable and connects and starts the returned sender.
+
+If the invocation of the callable exits with an exception, the exception is
+caught and passed to the receiver's `set_error` with `std::current_exception()`.
+
+`defer(callable)` is synonymous with `let(just(), callable)`.
 
 # Sender Algorithms
 
@@ -173,7 +195,9 @@ Returns a sender that transforms the value of the `predecessor` by calling
 
 ### `transform_done(Sender predecessor, Func func) -> Sender`
 
-Returns a sender that calls `auto finalSender = func()` in `set_done()` and then starts the returned `finalSender`. This allows a call to `set_done` to be delayed, to be tranformed into an error or a value, etc..
+Returns a sender that calls `auto finalSender = func()` in `set_done()` and then
+starts the returned `finalSender`. This allows a call to `set_done` to be
+delayed, to be transformed into an error or a value, etc..
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
@@ -214,8 +238,6 @@ Returns a sender that produces the result from `source`, which must
 declare the nested `value_types`/`error_types` type aliases which describe which
 overloads of `set_value()`/`set_error()` they will call, on the execution context
 associated with `scheduler`.
-
-
 
 ### `on(Sender sender, Scheduler scheduler) -> Sender`
 

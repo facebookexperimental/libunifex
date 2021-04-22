@@ -38,8 +38,8 @@ class manual_lifetime_union {
       static_cast<Args&&>(args)...);
   }
   template <typename T, typename Func>
-  [[maybe_unused]] T& construct_from(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    return unifex::activate_union_member_from(
+  [[maybe_unused]] T& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+    return unifex::activate_union_member_with(
       *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
       static_cast<Func&&>(func));
   }
@@ -92,11 +92,11 @@ T& activate_union_member(manual_lifetime_union<Ts...>& box, Args&&... args) //
 // its value from the result of calling a function.
 template <typename T, typename... Ts, typename Func>
 [[maybe_unused]] //
-T& activate_union_member_from(manual_lifetime_union<Ts...>& box, Func&& func)
+T& activate_union_member_with(manual_lifetime_union<Ts...>& box, Func&& func)
     noexcept(is_nothrow_callable_v<Func>) {
   auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
   scope_guard guard = [=]() noexcept { p->~manual_lifetime_union(); };
-  auto& t = p->template construct_from<T>(static_cast<Func&&>(func));
+  auto& t = p->template construct_with<T>(static_cast<Func&&>(func));
   guard.release();
   return t;
 }

@@ -54,7 +54,7 @@ struct _next_op<Sender, Receiver>::type {
   explicit type(Sender&& sender, Receiver&& receiver)
     : done_(false)
   {
-    unifex::activate_union_member_from(innerOp_, [&] {
+    unifex::activate_union_member_with(innerOp_, [&] {
       return unifex::connect(
           static_cast<Sender&&>(sender), (Receiver&&)receiver);
     });

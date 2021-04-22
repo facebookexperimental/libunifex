@@ -23,16 +23,17 @@
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/transform_done.hpp>
-#include <unifex/just.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/materialize.hpp>
 #include <unifex/span.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/trampoline_scheduler.hpp>
 #include <unifex/typed_via.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_with.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/on.hpp>
+#include <unifex/defer.hpp>
+#include <unifex/just_with.hpp>
 
 #include <chrono>
 #include <thread>
@@ -153,35 +154,21 @@ auto repeat_n(Sender&& sender, size_t count) {
             });
 }
 
-template<typename Func>
-auto defer(Func&& func) {
-    return unifex::let(
-        unifex::just(),
-        [func=(Func&&)func]() {
-            return func();
-        });
-}
-
 template<typename Sender>
 auto discard_value(Sender&& sender) {
     return unifex::transform((Sender&&)sender, [](auto&&...) noexcept {});
-}
-
-template<typename Func>
-auto lazy(Func&& func) {
-    return unifex::transform(unifex::just(), (Func&&)func);
 }
 
 template<typename Sender>
 auto measure_time(Sender&& sender, std::string tag = {}) {
     using namespace std::chrono;
 
-    return unifex::let(
-        lazy([] { return steady_clock::now(); }),
+    return unifex::let_with(
+        [] { return steady_clock::now(); },
         [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& start) {
             return unifex::finally(
                 std::move(sender),
-                lazy([&]() noexcept {
+                unifex::just_with([&]() noexcept {
                     auto dur = steady_clock::now() - start;
                     auto durUs = duration_cast<microseconds>(dur).count();
                     std::printf("[%s] took %ius\n", tag.c_str(), (int)durUs);
@@ -215,12 +202,12 @@ TEST(low_latency_iocp_context, loop_read_write_pipe) {
             unifex::on(
                 unifex::when_all(
                     repeat_n(
-                        defer([&, &readPipe=readPipe] {
+                        unifex::defer([&, &readPipe=readPipe] {
                             return discard_value(
                                 unifex::async_read_some(readPipe, unifex::span{readBuffer}));
                         }), 10'000),
                     repeat_n(
-                        defer([&, &writePipe=writePipe] {
+                        unifex::defer([&, &writePipe=writePipe] {
                             return discard_value(
                                 unifex::async_write_some(writePipe, unifex::span{writeBuffer}));
                         }), 1'000)),
