@@ -66,6 +66,7 @@ TEST(find_if, find_if_parallel) {
     static_thread_pool ctx;
     std::optional<std::vector<int>::iterator> result = sync_wait(
       unifex::on(
+        ctx.get_scheduler(),
         transform(
           find_if(
               just(begin(input), end(input), checkValue),
@@ -78,8 +79,7 @@ TEST(find_if, find_if_parallel) {
           [](std::vector<int>::iterator v, int another_parameter) noexcept {
             UNIFEX_ASSERT(another_parameter == checkValue);
             return v;
-          }),
-        ctx.get_scheduler()));
+          })));
 
     EXPECT_EQ(**result, checkValue);
     // Expect 62 iterations to run to validate cancellation
@@ -113,7 +113,7 @@ TEST(find_if, Pipeable) {
     // onwards to the result.
     // Precise API shape for the data being passed through is TBD, this is
     // one option only.
-    std::optional<std::vector<int>::iterator> result = just(begin(input), end(input), 3)
+    auto op = just(begin(input), end(input), 3)
       | find_if(
           [&](const int& v, int another_parameter) noexcept {
             return v == another_parameter;
@@ -123,9 +123,9 @@ TEST(find_if, Pipeable) {
           [](std::vector<int>::iterator v, int another_parameter) noexcept {
             UNIFEX_ASSERT(another_parameter == 3);
             return v;
-          })
-      | on(ctx.get_scheduler())
-      | sync_wait();
+          });
+    std::optional<std::vector<int>::iterator> result =
+        sync_wait(on(ctx.get_scheduler(), std::move(op)));
 
     EXPECT_EQ(**result, 3);
 }

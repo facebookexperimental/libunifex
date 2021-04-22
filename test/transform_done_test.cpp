@@ -60,13 +60,10 @@ TEST(TransformDone, StayDone) {
 
   int count = 0;
 
-  sequence(
-    just_done()
-      | transform_done(
-          []{ return just(); }) 
-      | on(scheduler),
-    just_with([&]{ ++count; }))
-    | sync_wait();
+  auto op = sequence(
+    on(scheduler, just_done() | transform_done([]{ return just(); })),
+    just_with([&]{ ++count; }));
+  sync_wait(std::move(op));
 
   EXPECT_EQ(count, 1);
 }

@@ -31,7 +31,7 @@ namespace _on_stream {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return on((decltype(sender))sender, s);
+            return on(s, (decltype(sender)) sender);
           });
     }
     template (typename StreamSender, typename Scheduler)
@@ -40,7 +40,7 @@ namespace _on_stream {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return on((decltype(sender))sender, s);
+            return on(s, (decltype(sender)) sender);
           });
     }
     template(typename Scheduler)
