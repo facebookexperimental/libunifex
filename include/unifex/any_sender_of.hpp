@@ -225,6 +225,9 @@ struct _with_receiver_queries {
   using any_sender_of = typename _sender<Values...>::type;
 
   using any_scheduler = _any_sched::any_scheduler<CPOs...>;
+
+  template <typename... Values>
+  using any_receiver_ref = _receiver_ref<type_list<CPOs...>, Values...>;
 };
 
 template <typename... CPOs>
@@ -274,6 +277,9 @@ using any_operation_state_for = _any::_operation_state_for<Receiver>;
 
 template <typename... Values>
 using any_sender_of = typename _any::_sender<Values...>::type;
+
+template <typename... Values>
+using any_receiver_ref = _any::_receiver_ref<type_list<>, Values...>;
 
 template <auto&... CPOs>
 using with_receiver_queries = _any::_with_receiver_queries<tag_t<CPOs>...>;
