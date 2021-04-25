@@ -17,9 +17,9 @@
 
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/type_traits.hpp>
 
 #include <utility>
-#include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -69,7 +69,7 @@ class manual_lifetime_union {
   }
 
  private:
-  std::aligned_union_t<0, manual_lifetime<Ts>...> storage_;
+  aligned_union_t<0, manual_lifetime<Ts>...> storage_;
 };
 
 template <>

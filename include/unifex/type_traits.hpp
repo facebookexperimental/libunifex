@@ -135,6 +135,27 @@ struct is_nothrow_invocable
 {};
 #endif
 
+template <std::size_t Len, class... Types>
+struct aligned_union {
+private:
+  static constexpr std::size_t _max(std::initializer_list<std::size_t> alignments) noexcept {
+    std::size_t result = 0;
+    for (auto z : alignments)
+      if (z > result)
+        result = z;
+    return result;
+  }
+public:
+  static constexpr std::size_t alignment_value = _max({alignof(Types)...});
+
+  struct type {
+    alignas(alignment_value) char _s[_max({Len, sizeof(Types)...})];
+  };
+};
+
+template <std::size_t Len, class... Types>
+using aligned_union_t = typename aligned_union<Len, Types...>::type;
+
 namespace _ti {
 template <typename T>
 struct type_identity {
