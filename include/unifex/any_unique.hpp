@@ -384,7 +384,8 @@ class _byval<CPOs...>::type
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
   template(typename Concrete)
-    (requires (!instance_of_v<std::in_place_type_t, Concrete>))
+    (requires (!same_as<type, remove_cvref_t<Concrete>>) AND
+      (!instance_of_v<std::in_place_type_t, Concrete>))
   type(Concrete&& concrete)
     : type(
           std::in_place_type<remove_cvref_t<Concrete>>,
@@ -421,6 +422,10 @@ class _byval<CPOs...>::type
     }
   }
 
+  friend void swap(type& left, type& right) noexcept {
+    left.swap(right);
+  }
+
   friend const vtable_holder_t& get_vtable(const type& self) noexcept {
     return self.vtable_;
   }
@@ -455,6 +460,10 @@ class _byref<CPOs...>::type
 
  private:
   using vtable_holder_t = vtable_holder<CPOs...>;
+
+  friend void swap(type& left, type& right) noexcept {
+    left.swap(right);
+  }
 
   friend const vtable_holder_t& get_vtable(const type& self) noexcept {
     return self.vtable_;

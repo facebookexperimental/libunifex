@@ -239,7 +239,7 @@ declare the nested `value_types`/`error_types` type aliases which describe which
 overloads of `set_value()`/`set_error()` they will call, on the execution context
 associated with `scheduler`.
 
-### `on(Sender sender, Scheduler scheduler) -> Sender`
+### `on(Scheduler scheduler, Sender sender) -> Sender`
 
 Returns a sender that ensures that `sender` is started on the
 execution context associated with the specified `scheduler`.
@@ -1027,7 +1027,7 @@ namespace unifex
     //
     // cleanup is thread-safe and idempotent (i.e. it can be invoked multiple
     // times in series or in parallel).
-    [[nodiscard]] sender cleanup() noexcept;
+    [[nodiscard]] sender auto cleanup() noexcept;
 
     // Connects sender to an internal receiver and starts the operation.  Once
     // started, the given sender must complete with void or done; completing
@@ -1046,8 +1046,14 @@ namespace unifex
     // deallocated without being started.
     void spawn(sender);
 
-    // Implemented as spawn(on(sender, scheduler)).
-    void spawn(sender, scheduler);
+    // Implemented as spawn(on(scheduler, sender)).
+    void spawn_on(scheduler, sender);
+
+    // Implemented as spawn(transform(just(), invocable)).
+    void spawn_call(invocable);
+
+    // Implemented as spawn_on(scheduler, transform(just(), invocable)).
+    void spawn_call_on(scheduler, invocable);
   };
 }
 ```

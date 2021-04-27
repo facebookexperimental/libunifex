@@ -85,3 +85,21 @@ TEST(TransformDone, Pipeable) {
 
   EXPECT_EQ(count, 1);
 }
+
+TEST(TransformDone, WithValue) {
+  auto one = 
+    just_done()
+    | transform_done([] { return just(42); })
+    | sync_wait();
+
+  EXPECT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+
+  auto multiple = 
+    just_done()
+    | transform_done([] { return just(42, 1, 2); })
+    | sync_wait();
+
+  EXPECT_TRUE(multiple.has_value());
+  EXPECT_EQ(*multiple, std::tuple(42, 1, 2));
+}
