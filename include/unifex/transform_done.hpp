@@ -162,7 +162,7 @@ public:
   void set_value(Values&&... values) noexcept(
       is_nothrow_receiver_of_v<Receiver, Values...>) {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_));
+    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   void set_done() noexcept {
