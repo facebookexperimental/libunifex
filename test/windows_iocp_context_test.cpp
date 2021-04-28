@@ -178,11 +178,11 @@ auto measure_time(Sender&& sender, std::string tag = {}) {
 
     return unifex::let(
         lazy([] { return steady_clock::now(); }),
-        [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& start) {
+        [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& startTime) {
             return unifex::finally(
                 std::move(sender),
                 lazy([&]() noexcept {
-                    auto dur = steady_clock::now() - start;
+                    auto dur = steady_clock::now() - startTime;
                     auto durUs = duration_cast<microseconds>(dur).count();
                     std::printf("[%s] took %ius\n", tag.c_str(), (int)durUs);
                 }));

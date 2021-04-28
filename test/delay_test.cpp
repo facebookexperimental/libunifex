@@ -36,35 +36,35 @@ using namespace std::chrono;
 TEST(Delay, Smoke) {
   timed_single_thread_context context;
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   sync_wait(
       stop_when(
           for_each(
               delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
-              [start](int value) {
-                auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+              [startTime](int value) {
+                auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);
               }),
           transform(
-            schedule_at(context.get_scheduler(), start + 500ms),
+            schedule_at(context.get_scheduler(), startTime + 500ms),
             [] { std::printf("cancelling\n"); })));
 }
 
 TEST(Delay, Pipeable) {
   timed_single_thread_context context;
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   range_stream{0, 100}
     | delay(context.get_scheduler(), 100ms)
     | for_each(
-        [start](int value) {
-        auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+        [startTime](int value) {
+        auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
         std::printf("[%i ms] %i\n", (int)ms.count(), value);
         })
     | stop_when(
-        schedule_at(context.get_scheduler(), start + 500ms)
+        schedule_at(context.get_scheduler(), startTime + 500ms)
           | transform([] { std::printf("cancelling\n"); }))
     | sync_wait();
 }
