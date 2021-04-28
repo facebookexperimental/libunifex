@@ -30,14 +30,14 @@ int main() {
   timed_single_thread_context context;
   auto scheduler = context.get_scheduler();
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   sync_wait(transform(
       when_all(
           transform(
               schedule_after(scheduler, 100ms),
               [=]() {
-                auto time = steady_clock::now() - start;
+                auto time = steady_clock::now() - startTime;
                 auto timeMs = duration_cast<milliseconds>(time).count();
                 std::cout << "part1 finished - [" << timeMs << "]\n";
                 return time;
@@ -45,7 +45,7 @@ int main() {
           transform(
               schedule_after(scheduler, 200ms),
               [=]() {
-                auto time = steady_clock::now() - start;
+                auto time = steady_clock::now() - startTime;
                 auto timeMs = duration_cast<milliseconds>(time).count();
                 std::cout << "part2 finished - [" << timeMs << "]\n";
                 return time;

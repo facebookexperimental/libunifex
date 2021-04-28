@@ -107,7 +107,7 @@ int main() {
 
   try {
     {
-      auto start = std::chrono::steady_clock::now();
+      auto startTime = std::chrono::steady_clock::now();
       inplace_stop_source timerStopSource;
       sync_wait(
         with_query_value(
@@ -126,12 +126,12 @@ int main() {
                   })),
           get_stop_token,
           timerStopSource.get_token()));
-      auto end = std::chrono::steady_clock::now();
+      auto endTime = std::chrono::steady_clock::now();
 
       std::printf(
           "completed in %i ms\n",
           (int)std::chrono::duration_cast<std::chrono::milliseconds>(
-              end - start)
+              endTime - startTime)
               .count());
     }
 
