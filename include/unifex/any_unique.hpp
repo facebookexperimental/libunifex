@@ -387,9 +387,8 @@ class _byval<CPOs...>::type
     (requires (!same_as<type, remove_cvref_t<Concrete>>) AND
       (!instance_of_v<std::in_place_type_t, Concrete>))
   type(Concrete&& concrete)
-    : type(
-          std::in_place_type<remove_cvref_t<Concrete>>,
-          (Concrete &&) concrete) {}
+    : impl_(new auto((Concrete&&) concrete))
+    , vtable_(vtable_holder_t::template create<std::decay_t<Concrete>>()) {}
 
   type(type&& other) noexcept
     : impl_(std::exchange(other.impl_, nullptr))
