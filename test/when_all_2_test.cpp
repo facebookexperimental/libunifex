@@ -40,7 +40,7 @@ TEST(WhenAll2, Smoke) {
 
   auto scheduler = context.get_scheduler();
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   bool ranPart1Callback = false;
   bool ranPart2Callback = false;
@@ -53,7 +53,7 @@ TEST(WhenAll2, Smoke) {
                 schedule_after(scheduler, 100ms),
                 [&]() -> steady_clock::time_point::duration {
                   ranPart1Callback = true;
-                  auto time = steady_clock::now() - start;
+                  auto time = steady_clock::now() - startTime;
                   auto timeMs = duration_cast<milliseconds>(time).count();
                   std::cout << "part1 finished - [" << timeMs
                             << "ms] throwing\n";
@@ -63,7 +63,7 @@ TEST(WhenAll2, Smoke) {
                 schedule_after(scheduler, 200ms),
                 [&]() {
                   ranPart2Callback = true;
-                  auto time = steady_clock::now() - start;
+                  auto time = steady_clock::now() - startTime;
                   auto timeMs = duration_cast<milliseconds>(time).count();
                   std::cout << "part2 finished - [" << timeMs << "ms]\n";
                   return time;
@@ -80,7 +80,7 @@ TEST(WhenAll2, Smoke) {
         }));
     FAIL();
   } catch (my_error) {
-    auto time = steady_clock::now() - start;
+    auto time = steady_clock::now() - startTime;
     auto timeMs = duration_cast<milliseconds>(time).count();
     std::cout << "caught my_error after " << timeMs << "ms\n";
   }

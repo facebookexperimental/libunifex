@@ -77,7 +77,7 @@ int main() {
   auto scheduler = ctx.get_scheduler();
   try {
     {
-      auto start = std::chrono::steady_clock::now();
+      auto startTime = std::chrono::steady_clock::now();
       inplace_stop_source timerStopSource;
       auto task = when_all(
           schedule_at(scheduler, now(scheduler) + 1s)
@@ -88,12 +88,12 @@ int main() {
           schedule_at(scheduler, now(scheduler) + 1500ms)
             | transform([] { std::printf("timer 3 completed (1.5s) cancelling\n"); }));
       sync_wait(std::move(task));
-      auto end = std::chrono::steady_clock::now();
+      auto endTime = std::chrono::steady_clock::now();
 
       std::printf(
           "completed in %i ms\n",
           (int)std::chrono::duration_cast<std::chrono::milliseconds>(
-              end - start)
+              endTime - startTime)
               .count());
     }
   } catch (const std::exception& ex) {
@@ -137,8 +137,8 @@ int main() {
   };
   auto [rPipe, wPipe] = open_pipe(scheduler);
 
-  auto start = std::chrono::high_resolution_clock::now();
-  auto end = std::chrono::high_resolution_clock::now();
+  auto startTime = std::chrono::high_resolution_clock::now();
+  auto endTime = std::chrono::high_resolution_clock::now();
   auto reps = 0;
   auto offset = 0;
   inplace_stop_source stopWrite;
@@ -161,19 +161,19 @@ int main() {
           reps = 0;
           printf("warmup completed!\n");
           // exclude the warmup time
-          start = end = std::chrono::high_resolution_clock::now();
+          startTime = endTime = std::chrono::high_resolution_clock::now();
         }),
         // do more reads and measure how many reads occur
         pipe_bench(rPipe, buffer, scheduler, BENCHMARK_DURATION, data, reps, offset),
         // report results
         just_with([&] {
-          end = std::chrono::high_resolution_clock::now();
+          endTime = std::chrono::high_resolution_clock::now();
           printf("benchmark completed!\n");
           auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                  end - start)
+                  endTime - startTime)
                   .count();
           auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
-                  end - start)
+                  endTime - startTime)
                   .count();
           double reads = 1000000000.0 * reps / ns;
           std::cout

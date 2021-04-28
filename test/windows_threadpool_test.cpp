@@ -97,11 +97,11 @@ TEST(windows_thread_pool, schedule_after) {
     unifex::win32::windows_thread_pool tp;
     auto s = tp.get_scheduler();
 
-    auto start = s.now();
+    auto startTime = s.now();
 
     unifex::sync_wait(unifex::schedule_after(s, 50ms));
 
-    auto duration = s.now() - start;
+    auto duration = s.now() - startTime;
 
     EXPECT_TRUE(duration > 40ms);
     EXPECT_TRUE(duration < 100ms);
@@ -111,7 +111,7 @@ TEST(windows_thread_pool, schedule_after_cancellation) {
     unifex::win32::windows_thread_pool tp;
     auto s = tp.get_scheduler();
 
-    auto start = s.now();
+    auto startTime = s.now();
 
     bool ranWork = false;
 
@@ -124,7 +124,7 @@ TEST(windows_thread_pool, schedule_after_cancellation) {
                 unifex::schedule_after(s, 5ms)),
             [] { return unifex::just(); }));
 
-    auto duration = s.now() - start;
+    auto duration = s.now() - startTime;
 
     // Work should have been cancelled.
     EXPECT_FALSE(ranWork);
@@ -135,20 +135,20 @@ TEST(windows_thread_pool, schedule_at) {
     unifex::win32::windows_thread_pool tp;
     auto s = tp.get_scheduler();
 
-    auto start = s.now();
+    auto startTime = s.now();
 
-    unifex::sync_wait(unifex::schedule_at(s, start + 100ms));
+    unifex::sync_wait(unifex::schedule_at(s, startTime + 100ms));
 
-    auto end = s.now();   
-    EXPECT_TRUE(end >= (start + 100ms));
-    EXPECT_TRUE(end < (start + 150ms));
+    auto endTime = s.now();
+    EXPECT_TRUE(endTime >= (startTime + 100ms));
+    EXPECT_TRUE(endTime < (startTime + 150ms));
 }
 
 TEST(windows_thread_pool, schedule_at_cancellation) {
     unifex::win32::windows_thread_pool tp;
     auto s = tp.get_scheduler();
 
-    auto start = s.now();
+    auto startTime = s.now();
 
     bool ranWork = false;
 
@@ -156,12 +156,12 @@ TEST(windows_thread_pool, schedule_at_cancellation) {
         unifex::transform_done(
             unifex::stop_when(
                 unifex::transform(
-                    unifex::schedule_at(s, start + 5s),
+                    unifex::schedule_at(s, startTime + 5s),
                     [&] { ranWork = true; }),
-                unifex::schedule_at(s, start + 5ms)),
+                unifex::schedule_at(s, startTime + 5ms)),
             [] { return unifex::just(); }));
 
-    auto duration = s.now() - start;
+    auto duration = s.now() - startTime;
 
     // Work should have been cancelled.
     EXPECT_FALSE(ranWork);

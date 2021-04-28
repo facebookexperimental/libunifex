@@ -71,7 +71,7 @@ auto dump_async_trace_on_completion(Sender &&sender, std::string tag = {}) {
 int main() {
   timed_single_thread_context context;
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   sync_wait(
     transform(
@@ -80,7 +80,7 @@ int main() {
           dump_async_trace_on_start(
             schedule_after(context.get_scheduler(), 100ms), "part1"),
           [=]() {
-            auto time = steady_clock::now() - start;
+            auto time = steady_clock::now() - startTime;
             auto timeMs = duration_cast<milliseconds>(time).count();
             std::cout << "part1 finished - [" << timeMs << "]\n";
             return time;
@@ -89,7 +89,7 @@ int main() {
           dump_async_trace_on_completion(
             schedule_after(context.get_scheduler(), 200ms), "part2"),
           [=]() {
-            auto time = steady_clock::now() - start;
+            auto time = steady_clock::now() - startTime;
             auto timeMs = duration_cast<milliseconds>(time).count();
             std::cout << "part2 finished - [" << timeMs << "]\n";
             return time;
