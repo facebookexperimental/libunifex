@@ -328,6 +328,12 @@ template <typename Concrete, typename Allocator, typename... CPOs>
 using concrete_impl =
     typename _concrete_impl<Concrete, Allocator>::template impl<CPOs...>::type;
 
+template <typename T>
+inline constexpr bool is_in_place_type_tag = false;
+
+template <typename T>
+inline constexpr bool is_in_place_type_tag<in_place_type_t<T>> = true;
+
 template <typename... CPOs>
 struct _byval {
   class type;
@@ -369,8 +375,8 @@ class _byval<CPOs...>::type
   }
 
   template(typename Concrete, typename Allocator)
-      (requires (!same_as<std::allocator_arg_t, std::decay_t<Concrete>>) AND
-          (!instance_of_v<unifex::in_place_type_t, std::decay_t<Concrete>>))
+      (requires (!same_as<std::allocator_arg_t, remove_cvref_t<Concrete>>) AND
+          (!is_in_place_type_tag<remove_cvref_t<Concrete>>))
   type(Concrete&& concrete, Allocator alloc)
     : type(
           std::allocator_arg,
@@ -385,7 +391,7 @@ class _byval<CPOs...>::type
 
   template(typename Concrete)
     (requires (!same_as<type, remove_cvref_t<Concrete>>) AND
-      (!instance_of_v<unifex::in_place_type_t, Concrete>))
+      (!is_in_place_type_tag<remove_cvref_t<Concrete>>))
   type(Concrete&& concrete)
     : impl_(new auto((Concrete&&) concrete))
     , vtable_(vtable_holder_t::template create<std::decay_t<Concrete>>()) {}
