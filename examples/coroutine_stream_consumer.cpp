@@ -58,7 +58,7 @@ int main() {
   timed_single_thread_context context;
 
   auto makeTask = [&]() -> task<int> {
-    auto start = steady_clock::now();
+    auto startTime = steady_clock::now();
 
     auto s = take_until(
         stop_immediately<int>(
@@ -67,7 +67,7 @@ int main() {
 
     int sum = 0;
     while (auto value = co_await done_as_optional(next(s))) {
-      auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+      auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
       std::printf("[%i ms] %i\n", (int)ms.count(), *value);
       std::fflush(stdout);
 
@@ -76,7 +76,7 @@ int main() {
 
     co_await done_as_void(cleanup(s));
 
-    auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+    auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
     std::printf("[%i ms] sum = %i\n", (int)ms.count(), sum);
     std::fflush(stdout);
 

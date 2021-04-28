@@ -45,11 +45,11 @@ TEST(retry_when, WorksAsExpected) {
   unifex::timed_single_thread_context ctx;
   auto scheduler = ctx.get_scheduler();
 
-  auto start = std::chrono::steady_clock::now();
+  auto startTime = std::chrono::steady_clock::now();
 
-  auto timeSinceStartInMs = [start] {
+  auto timeSinceStartInMs = [startTime] {
       return std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::steady_clock::now() - start).count();
+          std::chrono::steady_clock::now() - startTime).count();
   };
 
   int operationCount = 0;
@@ -92,11 +92,11 @@ TEST(retry_when, Pipeable) {
   unifex::timed_single_thread_context ctx;
   auto scheduler = ctx.get_scheduler();
 
-  auto start = std::chrono::steady_clock::now();
+  auto startTime = std::chrono::steady_clock::now();
 
-  auto timeSinceStartInMs = [start] {
+  auto timeSinceStartInMs = [startTime] {
       return std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::steady_clock::now() - start).count();
+          std::chrono::steady_clock::now() - startTime).count();
   };
 
   int operationCount = 0;

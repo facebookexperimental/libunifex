@@ -35,7 +35,7 @@ int main() {
 
   using namespace std::chrono;
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   on_stream(current_scheduler, range_stream{0, 20})
     | for_each([](int value) {
@@ -47,8 +47,8 @@ int main() {
     | on(context.get_scheduler())
     | sync_wait();
 
-  auto end = steady_clock::now();
+  auto endTime = steady_clock::now();
 
   std::printf(
-      "took %i ms\n", (int)duration_cast<milliseconds>(end - start).count());
+      "took %i ms\n", (int)duration_cast<milliseconds>(endTime - startTime).count());
 }

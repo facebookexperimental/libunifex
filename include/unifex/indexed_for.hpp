@@ -64,10 +64,10 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   template <typename... Values>
   static void apply_func_with_policy(const execution::parallel_policy&, Range&& range, Func&& func, Values&... values)
       noexcept(std::is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
-    auto start = range.begin();
+    auto first = range.begin();
     using size_type = decltype(range.size());
     for (size_type idx = 0; idx < range.size(); ++idx) {
-      std::invoke(func, start[idx], values...);
+      std::invoke(func, first[idx], values...);
     }
   }
 
