@@ -33,11 +33,16 @@ namespace unifex {
 namespace _any_sched {
 
 template <typename... CPOs>
-struct _any_scheduler {
-  struct type;
+struct _with {
+  struct any_scheduler;
+  struct any_scheduler_ref;
 };
+
 template <typename... CPOs>
-using any_scheduler = typename _any_scheduler<CPOs...>::type;
+using any_scheduler = typename _with<CPOs...>::any_scheduler;
+
+template <typename... CPOs>
+using any_scheduler_ref = typename _with<CPOs...>::any_scheduler_ref;
 
 } // _any_sched
 
@@ -214,8 +219,13 @@ struct _op_for<Receiver>::type {
 template <typename CPOs, typename... Values>
 using _sender_base = any_unique_t<_connect<CPOs, Values...>>;
 
+template <typename... Values>
+struct _sender {
+  struct type;
+};
+
 template <typename... CPOs>
-struct _with_receiver_queries {
+struct _with {
   template <typename... Values>
   struct _sender {
     struct type;
@@ -226,13 +236,15 @@ struct _with_receiver_queries {
 
   using any_scheduler = _any_sched::any_scheduler<CPOs...>;
 
+  using any_scheduler_ref = _any_sched::any_scheduler_ref<CPOs...>;
+
   template <typename... Values>
   using any_receiver_ref = _receiver_ref<type_list<CPOs...>, Values...>;
 };
 
 template <typename... CPOs>
 template <typename... Values>
-struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
+struct _with<CPOs...>::_sender<Values...>::type
     : private _sender_base<type_list<CPOs...>, Values...> {
   template <template <class...> class Variant, template <class...> class Tuple>
   using value_types = Variant<Tuple<Values...>>;
@@ -261,13 +273,8 @@ struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
 };
 
 template <typename... Values>
-struct _sender {
-  struct type;
-};
-
-template <typename... Values>
-struct _sender<Values...>::type : _with_receiver_queries<>::_sender<Values...>::type {
-  using _with_receiver_queries<>::_sender<Values...>::type::type;
+struct _sender<Values...>::type : _with<>::_sender<Values...>::type {
+  using _with<>::_sender<Values...>::type::type;
 };
 
 } // namespace _any
@@ -282,7 +289,7 @@ template <typename... Values>
 using any_receiver_ref = _any::_receiver_ref<type_list<>, Values...>;
 
 template <auto&... CPOs>
-using with_receiver_queries = _any::_with_receiver_queries<tag_t<CPOs>...>;
+using with_receiver_queries = _any::_with<tag_t<CPOs>...>;
 
 } // namespace unifex
 

@@ -110,7 +110,7 @@ inline constexpr typename _schedule_and_connect_fn<CPOs...>::type _schedule_and_
 
 template <typename... CPOs>
 using _any_void_sender_of =
-  typename _any::_with_receiver_queries<CPOs...>::template any_sender_of<>;
+  typename _any::_with<CPOs...>::template any_sender_of<>;
 
 template <typename... CPOs>
 using any_scheduler_impl =
@@ -121,19 +121,19 @@ using any_scheduler_impl =
     overload<bool(const this_&, const any_scheduler<CPOs...>&) noexcept>(_equal_to)>;
 
 template <typename... CPOs>
-struct _any_scheduler<CPOs...>::type {
+struct _with<CPOs...>::any_scheduler {
   template (typename Scheduler)
-    (requires (!same_as<Scheduler, type>) AND scheduler<Scheduler>)
-  /* implicit */ type(Scheduler sched)
+    (requires (!same_as<Scheduler, any_scheduler>) AND scheduler<Scheduler>)
+  /* implicit */ any_scheduler(Scheduler sched)
     : impl_((Scheduler&&) sched) {}
 
-  type(type&&) noexcept = default;
-  type(const type& that)
-    : impl_(_copy_as<type>(that.impl_).impl_) {}
+  any_scheduler(any_scheduler&&) noexcept = default;
+  any_scheduler(const any_scheduler& that)
+    : impl_(_copy_as<any_scheduler>(that.impl_).impl_) {}
 
-  type& operator=(type&&) noexcept = default;
-  type& operator=(const type& that) {
-    impl_ = _copy_as<type>(that.impl_).impl_;
+  any_scheduler& operator=(any_scheduler&&) noexcept = default;
+  any_scheduler& operator=(const any_scheduler& that) {
+    impl_ = _copy_as<any_scheduler>(that.impl_).impl_;
     return *this;
   }
 
@@ -163,36 +163,95 @@ struct _any_scheduler<CPOs...>::type {
     }
 
   private:
-    friend type;
-    _sender(type const* sched)
+    friend any_scheduler;
+    _sender(any_scheduler const* sched)
       : sched_(*sched)
     {}
     // TODO This does a dynamic allocation. Fix this by:
     // 1. Implementing the small-object optimization in any_unique, and
     // 2. Provide hooks so that _sender can take a strong reference on
     //    the impl when it's dynamically allocated.
-    type sched_;
+    any_scheduler sched_;
   };
 
   _sender schedule() const {
     return _sender{this};
   }
 
-private:
   friend _equal_to_fn;
-  friend bool operator==(const type& left, const type& right) noexcept {
+  friend bool operator==(const any_scheduler& left, const any_scheduler& right) noexcept {
     return _equal_to(left.impl_, right);
   }
-  friend bool operator!=(const type& left, const type& right) noexcept {
+  friend bool operator!=(const any_scheduler& left, const any_scheduler& right) noexcept {
     return !(left == right);
   }
 
+private:
   any_scheduler_impl<CPOs...> impl_;
+};
+
+template <typename... CPOs>
+using any_scheduler_ref_impl = any_ref_t<_schedule_and_connect<CPOs...>>;
+
+template <typename... CPOs>
+struct _with<CPOs...>::any_scheduler_ref {
+  template (typename Scheduler)
+    (requires (!same_as<Scheduler const, any_scheduler_ref const>) AND scheduler<Scheduler>)
+  /* implicit */ any_scheduler_ref(Scheduler& sched)
+    : impl_(sched) {}
+
+  struct _sender {
+    template <template <class...> class Variant, template <class...> class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template <template <class...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
+
+    _sender(_sender&&) noexcept = default;
+
+    template (typename Receiver)
+      (requires receiver_of<Receiver> AND
+        (invocable<CPOs, Receiver const&> &&...))
+    any_operation_state_for<Receiver> connect(Receiver rec) && {
+      any_scheduler_ref_impl<CPOs...> const& impl = sched_.impl_;
+      return any_operation_state_for<Receiver>{
+          (Receiver&&) rec,
+          [&impl](_void_receiver_ref<CPOs...> rec2) {
+            return _schedule_and_connect<CPOs...>(
+                impl, (_void_receiver_ref<CPOs...>&&) rec2);
+          }
+        };
+    }
+
+  private:
+    friend any_scheduler_ref;
+    _sender(any_scheduler_ref const* sched)
+      : sched_(*sched)
+    {}
+    any_scheduler_ref sched_;
+  };
+
+  _sender schedule() const {
+    return _sender{this};
+  }
+
+  friend bool operator==(const any_scheduler_ref& left, const any_scheduler_ref& right) noexcept {
+    return left.impl_ == right.impl_;
+  }
+  friend bool operator!=(const any_scheduler_ref& left, const any_scheduler_ref& right) noexcept {
+    return !(left == right);
+  }
+
+private:
+  any_scheduler_ref_impl<CPOs...> impl_;
 };
 
 } // namespace _any_sched
 
 using any_scheduler = _any_sched::any_scheduler<>;
+using any_scheduler_ref = _any_sched::any_scheduler_ref<>;
 
 } // namespace unifex
 

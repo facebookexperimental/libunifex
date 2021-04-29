@@ -52,3 +52,12 @@ TEST(AnySchedulerTest, Schedule) {
   sync_wait(transform(schedule(sched), [&]{ ++i; }));
   EXPECT_EQ(i, 1);
 }
+
+TEST(AnySchedulerRefTest, Schedule) {
+  EXPECT_TRUE(scheduler<any_scheduler_ref>);
+  inline_scheduler sched{};
+  any_scheduler_ref schedRef = sched;
+  int i = 0;
+  sync_wait(transform(schedule(schedRef), [&]{ ++i; }));
+  EXPECT_EQ(i, 1);
+}

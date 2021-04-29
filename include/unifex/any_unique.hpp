@@ -450,11 +450,19 @@ class _byref<CPOs...>::type
     (requires (!same_as<Concrete const, type const>))
   /*implicit*/ type(Concrete& impl)
     : vtable_(vtable_holder_t::template create<Concrete>())
-    , impl_(std::addressof(impl)) {}
+    , impl_((void*) std::addressof(impl)) {}
 
   void swap(type& other) noexcept {
     std::swap(vtable_, other.vtable_);
     std::swap(impl_, other.impl_);
+  }
+
+  // Two any_ref's compare equal IFF they refer to the same object (shallow).
+  friend bool operator==(type const& left, type const& right) noexcept {
+    return left.impl_ == right.impl_;
+  }
+  friend bool operator!=(type const& left, type const& right) noexcept {
+    return !(left == right);
   }
 
  private:
