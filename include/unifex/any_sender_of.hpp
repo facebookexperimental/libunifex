@@ -132,27 +132,6 @@ struct _connect_fn<CPOs, Values...>::type {
 template <typename CPOs, typename... Values>
 inline constexpr typename _connect_fn<CPOs, Values...>::type _connect{};
 
-template <typename StopToken>
-struct inplace_stop_token_adapter_subscription {
-  inplace_stop_token subscribe(StopToken stoken) noexcept {
-    isSubscribed_ = true;
-    return stopTokenAdapter_.subscribe(std::move(stoken));
-  }
-  void unsubscribe() noexcept {
-    if (isSubscribed_) {
-      isSubscribed_ = false;
-      stopTokenAdapter_.unsubscribe();
-    }
-  }
-  ~inplace_stop_token_adapter_subscription() {
-    unsubscribe();
-  }
-private:
-  bool isSubscribed_ = false;
-  UNIFEX_NO_UNIQUE_ADDRESS
-  inplace_stop_token_adapter<StopToken> stopTokenAdapter_{};
-};
-
 template <typename Receiver>
 struct _op_for {
   struct type;
@@ -191,7 +170,7 @@ struct _op_for<Receiver>::type {
 
   UNIFEX_NO_UNIQUE_ADDRESS
   Receiver rec_;
-  inplace_stop_token_adapter_subscription<stop_token_type_t<Receiver>> subscription_{};
+  detail::inplace_stop_token_adapter_subscription<stop_token_type_t<Receiver>> subscription_{};
   _operation_state state_;
 };
 
