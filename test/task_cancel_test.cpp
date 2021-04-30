@@ -32,6 +32,26 @@
 using namespace unifex;
 
 namespace {
+struct dummy_stop_token {
+  static int count;
+  struct _callback_type {
+    template <class T>
+    _callback_type(dummy_stop_token, T&&) { ++count; }
+    ~_callback_type() { --count; }
+    _callback_type(_callback_type&&) noexcept { ++count; }
+    _callback_type& operator=(_callback_type&&) noexcept { return *this; }
+  };
+  template <typename>
+  using callback_type = _callback_type;
+  static constexpr bool stop_possible() noexcept {
+    return true;
+  }
+  static constexpr bool stop_requested() noexcept {
+    return true;
+  }
+};
+int dummy_stop_token::count = 0;
+
 task<int> foo() {
   co_await stop(); // sends a done signal, unwinds the coroutine stack
   ADD_FAILURE();
@@ -126,6 +146,19 @@ TEST(TaskCancel, StopIfRequested) {
         stopSource.get_token()));
   EXPECT_TRUE(!i);
   EXPECT_TRUE(continuedWhenStopWasNotYetRequested);
+}
+
+// Test that the inplace_stop_token_adaptor is properly
+// unsubscribed on cancellation:
+TEST(TaskCancel, UnsubscribeStopTokenAdaptor) {
+  std::optional<int> i =
+    sync_wait(
+      with_query_value(
+        bar(),
+        get_stop_token,
+        dummy_stop_token{}));
+  EXPECT_TRUE(!i);
+  EXPECT_EQ(dummy_stop_token::count, 0);
 }
 
 #endif // !UNIFEX_NO_COROUTINES
