@@ -164,7 +164,7 @@ auto measure_time(Sender&& sender, std::string tag = {}) {
     using namespace std::chrono;
 
     return unifex::let(
-        lazy([] { return steady_clock::now(); }),
+        just_with([] { return steady_clock::now(); }),
         [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& startTime) {
             return unifex::finally(
                 std::move(sender),
