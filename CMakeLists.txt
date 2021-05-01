@@ -10,18 +10,22 @@ project(libunifex LANGUAGES CXX
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+include(project-is-top-level)
 include(unifex_options)
 include(unifex_env)
 include(unifex_flags)
 
 add_subdirectory(source)
 
-if(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
-  # We enable testing in both, either if doing tests or build examples
-  # Note, that examples are also registered as tests by subsequent calls to add_test()
-  # You can run all tests or examples at once by using `ctest` or `ninja test`
-  enable_testing()
+if(NOT PROJECT_IS_TOP_LEVEL)
+  return()
+endif()
 
+# We enable testing in both, either if doing tests or build examples
+# Note, that examples are also registered as tests by subsequent calls to add_test()
+# You can run all tests or examples at once by using `ctest` or `ninja test`
+include(CTest)
+if(BUILD_TESTING OR UNIFEX_BUILD_EXAMPLES)
   # Examples do not use gtest
   if(UNIFEX_BUILD_EXAMPLES)
     add_subdirectory(examples)
