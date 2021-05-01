@@ -26,7 +26,6 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 
-#include <cassert>
 #include <exception>
 #include <functional>
 #include <tuple>
@@ -563,7 +562,7 @@ namespace unifex
       }
 
       void start() & noexcept {
-        assert(!started_);
+        UNIFEX_ASSERT(!started_);
         started_ = true;
         unifex::start(sourceOp_.get());
       }

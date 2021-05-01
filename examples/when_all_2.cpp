@@ -34,7 +34,7 @@ int main() {
 
   auto scheduler = context.get_scheduler();
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   bool ranPart1Callback = false;
   bool ranPart2Callback = false;
@@ -47,7 +47,7 @@ int main() {
                 schedule_after(scheduler, 100ms),
                 [&]() -> steady_clock::time_point::duration {
                   ranPart1Callback = true;
-                  auto time = steady_clock::now() - start;
+                  auto time = steady_clock::now() - startTime;
                   auto timeMs = duration_cast<milliseconds>(time).count();
                   std::cout << "part1 finished - [" << timeMs
                             << "ms] throwing\n";
@@ -57,7 +57,7 @@ int main() {
                 schedule_after(scheduler, 200ms),
                 [&]() {
                   ranPart2Callback = true;
-                  auto time = steady_clock::now() - start;
+                  auto time = steady_clock::now() - startTime;
                   auto timeMs = duration_cast<milliseconds>(time).count();
                   std::cout << "part2 finished - [" << timeMs << "ms]\n";
                   return time;
@@ -72,16 +72,16 @@ int main() {
                            .count()
                     << "ms]\n";
         }));
-    assert(false);
+    UNIFEX_ASSERT(false);
   } catch (my_error) {
-    auto time = steady_clock::now() - start;
+    auto time = steady_clock::now() - startTime;
     auto timeMs = duration_cast<milliseconds>(time).count();
     std::cout << "caught my_error after " << timeMs << "ms\n";
   }
 
-  assert(ranPart1Callback);
-  assert(!ranPart2Callback);
-  assert(!ranFinalCallback);
+  UNIFEX_ASSERT(ranPart1Callback);
+  UNIFEX_ASSERT(!ranPart2Callback);
+  UNIFEX_ASSERT(!ranFinalCallback);
 #endif
 
   return 0;

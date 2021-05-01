@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <unifex/config.hpp>
+
 namespace unifex {
   namespace detail {
     template <typename, typename = void>

@@ -35,14 +35,14 @@ int main() {
 
   timed_single_thread_context context;
 
-  auto start = steady_clock::now();
+  auto startTime = steady_clock::now();
 
   sync_wait(
       stop_when(
           for_each(
               delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
-              [start](int value) {
-                auto ms = duration_cast<milliseconds>(steady_clock::now() - start);
+              [startTime](int value) {
+                auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);
               }),
           transform(

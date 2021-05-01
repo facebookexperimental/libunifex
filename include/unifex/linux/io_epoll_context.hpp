@@ -70,7 +70,7 @@ class io_epoll_context {
  private:
   struct operation_base {
     ~operation_base() {
-      assert(enqueued_.load() == 0);
+      UNIFEX_ASSERT(enqueued_.load() == 0);
     }
     operation_base() noexcept : enqueued_(0), next_(nullptr), execute_(nullptr)  {}
     std::atomic<int> enqueued_;
@@ -315,7 +315,7 @@ class io_epoll_context::schedule_at_sender {
         unifex::set_done(std::move(timerOp).receiver_);
       } else {
         // This should never be called if stop is not possible.
-        assert(false);
+        UNIFEX_ASSERT(false);
       }
     }
 
@@ -347,7 +347,7 @@ class io_epoll_context::schedule_at_sender {
       // Avoid instantiating set_done() if we're never going to call it.
       if constexpr (is_stop_ever_possible) {
         auto& timerOp = *static_cast<operation*>(op);
-        assert(timerOp.context_.is_running_on_io_thread());
+        UNIFEX_ASSERT(timerOp.context_.is_running_on_io_thread());
 
         timerOp.stopCallback_.destruct();
 
@@ -360,7 +360,7 @@ class io_epoll_context::schedule_at_sender {
         unifex::set_done(std::move(timerOp).receiver_);
       } else {
         // Should never be called if stop is not possible.
-        assert(false);
+        UNIFEX_ASSERT(false);
       }
     }
 
@@ -397,7 +397,7 @@ class io_epoll_context::schedule_at_sender {
     }
 
     void request_stop_local() noexcept {
-      assert(context_.is_running_on_io_thread());
+      UNIFEX_ASSERT(context_.is_running_on_io_thread());
 
       stopCallback_.destruct();
 
@@ -549,7 +549,7 @@ class io_epoll_context::read_sender {
     }
 
     void start_io() noexcept {
-      assert(context_.is_running_on_io_thread());
+      UNIFEX_ASSERT(context_.is_running_on_io_thread());
 
       auto result = readv(fd_, buffer_, 1);
 
@@ -558,7 +558,7 @@ class io_epoll_context::read_sender {
           stopCallback_.construct(
               get_stop_token(receiver_), cancel_callback{*this});
         }
-        assert(static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        UNIFEX_ASSERT(static_cast<completion_base*>(this)->enqueued_.load() == 0);
         static_cast<completion_base*>(this)->execute_ = &operation::on_read_complete;
         epoll_event event;
         event.data.ptr = static_cast<completion_base*>(this);
@@ -598,7 +598,7 @@ class io_epoll_context::read_sender {
     static void on_read_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
 
-      assert(static_cast<completion_base&>(self).enqueued_.load() == 0);
+      UNIFEX_ASSERT(static_cast<completion_base&>(self).enqueued_.load() == 0);
 
       self.stopCallback_.destruct();
 
@@ -615,8 +615,8 @@ class io_epoll_context::read_sender {
       (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
 
       auto result = readv(self.fd_, self.buffer_, 1);
-      assert(result != -EAGAIN);
-      assert(result != -EWOULDBLOCK);
+      UNIFEX_ASSERT(result != -EAGAIN);
+      UNIFEX_ASSERT(result != -EWOULDBLOCK);
       if (result == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else if (result >= 0) {
@@ -639,7 +639,7 @@ class io_epoll_context::read_sender {
     static void complete_with_done(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(static_cast<done_op*>(op));
 
-      assert(static_cast<done_op&>(self).enqueued_.load() == 0);
+      UNIFEX_ASSERT(static_cast<done_op&>(self).enqueued_.load() == 0);
 
       if (static_cast<completion_base&>(self).enqueued_.load() == 0) {
         // Avoid instantiating set_done() if we're not going to call it.
@@ -647,7 +647,7 @@ class io_epoll_context::read_sender {
           unifex::set_done(std::move(self.receiver_));
         } else {
           // This should never be called if stop is not possible.
-          assert(false);
+          UNIFEX_ASSERT(false);
         }
       } else {
         // reschedule after queued io is cleared
@@ -761,7 +761,7 @@ class io_epoll_context::write_sender {
     }
 
     void start_io() noexcept {
-      assert(context_.is_running_on_io_thread());
+      UNIFEX_ASSERT(context_.is_running_on_io_thread());
 
       auto result = writev(fd_, buffer_, 1);
 
@@ -771,7 +771,7 @@ class io_epoll_context::write_sender {
               get_stop_token(receiver_), cancel_callback{*this});
         }
 
-        assert(static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        UNIFEX_ASSERT(static_cast<completion_base*>(this)->enqueued_.load() == 0);
         static_cast<completion_base*>(this)->execute_ = &operation::on_write_complete;
         epoll_event event;
         event.data.ptr = static_cast<completion_base*>(this);
@@ -811,7 +811,7 @@ class io_epoll_context::write_sender {
     static void on_write_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
 
-      assert(static_cast<completion_base&>(self).enqueued_.load() == 0);
+      UNIFEX_ASSERT(static_cast<completion_base&>(self).enqueued_.load() == 0);
 
       self.stopCallback_.destruct();
 
@@ -828,8 +828,8 @@ class io_epoll_context::write_sender {
       }
 
       auto result = writev(self.fd_, self.buffer_, 1);
-      assert(result != -EAGAIN);
-      assert(result != -EWOULDBLOCK);
+      UNIFEX_ASSERT(result != -EAGAIN);
+      UNIFEX_ASSERT(result != -EWOULDBLOCK);
       if (result == -ECANCELED) {
         unifex::set_done(std::move(self.receiver_));
       } else if (result >= 0) {
@@ -852,7 +852,7 @@ class io_epoll_context::write_sender {
     static void complete_with_done(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(static_cast<done_op*>(op));
 
-      assert(static_cast<done_op&>(self).enqueued_.load() == 0);
+      UNIFEX_ASSERT(static_cast<done_op&>(self).enqueued_.load() == 0);
 
       if (static_cast<completion_base&>(self).enqueued_.load() == 0) {
         // Avoid instantiating set_done() if we're not going to call it.
@@ -860,7 +860,7 @@ class io_epoll_context::write_sender {
           unifex::set_done(std::move(self.receiver_));
         } else {
           // This should never be called if stop is not possible.
-          assert(false);
+          UNIFEX_ASSERT(false);
         }
       } else {
         // reschedule after queued io is cleared

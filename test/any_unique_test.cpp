@@ -18,7 +18,6 @@
 #include <unifex/memory_resource.hpp>
 #include <unifex/type_index.hpp>
 
-#include <cassert>
 #include <string>
 #include <atomic>
 #include <sstream>
@@ -108,6 +107,8 @@ class counting_memory_resource : public memory_resource {
 
 using A = unifex::any_unique_t<get_typeid>;
 using B = unifex::any_unique_t<>;
+
+static_assert(unifex::movable<A>);
 
 TEST(AnyUniqueTest, WithTypeid) {
   const ::A a = std::string{"hello"};

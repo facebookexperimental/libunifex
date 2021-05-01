@@ -384,17 +384,35 @@ class _byval<CPOs...>::type
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
   template(typename Concrete)
-    (requires (!instance_of_v<std::in_place_type_t, Concrete>))
+    (requires (!same_as<type, remove_cvref_t<Concrete>>) AND
+      (!instance_of_v<std::in_place_type_t, Concrete>))
   type(Concrete&& concrete)
-    : type(
-          std::in_place_type<remove_cvref_t<Concrete>>,
-          (Concrete &&) concrete) {}
+    : impl_(new auto((Concrete&&) concrete))
+    , vtable_(vtable_holder_t::template create<std::decay_t<Concrete>>()) {}
 
   type(type&& other) noexcept
     : impl_(std::exchange(other.impl_, nullptr))
     , vtable_(other.vtable_) {}
 
   UNIFEX_ALWAYS_INLINE ~type() {
+    unsafe_deallocate();
+  }
+
+  void swap(type& other) noexcept {
+    std::swap(vtable_, other.vtable_);
+    std::swap(impl_, other.impl_);
+  }
+
+  type& operator=(type other) noexcept {
+    swap(other);
+    return *this;
+  }
+
+ private:
+  using vtable_holder_t = vtable_holder<_deallocate_cpo, CPOs...>;
+
+  UNIFEX_ALWAYS_INLINE void unsafe_deallocate() noexcept {
+    // This leaves the any_unique in an invalid state.
     if (nullptr != impl_) {
       static_assert(noexcept(vtable_->template get<_deallocate_cpo>()));
       auto* deallocateFn = vtable_->template get<_deallocate_cpo>();
@@ -403,8 +421,9 @@ class _byval<CPOs...>::type
     }
   }
 
- private:
-  using vtable_holder_t = vtable_holder<_deallocate_cpo, CPOs...>;
+  friend void swap(type& left, type& right) noexcept {
+    left.swap(right);
+  }
 
   friend const vtable_holder_t& get_vtable(const type& self) noexcept {
     return self.vtable_;
@@ -433,8 +452,17 @@ class _byref<CPOs...>::type
     : vtable_(vtable_holder_t::template create<Concrete>())
     , impl_(std::addressof(impl)) {}
 
+  void swap(type& other) noexcept {
+    std::swap(vtable_, other.vtable_);
+    std::swap(impl_, other.impl_);
+  }
+
  private:
   using vtable_holder_t = vtable_holder<CPOs...>;
+
+  friend void swap(type& left, type& right) noexcept {
+    left.swap(right);
+  }
 
   friend const vtable_holder_t& get_vtable(const type& self) noexcept {
     return self.vtable_;

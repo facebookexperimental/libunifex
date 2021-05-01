@@ -18,7 +18,6 @@
 #include <unifex/memory_resource.hpp>
 #include <unifex/type_index.hpp>
 
-#include <cassert>
 #include <string>
 #include <typeindex>
 #include <atomic>
@@ -93,21 +92,21 @@ int main() {
   {
     const A a = std::string{"hello"};
     auto id = get_typeid(a);
-    assert(id == unifex::type_id<std::string>());
+    UNIFEX_ASSERT(id == unifex::type_id<std::string>());
   }
   {
     const B b = std::string{"hello"};
     auto id = get_typeid(b);
-    assert(id == unifex::type_id<B>());
+    UNIFEX_ASSERT(id == unifex::type_id<B>());
   }
   {
     bool hasDestructorRun = false;
     {
       const A a{std::in_place_type<destructor>, hasDestructorRun};
-      assert(get_typeid(a) == unifex::type_id<destructor>());
-      assert(!hasDestructorRun);
+      UNIFEX_ASSERT(get_typeid(a) == unifex::type_id<destructor>());
+      UNIFEX_ASSERT(!hasDestructorRun);
     }
-    assert(hasDestructorRun);
+    UNIFEX_ASSERT(hasDestructorRun);
   }
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
@@ -116,11 +115,11 @@ int main() {
     polymorphic_allocator<char> alloc{&res};
     {
       A a1{std::string("hello"), alloc};
-      assert(res.total_allocated_bytes() >= sizeof(std::string));
+      UNIFEX_ASSERT(res.total_allocated_bytes() >= sizeof(std::string));
       A a2{std::allocator_arg, alloc, std::in_place_type<std::string>, "hello"};
-      assert(res.total_allocated_bytes() >= 2 * sizeof(std::string));
+      UNIFEX_ASSERT(res.total_allocated_bytes() >= 2 * sizeof(std::string));
     }
-    assert(res.total_allocated_bytes() == 0);
+    UNIFEX_ASSERT(res.total_allocated_bytes() == 0);
   }
 #endif
   return 0;

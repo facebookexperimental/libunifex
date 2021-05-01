@@ -288,14 +288,14 @@ void io_uring_context::run(StopToken stopToken) {
 
 template <typename PopulateFn>
 bool io_uring_context::try_submit_io(PopulateFn populateSqe) noexcept {
-  assert(is_running_on_io_thread());
+  UNIFEX_ASSERT(is_running_on_io_thread());
 
   if (pending_operation_count() < cqEntryCount_) {
     // Haven't reached limit of completion-queue yet.
     const auto tail = sqTail_->load(std::memory_order_relaxed);
     const auto head = sqHead_->load(std::memory_order_acquire);
     const auto usedCount = (tail - head);
-    assert(usedCount <= sqEntryCount_);
+    UNIFEX_ASSERT(usedCount <= sqEntryCount_);
     if (usedCount < sqEntryCount_) {
       // There is space in the submission-queue.
       const auto index = tail & sqMask_;
@@ -426,7 +426,7 @@ class io_uring_context::read_sender {
     }
 
     void start_io() noexcept {
-      assert(context_.is_running_on_io_thread());
+      UNIFEX_ASSERT(context_.is_running_on_io_thread());
 
       auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
         sqe.opcode = IORING_OP_READV;
@@ -544,7 +544,7 @@ class io_uring_context::write_sender {
     }
 
     void start_io() noexcept {
-      assert(context_.is_running_on_io_thread());
+      UNIFEX_ASSERT(context_.is_running_on_io_thread());
 
       auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
         sqe.opcode = IORING_OP_WRITEV;
@@ -740,7 +740,7 @@ class io_uring_context::schedule_at_sender {
         unifex::set_done(std::move(timerOp).receiver_);
       } else {
         // This should never be called if stop is not possible.
-        assert(false);
+        UNIFEX_ASSERT(false);
       }
     }
 
@@ -772,7 +772,7 @@ class io_uring_context::schedule_at_sender {
       // Avoid instantiating set_done() if we're never going to call it.
       if constexpr (is_stop_ever_possible) {
         auto& timerOp = *static_cast<operation*>(op);
-        assert(timerOp.context_.is_running_on_io_thread());
+        UNIFEX_ASSERT(timerOp.context_.is_running_on_io_thread());
 
         timerOp.stopCallback_.destruct();
 
@@ -785,7 +785,7 @@ class io_uring_context::schedule_at_sender {
         unifex::set_done(std::move(timerOp).receiver_);
       } else {
         // Should never be called if stop is not possible.
-        assert(false);
+        UNIFEX_ASSERT(false);
       }
     }
 
@@ -822,7 +822,7 @@ class io_uring_context::schedule_at_sender {
     }
 
     void request_stop_local() noexcept {
-      assert(context_.is_running_on_io_thread());
+      UNIFEX_ASSERT(context_.is_running_on_io_thread());
 
       stopCallback_.destruct();
 

@@ -27,6 +27,7 @@
 #include <unifex/sequence.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/on.hpp>
 
 #include <atomic>
 #include <memory>
@@ -54,44 +55,26 @@ struct _receiver_base {
   async_scope* scope_;
 };
 
-template <typename Scheduler>
-struct _has_scheduler {
-  struct type;
-};
-
-template <typename Scheduler>
-using has_scheduler = typename _has_scheduler<Scheduler>::type;
-
-template <typename Scheduler>
-struct _has_scheduler<Scheduler>::type {
-  friend const Scheduler&
-  tag_invoke(tag_t<get_scheduler>, const type& r) noexcept {
-    return r.scheduler_;
-  }
-
-  UNIFEX_NO_UNIQUE_ADDRESS Scheduler scheduler_;
-};
-
-template <typename Sender, typename Scheduler>
+template <typename Sender>
 struct _receiver {
   struct type;
 };
 
-template <typename Sender, typename Scheduler>
-using receiver = typename _receiver<Sender, Scheduler>::type;
+template <typename Sender>
+using receiver = typename _receiver<Sender>::type;
 
 void record_done(async_scope*) noexcept;
 
-template <typename Sender, typename Scheduler>
-struct _receiver<Sender, Scheduler>::type final
-    : _receiver_base, has_scheduler<Scheduler> {
-  explicit type(
-      const Scheduler& scheduler,
-      inplace_stop_token stoken,
-      void* op,
-      async_scope* scope) noexcept
-      : _receiver_base{stoken, op, scope},
-        has_scheduler<Scheduler>{scheduler} {}
+template <typename Sender>
+using _operation_t = connect_result_t<Sender, receiver<Sender>>;
+
+template <typename Sender>
+struct _receiver<Sender>::type final : _receiver_base {
+  template <typename Op>
+  explicit type(inplace_stop_token stoken, Op* op, async_scope* scope) noexcept
+    : _receiver_base{stoken, op, scope} {
+    static_assert(same_as<Op, manual_lifetime<_operation_t<Sender>>>);
+  }
 
   // receivers uniquely own themselves; we don't need any special move-
   // construction behaviour, but we do need to ensure no copies are made
@@ -109,48 +92,42 @@ struct _receiver<Sender, Scheduler>::type final
   void set_done() noexcept {
     // we're about to delete this, so save the scope for later
     auto scope = scope_;
-
-    using op_t = manual_lifetime<connect_result_t<Sender, type>>;
-
-    auto op = static_cast<op_t*>(op_);
+    auto op = static_cast<manual_lifetime<_operation_t<Sender>>*>(op_);
     op->destruct();
     delete op;
-
     record_done(scope);
   }
 };
 
 struct async_scope {
+private:
+  template <typename Sender, typename Scheduler>
+  using _on_result_t =
+    decltype(on(UNIFEX_DECLVAL(Sender&&), UNIFEX_DECLVAL(Scheduler&&)));
+
+public:
   async_scope() noexcept = default;
 
   ~async_scope() {
     [[maybe_unused]] auto state = opState_.load(std::memory_order_relaxed);
 
-    assert(is_stopping(state));
-    assert(op_count(state) == 0);
+    UNIFEX_ASSERT(is_stopping(state));
+    UNIFEX_ASSERT(op_count(state) == 0);
   }
 
-  template (typename Sender, typename Scheduler)
-    (requires scheduler<Scheduler> AND
-     sender_to<Sender, receiver<Sender, remove_cvref_t<Scheduler>>>)
-  void spawn(Sender&& sender, Scheduler&& scheduler) {
-    using receiver_t = receiver<Sender, remove_cvref_t<Scheduler>>;
-    using op_t = connect_result_t<Sender, receiver_t>;
-
+  template (typename Sender)
+    (requires sender_to<Sender, receiver<Sender>>)
+  void spawn(Sender&& sender) {
     // this could throw; if it does, there's nothing to clean up
-    auto opToStart = std::make_unique<manual_lifetime<op_t>>();
+    auto opToStart = std::make_unique<manual_lifetime<_operation_t<Sender>>>();
 
-    // this could throw; if it does, the only clean-up we need is to destroy
-    // and deallocate the manual_lifetime, which is handled by opToStart's
+    // this could throw; if it does, the only clean-up we need is to
+    // deallocate the manual_lifetime, which is handled by opToStart's
     // destructor so we're good
     opToStart->construct_from([&] {
       return connect(
-          (Sender&&)sender,
-          receiver_t{
-              (Scheduler&&)scheduler,
-              stopSource_.get_token(),
-              opToStart.get(),
-              this});
+          (Sender&&) sender,
+          receiver<Sender>{stopSource_.get_token(), opToStart.get(), this});
     });
 
     // At this point, the rest of the function is noexcept, but opToStart's
@@ -168,6 +145,15 @@ struct async_scope {
       // we've been stopped so clean up and bail out
       opToStart->destruct();
     }
+  }
+
+  template (typename Sender, typename Scheduler)
+    (requires scheduler<Scheduler> AND
+     sender_to<
+        _on_result_t<Sender, Scheduler>,
+        receiver<_on_result_t<Sender, Scheduler>>>)
+  void spawn_on(Sender&& sender, Scheduler&& scheduler) {
+    spawn(on((Sender&&) sender, (Scheduler&&) scheduler));
   }
 
   [[nodiscard]] auto cleanup() noexcept {
@@ -207,7 +193,7 @@ struct async_scope {
         return false;
       }
 
-      assert(opState + 2 > opState);
+      UNIFEX_ASSERT(opState + 2 > opState);
     } while (!opState_.compare_exchange_weak(
         opState,
         opState + 2,

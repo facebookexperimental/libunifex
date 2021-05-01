@@ -16,7 +16,6 @@
 
 #include <unifex/async_mutex.hpp>
 
-#include <cassert>
 
 namespace unifex {
 

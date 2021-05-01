@@ -29,7 +29,7 @@ timed_single_thread_context::~timed_single_thread_context() {
   }
   thread_.join();
 
-  assert(head_ == nullptr);
+  UNIFEX_ASSERT(head_ == nullptr);
 }
 
 void timed_single_thread_context::enqueue(task_base* task) noexcept {

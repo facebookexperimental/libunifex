@@ -19,7 +19,6 @@
 #include <unifex/detail/intrusive_stack.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <utility>
 
 #include <unifex/detail/prologue.hpp>
@@ -48,7 +47,7 @@ public:
   ~atomic_intrusive_queue() {
     // Check that all items in this queue have beel dequeued.
     // Not doing so is likely a bug in the code.
-    assert(
+    UNIFEX_ASSERT(
         head_.load(std::memory_order_relaxed) == nullptr ||
         head_.load(std::memory_order_relaxed) == producer_inactive_value());
   }
@@ -118,11 +117,11 @@ public:
       // Queue is empty, return empty queue.
       return {};
     }
-    assert(value != producer_inactive_value());
+    UNIFEX_ASSERT(value != producer_inactive_value());
 
     value = head_.exchange(nullptr, std::memory_order_acquire);
-    assert(value != producer_inactive_value());
-    assert(value != nullptr);
+    UNIFEX_ASSERT(value != producer_inactive_value());
+    UNIFEX_ASSERT(value != nullptr);
 
     return intrusive_queue<Item, Next>::make_reversed(
         static_cast<Item*>(value));
@@ -134,11 +133,11 @@ public:
       // Queue is empty, return empty queue.
       return {};
     }
-    assert(value != producer_inactive_value());
+    UNIFEX_ASSERT(value != producer_inactive_value());
 
     value = head_.exchange(nullptr, std::memory_order_acquire);
-    assert(value != producer_inactive_value());
-    assert(value != nullptr);
+    UNIFEX_ASSERT(value != producer_inactive_value());
+    UNIFEX_ASSERT(value != nullptr);
 
     return intrusive_stack<Item, Next>::adopt(static_cast<Item*>(value));
   }
@@ -158,8 +157,8 @@ public:
     }
 
     // The queue was 
-    assert(oldValue != nullptr);
-    assert(oldValue != inactive);
+    UNIFEX_ASSERT(oldValue != nullptr);
+    UNIFEX_ASSERT(oldValue != inactive);
     return false;
   }
 
@@ -174,8 +173,8 @@ public:
     }
 
     void* oldValue = head_.exchange(nullptr, std::memory_order_acquire);
-    assert(oldValue != nullptr);
-    assert(oldValue != producer_inactive_value());
+    UNIFEX_ASSERT(oldValue != nullptr);
+    UNIFEX_ASSERT(oldValue != producer_inactive_value());
 
     return intrusive_queue<Item, Next>::make_reversed(
         static_cast<Item*>(oldValue));

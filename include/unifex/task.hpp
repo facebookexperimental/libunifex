@@ -33,7 +33,6 @@
 
 #include <exception>
 #include <optional>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -204,7 +203,7 @@ struct _awaiter {
 
     coro::coroutine_handle<ThisPromise> await_suspend(
         coro::coroutine_handle<OtherPromise> h) noexcept {
-      assert(coro_);
+      UNIFEX_ASSERT(coro_);
       auto& promise = coro_.promise();
       promise.continuation_ = h;
       promise.doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;
@@ -222,7 +221,7 @@ struct _awaiter {
   private:
     coro::coroutine_handle<ThisPromise> coro_;
     UNIFEX_NO_UNIQUE_ADDRESS
-    inplace_stop_token_adapter<stop_token_type_t<OtherPromise>> stopTokenAdapter_;
+    detail::inplace_stop_token_adapter_subscription<stop_token_type_t<OtherPromise>> stopTokenAdapter_;
   };
 };
 
@@ -265,7 +264,7 @@ private:
       : coro_(h) {}
 
   template<typename Promise>
-  friend awaiter<Promise> tag_invoke(tag_t<unifex::await_transform>, Promise& promise, type&& t) noexcept {
+  friend awaiter<Promise> tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
     return awaiter<Promise>{std::exchange(t.coro_, {})};
   }
 

@@ -23,7 +23,6 @@
 #include <unifex/type_index.hpp>
 
 #include <atomic>
-#include <cassert>
 #include <thread>
 #include <cstdint>
 #include <type_traits>
@@ -266,6 +265,31 @@ public:
 
   void unsubscribe() noexcept {}
 };
+
+/// \cond
+namespace detail {
+template <typename StopToken>
+struct inplace_stop_token_adapter_subscription {
+  inplace_stop_token subscribe(StopToken stoken) noexcept {
+    isSubscribed_ = true;
+    return stopTokenAdapter_.subscribe(std::move(stoken));
+  }
+  void unsubscribe() noexcept {
+    if (isSubscribed_) {
+      isSubscribed_ = false;
+      stopTokenAdapter_.unsubscribe();
+    }
+  }
+  ~inplace_stop_token_adapter_subscription() {
+    unsubscribe();
+  }
+private:
+  bool isSubscribed_ = false;
+  UNIFEX_NO_UNIQUE_ADDRESS
+  inplace_stop_token_adapter<StopToken> stopTokenAdapter_{};
+};
+} // namespace detail
+/// \endcond
 
 } // namespace unifex
 

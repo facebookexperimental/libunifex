@@ -32,7 +32,6 @@
 #include <exception>
 #include <utility>
 #include <type_traits>
-#include <cassert>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -98,13 +97,13 @@ struct _stream<SourceStream, Values...>::type {
           // next() operation.
           stream_.stopSource_.request_stop();
           auto receiver = std::exchange(stream_.nextReceiver_, nullptr);
-          assert(receiver != nullptr);
+          UNIFEX_ASSERT(receiver != nullptr);
           std::move(*receiver).set_done();
         } else {
-          assert(oldState == state::source_next_completed);
+          UNIFEX_ASSERT(oldState == state::source_next_completed);
         }
       } else {
-        assert(oldState == state::source_next_completed);
+        UNIFEX_ASSERT(oldState == state::source_next_completed);
       }
     }
   };
@@ -161,7 +160,7 @@ struct _stream<SourceStream, Values...>::type {
               std::memory_order_relaxed)) {
           // We acquired ownership of the receiver before it was cancelled.
           auto* receiver = std::exchange(strm.nextReceiver_, nullptr);
-          assert(receiver != nullptr);
+          UNIFEX_ASSERT(receiver != nullptr);
           deliverSignalTo(receiver);
           return;
         }
@@ -181,8 +180,8 @@ struct _stream<SourceStream, Values...>::type {
       // Otherwise, cleanup() was requested before this operation completed.
       // We are responsible for starting cleanup now that next() has finished.
 
-      assert(oldState == state::source_next_active_cleanup_requested);
-      assert(stream_.cleanupOp_ != nullptr);
+      UNIFEX_ASSERT(oldState == state::source_next_active_cleanup_requested);
+      UNIFEX_ASSERT(stream_.cleanupOp_ != nullptr);
       stream_.cleanupOp_->start_cleanup();
     }
 
@@ -393,7 +392,7 @@ struct _stream<SourceStream, Values...>::type {
 
           // No prior next() call has been made. Nothing to do for cleanup.
           // Send done() immediately.
-          assert(oldState == state::not_started);
+          UNIFEX_ASSERT(oldState == state::not_started);
           unifex::set_done(std::move(receiver_));
         }
 

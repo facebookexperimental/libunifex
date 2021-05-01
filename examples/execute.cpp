@@ -18,7 +18,6 @@
 #include <unifex/scheduler_concepts.hpp>
 
 #include <cstdio>
-#include <cassert>
 
 using namespace unifex;
 

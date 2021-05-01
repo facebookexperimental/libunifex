@@ -24,14 +24,14 @@
 namespace unifex {
 
 inplace_stop_source::~inplace_stop_source() {
-  assert((state_.load(std::memory_order_relaxed) & locked_flag) == 0);
+  UNIFEX_ASSERT((state_.load(std::memory_order_relaxed) & locked_flag) == 0);
 #ifndef NDEBUG
   for (auto* cb = callbacks_; cb != nullptr; cb = cb->next_) {
     printf("dangling inplace_stop_callback: %s\n", cb->type_name());
     fflush(stdout);
   }
 #endif
-  assert(callbacks_ == nullptr);
+  UNIFEX_ASSERT(callbacks_ == nullptr);
 }
 
 bool inplace_stop_source::request_stop() noexcept {
