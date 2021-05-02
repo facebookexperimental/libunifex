@@ -26,6 +26,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/invoke.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -254,6 +255,12 @@ struct _task<T>::type {
   type& operator=(type t) noexcept {
     std::swap(coro_, t.coro_);
     return *this;
+  }
+
+  template <typename Fn, typename... Args>
+  friend type tag_invoke(
+      tag_t<co_invoke>, tag<type, Fn, Args...>, Fn fn, Args... args) {
+    co_return co_await std::invoke((Fn&&) fn, (Args&&) args...);
   }
 
 private:

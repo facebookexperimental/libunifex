@@ -74,7 +74,7 @@ void test(Scheduler scheduler, Allocator allocator) {
   auto addToValue = [&](int x) {
     // The via() is expected to allocate when it calls submit().
     // NOTE: This may start failing if we ever merge via() and typed_via().
-    return via(schedule(scheduler), just(x)) 
+    return via(scheduler, just(x))
       | transform([&](int x) {
           std::printf("got %i\n", x);
           value += x;

@@ -31,7 +31,7 @@ namespace _via_stream_cpo {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return via(schedule(s), (decltype(sender))sender);
+            return via(s, (decltype(sender))sender);
           },
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
             return typed_via((decltype(sender))sender, s);
@@ -43,7 +43,7 @@ namespace _via_stream_cpo {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return via(schedule(s), (decltype(sender))sender);
+            return via(s, (decltype(sender))sender);
           },
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
             return typed_via((decltype(sender))sender, s);
