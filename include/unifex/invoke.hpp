@@ -35,16 +35,21 @@ namespace _co_invoke {
 inline constexpr struct _fn {
     template (typename Fn, typename... Args)
       (requires tag_invocable<
-        _fn,
-        tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
-        Fn,
-        Args...>)
+          _fn,
+          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
+          Fn,
+          Args...>)
     UNIFEX_ALWAYS_INLINE constexpr auto operator()(Fn&& fn, Args&&... args) const
       noexcept(is_nothrow_tag_invocable_v<
-        _fn,
-        tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
-        Fn,
-        Args...>) {
+          _fn,
+          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
+          Fn,
+          Args...>)
+      -> tag_invoke_result_t<
+          _fn,
+          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
+          Fn,
+          Args...> {
       return tag_invoke(
           *this,
           tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>{},
