@@ -26,7 +26,7 @@ using namespace unifex;
 int main() {
   inline_scheduler scheduler;
   sync_wait_r<void>(
-      via(schedule(scheduler), transform(schedule(scheduler), []() {
+      via(scheduler, transform(schedule(scheduler), []() {
             std::printf("Hello from inline_scheduler");
           })));
   return 0;

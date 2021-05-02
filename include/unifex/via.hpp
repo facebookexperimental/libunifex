@@ -312,14 +312,16 @@ struct _sender<Predecessor, Successor>::type {
 
 namespace _via_cpo {
   inline const struct _fn {
-    template <typename Predecessor, typename Successor>
-    auto operator()(Successor&& succ, Predecessor&& pred) const
-        noexcept(std::is_nothrow_constructible_v<
-            _via::sender<Predecessor, Successor>, Predecessor, Successor>)
-        -> _via::sender<Predecessor, Successor> {
-      return _via::sender<Predecessor, Successor>{
-          (Predecessor &&) pred,
-          (Successor &&) succ};
+    template (typename Scheduler, typename Sender)
+      (requires scheduler<Scheduler> AND sender<Sender>)
+    auto operator()(Scheduler&& sched, Sender&& send) const
+        noexcept(noexcept(
+            _via::sender<Sender, schedule_result_t<Scheduler>>{
+                (Sender&&) send, schedule(sched)}))
+        -> _via::sender<Sender, schedule_result_t<Scheduler>> {
+      return _via::sender<Sender, schedule_result_t<Scheduler>>{
+          (Sender&&) send,
+          schedule(sched)};
     }
   } via{};
 } // namespace _via_cpo
