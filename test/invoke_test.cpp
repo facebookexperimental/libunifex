@@ -13,6 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <unifex/coroutine.hpp>
+
+#if !UNIFEX_NO_COROUTINES
+
 #include <unifex/invoke.hpp>
 #include <unifex/task.hpp>
 #include <unifex/sync_wait.hpp>
@@ -61,3 +66,5 @@ TEST(CoInvoke, WithArgumentsWithByRefCaptures) {
   ASSERT_TRUE(!!result);
   EXPECT_EQ(*result, 100);
 }
+
+#endif // !UNIFEX_NO_COROUTINES
