@@ -220,17 +220,14 @@ Note that `completion` sender must complete with an empty value pack
 if it completes with `set_value`.
 ie. it must be a `void`-value sender.
 
-### `via(Sender successor, Sender predecessor) -> Sender`
+### `via(Scheduler scheduler, Sender sender) -> Sender`
 
-Returns a sender that produces the result from `predecessor` on the
-execution context that `successor` completes on.
+Returns a sender that produces the result from `sender` on the
+execution context associated with `scheduler`.
 
-Any value produced by `successor` is discarded.
-QUESTION: Should we require that `successor` is a `void`-sender?
-
-If `successor` completes with `set_done()` then `set_done()` is sent.
-If `successor` completes with `set_error()` then its error is sent.
-Otherwise sends the result of `predecessor`.
+If the result of `schedule(scheduler)` completes with `set_done()` then
+`set_done()` is sent. If the result of `schedule(scheduler)` completes with
+`set_error()` then its error is sent. Otherwise sends the result of `sender`.
 
 ### `typed_via(Sender source, Scheduler scheduler) -> Sender`
 
