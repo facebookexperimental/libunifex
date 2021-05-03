@@ -19,7 +19,7 @@ include(unifex_flags)
 add_subdirectory(source)
 
 # Don't build tests or examples if this project is not a top-level project
-# and only consumed via add_subdirectory in git submodele fashion
+# and only consumed via add_subdirectory in a git submodule fashion
 if (PROJECT_IS_TOP_LEVEL)
   # We enable testing in both cases, either if doing tests or building examples
   # Note, that examples are also registered as tests by subsequent calls to add_test()
