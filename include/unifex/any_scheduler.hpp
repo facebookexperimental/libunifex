@@ -90,6 +90,25 @@ struct _schedule_and_connect_fn {
     using _rec_ref_t = _void_receiver_ref<CPOs...>;
     using type_erased_signature_t = _any::_operation_state(this_ const&, _rec_ref_t);
 
+#ifdef _MSC_VER
+    // MSVC (_MSC_VER == 1927) doesn't seem to like the requires
+    // clause here. Use SFINAE instead.
+    template <typename Scheduler>
+    std::enable_if_t<
+        is_tag_invocable_v<type, Scheduler const&, _rec_ref_t>,
+        _any::_operation_state>
+    operator()(Scheduler const& sched, _rec_ref_t rec) const {
+      return tag_invoke(*this, sched, (_rec_ref_t&&) rec);
+    }
+
+    template <typename Scheduler>
+    std::enable_if_t<
+        !is_tag_invocable_v<type, Scheduler const&, _rec_ref_t>,
+        _any::_operation_state>
+    operator()(Scheduler const& sched, _rec_ref_t rec) const {
+      return _any::_connect<type_list<CPOs...>>(schedule(sched), (_rec_ref_t&&) rec);
+    }
+#else
     template (typename Scheduler)
       (requires tag_invocable<type, Scheduler const&, _rec_ref_t>)
     _any::_operation_state operator()(Scheduler const& sched, _rec_ref_t rec) const {
@@ -102,6 +121,7 @@ struct _schedule_and_connect_fn {
     _any::_operation_state operator()(Scheduler const& sched, _rec_ref_t rec) const {
       return _any::_connect<type_list<CPOs...>>(schedule(sched), (_rec_ref_t&&) rec);
     }
+#endif
   };
 };
 
