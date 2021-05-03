@@ -21,7 +21,7 @@
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/just_with.hpp>
+#include <unifex/just_from.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -44,7 +44,7 @@ TEST(RepeatEffect, Smoke) {
       repeat_effect(
         sequence(
           schedule_after(scheduler, 50ms), 
-          just_with([&]{ ++count; }))),
+          just_from([&]{ ++count; }))),
       schedule_after(scheduler, 500ms)));
 
   EXPECT_GT(count.load(), 1);
@@ -59,7 +59,7 @@ TEST(RepeatEffect, Pipeable) {
 
   sequence(
     schedule_after(scheduler, 50ms), 
-    just_with([&]{ ++count; }))
+    just_from([&]{ ++count; }))
     | repeat_effect()
     | stop_when(schedule_after(scheduler, 500ms))
     | sync_wait();

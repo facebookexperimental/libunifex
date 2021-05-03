@@ -39,7 +39,7 @@
 #include <unifex/transform_done.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/defer.hpp>
-#include <unifex/just_with.hpp>
+#include <unifex/just_from.hpp>
 
 #include <iostream>
 #include <chrono>
@@ -127,13 +127,13 @@ int main() {
     return
       // write the data to one end of the pipe
       sequence(
-        just_with([&]{ printf("writes starting!\n"); }),
+        just_from([&]{ printf("writes starting!\n"); }),
         defer([&, databuffer] { return discard(async_write_some(wPipeRef, databuffer)); })
           | typed_via(scheduler)
           | repeat_effect()
           | transform_done([]{return just();})
           | with_query_value(get_stop_token, stopToken),
-        just_with([&]{ printf("writes stopped!\n"); }));
+        just_from([&]{ printf("writes stopped!\n"); }));
   };
   auto [rPipe, wPipe] = open_pipe(scheduler);
 
@@ -155,7 +155,7 @@ int main() {
         // this is done to reduce startup effects
         pipe_bench(rPipe, buffer, scheduler, WARMUP_DURATION, data, reps, offset),
         // reset measurements to exclude warmup
-        just_with([&] {
+        just_from([&] {
           // restart reps and keep offset in data
           offset = reps%sizeof(data);
           reps = 0;
@@ -166,7 +166,7 @@ int main() {
         // do more reads and measure how many reads occur
         pipe_bench(rPipe, buffer, scheduler, BENCHMARK_DURATION, data, reps, offset),
         // report results
-        just_with([&] {
+        just_from([&] {
           endTime = std::chrono::high_resolution_clock::now();
           printf("benchmark completed!\n");
           auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(

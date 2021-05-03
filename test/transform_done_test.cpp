@@ -23,7 +23,7 @@
 #include <unifex/transform_done.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/just_with.hpp>
+#include <unifex/just_from.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -47,7 +47,7 @@ TEST(TransformDone, Smoke) {
         transform_done(
           schedule_after(scheduler, 200ms), 
           []{ return just(); }), 
-        just_with([&]{ ++count; })),
+        just_from([&]{ ++count; })),
       schedule_after(scheduler, 100ms)));
 
   EXPECT_EQ(count, 1);
@@ -62,7 +62,7 @@ TEST(TransformDone, StayDone) {
 
   auto op = sequence(
     on(scheduler, just_done() | transform_done([]{ return just(); })),
-    just_with([&]{ ++count; }));
+    just_from([&]{ ++count; }));
   sync_wait(std::move(op));
 
   EXPECT_EQ(count, 1);
@@ -79,7 +79,7 @@ TEST(TransformDone, Pipeable) {
     schedule_after(scheduler, 200ms)
       | transform_done(
           []{ return just(); }), 
-    just_with([&]{ ++count; }))
+    just_from([&]{ ++count; }))
     | stop_when(schedule_after(scheduler, 100ms))
     | sync_wait();
 

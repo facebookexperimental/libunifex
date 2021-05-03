@@ -16,7 +16,7 @@
 
 #include <unifex/async_scope.hpp>
 
-#include <unifex/just.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/let_with.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
@@ -34,7 +34,7 @@ using unifex::async_scope;
 using unifex::connect;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
-using unifex::just;
+using unifex::just_from;
 using unifex::let_with;
 using unifex::schedule;
 using unifex::scope_guard;
@@ -77,7 +77,7 @@ struct async_scope_test : testing::Test {
             return 42;
           },
           [&](auto&) noexcept {
-            return transform(just(), [&]() noexcept {
+            return just_from([&]() noexcept {
               executed = true;
             });
           }));
@@ -92,7 +92,7 @@ struct async_scope_test : testing::Test {
 
     scope.spawn_on(
       thread.get_scheduler(),
-      transform(just(), [&]() noexcept {
+      just_from([&]() noexcept {
         evt.set();
       }));
 
@@ -147,7 +147,7 @@ TEST_F(async_scope_test, work_spawned_in_correct_context) {
   std::thread::id id;
   scope.spawn_on(
       thread.get_scheduler(),
-      transform(just(), [&]{
+      just_from([&]{
         id = std::this_thread::get_id();
         evt.set();
       }));
@@ -201,8 +201,7 @@ TEST_F(async_scope_test, lots_of_threads_works) {
                 [&] { return decr{count, evt3}; },
                 [&](decr&) noexcept {
                   return sequence(
-                      transform(
-                        just(),
+                      just_from(
                         [&]() noexcept {
                           auto prev = count.fetch_add(1, std::memory_order_relaxed);
                           if (prev + 1 == maxCount) {
