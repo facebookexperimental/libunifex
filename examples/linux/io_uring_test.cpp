@@ -29,7 +29,7 @@
 #include <unifex/transform.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/just_with.hpp>
+#include <unifex/just_from.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -136,13 +136,13 @@ int main() {
     }
 
     sync_wait(sequence(
-        just_with([] { std::printf("writing file\n"); }),
+        just_from([] { std::printf("writing file\n"); }),
         write_new_file(scheduler, "test.txt"),
-        just_with([] { std::printf("write completed, waiting 1s\n"); }),
+        just_from([] { std::printf("write completed, waiting 1s\n"); }),
         transform(
             schedule_at(scheduler, now(scheduler) + 1s),
             []() { std::printf("timer 1 completed (1s)\n"); }),
-        just_with([] { std::printf("reading file concurrently\n"); }),
+        just_from([] { std::printf("reading file concurrently\n"); }),
         when_all(
             read_file(scheduler, "test.txt"),
             read_file(scheduler, "test.txt"))));

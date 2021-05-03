@@ -19,7 +19,7 @@
 #include <unifex/async_manual_reset_event.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
-#include <unifex/just.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -164,12 +164,12 @@ public:
       "Please annotate your callable with noexcept.");
     spawn_on(
       (Scheduler&&) scheduler,
-      transform(just(), (Fun&&) fun));
+      just_from((Fun&&) fun));
   }
 
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
-        transform(just(), [this]() noexcept {
+        just_from([this]() noexcept {
           request_stop();
         }),
         transform(evt_.async_wait(), [this]() noexcept {

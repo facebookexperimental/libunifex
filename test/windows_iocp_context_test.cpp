@@ -33,7 +33,7 @@
 #include <unifex/finally.hpp>
 #include <unifex/on.hpp>
 #include <unifex/defer.hpp>
-#include <unifex/just_with.hpp>
+#include <unifex/just_from.hpp>
 
 #include <chrono>
 #include <thread>
@@ -168,7 +168,7 @@ auto measure_time(Sender&& sender, std::string tag = {}) {
         [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& startTime) {
             return unifex::finally(
                 std::move(sender),
-                unifex::just_with([&]() noexcept {
+                unifex::just_from([&]() noexcept {
                     auto dur = steady_clock::now() - startTime;
                     auto durUs = duration_cast<microseconds>(dur).count();
                     std::printf("[%s] took %ius\n", tag.c_str(), (int)durUs);

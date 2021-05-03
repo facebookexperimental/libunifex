@@ -157,7 +157,7 @@ Returns a sender that completes synchronously by calling `set_done()`.
 
 Returns a sender that completes synchronously by calling `set_error()` with `e`.
 
-### `just_with(callable)`
+### `just_from(callable)`
 
 Returns a sender that completes synchronously by calling `set_value()` with
 the result of invoking the callable with no arguments. If the callable returns
@@ -167,7 +167,7 @@ and then calling `set_value()` with no arguments.
 If the invocation of the callable exits with an exception, the exception is
 caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
-`just_with(callable)` is synonymous with `transform(just(), callable)`.
+`just_from(callable)` is synonymous with `transform(just(), callable)`.
 
 ### `stop_if_requested()`
 
@@ -1046,10 +1046,7 @@ namespace unifex
     // Implemented as spawn(on(scheduler, sender)).
     void spawn_on(scheduler, sender);
 
-    // Implemented as spawn(transform(just(), invocable)).
-    void spawn_call(invocable);
-
-    // Implemented as spawn_on(scheduler, transform(just(), invocable)).
+    // Implemented as spawn_on(scheduler, just_from(invocable)).
     void spawn_call_on(scheduler, invocable);
   };
 }
