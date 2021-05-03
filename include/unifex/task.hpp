@@ -73,7 +73,7 @@ coro::coroutine_handle<> forward_unhandled_done_callback(void* p) noexcept {
 
 template <typename T>
 struct _task {
-  struct type;
+  struct [[nodiscard]] type;
 };
 
 struct _promise_base {
