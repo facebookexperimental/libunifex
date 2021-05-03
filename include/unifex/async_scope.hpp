@@ -19,7 +19,7 @@
 #include <unifex/async_manual_reset_event.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
-#include <unifex/just.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -101,9 +101,9 @@ struct _receiver<Sender>::type final : _receiver_base {
 
 struct async_scope {
 private:
-  template <typename Sender, typename Scheduler>
+  template <typename Scheduler, typename Sender>
   using _on_result_t =
-    decltype(on(UNIFEX_DECLVAL(Sender&&), UNIFEX_DECLVAL(Scheduler&&)));
+    decltype(on(UNIFEX_DECLVAL(Scheduler&&), UNIFEX_DECLVAL(Sender&&)));
 
 public:
   async_scope() noexcept = default;
@@ -124,7 +124,7 @@ public:
     // this could throw; if it does, the only clean-up we need is to
     // deallocate the manual_lifetime, which is handled by opToStart's
     // destructor so we're good
-    opToStart->construct_from([&] {
+    opToStart->construct_with([&] {
       return connect(
           (Sender&&) sender,
           receiver<Sender>{stopSource_.get_token(), opToStart.get(), this});
@@ -150,15 +150,26 @@ public:
   template (typename Sender, typename Scheduler)
     (requires scheduler<Scheduler> AND
      sender_to<
-        _on_result_t<Sender, Scheduler>,
-        receiver<_on_result_t<Sender, Scheduler>>>)
-  void spawn_on(Sender&& sender, Scheduler&& scheduler) {
-    spawn(on((Sender&&) sender, (Scheduler&&) scheduler));
+        _on_result_t<Scheduler, Sender>,
+        receiver<_on_result_t<Scheduler, Sender>>>)
+  void spawn_on(Scheduler&& scheduler, Sender&& sender) {
+    spawn(on((Scheduler&&) scheduler, (Sender&&) sender));
+  }
+
+  template (typename Scheduler, typename Fun)
+    (requires scheduler<Scheduler> AND callable<Fun>)
+  void spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
+    static_assert(
+      is_nothrow_callable_v<Fun>,
+      "Please annotate your callable with noexcept.");
+    spawn_on(
+      (Scheduler&&) scheduler,
+      just_from((Fun&&) fun));
   }
 
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
-        transform(just(), [this]() noexcept {
+        just_from([this]() noexcept {
           request_stop();
         }),
         transform(evt_.async_wait(), [this]() noexcept {

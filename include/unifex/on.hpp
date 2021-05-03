@@ -29,35 +29,27 @@
 namespace unifex {
 namespace _on {
   inline const struct _fn {
-    template(typename Sender, typename Scheduler)
+    template(typename Scheduler, typename Sender)
         (requires sender<Sender> AND scheduler<Scheduler> AND //
           tag_invocable<_fn, Sender, Scheduler>)
-    auto operator()(Sender&& sender, Scheduler&& scheduler) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>)
-        -> tag_invoke_result_t<_fn, Sender, Scheduler> {
+    auto operator()(Scheduler&& scheduler, Sender&& sender) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler, Sender>)
+        -> tag_invoke_result_t<_fn, Scheduler, Sender> {
       return unifex::tag_invoke(
-          _fn{}, (Sender &&) sender, (Scheduler &&) scheduler);
+          _fn{}, (Scheduler &&) scheduler, (Sender &&) sender);
     }
 
-    template(typename Sender, typename Scheduler)
+    template(typename Scheduler, typename Sender)
         (requires sender<Sender> AND scheduler<Scheduler> AND //
-          (!tag_invocable<_fn, Sender, Scheduler>))
-    auto operator()(Sender&& sender, Scheduler&& scheduler) const {
-      auto sndr = schedule(scheduler);
+          (!tag_invocable<_fn, Scheduler, Sender>))
+    auto operator()(Scheduler&& scheduler, Sender&& sender) const {
+      auto scheduleSender = schedule(scheduler);
       return sequence(
-        std::move(sndr),
+        std::move(scheduleSender),
         with_query_value(
-          (Sender&&)sender,
+          (Sender&&) sender,
           get_scheduler,
-          (Scheduler&&)scheduler));
-    }
-    template(typename Scheduler)
-        (requires scheduler<Scheduler>)
-    constexpr auto operator()(Scheduler&& scheduler) const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn, Scheduler>)
-        -> bind_back_result_t<_fn, Scheduler> {
-      return bind_back(*this, (Scheduler&&)scheduler);
+          (Scheduler&&) scheduler));
     }
   } on{};
 } // namespace _on

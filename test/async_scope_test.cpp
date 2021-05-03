@@ -16,7 +16,7 @@
 
 #include <unifex/async_scope.hpp>
 
-#include <unifex/just.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/let_with.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
@@ -34,7 +34,7 @@ using unifex::async_scope;
 using unifex::connect;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
-using unifex::just;
+using unifex::just_from;
 using unifex::let_with;
 using unifex::schedule;
 using unifex::scope_guard;
@@ -70,17 +70,17 @@ struct async_scope_test : testing::Test {
     bool executed = false;
 
     scope.spawn_on(
+        thread.get_scheduler(),
         let_with(
           [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
             executed = true;
             return 42;
           },
           [&](auto&) noexcept {
-            return transform(just(), [&]() noexcept {
+            return just_from([&]() noexcept {
               executed = true;
             });
-          }),
-        thread.get_scheduler());
+          }));
 
     sync_wait(destroyed.async_wait());
 
@@ -90,9 +90,22 @@ struct async_scope_test : testing::Test {
   void expect_work_to_run() {
     async_manual_reset_event evt;
 
-    scope.spawn_on(transform(just(), [&]() noexcept {
-      evt.set();
-    }), thread.get_scheduler());
+    scope.spawn_on(
+      thread.get_scheduler(),
+      just_from([&]() noexcept {
+        evt.set();
+      }));
+
+    // we'll hang here if the above work doesn't start
+    sync_wait(evt.async_wait());
+  }
+
+  void expect_work_to_run_call_on() {
+    async_manual_reset_event evt;
+
+    scope.spawn_call_on(
+      thread.get_scheduler(),
+      [&]() noexcept { evt.set(); });
 
     // we'll hang here if the above work doesn't start
     sync_wait(evt.async_wait());
@@ -115,6 +128,12 @@ TEST_F(async_scope_test, spawning_work_makes_it_run) {
   sync_wait(scope.cleanup());
 }
 
+TEST_F(async_scope_test, spawning_work_makes_it_run_with_lambda) {
+  expect_work_to_run_call_on();
+
+  sync_wait(scope.cleanup());
+}
+
 TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
   auto cleanup = scope.cleanup();
 
@@ -127,11 +146,11 @@ TEST_F(async_scope_test, work_spawned_in_correct_context) {
   async_manual_reset_event evt;
   std::thread::id id;
   scope.spawn_on(
-      transform(just(), [&]{
+      thread.get_scheduler(),
+      just_from([&]{
         id = std::this_thread::get_id();
         evt.set();
-      }),
-      thread.get_scheduler());
+      }));
   sync_wait(evt.async_wait());
   sync_wait(scope.cleanup());
   EXPECT_EQ(id, thread.get_thread_id());
@@ -171,20 +190,27 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     // expected to be zero once everything's done.
     //
     // This should stress-test job submission and cancellation.
-    scope.spawn_on(transform(evt1.async_wait(), [&]() noexcept {
-      scope.spawn_on(
-          let_with([&] { return decr{count, evt3}; }, [&](decr&) noexcept {
-            return sequence(
-                transform(just(), [&]() noexcept {
-                  auto prev = count.fetch_add(1, std::memory_order_relaxed);
-                  if (prev + 1 == maxCount) {
-                    evt2.set();
-                  }
-                }),
-                evt3.async_wait());
-          }),
-          thread.get_scheduler());
-    }), thread.get_scheduler());
+    scope.spawn_on(
+      thread.get_scheduler(),
+      transform(
+        evt1.async_wait(),
+        [&]() noexcept {
+          scope.spawn_on(
+              thread.get_scheduler(),
+              let_with(
+                [&] { return decr{count, evt3}; },
+                [&](decr&) noexcept {
+                  return sequence(
+                      just_from(
+                        [&]() noexcept {
+                          auto prev = count.fetch_add(1, std::memory_order_relaxed);
+                          if (prev + 1 == maxCount) {
+                            evt2.set();
+                          }
+                        }),
+                      evt3.async_wait());
+                }));
+            }));
   }
 
   // launch the race to spawn work

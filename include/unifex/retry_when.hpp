@@ -78,14 +78,14 @@ public:
     using source_receiver_t = source_receiver<Source, Func, Receiver>;
 
     if constexpr (is_nothrow_connectable_v<Source&, source_receiver_t>) {
-      auto& sourceOp = unifex::activate_union_member_from(op->sourceOp_, [&]() noexcept {
+      auto& sourceOp = unifex::activate_union_member_with(op->sourceOp_, [&]() noexcept {
           return unifex::connect(op->source_, source_receiver_t{op});
         });
       op->isSourceOpConstructed_ = true;
       unifex::start(sourceOp);
     } else {
       UNIFEX_TRY {
-        auto& sourceOp = unifex::activate_union_member_from(op->sourceOp_, [&] {
+        auto& sourceOp = unifex::activate_union_member_with(op->sourceOp_, [&] {
             return unifex::connect(op->source_, source_receiver_t{op});
           });
         op->isSourceOpConstructed_ = true;
@@ -193,7 +193,7 @@ public:
 
     if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
-      auto& triggerOp = unifex::activate_union_member_from<trigger_op_t>(
+      auto& triggerOp = unifex::activate_union_member_with<trigger_op_t>(
         op->triggerOps_,
         [&]() noexcept {
           return unifex::connect(
@@ -202,7 +202,7 @@ public:
       unifex::start(triggerOp);
     } else {
       UNIFEX_TRY {
-        auto& triggerOp = unifex::activate_union_member_from<trigger_op_t>(
+        auto& triggerOp = unifex::activate_union_member_with<trigger_op_t>(
           op->triggerOps_,
             [&]() {
               return unifex::connect(
@@ -257,7 +257,7 @@ public:
   : source_((Source2&&)source)
   , func_((Func2&&)func)
   , receiver_((Receiver&&)receiver) {
-    unifex::activate_union_member_from(sourceOp_, [&] {
+    unifex::activate_union_member_with(sourceOp_, [&] {
         return unifex::connect(source_, source_receiver_t{this});
       });
   }

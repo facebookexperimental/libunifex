@@ -36,6 +36,7 @@ TEST(StopWhen, SourceCompletesFirst) {
     
     std::optional<int> result = unifex::sync_wait(
         unifex::on(
+            ctx.get_scheduler(),
             unifex::stop_when(
                 unifex::transform(
                     unifex::schedule_after(10ms),
@@ -45,8 +46,7 @@ TEST(StopWhen, SourceCompletesFirst) {
                     }),
                 unifex::transform(
                     unifex::schedule_after(1s),
-                    [&] { triggerExecuted = true; })),
-            ctx.get_scheduler()));
+                    [&] { triggerExecuted = true; }))));
 
     EXPECT_TRUE(result.has_value());
     EXPECT_EQ(42, result.value());
@@ -65,6 +65,7 @@ TEST(StopWhen, TriggerCompletesFirst) {
     
     std::optional<int> result = unifex::sync_wait(
         unifex::on(
+            ctx.get_scheduler(),
             unifex::stop_when(
                 unifex::transform(
                     unifex::schedule_after(1s),
@@ -74,8 +75,7 @@ TEST(StopWhen, TriggerCompletesFirst) {
                     }),
                 unifex::transform(
                     unifex::schedule_after(10ms),
-                    [&] { triggerExecuted = true; })),
-            ctx.get_scheduler()));
+                    [&] { triggerExecuted = true; }))));
 
     EXPECT_FALSE(result.has_value());
     EXPECT_FALSE(sourceExecuted);
@@ -92,6 +92,7 @@ TEST(StopWhen, CancelledFromParent) {
     
     std::optional<int> result = unifex::sync_wait(
         unifex::on(
+            ctx.get_scheduler(),
             unifex::stop_when(
                 unifex::stop_when(
                     unifex::transform(
@@ -105,8 +106,7 @@ TEST(StopWhen, CancelledFromParent) {
                         [&] {
                             triggerExecuted = true;
                         })),
-                unifex::schedule_after(10ms)),
-            ctx.get_scheduler()));
+                unifex::schedule_after(10ms))));
 
     EXPECT_FALSE(result.has_value());
     EXPECT_FALSE(sourceExecuted);
@@ -121,7 +121,7 @@ TEST(StopWhen, Pipeable) {
     bool sourceExecuted = false;
     bool triggerExecuted = false;
     
-    std::optional<int> result = unifex::schedule_after(1s)
+    auto op = unifex::schedule_after(1s)
       | unifex::transform(
         [&] {
             sourceExecuted = true;
@@ -130,9 +130,9 @@ TEST(StopWhen, Pipeable) {
       | unifex::stop_when(
           unifex::schedule_after(10ms)
             | unifex::transform(
-              [&] { triggerExecuted = true; }))
-      | unifex::on(ctx.get_scheduler())
-      | unifex::sync_wait();
+              [&] { triggerExecuted = true; }));
+    std::optional<int> result =
+        unifex::sync_wait(unifex::on(ctx.get_scheduler(), std::move(op)));
 
     EXPECT_FALSE(result.has_value());
     EXPECT_FALSE(sourceExecuted);

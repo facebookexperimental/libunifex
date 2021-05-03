@@ -336,7 +336,7 @@ void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
     auto find_if_implementation_sender = find_if_helper{std::move(func_)}(
         std::move(sched), funcPolicy_, begin_it, end_it, (Values&&) values...);
     // Store nested operation state inside find_if's operation state
-    operation_state_.innerOp_.construct_from([&]() mutable {
+    operation_state_.innerOp_.construct_with([&]() mutable {
       return unifex::connect(std::move(find_if_implementation_sender), std::move(unpack));
     });
 

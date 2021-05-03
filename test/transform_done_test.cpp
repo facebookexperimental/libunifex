@@ -23,6 +23,7 @@
 #include <unifex/transform_done.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
+#include <unifex/just_from.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -32,13 +33,6 @@
 using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
-
-namespace {
-template <typename F>
-auto lazy(F&& f) {
-  return transform(just(), (F &&) f);
-}
-} // anonymous namespace
 
 TEST(TransformDone, Smoke) {
   timed_single_thread_context context;
@@ -53,7 +47,7 @@ TEST(TransformDone, Smoke) {
         transform_done(
           schedule_after(scheduler, 200ms), 
           []{ return just(); }), 
-        lazy([&]{ ++count; })),
+        just_from([&]{ ++count; })),
       schedule_after(scheduler, 100ms)));
 
   EXPECT_EQ(count, 1);
@@ -66,13 +60,10 @@ TEST(TransformDone, StayDone) {
 
   int count = 0;
 
-  sequence(
-    just_done()
-      | transform_done(
-          []{ return just(); }) 
-      | on(scheduler),
-    lazy([&]{ ++count; }))
-    | sync_wait();
+  auto op = sequence(
+    on(scheduler, just_done() | transform_done([]{ return just(); })),
+    just_from([&]{ ++count; }));
+  sync_wait(std::move(op));
 
   EXPECT_EQ(count, 1);
 }
@@ -88,7 +79,7 @@ TEST(TransformDone, Pipeable) {
     schedule_after(scheduler, 200ms)
       | transform_done(
           []{ return just(); }), 
-    lazy([&]{ ++count; }))
+    just_from([&]{ ++count; }))
     | stop_when(schedule_after(scheduler, 100ms))
     | sync_wait();
 

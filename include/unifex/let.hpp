@@ -136,7 +136,7 @@ struct _predecessor_receiver<Operation>::type {
         op.values_.template destruct<decayed_tuple<Values...>>();
       };
       auto& succOp =
-          unifex::activate_union_member_from<successor_operation<Values...>>(
+          unifex::activate_union_member_with<successor_operation<Values...>>(
             op.succOp_,
             [&] {
               return unifex::connect(
@@ -214,7 +214,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
       Receiver2&& receiver)
       : func_((SuccessorFactory2 &&) func),
         receiver_((Receiver2 &&) receiver) {
-    unifex::activate_union_member_from(predOp_, [&] {
+    unifex::activate_union_member_with(predOp_, [&] {
       return unifex::connect(
           (Predecessor &&) pred, predecessor_receiver<operation>{*this});
     });
