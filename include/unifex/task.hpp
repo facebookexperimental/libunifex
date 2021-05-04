@@ -27,6 +27,7 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/invoke.hpp>
+#include <unifex/at_coroutine_exit.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -102,6 +103,11 @@ struct _promise_base {
 
   friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const _promise_base& p) noexcept {
     return p.stoken_;
+  }
+
+  friend coro::coroutine_handle<> tag_invoke(
+    tag_t<run_at_coroutine_exit>, _promise_base& p, coro::coroutine_handle<> action) noexcept {
+    return std::exchange(p.continuation_, action);
   }
 
   using done_callback = coro::coroutine_handle<>(void*) noexcept;
