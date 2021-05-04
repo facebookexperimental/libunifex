@@ -28,6 +28,24 @@
 
 namespace unifex {
 
+// Forward-declaration for any_scheduler, defined in
+// <any_scheduler.hpp>
+namespace _any_sched {
+
+template <typename... CPOs>
+struct _with {
+  struct any_scheduler;
+  struct any_scheduler_ref;
+};
+
+template <typename... CPOs>
+using any_scheduler = typename _with<CPOs...>::any_scheduler;
+
+template <typename... CPOs>
+using any_scheduler_ref = typename _with<CPOs...>::any_scheduler_ref;
+
+} // _any_sched
+
 namespace _any {
 
 using _operation_state =
@@ -138,6 +156,9 @@ struct _op_for {
 };
 
 template <typename Receiver>
+using _operation_state_for = typename _op_for<Receiver>::type;
+
+template <typename Receiver>
 struct _op_for<Receiver>::type {
   template <typename Fn>
   explicit type(Receiver r, Fn fn)
@@ -177,8 +198,13 @@ struct _op_for<Receiver>::type {
 template <typename CPOs, typename... Values>
 using _sender_base = any_unique_t<_connect<CPOs, Values...>>;
 
+template <typename... Values>
+struct _sender {
+  struct type;
+};
+
 template <typename... CPOs>
-struct _with_receiver_queries {
+struct _with {
   template <typename... Values>
   struct _sender {
     struct type;
@@ -187,15 +213,17 @@ struct _with_receiver_queries {
   template <typename... Values>
   using any_sender_of = typename _sender<Values...>::type;
 
+  using any_scheduler = _any_sched::any_scheduler<CPOs...>;
+
+  using any_scheduler_ref = _any_sched::any_scheduler_ref<CPOs...>;
+
   template <typename... Values>
   using any_receiver_ref = _receiver_ref<type_list<CPOs...>, Values...>;
-
-  using any_scheduler = any_unique_t<overload<any_sender_of<>(const this_&)>(schedule)>;
 };
 
 template <typename... CPOs>
 template <typename... Values>
-struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
+struct _with<CPOs...>::_sender<Values...>::type
     : private _sender_base<type_list<CPOs...>, Values...> {
   template <template <class...> class Variant, template <class...> class Tuple>
   using value_types = Variant<Tuple<Values...>>;
@@ -208,9 +236,9 @@ struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
   template (typename Receiver)
     (requires receiver_of<Receiver, Values...> AND
       (invocable<CPOs, Receiver const&> &&...))
-  typename _op_for<Receiver>::type connect(Receiver r) && {
+  _operation_state_for<Receiver> connect(Receiver r) && {
     any_unique_t<_connect<type_list<CPOs...>, Values...>>& self = *this;
-    return typename _op_for<Receiver>::type{
+    return _operation_state_for<Receiver>{
         std::move(r),
         [&self](_receiver_ref<type_list<CPOs...>, Values...> rec) {
           return _connect<type_list<CPOs...>, Values...>(std::move(self), std::move(rec));
@@ -224,19 +252,14 @@ struct _with_receiver_queries<CPOs...>::_sender<Values...>::type
 };
 
 template <typename... Values>
-struct _sender {
-  struct type;
-};
-
-template <typename... Values>
-struct _sender<Values...>::type : _with_receiver_queries<>::_sender<Values...>::type {
-  using _with_receiver_queries<>::_sender<Values...>::type::type;
+struct _sender<Values...>::type : _with<>::_sender<Values...>::type {
+  using _with<>::_sender<Values...>::type::type;
 };
 
 } // namespace _any
 
 template <typename Receiver>
-using any_operation_state_for = typename _any::_op_for<Receiver>::type;
+using any_operation_state_for = _any::_operation_state_for<Receiver>;
 
 template <typename... Values>
 using any_sender_of = typename _any::_sender<Values...>::type;
@@ -244,11 +267,8 @@ using any_sender_of = typename _any::_sender<Values...>::type;
 template <typename... Values>
 using any_receiver_ref = _any::_receiver_ref<type_list<>, Values...>;
 
-using any_scheduler =
-    any_unique_t<overload<any_sender_of<>(const this_&)>(schedule)>;
-
 template <auto&... CPOs>
-using with_receiver_queries = _any::_with_receiver_queries<tag_t<CPOs>...>;
+using with_receiver_queries = _any::_with<tag_t<CPOs>...>;
 
 } // namespace unifex
 
