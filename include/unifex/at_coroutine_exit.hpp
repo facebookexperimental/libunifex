@@ -61,6 +61,7 @@ struct [[nodiscard]] _cleanup_task {
     bool await_ready() const noexcept {
       return false;
     }
+    UNIFEX_NO_INLINE
     coro::coroutine_handle<> await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
       //printfl("%s", "_cleanup_task::final_suspend::await_suspend");
       auto continuation = h.promise().continuation_;
@@ -117,7 +118,7 @@ struct [[nodiscard]] _cleanup_task {
     return false;
   }
   template <typename Promise>
-  bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
+  UNIFEX_NO_INLINE bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
     //printfl("%s", "_cleanup_task::await_suspend");
     coro_.promise().continuation_ = run_at_coroutine_exit(parent.promise(), coro_);
     return false;
