@@ -54,6 +54,8 @@ inline constexpr struct _fn {
 } // _run_at_coroutine_exit
 using _run_at_coroutine_exit::run_at_coroutine_exit;
 
+template <unsigned> struct undef;
+
 template <typename... Ts>
 struct [[nodiscard]] _cleanup_task {
   struct promise_type;
@@ -62,14 +64,15 @@ struct [[nodiscard]] _cleanup_task {
     bool await_ready() const noexcept {
       return false;
     }
-#if 1 //defined(__clang__) && \
-    ((!defined(__apple_build_version__) && __clang_major__ < 12) || \
-       defined(__apple_build_version__) && __apple_build_version__ < 12000032)
-//#if defined(__apple_build_version__) || __clang_major__ < 11)
+#if (defined(__clang__) && (defined(__apple_build_version__) || __clang_major__ < 12)) || \
+    defined(_MSC_VER)
+#if defined(_MSC_VER) 
+    UNIFEX_ALWAYS_INLINE
+#elif defined(__apple_build_version__) || __clang_major__ < 11
     UNIFEX_NO_INLINE
-// #else
-//     UNIFEX_ALWAYS_INLINE
-// #endif
+#else
+    UNIFEX_ALWAYS_INLINE
+#endif
     bool await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
       // printfl("%s", "_cleanup_task::final_suspend::await_suspend");
       auto continuation = h.promise().continuation_;
