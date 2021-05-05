@@ -64,14 +64,18 @@ struct [[nodiscard]] _cleanup_task {
     bool await_ready() const noexcept {
       return false;
     }
+// Clang before clang-12 has a bug with coroutines that self-destruct in an
+// await_suspend that uses symmetric transfer. It appears that MSVC has the same
+// bug. So instead of symmetric transfer, we accept the stack growth and resume
+// the continuation from within await_suspend.
 #if (defined(__clang__) && (defined(__apple_build_version__) || __clang_major__ < 12)) || \
     defined(_MSC_VER)
-#if defined(_MSC_VER) 
+// Apple-clang and clang-10 and prior need for await_suspend to be noinline.
+// MSVC and clang-11 can tolerate await_suspend to be inlined, so force it.
+#if defined(_MSC_VER) || !(defined(__apple_build_version__) || __clang_major__ < 11)
     UNIFEX_ALWAYS_INLINE
-#elif defined(__apple_build_version__) || __clang_major__ < 11
-    UNIFEX_NO_INLINE
 #else
-    UNIFEX_ALWAYS_INLINE
+    UNIFEX_NO_INLINE
 #endif
     bool await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
       // printfl("%s", "_cleanup_task::final_suspend::await_suspend");
@@ -81,6 +85,7 @@ struct [[nodiscard]] _cleanup_task {
       return true;
     }
 #else
+    // No bugs here! OK to use symmetric transfer.
     coro::coroutine_handle<> await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
       //printfl("%s", "_cleanup_task::final_suspend::await_suspend");
       auto continuation = h.promise().continuation_;
