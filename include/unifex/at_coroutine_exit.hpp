@@ -45,6 +45,7 @@ namespace _run_at_coroutine_exit {
 inline constexpr struct _fn {
   template (typename Promise)
     (requires tag_invocable<_fn, Promise&, coro::coroutine_handle<>>)
+  UNIFEX_ALWAYS_INLINE
   coro::coroutine_handle<> operator()(
       Promise& promise, coro::coroutine_handle<> action) const noexcept {
     return tag_invoke(*this, promise, (coro::coroutine_handle<>&&) action);
@@ -61,13 +62,29 @@ struct [[nodiscard]] _cleanup_task {
     bool await_ready() const noexcept {
       return false;
     }
+#if defined(__clang__) && \
+    ((!defined(__apple_build_version__) && __clang_major__ < 12) || \
+       defined(__apple_build_version__) && __apple_build_version__ < 12000032)
+#if defined(__apple_build_version__) || __clang_major__ < 11)
     UNIFEX_NO_INLINE
+#else
+    UNIFEX_ALWAYS_INLINE
+#endif
+    bool await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
+      // printfl("%s", "_cleanup_task::final_suspend::await_suspend");
+      auto continuation = h.promise().continuation_;
+      h.destroy();
+      continuation.resume();
+      return true;
+    }
+#else
     coro::coroutine_handle<> await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
       //printfl("%s", "_cleanup_task::final_suspend::await_suspend");
       auto continuation = h.promise().continuation_;
       h.destroy();
       return continuation;
     }
+#endif
     void await_resume() const noexcept {
     }
   };
@@ -108,9 +125,9 @@ struct [[nodiscard]] _cleanup_task {
   _cleanup_task(coro::coroutine_handle<promise_type> coro) noexcept
     : coro_(coro) {}
   _cleanup_task(_cleanup_task&& that) noexcept
-    : coro_(std::exchange(that.coro_, {})) {} 
+    : coro_(std::exchange(that.coro_, {})) {}
   ~_cleanup_task() {
-    assert(coro_ == nullptr);
+    UNIFEX_ASSERT(coro_ == nullptr);
   }
 
   bool await_ready() const noexcept {
@@ -118,7 +135,7 @@ struct [[nodiscard]] _cleanup_task {
     return false;
   }
   template <typename Promise>
-  UNIFEX_NO_INLINE bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
+  bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
     //printfl("%s", "_cleanup_task::await_suspend");
     coro_.promise().continuation_ = run_at_coroutine_exit(parent.promise(), coro_);
     return false;
