@@ -26,7 +26,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
-#include <unifex/invoke.hpp>
+#include <unifex/async_invoke.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -259,7 +259,7 @@ struct _task<T>::type {
 
   template <typename Fn, typename... Args>
   friend type tag_invoke(
-      tag_t<co_invoke>, tag<type, Fn, Args...>, Fn fn, Args... args) {
+      tag_t<async_invoke>, type_identity<type>, Fn fn, Args... args) {
     co_return co_await std::invoke((Fn&&) fn, (Args&&) args...);
   }
 
