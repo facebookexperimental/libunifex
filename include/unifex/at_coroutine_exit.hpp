@@ -28,133 +28,211 @@
 
 #include <unifex/detail/prologue.hpp>
 
-// // BUGBUG
-// #include <cstdio>
-// void printfl(char const *format, ...) {
-//   va_list va;
-//   va_start(va, format);
-//   std::vprintf(format, va);
-//   va_end(va);
-//   std::putc('\n', stdout);
-//   std::fflush(stdout);
-// }
-
 namespace unifex {
 
-namespace _run_at_coroutine_exit {
+struct _cleanup_promise_base;
+
+namespace _cont {
+// BUGBUG merge this with continuation_info
+struct continuation {
+private:
+  [[noreturn]] static coro::coroutine_handle<> default_done_callback(void*) noexcept {
+    std::terminate();
+  }
+
+  template <typename Promise>
+  static coro::coroutine_handle<> forward_unhandled_done_callback(void* p) noexcept {
+    return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
+  }
+
+  using done_callback_t = coro::coroutine_handle<>(*)(void*) noexcept;
+
+  coro::coroutine_handle<> handle_{};
+  done_callback_t doneCallback_ = &default_done_callback;
+  bool isUnhandledDone_{false};
+
+public:
+  continuation() = default;
+
+  template (typename Promise)
+    (requires (!same_as<Promise, void>))
+  /*implicit*/ continuation(coro::coroutine_handle<Promise> continuation) noexcept
+    : handle_((coro::coroutine_handle<Promise>&&) continuation)
+    , doneCallback_(&forward_unhandled_done_callback<Promise>)
+  {}
+
+  explicit operator bool() const noexcept {
+    return handle_ != nullptr;
+  }
+
+  coro::coroutine_handle<> handle() const noexcept {
+    return handle_;
+  }
+
+  void resume() {
+    handle_.resume();
+  }
+
+  template <typename Promise>
+  Promise& promise() const noexcept {
+    return coro::coroutine_handle<Promise>::from_address(
+        handle_.address()).promise();
+  }
+
+  void set_unhandled_done() noexcept {
+    isUnhandledDone_ = true;
+  }
+
+  bool get_unhandled_done() const noexcept {
+    return isUnhandledDone_;
+  }
+
+  coro::coroutine_handle<> done() const noexcept {
+    return doneCallback_(handle_.address());
+  }
+
+  coro::coroutine_handle<> next() const noexcept {
+    return isUnhandledDone_ ? done() : handle();
+  }
+};
+} // namespace _cont
+using _cont::continuation;
+
+namespace _xchg_cont {
 inline constexpr struct _fn {
   template (typename Promise)
-    (requires tag_invocable<_fn, Promise&, coro::coroutine_handle<>>)
+    (requires tag_invocable<_fn, Promise&, continuation>)
   UNIFEX_ALWAYS_INLINE
-  coro::coroutine_handle<> operator()(
-      Promise& promise, coro::coroutine_handle<> action) const noexcept {
-    return tag_invoke(*this, promise, (coro::coroutine_handle<>&&) action);
+  continuation operator()(Promise& promise, continuation action) const noexcept {
+    return tag_invoke(*this, promise, (continuation&&) action);
   }
-} run_at_coroutine_exit {};
-} // _run_at_coroutine_exit
-using _run_at_coroutine_exit::run_at_coroutine_exit;
+} exchange_continuation {};
+} // _xchg_cont
+using _xchg_cont::exchange_continuation;
 
-template <unsigned> struct undef;
-
-template <typename... Ts>
-struct [[nodiscard]] _cleanup_task {
-  struct promise_type;
-
+struct _cleanup_promise_base {
   struct final_awaitable {
     bool await_ready() const noexcept {
       return false;
     }
-// Clang before clang-12 has a bug with coroutines that self-destruct in an
-// await_suspend that uses symmetric transfer. It appears that MSVC has the same
-// bug. So instead of symmetric transfer, we accept the stack growth and resume
-// the continuation from within await_suspend.
+
+    // Clang before clang-12 has a bug with coroutines that self-destruct in an
+    // await_suspend that uses symmetric transfer. It appears that MSVC has the same
+    // bug. So instead of symmetric transfer, we accept the stack growth and resume
+    // the continuation from within await_suspend.
 #if (defined(__clang__) && (defined(__apple_build_version__) || __clang_major__ < 12)) || \
     defined(_MSC_VER)
-// Apple-clang and clang-10 and prior need for await_suspend to be noinline.
-// MSVC and clang-11 can tolerate await_suspend to be inlined, so force it.
+    template <typename CleanupPromise>
+    // Apple-clang and clang-10 and prior need for await_suspend to be noinline.
+    // MSVC and clang-11 can tolerate await_suspend to be inlined, so force it.
 #if defined(_MSC_VER) || !(defined(__apple_build_version__) || __clang_major__ < 11)
     UNIFEX_ALWAYS_INLINE
 #else
     UNIFEX_NO_INLINE
 #endif
-    bool await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
-      // printfl("%s", "_cleanup_task::final_suspend::await_suspend");
-      auto continuation = h.promise().continuation_;
+    bool await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
+      auto continuation = h.promise().continuation_.next();
       h.destroy();
       continuation.resume();
       return true;
     }
 #else
     // No bugs here! OK to use symmetric transfer.
-    coro::coroutine_handle<> await_suspend(coro::coroutine_handle<promise_type> h) const noexcept {
-      //printfl("%s", "_cleanup_task::final_suspend::await_suspend");
-      auto continuation = h.promise().continuation_;
-      h.destroy();
+    template <typename CleanupPromise>
+    coro::coroutine_handle<> await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
+      auto continuation = h.promise().continuation_.next();
+      h.destroy(); // The cleanup action has finished executing. Destroy it.
       return continuation;
     }
 #endif
+
     void await_resume() const noexcept {
     }
   };
 
-  struct promise_type {
-    template <typename Action>
-    promise_type(Action&&, Ts&... ts) noexcept
-      : args_(ts...) {}
-    _cleanup_task get_return_object() noexcept {
-      return _cleanup_task(coro::coroutine_handle<promise_type>::from_promise(*this));
-    }
-    coro::suspend_always initial_suspend() noexcept {
-      return {};
-    }
-    final_awaitable final_suspend() noexcept {
-      return {};
-    }
-    [[noreturn]] void unhandled_exception() noexcept {
-      std::terminate();
-    }
-    // BUGBUG TODO
-    [[noreturn]] coro::coroutine_handle<> unhandled_done() noexcept {
-      std::terminate();
-    }
-    void return_void() noexcept {
-    }
-    template(typename Value)
-      (requires callable<tag_t<unifex::await_transform>, promise_type&, Value>)
-    auto await_transform(Value&& value)
-        noexcept(is_nothrow_callable_v<tag_t<unifex::await_transform>, promise_type&, Value>)
-        -> callable_result_t<tag_t<unifex::await_transform>, promise_type&, Value> {
-      return unifex::await_transform(*this, (Value&&)value);
-    }
-    coro::coroutine_handle<> continuation_{};
-    std::tuple<Ts&...> args_;
-  };
+  coro::suspend_always initial_suspend() noexcept {
+    return {};
+  }
 
-  _cleanup_task(coro::coroutine_handle<promise_type> coro) noexcept
-    : coro_(coro) {}
+  final_awaitable final_suspend() noexcept {
+    return {};
+  }
+
+  [[noreturn]] void unhandled_exception() noexcept {
+    std::terminate();
+  }
+
+  void return_void() noexcept {
+  }
+
+  continuation continuation_{};
+};
+
+template <typename... Ts>
+struct _cleanup_task;
+
+template <typename... Ts>
+struct _cleanup_promise : _cleanup_promise_base {
+  template <typename Action>
+  explicit _cleanup_promise(Action&&, Ts&... ts) noexcept
+    : args_(ts...) {}
+
+  _cleanup_task<Ts...> get_return_object() noexcept {
+    return _cleanup_task<Ts...>(
+        coro::coroutine_handle<_cleanup_promise>::from_promise(*this));
+  }
+
+  coro::coroutine_handle<> unhandled_done() noexcept {
+    // Record that we are processing an unhandled done signal. This is checked in
+    // the final_suspend of the cleanup action to know which subsequent continuation
+    // to resume.
+    continuation_.set_unhandled_done();
+    // On unhandled_done, run the cleanup action:
+    return coro::coroutine_handle<_cleanup_promise>::from_promise(*this);
+  }
+
+  template(typename Value)
+    (requires callable<tag_t<unifex::await_transform>, _cleanup_promise&, Value>)
+  auto await_transform(Value&& value)
+      noexcept(is_nothrow_callable_v<tag_t<unifex::await_transform>, _cleanup_promise&, Value>)
+      -> callable_result_t<tag_t<unifex::await_transform>, _cleanup_promise&, Value> {
+    return unifex::await_transform(*this, (Value&&) value);
+  }
+
+  std::tuple<Ts&...> args_;
+};
+
+template <typename... Ts>
+struct [[nodiscard]] _cleanup_task {
+  using promise_type = _cleanup_promise<Ts...>;
+
+  explicit _cleanup_task(coro::coroutine_handle<promise_type> coro) noexcept
+    : continuation_(coro) {}
+
   _cleanup_task(_cleanup_task&& that) noexcept
-    : coro_(std::exchange(that.coro_, {})) {}
+    : continuation_(std::exchange(that.continuation_, {})) {}
+
   ~_cleanup_task() {
-    UNIFEX_ASSERT(coro_ == nullptr);
+    UNIFEX_ASSERT(!continuation_);
   }
 
   bool await_ready() const noexcept {
-    //printfl("%s", "_cleanup_task::await_ready");
     return false;
   }
+
   template <typename Promise>
   bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
-    //printfl("%s", "_cleanup_task::await_suspend");
-    coro_.promise().continuation_ = run_at_coroutine_exit(parent.promise(), coro_);
+    continuation_.template promise<promise_type>().continuation_ =
+        exchange_continuation(parent.promise(), continuation_);
     return false;
   }
+
   std::tuple<Ts&...> await_resume() noexcept {
-    //printfl("%s %d", "_cleanup_task::await_resume", std::get<0>(coro_.promise().args_));
-    return std::exchange(coro_, {}).promise().args_;
+    return std::exchange(continuation_, {}).template promise<promise_type>().args_;
   }
 
 private:
-  coro::coroutine_handle<promise_type> coro_;
+  continuation continuation_;
 };
 
 namespace _at_coroutine_exit {
@@ -163,9 +241,7 @@ namespace _at_coroutine_exit {
     template (typename Action, typename... Ts)
       (requires callable<Action, Ts&...>)
     static _cleanup_task<Ts...> at_coroutine_exit(Action action, Ts... ts) {
-      //printfl("%s", "at_coroutine_exit(), before cleanup action");
       co_await std::move(action)(std::move(ts)...);
-      //printfl("%s", "at_coroutine_exit(), after cleanup action");
     }
   public:
     template (typename Action, typename... Ts)

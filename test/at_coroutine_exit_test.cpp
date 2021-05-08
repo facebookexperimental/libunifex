@@ -21,6 +21,7 @@
 #include <unifex/at_coroutine_exit.hpp>
 
 #include <unifex/task.hpp>
+#include <unifex/stop_if_requested.hpp>
 #include <unifex/sync_wait.hpp>
 
 #include <gtest/gtest.h>
@@ -29,14 +30,87 @@ using namespace unifex;
 
 namespace {
 int global = 0;
-task<void> test1() {
-  global = 2;
+
+task<void> test_one_cleanup_action() {
+  ++global;
   co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
-}
+  ++global;
 }
 
-TEST(AtCoroutineExit, SimpleAction) {
-  sync_wait(test1());
+task<void> test_two_cleanup_actions() {
+  ++global;
+  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
+  co_await at_coroutine_exit([]() -> task<void> { global *= global; co_return; });
+  ++global;
+}
+
+task<void> test_one_cleanup_action_with_stop() {
+  ++global;
+  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
+  co_await stop();
+  ++global;
+}
+
+task<void> test_two_cleanup_actions_with_stop() {
+  ++global;
+  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
+  co_await at_coroutine_exit([]() -> task<void> { global += global; co_return; });
+  co_await stop();
+  ++global;
+}
+
+task<void> with_continuation(unifex::task<void> next) {
+  co_await std::move(next);
+  global *= 3;
+}
+
+}
+
+TEST(AtCoroutineExit, OneCleanupAction) {
+  global = 0;
+  sync_wait(test_one_cleanup_action());
+  EXPECT_EQ(global, 4);
+}
+
+TEST(AtCoroutineExit, TwoCleanupActions) {
+  global = 0;
+  sync_wait(test_two_cleanup_actions());
+  EXPECT_EQ(global, 8);
+}
+
+TEST(AtCoroutineExit, OneCleanupActionWithContinuation) {
+  global = 0;
+  sync_wait(with_continuation(test_one_cleanup_action()));
+  EXPECT_EQ(global, 12);
+}
+
+TEST(AtCoroutineExit, TwoCleanupActionsWithContinuation) {
+  global = 0;
+  sync_wait(with_continuation(test_two_cleanup_actions()));
+  EXPECT_EQ(global, 24);
+}
+
+TEST(AtCoroutineExit, OneCleanupActionWithStop) {
+  global = 0;
+  sync_wait(test_one_cleanup_action_with_stop());
+  EXPECT_EQ(global, 2);
+}
+
+TEST(AtCoroutineExit, TwoCleanupActionsWithStop) {
+  global = 0;
+  sync_wait(test_two_cleanup_actions_with_stop());
+  EXPECT_EQ(global, 4);
+}
+
+TEST(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
+  global = 0;
+  sync_wait(with_continuation(test_one_cleanup_action_with_stop()));
+  EXPECT_EQ(global, 2);
+}
+
+TEST(AtCoroutineExit, TwoCleanupActionsWithStopAndContinuation) {
+  global = 0;
+  sync_wait(with_continuation(test_two_cleanup_actions_with_stop()));
   EXPECT_EQ(global, 4);
 }
 

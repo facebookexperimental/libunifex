@@ -63,15 +63,6 @@ template <typename Sender>
 UNIFEX_CONCEPT _single_typed_sender =
   typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
 
-template <typename Promise>
-coro::coroutine_handle<> forward_unhandled_done_callback(void* p) noexcept {
-  return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
-}
-
-[[noreturn]] inline coro::coroutine_handle<> default_unhandled_done_callback(void*) noexcept {
-  std::terminate();
-}
-
 template <typename T>
 struct _task {
   struct [[nodiscard]] type;
@@ -90,7 +81,7 @@ struct _promise_base {
   }
 
   coro::coroutine_handle<> unhandled_done() noexcept {
-    return doneCallback_(continuation_.address());
+    return continuation_.done();
   }
 
   template <typename Func>
@@ -105,15 +96,12 @@ struct _promise_base {
     return p.stoken_;
   }
 
-  friend coro::coroutine_handle<> tag_invoke(
-    tag_t<run_at_coroutine_exit>, _promise_base& p, coro::coroutine_handle<> action) noexcept {
-    return std::exchange(p.continuation_, action);
+  friend continuation tag_invoke(
+      tag_t<exchange_continuation>, _promise_base& p, continuation action) noexcept {
+    return std::exchange(p.continuation_, (continuation&&) action);
   }
 
-  using done_callback = coro::coroutine_handle<>(void*) noexcept;
-
-  coro::coroutine_handle<> continuation_;
-  done_callback* doneCallback_ = &default_unhandled_done_callback;
+  continuation continuation_;
   std::optional<continuation_info> info_;
   inplace_stop_token stoken_;
 };
@@ -158,7 +146,7 @@ struct _promise {
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
         auto await_suspend(coro::coroutine_handle<type> h) noexcept {
-          return h.promise().continuation_;
+          return h.promise().continuation_.handle();
         }
       };
       return awaiter{};
@@ -213,7 +201,6 @@ struct _awaiter {
       UNIFEX_ASSERT(coro_);
       auto& promise = coro_.promise();
       promise.continuation_ = h;
-      promise.doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;
       promise.info_.emplace(continuation_info::from_continuation(h.promise()));
       promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
       return coro_;
