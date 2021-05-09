@@ -96,12 +96,12 @@ struct _promise_base {
     return p.stoken_;
   }
 
-  friend continuation<> tag_invoke(
-      tag_t<exchange_continuation>, _promise_base& p, continuation<> action) noexcept {
-    return std::exchange(p.continuation_, (continuation<>&&) action);
+  friend continuation_handle<> tag_invoke(
+      tag_t<exchange_continuation>, _promise_base& p, continuation_handle<> action) noexcept {
+    return std::exchange(p.continuation_, (continuation_handle<>&&) action);
   }
 
-  continuation<> continuation_;
+  continuation_handle<> continuation_;
   std::optional<continuation_info> info_;
   inplace_stop_token stoken_;
 };

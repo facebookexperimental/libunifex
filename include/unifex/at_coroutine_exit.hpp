@@ -35,10 +35,10 @@ struct _cleanup_promise_base;
 namespace _cont {
 // BUGBUG merge this with continuation_info
 template <typename Promise = void>
-struct continuation;
+struct continuation_handle;
 
 template <>
-struct continuation<void> {
+struct continuation_handle<void> {
 private:
   [[noreturn]] static coro::coroutine_handle<> default_done_callback(void*) noexcept {
     std::terminate();
@@ -55,11 +55,11 @@ private:
   done_callback_t doneCallback_ = &default_done_callback;
 
 public:
-  continuation() = default;
+  continuation_handle() = default;
 
   template (typename Promise)
     (requires (!same_as<Promise, void>))
-  /*implicit*/ continuation(coro::coroutine_handle<Promise> continuation) noexcept
+  /*implicit*/ continuation_handle(coro::coroutine_handle<Promise> continuation) noexcept
     : handle_((coro::coroutine_handle<Promise>&&) continuation)
     , doneCallback_(&forward_unhandled_done_callback<Promise>)
   {}
@@ -82,10 +82,10 @@ public:
 };
 
 template <typename Promise>
-struct continuation {
-  continuation() = default;
+struct continuation_handle {
+  continuation_handle() = default;
 
-  /*implicit*/ continuation(coro::coroutine_handle<Promise> continuation) noexcept
+  /*implicit*/ continuation_handle(coro::coroutine_handle<Promise> continuation) noexcept
     : self_((coro::coroutine_handle<Promise>&&) continuation)
   {}
 
@@ -93,7 +93,7 @@ struct continuation {
     return !!self_;
   }
 
-  /*implicit*/ operator continuation<>() const noexcept {
+  /*implicit*/ operator continuation_handle<>() const noexcept {
     return self_;
   }
 
@@ -115,18 +115,18 @@ struct continuation {
   }
 
 private:
-  continuation<> self_;
+  continuation_handle<> self_;
 };
 } // namespace _cont
-using _cont::continuation;
+using _cont::continuation_handle;
 
 namespace _xchg_cont {
 inline constexpr struct _fn {
   template (typename ParentPromise, typename ChildPromise)
-    (requires tag_invocable<_fn, ParentPromise&, continuation<ChildPromise>>)
+    (requires tag_invocable<_fn, ParentPromise&, continuation_handle<ChildPromise>>)
   UNIFEX_ALWAYS_INLINE
-  continuation<> operator()(ParentPromise& parent, continuation<ChildPromise> action) const noexcept {
-    return tag_invoke(*this, parent, (continuation<ChildPromise>&&) action);
+  continuation_handle<> operator()(ParentPromise& parent, continuation_handle<ChildPromise> action) const noexcept {
+    return tag_invoke(*this, parent, (continuation_handle<ChildPromise>&&) action);
   }
 } exchange_continuation {};
 } // _xchg_cont
@@ -191,7 +191,7 @@ struct _cleanup_promise_base {
     return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
   }
 
-  continuation<> continuation_{};
+  continuation_handle<> continuation_{};
   bool isUnhandledDone_{false};
 };
 
@@ -259,7 +259,7 @@ struct [[nodiscard]] _cleanup_task {
   }
 
 private:
-  continuation<promise_type> continuation_;
+  continuation_handle<promise_type> continuation_;
 };
 
 namespace _at_coroutine_exit {
