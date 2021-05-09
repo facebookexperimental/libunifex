@@ -34,7 +34,11 @@ struct _cleanup_promise_base;
 
 namespace _cont {
 // BUGBUG merge this with continuation_info
-struct continuation {
+template <typename Promise = void>
+struct continuation;
+
+template <>
+struct continuation<void> {
 private:
   [[noreturn]] static coro::coroutine_handle<> default_done_callback(void*) noexcept {
     std::terminate();
@@ -49,7 +53,6 @@ private:
 
   coro::coroutine_handle<> handle_{};
   done_callback_t doneCallback_ = &default_done_callback;
-  bool isUnhandledDone_{false};
 
 public:
   continuation() = default;
@@ -73,38 +76,57 @@ public:
     handle_.resume();
   }
 
-  template <typename Promise>
-  Promise& promise() const noexcept {
-    return coro::coroutine_handle<Promise>::from_address(
-        handle_.address()).promise();
-  }
-
-  void set_unhandled_done() noexcept {
-    isUnhandledDone_ = true;
-  }
-
-  bool get_unhandled_done() const noexcept {
-    return isUnhandledDone_;
-  }
-
   coro::coroutine_handle<> done() const noexcept {
     return doneCallback_(handle_.address());
   }
+};
 
-  coro::coroutine_handle<> next() const noexcept {
-    return isUnhandledDone_ ? done() : handle();
+template <typename Promise>
+struct continuation {
+  continuation() = default;
+
+  /*implicit*/ continuation(coro::coroutine_handle<Promise> continuation) noexcept
+    : self_((coro::coroutine_handle<Promise>&&) continuation)
+  {}
+
+  explicit operator bool() const noexcept {
+    return !!self_;
   }
+
+  /*implicit*/ operator continuation<>() const noexcept {
+    return self_;
+  }
+
+  coro::coroutine_handle<> handle() const noexcept {
+    return self_.handle_;
+  }
+
+  void resume() {
+    self_.resume();
+  }
+
+  Promise& promise() const noexcept {
+    return coro::coroutine_handle<Promise>::from_address(
+        self_.handle().address()).promise();
+  }
+
+  coro::coroutine_handle<> done() const noexcept {
+    return self_.done();
+  }
+
+private:
+  continuation<> self_;
 };
 } // namespace _cont
 using _cont::continuation;
 
 namespace _xchg_cont {
 inline constexpr struct _fn {
-  template (typename Promise)
-    (requires tag_invocable<_fn, Promise&, continuation>)
+  template (typename ParentPromise, typename ChildPromise)
+    (requires tag_invocable<_fn, ParentPromise&, continuation<ChildPromise>>)
   UNIFEX_ALWAYS_INLINE
-  continuation operator()(Promise& promise, continuation action) const noexcept {
-    return tag_invoke(*this, promise, (continuation&&) action);
+  continuation<> operator()(ParentPromise& parent, continuation<ChildPromise> action) const noexcept {
+    return tag_invoke(*this, parent, (continuation<ChildPromise>&&) action);
   }
 } exchange_continuation {};
 } // _xchg_cont
@@ -131,7 +153,7 @@ struct _cleanup_promise_base {
     UNIFEX_NO_INLINE
 #endif
     bool await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
-      auto continuation = h.promise().continuation_.next();
+      auto continuation = h.promise().next();
       h.destroy();
       continuation.resume();
       return true;
@@ -140,7 +162,7 @@ struct _cleanup_promise_base {
     // No bugs here! OK to use symmetric transfer.
     template <typename CleanupPromise>
     coro::coroutine_handle<> await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
-      auto continuation = h.promise().continuation_.next();
+      auto continuation = h.promise().next();
       h.destroy(); // The cleanup action has finished executing. Destroy it.
       return continuation;
     }
@@ -165,7 +187,12 @@ struct _cleanup_promise_base {
   void return_void() noexcept {
   }
 
-  continuation continuation_{};
+  coro::coroutine_handle<> next() const noexcept {
+    return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
+  }
+
+  continuation<> continuation_{};
+  bool isUnhandledDone_{false};
 };
 
 template <typename... Ts>
@@ -186,7 +213,7 @@ struct _cleanup_promise : _cleanup_promise_base {
     // Record that we are processing an unhandled done signal. This is checked in
     // the final_suspend of the cleanup action to know which subsequent continuation
     // to resume.
-    continuation_.set_unhandled_done();
+    isUnhandledDone_ = true;
     // On unhandled_done, run the cleanup action:
     return coro::coroutine_handle<_cleanup_promise>::from_promise(*this);
   }
@@ -222,17 +249,17 @@ struct [[nodiscard]] _cleanup_task {
 
   template <typename Promise>
   bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
-    continuation_.template promise<promise_type>().continuation_ =
+    continuation_.promise().continuation_ =
         exchange_continuation(parent.promise(), continuation_);
     return false;
   }
 
   std::tuple<Ts&...> await_resume() noexcept {
-    return std::exchange(continuation_, {}).template promise<promise_type>().args_;
+    return std::exchange(continuation_, {}).promise().args_;
   }
 
 private:
-  continuation continuation_;
+  continuation<promise_type> continuation_;
 };
 
 namespace _at_coroutine_exit {
