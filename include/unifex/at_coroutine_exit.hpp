@@ -18,6 +18,7 @@
 #include <unifex/coroutine.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/await_transform.hpp>
+#include <unifex/continuations.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -29,96 +30,6 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
-
-struct _cleanup_promise_base;
-
-namespace _cont {
-// BUGBUG merge this with continuation_info
-template <typename Promise = void>
-struct continuation_handle;
-
-template <>
-struct continuation_handle<void> {
-private:
-  [[noreturn]] static coro::coroutine_handle<> default_done_callback(void*) noexcept {
-    std::terminate();
-  }
-
-  template <typename Promise>
-  static coro::coroutine_handle<> forward_unhandled_done_callback(void* p) noexcept {
-    return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
-  }
-
-  using done_callback_t = coro::coroutine_handle<>(*)(void*) noexcept;
-
-  coro::coroutine_handle<> handle_{};
-  done_callback_t doneCallback_ = &default_done_callback;
-
-public:
-  continuation_handle() = default;
-
-  template (typename Promise)
-    (requires (!same_as<Promise, void>))
-  /*implicit*/ continuation_handle(coro::coroutine_handle<Promise> continuation) noexcept
-    : handle_((coro::coroutine_handle<Promise>&&) continuation)
-    , doneCallback_(&forward_unhandled_done_callback<Promise>)
-  {}
-
-  explicit operator bool() const noexcept {
-    return handle_ != nullptr;
-  }
-
-  coro::coroutine_handle<> handle() const noexcept {
-    return handle_;
-  }
-
-  void resume() {
-    handle_.resume();
-  }
-
-  coro::coroutine_handle<> done() const noexcept {
-    return doneCallback_(handle_.address());
-  }
-};
-
-template <typename Promise>
-struct continuation_handle {
-  continuation_handle() = default;
-
-  /*implicit*/ continuation_handle(coro::coroutine_handle<Promise> continuation) noexcept
-    : self_((coro::coroutine_handle<Promise>&&) continuation)
-  {}
-
-  explicit operator bool() const noexcept {
-    return !!self_;
-  }
-
-  /*implicit*/ operator continuation_handle<>() const noexcept {
-    return self_;
-  }
-
-  coro::coroutine_handle<Promise> handle() const noexcept {
-    return coro::coroutine_handle<Promise>::from_address(
-        self_.handle().address());
-  }
-
-  void resume() {
-    self_.resume();
-  }
-
-  Promise& promise() const noexcept {
-    return handle().promise();
-  }
-
-  coro::coroutine_handle<> done() const noexcept {
-    return self_.done();
-  }
-
-private:
-  continuation_handle<> self_;
-};
-} // namespace _cont
-using _cont::continuation_handle;
 
 namespace _xchg_cont {
 inline constexpr struct _fn {

@@ -28,6 +28,7 @@
 #include <unifex/type_list.hpp>
 #include <unifex/invoke.hpp>
 #include <unifex/at_coroutine_exit.hpp>
+#include <unifex/continuations.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
