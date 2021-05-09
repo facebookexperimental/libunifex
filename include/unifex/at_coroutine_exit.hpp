@@ -97,8 +97,9 @@ struct continuation {
     return self_;
   }
 
-  coro::coroutine_handle<> handle() const noexcept {
-    return self_.handle_;
+  coro::coroutine_handle<Promise> handle() const noexcept {
+    return coro::coroutine_handle<Promise>::from_address(
+        self_.handle().address());
   }
 
   void resume() {
@@ -106,8 +107,7 @@ struct continuation {
   }
 
   Promise& promise() const noexcept {
-    return coro::coroutine_handle<Promise>::from_address(
-        self_.handle().address()).promise();
+    return handle().promise();
   }
 
   coro::coroutine_handle<> done() const noexcept {
