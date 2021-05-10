@@ -88,9 +88,7 @@ struct _promise_base {
   template <typename Func>
   friend void
   tag_invoke(tag_t<visit_continuations>, const _promise_base& p, Func&& func) {
-    if (p.info_) {
-      visit_continuations(*p.info_, (Func &&) func);
-    }
+    visit_continuations(p.continuation_, (Func &&) func);
   }
 
   friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const _promise_base& p) noexcept {
@@ -103,7 +101,6 @@ struct _promise_base {
   }
 
   continuation_handle<> continuation_;
-  std::optional<continuation_info> info_;
   inplace_stop_token stoken_;
 };
 
@@ -202,7 +199,6 @@ struct _awaiter {
       UNIFEX_ASSERT(coro_);
       auto& promise = coro_.promise();
       promise.continuation_ = h;
-      promise.info_.emplace(continuation_info::from_continuation(h.promise()));
       promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
       return coro_;
     }

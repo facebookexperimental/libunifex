@@ -19,6 +19,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_index.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -60,8 +61,37 @@ namespace _visit_continuations_cpo {
 } // namespace _visit_continuations_cpo
 using _visit_continuations_cpo::visit_continuations;
 
+#if !UNIFEX_NO_COROUTINES
+namespace _ch {
+template <typename Promise = void>
+struct continuation_handle;
+} // namespace _ch
+using _ch::continuation_handle;
+#endif
+
+namespace _ci {
+class continuation_info;
+
+struct continuation_info_vtable {
+  using callback_t = void(const continuation_info&, void*);
+  using visitor_t = void(const void*, callback_t*, void*);
+  using type_index_getter_t = type_index() noexcept;
+
+  type_index_getter_t* typeIndexGetter_;
+  visitor_t* visit_;
+};
+
+inline type_index default_type_index_getter() noexcept {
+  return type_id<void>();
+}
+
+inline void default_visit(const void*, continuation_info_vtable::callback_t*, void*) {
+}
+
 class continuation_info {
  public:
+  continuation_info() = default;
+
   template <typename Continuation>
   static continuation_info from_continuation(const Continuation& c) noexcept;
 
@@ -69,6 +99,14 @@ class continuation_info {
       const continuation_info& c) noexcept {
     return c;
   }
+
+#if !UNIFEX_NO_COROUTINES
+  template <typename Promise>
+  static continuation_info from_continuation(
+      const continuation_handle<Promise>& c) noexcept {
+    return continuation_info{c.handle().address(), c.vtable_};
+  }
+#endif
 
   type_index type() const noexcept {
     return vtable_->typeIndexGetter_();
@@ -90,73 +128,69 @@ class continuation_info {
   }
 
  private:
-  using callback_t = void(const continuation_info&, void*);
-  using visitor_t = void(const void*, callback_t*, void*);
-  using type_index_getter_t = type_index() noexcept;
-
-  struct vtable_t {
-    type_index_getter_t* typeIndexGetter_;
-    visitor_t* visit_;
-  };
-
   explicit continuation_info(
       const void* address,
-      const vtable_t* vtable) noexcept
+      const continuation_info_vtable* vtable) noexcept
     : address_(address)
     , vtable_(vtable) {}
 
-  const void* address_;
-  const vtable_t* vtable_;
+  inline static constexpr continuation_info_vtable default_vtable {
+    &default_type_index_getter,
+    &default_visit
+  };
+
+  const void* address_{nullptr};
+  const continuation_info_vtable* vtable_{&default_vtable};
+};
+
+template <typename Continuation>
+type_index type_index_getter_for() noexcept {
+  return type_id<Continuation>();
+}
+
+template <typename Continuation>
+void visit_for(const void* address, continuation_info_vtable::callback_t* cb, void* data) {
+  visit_continuations(
+      *static_cast<const Continuation*>(address),
+      [cb, data](const auto& continuation) {
+        cb(continuation_info::from_continuation(continuation), data);
+      });
+}
+
+template <typename Continuation>
+inline constexpr continuation_info_vtable vtable_for_ {
+  &type_index_getter_for<Continuation>,
+  &visit_for<Continuation>
 };
 
 template <typename Continuation>
 inline continuation_info continuation_info::from_continuation(
     const Continuation& r) noexcept {
-  static constexpr vtable_t vtable{
-      []() noexcept -> type_index {
-        return type_id<remove_cvref_t<Continuation>>();
-      },
-      [](const void* address, callback_t* cb, void* data) {
-        visit_continuations(
-            *static_cast<const Continuation*>(address),
-            [cb, data](const auto& continuation) {
-              cb(continuation_info::from_continuation(continuation), data);
-            });
-      }};
   return continuation_info{static_cast<const void*>(std::addressof(r)),
-                           &vtable};
+                           &vtable_for_<Continuation>};
 }
+} // namespace _ci
+using _ci::continuation_info;
 
 #if !UNIFEX_NO_COROUTINES
-// BUGBUG "inherit" this from continuation_info
-template <typename Promise = void>
-struct continuation_handle;
+namespace _ch {
+[[noreturn]] inline coro::coroutine_handle<> default_done_callback(void*) noexcept {
+  std::terminate();
+}
+
+struct continuation_handle_vtable : _ci::continuation_info_vtable {
+  using done_callback_t = coro::coroutine_handle<>(void*) noexcept;
+  done_callback_t* doneCallback_;
+};
 
 template <>
 struct continuation_handle<void> {
-private:
-  [[noreturn]] static coro::coroutine_handle<> default_done_callback(void*) noexcept {
-    std::terminate();
-  }
-
-  template <typename Promise>
-  static coro::coroutine_handle<> forward_unhandled_done_callback(void* p) noexcept {
-    return coro::coroutine_handle<Promise>::from_address(p).promise().unhandled_done();
-  }
-
-  using done_callback_t = coro::coroutine_handle<>(*)(void*) noexcept;
-
-  coro::coroutine_handle<> handle_{};
-  done_callback_t doneCallback_ = &default_done_callback;
-
-public:
   continuation_handle() = default;
 
   template (typename Promise)
     (requires (!same_as<Promise, void>))
   /*implicit*/ continuation_handle(coro::coroutine_handle<Promise> continuation) noexcept
-    : handle_((coro::coroutine_handle<Promise>&&) continuation)
-    , doneCallback_(&forward_unhandled_done_callback<Promise>)
+    : continuation_handle(0, (coro::coroutine_handle<Promise>&&) continuation)
   {}
 
   explicit operator bool() const noexcept {
@@ -172,9 +206,68 @@ public:
   }
 
   coro::coroutine_handle<> done() const noexcept {
-    return doneCallback_(handle_.address());
+    return vtable_->doneCallback_(handle_.address());
   }
+
+  continuation_info info() const noexcept {
+    return continuation_info::from_continuation(*this);
+  }
+
+  template <typename F>
+  friend void
+  tag_invoke(tag_t<visit_continuations>, const continuation_handle<>& c, F&& f) {
+    c.vtable_->visit_(
+        c.handle_.address(),
+        [](const continuation_info& info, void* data) {
+          std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
+        },
+        static_cast<void*>(std::addressof(f)));
+  }
+
+private:
+  friend continuation_info;
+
+  inline static constexpr continuation_handle_vtable default_vtable {
+    &_ci::default_type_index_getter,
+    &_ci::default_visit,
+    &default_done_callback
+  };
+
+  template <typename Promise>
+  continuation_handle(int, coro::coroutine_handle<Promise> continuation) noexcept;
+
+  coro::coroutine_handle<> handle_{};
+  const continuation_handle_vtable* vtable_ {&default_vtable};
 };
+
+template <typename Promise>
+void visit_for(const void* address, _ci::continuation_info_vtable::callback_t* cb, void* data) {
+  visit_continuations(
+      const_cast<const Promise&>(
+          coro::coroutine_handle<Promise>::from_address(
+              const_cast<void*>(address)).promise()),
+      [cb, data](const auto& continuation) {
+        cb(continuation_info::from_continuation(continuation), data);
+      });
+}
+
+template <typename Promise>
+coro::coroutine_handle<> done_callback_for(void* address) noexcept {
+  return coro::coroutine_handle<Promise>::from_address(address).promise().unhandled_done();
+}
+
+template <typename Promise>
+inline static constexpr continuation_handle_vtable vtable_for_ {
+  &_ci::type_index_getter_for<Promise>,
+  &visit_for<Promise>,
+  &done_callback_for<Promise>
+};
+
+template <typename Promise>
+continuation_handle<void>::continuation_handle(int, coro::coroutine_handle<Promise> continuation) noexcept
+  : handle_((coro::coroutine_handle<Promise>&&) continuation)
+  , vtable_(&vtable_for_<Promise>)
+{}
 
 template <typename Promise>
 struct continuation_handle {
@@ -209,9 +302,23 @@ struct continuation_handle {
     return self_.done();
   }
 
+  continuation_info info() const noexcept {
+    return self_.info();
+  }
+
+  template <typename F>
+  friend void
+  tag_invoke(tag_t<visit_continuations>, const continuation_handle<Promise>& c, F&& f) {
+    visit_continuations(c.self_, (F&&) f);
+  }
+
 private:
+  friend continuation_info;
+
   continuation_handle<> self_;
 };
+} // namespace _ch
+using _ch::continuation_handle;
 #endif
 
 } // namespace unifex

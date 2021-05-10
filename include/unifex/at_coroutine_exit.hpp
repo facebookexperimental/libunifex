@@ -19,6 +19,7 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/await_transform.hpp>
 #include <unifex/continuations.hpp>
+#include <unifex/stop_token_concepts.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -100,6 +101,17 @@ struct _cleanup_promise_base {
 
   coro::coroutine_handle<> next() const noexcept {
     return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
+  }
+
+  template <typename Func>
+  friend void
+  tag_invoke(tag_t<visit_continuations>, const _cleanup_promise_base& p, Func&& func) {
+    // Skip cleanup actions when visiting continuations:
+    visit_continuations(p.continuation_, (Func &&) func);
+  }
+
+  friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
+    return unstoppable_token{};
   }
 
   continuation_handle<> continuation_{};
