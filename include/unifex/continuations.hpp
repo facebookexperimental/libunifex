@@ -72,7 +72,7 @@ using _ch::continuation_handle;
 namespace _ci {
 class continuation_info;
 
-struct continuation_info_vtable {
+struct _continuation_info_vtable {
   using callback_t = void(const continuation_info&, void*);
   using visitor_t = void(const void*, callback_t*, void*);
   using type_index_getter_t = type_index() noexcept;
@@ -81,11 +81,16 @@ struct continuation_info_vtable {
   visitor_t* visit_;
 };
 
-inline type_index default_type_index_getter() noexcept {
+inline type_index _default_type_index_getter() noexcept {
   return type_id<void>();
 }
 
-inline void default_visit(const void*, continuation_info_vtable::callback_t*, void*) {
+inline void _default_visit(const void*, _continuation_info_vtable::callback_t*, void*) {
+}
+
+template <typename F>
+void _invoke_visitor(const continuation_info& info, void* data) {
+  std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
 }
 
 class continuation_info {
@@ -121,35 +126,33 @@ class continuation_info {
   tag_invoke(tag_t<visit_continuations>, const continuation_info& c, F&& f) {
     c.vtable_->visit_(
         c.address_,
-        [](const continuation_info& info, void* data) {
-          std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
-        },
-        static_cast<void*>(std::addressof(f)));
+        &_invoke_visitor<F>,
+        const_cast<void*>(static_cast<const void*>(std::addressof(f))));
   }
 
  private:
   explicit continuation_info(
       const void* address,
-      const continuation_info_vtable* vtable) noexcept
+      const _continuation_info_vtable* vtable) noexcept
     : address_(address)
     , vtable_(vtable) {}
 
-  inline static constexpr continuation_info_vtable default_vtable {
-    &default_type_index_getter,
-    &default_visit
+  inline static constexpr _continuation_info_vtable default_vtable_ {
+    &_default_type_index_getter,
+    &_default_visit
   };
 
   const void* address_{nullptr};
-  const continuation_info_vtable* vtable_{&default_vtable};
+  const _continuation_info_vtable* vtable_{&default_vtable_};
 };
 
 template <typename Continuation>
-type_index type_index_getter_for() noexcept {
+type_index _type_index_getter_for() noexcept {
   return type_id<Continuation>();
 }
 
 template <typename Continuation>
-void visit_for(const void* address, continuation_info_vtable::callback_t* cb, void* data) {
+void _visit_for(const void* address, _continuation_info_vtable::callback_t* cb, void* data) {
   visit_continuations(
       *static_cast<const Continuation*>(address),
       [cb, data](const auto& continuation) {
@@ -158,27 +161,27 @@ void visit_for(const void* address, continuation_info_vtable::callback_t* cb, vo
 }
 
 template <typename Continuation>
-inline constexpr continuation_info_vtable vtable_for_ {
-  &type_index_getter_for<Continuation>,
-  &visit_for<Continuation>
+inline constexpr _continuation_info_vtable _vtable_for {
+  &_type_index_getter_for<Continuation>,
+  &_visit_for<Continuation>
 };
 
 template <typename Continuation>
 inline continuation_info continuation_info::from_continuation(
     const Continuation& r) noexcept {
   return continuation_info{static_cast<const void*>(std::addressof(r)),
-                           &vtable_for_<Continuation>};
+                           &_vtable_for<Continuation>};
 }
 } // namespace _ci
 using _ci::continuation_info;
 
 #if !UNIFEX_NO_COROUTINES
 namespace _ch {
-[[noreturn]] inline coro::coroutine_handle<> default_done_callback(void*) noexcept {
+[[noreturn]] inline coro::coroutine_handle<> _default_done_callback(void*) noexcept {
   std::terminate();
 }
 
-struct continuation_handle_vtable : _ci::continuation_info_vtable {
+struct _continuation_handle_vtable : _ci::_continuation_info_vtable {
   using done_callback_t = coro::coroutine_handle<>(void*) noexcept;
   done_callback_t* doneCallback_;
 };
@@ -218,30 +221,28 @@ struct continuation_handle<void> {
   tag_invoke(tag_t<visit_continuations>, const continuation_handle<>& c, F&& f) {
     c.vtable_->visit_(
         c.handle_.address(),
-        [](const continuation_info& info, void* data) {
-          std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
-        },
-        static_cast<void*>(std::addressof(f)));
+        &_ci::_invoke_visitor<F>,
+        const_cast<void*>(static_cast<const void*>(std::addressof(f))));
   }
 
 private:
   friend continuation_info;
 
-  inline static constexpr continuation_handle_vtable default_vtable {
-    &_ci::default_type_index_getter,
-    &_ci::default_visit,
-    &default_done_callback
+  inline static constexpr _continuation_handle_vtable default_vtable_ {
+    &_ci::_default_type_index_getter,
+    &_ci::_default_visit,
+    &_default_done_callback
   };
 
   template <typename Promise>
   continuation_handle(int, coro::coroutine_handle<Promise> continuation) noexcept;
 
   coro::coroutine_handle<> handle_{};
-  const continuation_handle_vtable* vtable_ {&default_vtable};
+  const _continuation_handle_vtable* vtable_ {&default_vtable_};
 };
 
 template <typename Promise>
-void visit_for(const void* address, _ci::continuation_info_vtable::callback_t* cb, void* data) {
+void _visit_for(const void* address, _ci::_continuation_info_vtable::callback_t* cb, void* data) {
   visit_continuations(
       const_cast<const Promise&>(
           coro::coroutine_handle<Promise>::from_address(
@@ -252,21 +253,21 @@ void visit_for(const void* address, _ci::continuation_info_vtable::callback_t* c
 }
 
 template <typename Promise>
-coro::coroutine_handle<> done_callback_for(void* address) noexcept {
+coro::coroutine_handle<> _done_callback_for(void* address) noexcept {
   return coro::coroutine_handle<Promise>::from_address(address).promise().unhandled_done();
 }
 
 template <typename Promise>
-inline static constexpr continuation_handle_vtable vtable_for_ {
-  &_ci::type_index_getter_for<Promise>,
-  &visit_for<Promise>,
-  &done_callback_for<Promise>
+inline static constexpr _continuation_handle_vtable _vtable_for {
+  &_ci::_type_index_getter_for<Promise>,
+  &_visit_for<Promise>,
+  &_done_callback_for<Promise>
 };
 
 template <typename Promise>
 continuation_handle<void>::continuation_handle(int, coro::coroutine_handle<Promise> continuation) noexcept
   : handle_((coro::coroutine_handle<Promise>&&) continuation)
-  , vtable_(&vtable_for_<Promise>)
+  , vtable_(&_vtable_for<Promise>)
 {}
 
 template <typename Promise>
