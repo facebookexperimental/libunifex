@@ -71,6 +71,9 @@
 * Synchronisation Primitives
   * `async_manual_reset_event`
   * `async_mutex`
+* Coroutine support
+  * `task`
+  * `at_coroutine_exit`
 * Other
   * `async_scope`
 
@@ -997,6 +1000,48 @@ namespace unifex
   };
 };
 ```
+
+## Coroutine support
+
+### `task`
+
+TODO
+
+### `at_coroutine_exit`
+
+`at_coroutine_exit` schedules an asynchronous task to execute when the coroutine exits,
+before resuming its parent. The action is guaranteed to execute no matter how the
+coroutine exits -- success, failure, or cancel -- like a destructor.
+
+**Usage:**
+```c++
+auto&& [state...] =
+    co_await unifex::at_coroutine_exit(
+      [](auto&&... state) -> task<void> {
+        // ... async cleanup action here...
+      },
+      state...
+    );
+```
+
+**Arguments:**
+The first argument to `at_coroutine_exit` is a coroutine lambda. The other arguments are
+optional state that may be needed by the cleanup action. The state passed to
+`at_coroutine_exit` is the same state that will be passed to the lambda.
+
+**Returns:**
+A tuple of references to the state owned by the cleanup action.
+
+If you capture references to the state returned by `at_coroutine_exit` (e.g.,
+`auto&& [state...] = ...`), then any mutation made to that state will be visible to the
+cleanup action when it runs.
+
+***Caution:***
+By the time the cleanup action runs, the coroutine that has scheduled the cleanup action
+has already been destroyed, along with any of the coroutine's local variables. Do not
+capture references to locals in the cleanup action; those references will dangle. Any
+state the cleanup action needs should be passed to `at_coroutine_exit`, which then owns
+their lifetime.
 
 ## Other
 
