@@ -64,11 +64,10 @@ struct _cleanup_promise_base {
 #else
     UNIFEX_NO_INLINE
 #endif
-    bool await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
+    void await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
       auto continuation = h.promise().next();
-      h.destroy();
+      h.destroy(); // The cleanup action has finished executing. Destroy it.
       continuation.resume();
-      return true;
     }
 #else
     // No bugs here! OK to use symmetric transfer.
@@ -93,6 +92,7 @@ struct _cleanup_promise_base {
   }
 
   [[noreturn]] void unhandled_exception() noexcept {
+    UNIFEX_ASSERT(!"An exception happened in an async cleanup action. Terminating...");
     std::terminate();
   }
 
@@ -118,6 +118,82 @@ struct _cleanup_promise_base {
   bool isUnhandledDone_{false};
 };
 
+// The die_on_done algorithm implemented here could be implemented in terms of
+// transform_done, but this implementation is simpler since it doesn't instantiate
+// a bunch of templates that will never be needed (no need to connect or start a
+// sender returned from the done transform function).
+template <typename Receiver>
+struct _die_on_done_rec {
+  struct type {
+    Receiver rec_;
+    template (typename... Ts)
+      (requires receiver_of<Receiver, Ts...>)
+    void set_value(Ts&&... ts) && noexcept(is_nothrow_receiver_of_v<Receiver, Ts...>) {
+      unifex::set_value((Receiver&&) rec_, (Ts&&) ts...);
+    }
+    template (typename E)
+      (requires receiver<Receiver, E>)
+    void set_error(E&& e) && noexcept {
+      unifex::set_error((Receiver&&) rec_, (E&&) e);
+    }
+    [[noreturn]] void set_done() && noexcept {
+      UNIFEX_ASSERT(!"A cleanup action tried to cancel. Terminating...");
+      std::terminate();
+    }
+  };
+};
+
+template <typename Receiver>
+using _die_on_done_rec_t =
+    typename _die_on_done_rec<remove_cvref_t<Receiver>>::type;
+
+template <typename Sender>
+struct _die_on_done {
+  struct type {
+    template <
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
+    using value_types =
+        typename sender_traits<Sender>::template value_types<Variant, Tuple>;
+
+    template <template <typename...> class Variant>
+    using error_types =
+        typename sender_traits<Sender>::template error_types<Variant>;
+
+    static constexpr bool sends_done = false;
+
+    template (typename Receiver)
+      (requires sender_to<Sender, _die_on_done_rec_t<Receiver>>)
+    auto connect(Receiver&& rec) &&
+        noexcept(is_nothrow_connectable_v<Sender, _die_on_done_rec_t<Receiver>>)
+        -> connect_result_t<Sender, _die_on_done_rec_t<Receiver>> {
+      return unifex::connect(
+          (Sender&&) sender_,
+          _die_on_done_rec_t<Receiver>{(Receiver&&) rec});
+    }
+
+    Sender sender_;
+  };
+};
+
+template <typename Sender>
+using _die_on_done_t =
+    typename _die_on_done<remove_cvref_t<Sender>>::type;
+
+struct _die_on_done_fn {
+  template (typename Value)
+    (requires (!detail::_awaitable<Value>) AND sender<Value>)
+  _die_on_done_t<Value> operator()(Value&& value) /*mutable*/ {
+    return _die_on_done_t<Value>{(Value&&) value};
+  }
+
+  template <typename Value>
+  Value&& operator()(Value&& value) const {
+    return (Value&&) value;
+  }
+};
+
+
 template <typename... Ts>
 struct _cleanup_task;
 
@@ -141,12 +217,11 @@ struct _cleanup_promise : _cleanup_promise_base {
     return coro::coroutine_handle<_cleanup_promise>::from_promise(*this);
   }
 
-  template(typename Value)
-    (requires callable<tag_t<unifex::await_transform>, _cleanup_promise&, Value>)
-  auto await_transform(Value&& value)
-      noexcept(is_nothrow_callable_v<tag_t<unifex::await_transform>, _cleanup_promise&, Value>)
-      -> callable_result_t<tag_t<unifex::await_transform>, _cleanup_promise&, Value> {
-    return unifex::await_transform(*this, (Value&&) value);
+  template <typename Value>
+  decltype(auto) await_transform(Value&& value)
+      noexcept(noexcept(
+          unifex::await_transform(*this, _die_on_done_fn{}((Value&&) value)))) {
+    return unifex::await_transform(*this, _die_on_done_fn{}((Value&&) value));
   }
 
   std::tuple<Ts&...> args_;
@@ -188,14 +263,13 @@ private:
 namespace _at_coroutine_exit {
   inline constexpr struct _fn {
   private:
-    template (typename Action, typename... Ts)
-      (requires callable<Action, Ts&...>)
+    template <typename Action, typename... Ts>
     static _cleanup_task<Ts...> at_coroutine_exit(Action action, Ts... ts) {
       co_await std::move(action)(std::move(ts)...);
     }
   public:
     template (typename Action, typename... Ts)
-      (requires callable<std::decay_t<Action>, std::decay_t<Ts>&...>)
+      (requires callable<std::decay_t<Action>, std::decay_t<Ts>...>)
     _cleanup_task<Ts...> operator()(Action&& action, Ts&&... ts) const {
       return _fn::at_coroutine_exit((Action&&) action, (Ts&&) ts...);
     }

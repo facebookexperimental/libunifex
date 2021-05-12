@@ -100,8 +100,7 @@ class continuation_info {
   template <typename Continuation>
   static continuation_info from_continuation(const Continuation& c) noexcept;
 
-  static continuation_info from_continuation(
-      const continuation_info& c) noexcept {
+  static continuation_info from_continuation(const continuation_info& c) noexcept {
     return c;
   }
 
@@ -124,6 +123,8 @@ class continuation_info {
   template <typename F>
   friend void
   tag_invoke(tag_t<visit_continuations>, const continuation_info& c, F&& f) {
+    // Any const that gets stripped by the const_cast below gets reapplied by the
+    // static_cast in _invoke_visitor.
     c.vtable_->visit_(
         c.address_,
         &_invoke_visitor<F>,
@@ -219,6 +220,8 @@ struct continuation_handle<void> {
   template <typename F>
   friend void
   tag_invoke(tag_t<visit_continuations>, const continuation_handle<>& c, F&& f) {
+    // Any const that gets stripped by the const_cast below gets reapplied by the
+    // static_cast in _invoke_visitor.
     c.vtable_->visit_(
         c.handle_.address(),
         &_ci::_invoke_visitor<F>,

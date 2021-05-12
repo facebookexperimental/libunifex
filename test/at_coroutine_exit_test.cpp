@@ -23,95 +23,217 @@
 #include <unifex/task.hpp>
 #include <unifex/stop_if_requested.hpp>
 #include <unifex/sync_wait.hpp>
+#include <unifex/just_from.hpp>
 
 #include <gtest/gtest.h>
 
 using namespace unifex;
 
 namespace {
-int global = 0;
+struct AtCoroutineExit : testing::Test {
+  int result = 0;
 
-task<void> test_one_cleanup_action() {
-  ++global;
-  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
-  ++global;
-}
+  task<void> test_one_cleanup_action() {
+    ++result;
+    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
+    ++result;
+  }
 
-task<void> test_two_cleanup_actions() {
-  ++global;
-  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
-  co_await at_coroutine_exit([]() -> task<void> { global *= global; co_return; });
-  ++global;
-}
+  task<void> test_two_cleanup_actions() {
+    ++result;
+    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> { result *= result; co_return; });
+    ++result;
+  }
 
-task<void> test_one_cleanup_action_with_stop() {
-  ++global;
-  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
-  co_await stop();
-  ++global;
-}
+  task<void> test_one_cleanup_action_with_stop() {
+    ++result;
+    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
+    co_await stop();
+    ++result;
+  }
 
-task<void> test_two_cleanup_actions_with_stop() {
-  ++global;
-  co_await at_coroutine_exit([]() -> task<void> { global *= 2; co_return; });
-  co_await at_coroutine_exit([]() -> task<void> { global += global; co_return; });
-  co_await stop();
-  ++global;
-}
+  task<void> test_two_cleanup_actions_with_stop() {
+    ++result;
+    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> { result += result; co_return; });
+    co_await stop();
+    ++result;
+  }
 
-task<void> with_continuation(unifex::task<void> next) {
-  co_await std::move(next);
-  global *= 3;
-}
+  task<void> test_sender_cleanup_action() {
+    co_await at_coroutine_exit([this]{ return just_from([this]{++result;}); });
+  }
 
-}
+  task<void> test_stateful_cleanup_action(int arg) {
+    co_await at_coroutine_exit([=,this]{ return just_from([=,this]{result += arg;}); });
+  }
 
-TEST(AtCoroutineExit, OneCleanupAction) {
-  global = 0;
+  task<void> test_mutable_stateful_cleanup_action() {
+    auto&& [i] = co_await at_coroutine_exit(
+      [this](int&& i) -> task<void> {
+        result += i;
+        co_return;
+      }, 3);
+    ++result;
+    i *= i;
+  }
+
+  task<void> with_continuation(unifex::task<void> next) {
+    co_await std::move(next);
+    result *= 3;
+  }
+
+  void test_cancel_in_cleanup_action_causes_death() {
+    task<void> t = []() -> task<void> {
+      co_await at_coroutine_exit([]() -> task<void> {
+        co_await stop();
+      });
+    }();
+    sync_wait(std::move(t)); // causes termination
+    ADD_FAILURE() << "He didn't fall? Inconceivable!";
+  }
+
+  void test_cancel_during_cancellation_unwind_causes_death() {
+    task<void> t = []() -> task<void> {
+      co_await at_coroutine_exit([]() -> task<void> {
+        co_await stop(); // BOOM
+      });
+      co_await stop();
+    }();
+    sync_wait(std::move(t)); // causes termination
+    ADD_FAILURE() << "He didn't fall? Inconceivable!";
+  }
+
+  void test_throw_in_cleanup_action_causes_death() {
+    task<void> t = []() -> task<void> {
+      co_await at_coroutine_exit([]() -> task<void> {
+        throw 42;
+      });
+    }();
+    sync_wait(std::move(t)); // causes termination
+    ADD_FAILURE() << "He didn't fall? Inconceivable!";
+  }
+
+  void test_throw_in_cleanup_action_during_exception_unwind_causes_death() {
+    task<void> t = []() -> task<void> {
+      co_await at_coroutine_exit([]() -> task<void> {
+        throw 42;
+      });
+      throw 42;
+    }();
+    sync_wait(std::move(t)); // causes termination
+    ADD_FAILURE() << "He didn't fall? Inconceivable!";
+  }
+
+  void test_cancel_in_cleanup_action_during_exception_unwind_causes_death() {
+    task<void> t = []() -> task<void> {
+      co_await at_coroutine_exit([]() -> task<void> {
+        co_await stop();
+      });
+      throw 42;
+    }();
+    sync_wait(std::move(t)); // causes termination
+    ADD_FAILURE() << "He didn't fall? Inconceivable!";
+  }
+
+  void test_throw_in_cleanup_action_during_cancellation_unwind_causes_death() {
+    task<void> t = []() -> task<void> {
+      co_await at_coroutine_exit([]() -> task<void> {
+        throw 42;
+      });
+      co_await stop();
+    }();
+    sync_wait(std::move(t)); // causes termination
+    ADD_FAILURE() << "He didn't fall? Inconceivable!";
+  }
+};
+} // unnamed namespace
+
+TEST_F(AtCoroutineExit, OneCleanupAction) {
   sync_wait(test_one_cleanup_action());
-  EXPECT_EQ(global, 4);
+  EXPECT_EQ(result, 4);
 }
 
-TEST(AtCoroutineExit, TwoCleanupActions) {
-  global = 0;
+TEST_F(AtCoroutineExit, TwoCleanupActions) {
   sync_wait(test_two_cleanup_actions());
-  EXPECT_EQ(global, 8);
+  EXPECT_EQ(result, 8);
 }
 
-TEST(AtCoroutineExit, OneCleanupActionWithContinuation) {
-  global = 0;
+TEST_F(AtCoroutineExit, OneCleanupActionWithContinuation) {
   sync_wait(with_continuation(test_one_cleanup_action()));
-  EXPECT_EQ(global, 12);
+  EXPECT_EQ(result, 12);
 }
 
-TEST(AtCoroutineExit, TwoCleanupActionsWithContinuation) {
-  global = 0;
+TEST_F(AtCoroutineExit, TwoCleanupActionsWithContinuation) {
   sync_wait(with_continuation(test_two_cleanup_actions()));
-  EXPECT_EQ(global, 24);
+  EXPECT_EQ(result, 24);
 }
 
-TEST(AtCoroutineExit, OneCleanupActionWithStop) {
-  global = 0;
+TEST_F(AtCoroutineExit, OneCleanupActionWithStop) {
   sync_wait(test_one_cleanup_action_with_stop());
-  EXPECT_EQ(global, 2);
+  EXPECT_EQ(result, 2);
 }
 
-TEST(AtCoroutineExit, TwoCleanupActionsWithStop) {
-  global = 0;
+TEST_F(AtCoroutineExit, TwoCleanupActionsWithStop) {
   sync_wait(test_two_cleanup_actions_with_stop());
-  EXPECT_EQ(global, 4);
+  EXPECT_EQ(result, 4);
 }
 
-TEST(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
-  global = 0;
+TEST_F(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
   sync_wait(with_continuation(test_one_cleanup_action_with_stop()));
-  EXPECT_EQ(global, 2);
+  EXPECT_EQ(result, 2);
 }
 
-TEST(AtCoroutineExit, TwoCleanupActionsWithStopAndContinuation) {
-  global = 0;
+TEST_F(AtCoroutineExit, TwoCleanupActionsWithStopAndContinuation) {
   sync_wait(with_continuation(test_two_cleanup_actions_with_stop()));
-  EXPECT_EQ(global, 4);
+  EXPECT_EQ(result, 4);
+}
+
+TEST_F(AtCoroutineExit, StatefulCleanupAction) {
+  sync_wait(test_stateful_cleanup_action(42));
+  EXPECT_EQ(result, 42);
+}
+
+TEST_F(AtCoroutineExit, MutableStatefulCleanupAction) {
+  sync_wait(test_mutable_stateful_cleanup_action());
+  EXPECT_EQ(result, 10);
+}
+
+TEST_F(AtCoroutineExit, CancelInCleanupActionCallsTerminate) {
+  ASSERT_DEATH_IF_SUPPORTED(
+    test_cancel_in_cleanup_action_causes_death(),
+    "[Tt]erminat");
+}
+
+TEST_F(AtCoroutineExit, CancelDuringCancellationUnwindCallsTerminate) {
+  ASSERT_DEATH_IF_SUPPORTED(
+    test_cancel_during_cancellation_unwind_causes_death(),
+    "[Tt]erminat");
+}
+
+TEST_F(AtCoroutineExit, ThrowInCleanupActionCallsTerminate) {
+  ASSERT_DEATH_IF_SUPPORTED(
+    test_throw_in_cleanup_action_causes_death(),
+    "[Tt]erminat");
+}
+
+TEST_F(AtCoroutineExit, ThrowInCleanupActionDuringExceptionUnwindCallsTerminate) {
+  ASSERT_DEATH_IF_SUPPORTED(
+    test_throw_in_cleanup_action_during_exception_unwind_causes_death(),
+    "[Tt]erminat");
+}
+
+TEST_F(AtCoroutineExit, CancelInCleanupActionDuringExceptionUnwindCallsTerminate) {
+  ASSERT_DEATH_IF_SUPPORTED(
+    test_cancel_in_cleanup_action_during_exception_unwind_causes_death(),
+    "[Tt]erminat");
+}
+
+TEST_F(AtCoroutineExit, ThrowInCleanupActionDuringCancellationUnwindCallsTerminate) {
+  ASSERT_DEATH_IF_SUPPORTED(
+    test_throw_in_cleanup_action_during_cancellation_unwind_causes_death(),
+    "[Tt]erminat");
 }
 
 #endif // !UNIFEX_NO_COROUTINES
