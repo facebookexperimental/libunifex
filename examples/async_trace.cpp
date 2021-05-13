@@ -69,6 +69,7 @@ auto dump_async_trace_on_completion(Sender &&sender, std::string tag = {}) {
 }
 
 #if !UNIFEX_NO_COROUTINES
+UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
 task<int> dump_async_trace_in_coroutine() {
   co_await dump_async_trace("coroutine");
   co_return 42;
