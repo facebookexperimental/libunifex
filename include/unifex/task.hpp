@@ -202,7 +202,6 @@ struct _awaiter {
       return false;
     }
 
-#if !UNIFEX_APPLE_CLANG_ASAN_ENABLED
     coro::coroutine_handle<ThisPromise> await_suspend(
         coro::coroutine_handle<OtherPromise> h) noexcept {
       UNIFEX_ASSERT(coro_);
@@ -213,17 +212,6 @@ struct _awaiter {
       promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
       return coro_;
     }
-  #else
-    void await_suspend(coro::coroutine_handle<OtherPromise> h) noexcept {
-      UNIFEX_ASSERT(coro_);
-      auto& promise = coro_.promise();
-      promise.continuation_ = h;
-      promise.doneCallback_ = &forward_unhandled_done_callback<OtherPromise>;
-      promise.info_.emplace(continuation_info::from_continuation(h.promise()));
-      promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
-      coro_.resume();
-    }
-  #endif
 
     result_type await_resume() {
       stopTokenAdapter_.unsubscribe();
