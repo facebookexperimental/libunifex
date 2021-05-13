@@ -26,6 +26,7 @@
 #include <unifex/finally.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/defer.hpp>
+#include <unifex/invoke.hpp>
 
 #if !UNIFEX_NO_COROUTINES
 #include <unifex/task.hpp>
@@ -95,10 +96,10 @@ int main() {
             return time;
           }),
 #if !UNIFEX_NO_COROUTINES
-          []() -> task<int> {
+          co_invoke([]() -> task<int> {
             co_await dump_async_trace("coroutine");
             co_return 42;
-          }()
+          })
 #else
         just(42)
 #endif // UNIFEX_NO_COROUTINES
