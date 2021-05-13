@@ -20,6 +20,7 @@
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/inline_scheduler.hpp>
+#include <unifex/any_scheduler.hpp>
 
 #include "mock_receiver.hpp"
 
