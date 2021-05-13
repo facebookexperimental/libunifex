@@ -203,37 +203,37 @@ TEST_F(AtCoroutineExit, MutableStatefulCleanupAction) {
 TEST_F(AtCoroutineExit, CancelInCleanupActionCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
     test_cancel_in_cleanup_action_causes_death(),
-    "[Tt]erminat");
+    "terminate");
 }
 
 TEST_F(AtCoroutineExit, CancelDuringCancellationUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
     test_cancel_during_cancellation_unwind_causes_death(),
-    "[Tt]erminat");
+    "terminate");
 }
 
 TEST_F(AtCoroutineExit, ThrowInCleanupActionCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
     test_throw_in_cleanup_action_causes_death(),
-    "[Tt]erminat");
+    "terminate");
 }
 
 TEST_F(AtCoroutineExit, ThrowInCleanupActionDuringExceptionUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
     test_throw_in_cleanup_action_during_exception_unwind_causes_death(),
-    "[Tt]erminat");
+    "terminate");
 }
 
 TEST_F(AtCoroutineExit, CancelInCleanupActionDuringExceptionUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
     test_cancel_in_cleanup_action_during_exception_unwind_causes_death(),
-    "[Tt]erminat");
+    "terminate");
 }
 
 TEST_F(AtCoroutineExit, ThrowInCleanupActionDuringCancellationUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
     test_throw_in_cleanup_action_during_cancellation_unwind_causes_death(),
-    "[Tt]erminat");
+    "terminate");
 }
 
 #endif // !UNIFEX_NO_COROUTINES

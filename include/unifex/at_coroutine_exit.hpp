@@ -92,7 +92,7 @@ struct _cleanup_promise_base {
   }
 
   [[noreturn]] void unhandled_exception() noexcept {
-    UNIFEX_ASSERT(!"An exception happened in an async cleanup action. Terminating...");
+    UNIFEX_ASSERT(!"An exception happened in an async cleanup action. Calling terminate...");
     std::terminate();
   }
 
@@ -137,7 +137,7 @@ struct _die_on_done_rec {
       unifex::set_error((Receiver&&) rec_, (E&&) e);
     }
     [[noreturn]] void set_done() && noexcept {
-      UNIFEX_ASSERT(!"A cleanup action tried to cancel. Terminating...");
+      UNIFEX_ASSERT(!"A cleanup action tried to cancel. Calling terminate...");
       std::terminate();
     }
   };
