@@ -111,14 +111,8 @@ struct _receiver {
 template <typename T>
 using receiver_t = typename _receiver<T>::type;
 
-#ifdef __clang__
-  #define UNIFEX_CLANG_DISABLE_OPTIMIZATION [[clang::optnone]]
-#else
-  #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
-#endif
-  
 template <typename Result, typename Sender>
-UNIFEX_CLANG_DISABLE_OPTIMIZATION
+UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
 std::optional<Result> _impl(Sender&& sender) {
   using promise_t = _sync_wait::promise<Result>;
   promise_t promise;
