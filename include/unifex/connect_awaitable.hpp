@@ -163,7 +163,6 @@ namespace _await_cpo {
       operator unit() const noexcept { return {}; }
     };
     template <typename Awaitable, typename Receiver>
-    UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
     static auto connect_impl(Awaitable awaitable, Receiver receiver)
         -> _await::sender_task<Receiver> {
 #if !UNIFEX_NO_EXCEPTIONS
