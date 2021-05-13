@@ -15,6 +15,8 @@
  */
 #pragma once
 
+// BUGBUG a dummy change
+
 // Get the library feature test macros:
 #if __has_include(<version>)
 #  include <version>
