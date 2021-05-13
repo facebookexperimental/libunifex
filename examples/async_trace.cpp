@@ -26,7 +26,6 @@
 #include <unifex/finally.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/defer.hpp>
-#include <unifex/invoke.hpp>
 
 #if !UNIFEX_NO_COROUTINES
 #include <unifex/task.hpp>
@@ -69,6 +68,13 @@ auto dump_async_trace_on_completion(Sender &&sender, std::string tag = {}) {
                           dump_async_trace(std::move(tag)));
 }
 
+#if !UNIFEX_NO_COROUTINES
+task<int> dump_async_trace_in_coroutine() {
+  co_await dump_async_trace("coroutine");
+  co_return 42;
+}
+#endif
+
 int main() {
   timed_single_thread_context context;
 
@@ -96,10 +102,7 @@ int main() {
             return time;
           }),
 #if !UNIFEX_NO_COROUTINES
-          co_invoke([]() -> task<int> {
-            co_await dump_async_trace("coroutine");
-            co_return 42;
-          })
+        dump_async_trace_in_coroutine()
 #else
         just(42)
 #endif // UNIFEX_NO_COROUTINES
