@@ -135,7 +135,7 @@ jobs:
             name: "macOS Clang Optimised (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: RelWithDebInfo,
-            cc: "clang", cxx: "clang++"
+            cc: "clang", cxx: "clang++",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
