@@ -68,6 +68,14 @@ auto dump_async_trace_on_completion(Sender &&sender, std::string tag = {}) {
                           dump_async_trace(std::move(tag)));
 }
 
+#if !UNIFEX_NO_COROUTINES
+UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
+task<int> dump_async_trace_in_coroutine() {
+  co_await dump_async_trace("coroutine");
+  co_return 42;
+}
+#endif
+
 int main() {
   timed_single_thread_context context;
 
@@ -95,10 +103,7 @@ int main() {
             return time;
           }),
 #if !UNIFEX_NO_COROUTINES
-          []() -> task<int> {
-            co_await dump_async_trace("coroutine");
-            co_return 42;
-          }()
+        dump_async_trace_in_coroutine()
 #else
         just(42)
 #endif // UNIFEX_NO_COROUTINES

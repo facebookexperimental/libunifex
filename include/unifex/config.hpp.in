@@ -214,3 +214,16 @@
 #ifndef UNIFEX_ASSERT
 # define UNIFEX_ASSERT assert
 #endif
+
+#if defined(__clang__) && defined(__apple_build_version__)
+  #if __has_feature(address_sanitizer)
+    #define UNIFEX_APPLE_CLANG_ASAN_ENABLED 1
+    #define UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION [[clang::optnone]]
+  #else
+    #define UNIFEX_APPLE_CLANG_ASAN_ENABLED 0
+    #define UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
+  #endif
+#else
+  #define UNIFEX_APPLE_CLANG_ASAN_ENABLED 0
+  #define UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
+#endif
