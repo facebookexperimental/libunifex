@@ -66,7 +66,7 @@ struct AtCoroutineExit : testing::Test {
   }
 
   task<void> test_stateful_cleanup_action(int arg) {
-    co_await at_coroutine_exit([=,this]{ return just_from([=,this]{result += arg;}); });
+    co_await at_coroutine_exit([arg,this]{ return just_from([arg,this]{result += arg;}); });
   }
 
   task<void> test_mutable_stateful_cleanup_action() {
