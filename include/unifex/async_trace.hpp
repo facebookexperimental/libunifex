@@ -21,6 +21,7 @@
 #include <unifex/config.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/type_index.hpp>
+#include <unifex/continuations.hpp>
 
 #include <functional>
 #include <vector>
@@ -28,109 +29,6 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
-
-namespace _visit_continuations_cpo {
-  inline const struct _fn {
-#if !UNIFEX_NO_COROUTINES
-    template(typename Promise, typename Func)
-        (requires (!std::is_void_v<Promise>))
-    friend void tag_invoke(
-        _fn cpo,
-        coro::coroutine_handle<Promise> h,
-        Func&& func) {
-      cpo(h.promise(), (Func &&) func);
-    }
-#endif // UNIFEX_NO_COROUTINES
-
-    template(typename Continuation, typename Func)
-      (requires tag_invocable<_fn, const Continuation&, Func>)
-    void operator()(const Continuation& c, Func&& func) const
-        noexcept(is_nothrow_tag_invocable_v<
-                _fn,
-                const Continuation&,
-                Func&&>) {
-      static_assert(
-          std::is_void_v<tag_invoke_result_t<
-              _fn,
-              const Continuation&,
-              Func&&>>,
-          "tag_invoke() overload for visit_continuations() must return void");
-      return tag_invoke(_fn{}, c, (Func &&) func);
-    }
-
-    template(typename Continuation, typename Func)
-      (requires (!tag_invocable<_fn, const Continuation&, Func>))
-    void operator()(const Continuation&, Func&&) const noexcept {}
-  } visit_continuations {};
-} // namespace _visit_continuations_cpo
-using _visit_continuations_cpo::visit_continuations;
-
-class continuation_info {
- public:
-  template <typename Continuation>
-  static continuation_info from_continuation(const Continuation& c) noexcept;
-
-  static continuation_info from_continuation(
-      const continuation_info& c) noexcept {
-    return c;
-  }
-
-  type_index type() const noexcept {
-    return vtable_->typeIndexGetter_();
-  }
-
-  const void* address() const noexcept {
-    return address_;
-  }
-
-  template <typename F>
-  friend void
-  tag_invoke(tag_t<visit_continuations>, const continuation_info& c, F&& f) {
-    c.vtable_->visit_(
-        c.address_,
-        [](const continuation_info& info, void* data) {
-          std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
-        },
-        static_cast<void*>(std::addressof(f)));
-  }
-
- private:
-  using callback_t = void(const continuation_info&, void*);
-  using visitor_t = void(const void*, callback_t*, void*);
-  using type_index_getter_t = type_index() noexcept;
-
-  struct vtable_t {
-    type_index_getter_t* typeIndexGetter_;
-    visitor_t* visit_;
-  };
-
-  explicit continuation_info(
-      const void* address,
-      const vtable_t* vtable) noexcept
-    : address_(address)
-    , vtable_(vtable) {}
-
-  const void* address_;
-  const vtable_t* vtable_;
-};
-
-template <typename Continuation>
-inline continuation_info continuation_info::from_continuation(
-    const Continuation& r) noexcept {
-  static constexpr vtable_t vtable{
-      []() noexcept -> type_index {
-        return type_id<remove_cvref_t<Continuation>>();
-      },
-      [](const void* address, callback_t* cb, void* data) {
-        visit_continuations(
-            *static_cast<const Continuation*>(address),
-            [cb, data](const auto& continuation) {
-              cb(continuation_info::from_continuation(continuation), data);
-            });
-      }};
-  return continuation_info{static_cast<const void*>(std::addressof(r)),
-                           &vtable};
-}
 
 namespace _async_trace {
   struct entry {
