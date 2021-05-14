@@ -89,4 +89,12 @@ TEST(CoInvoke, WithLvalueArgumentsWithByRefCaptures) {
   EXPECT_EQ(*result, 100);
 }
 
+TEST(CoInvoke, WithLvalueFunctionObject) {
+  auto fn = []() -> task<int> { co_return 42; };
+  task<int> t = async_invoke(fn);
+  std::optional<int> result = sync_wait(std::move(t));
+  ASSERT_TRUE(!!result);
+  EXPECT_EQ(*result, 42);
+}
+
 #endif // !UNIFEX_NO_COROUTINES
