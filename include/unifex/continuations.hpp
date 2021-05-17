@@ -33,7 +33,7 @@ namespace _visit_continuations_cpo {
     friend void tag_invoke(
         _fn cpo,
         coro::coroutine_handle<Promise> h,
-        Func&& func) {
+        Func&& func) noexcept(is_nothrow_callable_v<_fn, Promise&, Func>) {
       cpo(h.promise(), (Func &&) func);
     }
 #endif // UNIFEX_NO_COROUTINES

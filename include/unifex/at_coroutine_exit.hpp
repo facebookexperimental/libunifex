@@ -183,16 +183,16 @@ using _die_on_done_t =
 struct _die_on_done_fn {
   template (typename Value)
     (requires (!detail::_awaitable<Value>) AND sender<Value>)
-  _die_on_done_t<Value> operator()(Value&& value) /*mutable*/ {
+  _die_on_done_t<Value> operator()(Value&& value) /*mutable*/
+      noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Value>, Value>) {
     return _die_on_done_t<Value>{(Value&&) value};
   }
 
   template <typename Value>
-  Value&& operator()(Value&& value) const {
+  Value&& operator()(Value&& value) const noexcept {
     return (Value&&) value;
   }
 };
-
 
 template <typename... Ts>
 struct _cleanup_task;

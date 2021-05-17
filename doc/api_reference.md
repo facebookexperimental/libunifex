@@ -1025,9 +1025,10 @@ auto&& [state...] =
 ```
 
 **Arguments:**
-The first argument to `at_coroutine_exit` is a coroutine lambda. The other arguments are
-optional state that may be needed by the cleanup action. The state passed to
-`at_coroutine_exit` is the same state that will be passed to the lambda.
+The first argument to `at_coroutine_exit` is a callable that returns an awaitable type
+(e.g., a `unifex::task<>` or a type that satisfies the `typed_sender` concept). The other
+arguments are optional state that may be needed by the cleanup action. The state passed to
+`at_coroutine_exit` is the same state that will be passed to the callable.
 
 **Returns:**
 A tuple of references to the state owned by the cleanup action.
