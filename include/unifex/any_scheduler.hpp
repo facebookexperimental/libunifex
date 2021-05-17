@@ -35,14 +35,14 @@ struct _copy_as_fn {
   using type_erased_signature_t = Ret(const this_&);
 
   template (typename T)
-    (requires tag_invocable<_copy_as_fn, T const&>)
-  Ret operator()(T const& t) const {
+    (requires tag_invocable<_copy_as_fn, const T&>)
+  Ret operator()(const T& t) const {
     return tag_invoke(*this, t);
   }
 
   template (typename T)
-    (requires (!tag_invocable<_copy_as_fn, T const&>) AND copy_constructible<T>)
-  Ret operator()(T const& t) const {
+    (requires (!tag_invocable<_copy_as_fn, const T&>) AND copy_constructible<T>)
+  Ret operator()(const T& t) const {
     return Ret{t};
   }
 };
@@ -53,8 +53,8 @@ inline constexpr struct _get_type_index_fn {
   using type_erased_signature_t = type_index(const this_&) noexcept;
 
   template <typename T>
-  type_index operator()(T const& x) const noexcept {
-    if constexpr (tag_invocable<_get_type_index_fn, T const&>) {
+  type_index operator()(const T& x) const noexcept {
+    if constexpr (tag_invocable<_get_type_index_fn, const T&>) {
       return tag_invoke(*this, x);
     } else {
       return type_id<T>();
@@ -64,20 +64,20 @@ inline constexpr struct _get_type_index_fn {
 
 inline constexpr struct _equal_to_fn {
   template (typename T, typename U)
-    (requires tag_invocable<_equal_to_fn, T const&, const U&>)
-  bool operator()(T const& t, const U& u) const noexcept {
-    static_assert(is_nothrow_tag_invocable_v<_equal_to_fn, T const&, const U&>);
+    (requires tag_invocable<_equal_to_fn, const T&, const U&>)
+  bool operator()(const T& t, const U& u) const noexcept {
+    static_assert(is_nothrow_tag_invocable_v<_equal_to_fn, const T&, const U&>);
     return tag_invoke(*this, t, u);
   }
 
   template (typename T, typename U)
-    (requires (!tag_invocable<_equal_to_fn, T const&, const U&>) AND
+    (requires (!tag_invocable<_equal_to_fn, const T&, const U&>) AND
       equality_comparable<T>)
-  bool operator()(T const& t, const U& u) const noexcept {
+  bool operator()(const T& t, const U& u) const noexcept {
     static_assert(noexcept(t == t),
         "Equality comparison of schedulers ought to be noexcept");
     return type_id<T>() == _get_type_index(u.impl_) &&
-        t == *static_cast<T const*>(get_object_address(u.impl_));
+        t == *static_cast<const T*>(get_object_address(u.impl_));
   }
 } _equal_to{};
 
@@ -88,37 +88,37 @@ template <typename... CPOs>
 struct _schedule_and_connect_fn {
   struct type {
     using _rec_ref_t = _void_receiver_ref<CPOs...>;
-    using type_erased_signature_t = _any::_operation_state(this_ const&, _rec_ref_t);
+    using type_erased_signature_t = _any::_operation_state(const this_&, _rec_ref_t);
 
 #ifdef _MSC_VER
     // MSVC (_MSC_VER == 1927) doesn't seem to like the requires
     // clause here. Use SFINAE instead.
     template <typename Scheduler>
     std::enable_if_t<
-        is_tag_invocable_v<type, Scheduler const&, _rec_ref_t>,
+        is_tag_invocable_v<type, const Scheduler&, _rec_ref_t>,
         _any::_operation_state>
-    operator()(Scheduler const& sched, _rec_ref_t rec) const {
+    operator()(const Scheduler& sched, _rec_ref_t rec) const {
       return tag_invoke(*this, sched, (_rec_ref_t&&) rec);
     }
 
     template <typename Scheduler>
     std::enable_if_t<
-        !is_tag_invocable_v<type, Scheduler const&, _rec_ref_t>,
+        !is_tag_invocable_v<type, const Scheduler&, _rec_ref_t>,
         _any::_operation_state>
-    operator()(Scheduler const& sched, _rec_ref_t rec) const {
+    operator()(const Scheduler& sched, _rec_ref_t rec) const {
       return _any::_connect<type_list<CPOs...>>(schedule(sched), (_rec_ref_t&&) rec);
     }
 #else
     template (typename Scheduler)
-      (requires tag_invocable<type, Scheduler const&, _rec_ref_t>)
-    _any::_operation_state operator()(Scheduler const& sched, _rec_ref_t rec) const {
+      (requires tag_invocable<type, const Scheduler&, _rec_ref_t>)
+    _any::_operation_state operator()(const Scheduler& sched, _rec_ref_t rec) const {
       return tag_invoke(*this, sched, (_rec_ref_t&&) rec);
     }
 
     template (typename Scheduler)
-      (requires (!tag_invocable<type, Scheduler const&, _rec_ref_t>) AND
+      (requires (!tag_invocable<type, const Scheduler&, _rec_ref_t>) AND
         scheduler<Scheduler>)
-    _any::_operation_state operator()(Scheduler const& sched, _rec_ref_t rec) const {
+    _any::_operation_state operator()(const Scheduler& sched, _rec_ref_t rec) const {
       return _any::_connect<type_list<CPOs...>>(schedule(sched), (_rec_ref_t&&) rec);
     }
 #endif
@@ -170,7 +170,7 @@ struct _with<CPOs...>::any_scheduler {
 
     template (typename Receiver)
       (requires receiver_of<Receiver> AND
-        (invocable<CPOs, Receiver const&> &&...))
+        (invocable<CPOs, const Receiver&> &&...))
     any_operation_state_for<Receiver> connect(Receiver rec) && {
       any_scheduler_impl<CPOs...> const& impl = sched_.impl_;
       return any_operation_state_for<Receiver>{
@@ -184,7 +184,7 @@ struct _with<CPOs...>::any_scheduler {
 
   private:
     friend any_scheduler;
-    _sender(any_scheduler const* sched)
+    _sender(const any_scheduler* sched)
       : sched_(*sched)
     {}
     // TODO This does a dynamic allocation. Fix this by:
@@ -216,7 +216,7 @@ using any_scheduler_ref_impl = any_ref_t<_schedule_and_connect<CPOs...>>;
 template <typename... CPOs>
 struct _with<CPOs...>::any_scheduler_ref {
   template (typename Scheduler)
-    (requires (!same_as<Scheduler const, any_scheduler_ref const>) AND scheduler<Scheduler>)
+    (requires (!same_as<const Scheduler, const any_scheduler_ref>) AND scheduler<Scheduler>)
   /* implicit */ any_scheduler_ref(Scheduler& sched)
     : impl_(sched) {}
 
@@ -233,7 +233,7 @@ struct _with<CPOs...>::any_scheduler_ref {
 
     template (typename Receiver)
       (requires receiver_of<Receiver> AND
-        (invocable<CPOs, Receiver const&> &&...))
+        (invocable<CPOs, const Receiver&> &&...))
     any_operation_state_for<Receiver> connect(Receiver rec) && {
       any_scheduler_ref_impl<CPOs...> const& impl = sched_.impl_;
       return any_operation_state_for<Receiver>{
@@ -247,7 +247,7 @@ struct _with<CPOs...>::any_scheduler_ref {
 
   private:
     friend any_scheduler_ref;
-    _sender(any_scheduler_ref const* sched)
+    _sender(const any_scheduler_ref* sched)
       : sched_(*sched)
     {}
     any_scheduler_ref sched_;
