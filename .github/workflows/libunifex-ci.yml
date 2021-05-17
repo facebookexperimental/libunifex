@@ -40,7 +40,7 @@ jobs:
             os: ubuntu-latest,
             build_type: RelWithDebInfo,
             cc: "gcc-9", cxx: "g++-9",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 "
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
             name: "Linux Clang 10 Debug (C++17)", artifact: "Linux.tar.xz",
