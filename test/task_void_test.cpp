@@ -39,22 +39,22 @@ task<void> child(Scheduler s, std::atomic<int>& x) {
 
 UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
-task<void> example(Scheduler s) {
-  std::atomic<int> x{42};
+task<void> example(Scheduler s, std::atomic<int>& x) {
   ++x;
   co_await when_all(child(s, x), child(s, x));
-  EXPECT_EQ(x.load(), 45);
 }
 
 TEST(TaskVoid, WhenAll) {
+  std::atomic<int> x{42};
   // A work-stealing thread pool with two worker threads:
   static_thread_pool context(2);
 
   // Take a handle to the thread pool for scheduling work:
   auto sched = context.get_scheduler();
 
-  auto task = example(sched);
+  auto task = example(sched, x);
   sync_wait(std::move(task));
+  EXPECT_EQ(x.load(), 45);
 }
 
 #endif // !UNIFEX_NO_COROUTINES
