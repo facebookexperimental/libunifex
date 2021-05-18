@@ -42,17 +42,20 @@ namespace unifex
 
       // convert std::exception based types to std::exception_ptr
       template(typename Exception)
-          (requires std::is_base_of_v<std::exception, Exception>)
+          (requires (!tag_invocable<_fn, Exception>) AND
+            derived_from<Exception, std::exception>)
       std::exception_ptr operator()(Exception&& ex) const noexcept {
-        return make_exception_ptr(std::forward<Exception>(ex));
+        return make_exception_ptr((Exception &&) ex);
       }
 
       // use customization point
       // to resolve ErrorCode -> std::exception_ptr conversion
       template(typename ErrorCode)
-          (requires nothrow_tag_invocable<_fn, ErrorCode>)
+          (requires tag_invocable<_fn, ErrorCode>)
       std::exception_ptr operator()(ErrorCode&& error) const noexcept {
-        return tag_invoke(*this, std::forward<ErrorCode>(error));
+        static_assert(nothrow_tag_invocable<_fn, ErrorCode>, 
+          "as_exception_ptr() customisations must be declared noexcept");
+        return tag_invoke(*this, (ErrorCode &&) error);
       }
     } as_exception_ptr{};
   }  // namespace _as_exception_ptr
