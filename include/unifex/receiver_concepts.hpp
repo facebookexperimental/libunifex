@@ -110,6 +110,7 @@ namespace _rec_cpo {
     using _result_t = typename decltype(_set_error_fn::_select<Receiver, Error>())
         ::template apply<Receiver, Error>;
   public:
+    // call through tag_invoke
     template(typename Receiver, typename Error)
       (requires tag_invocable<_set_error_fn, Receiver, Error>)
     auto operator()(Receiver&& r, Error&& error) const noexcept
@@ -123,9 +124,11 @@ namespace _rec_cpo {
       return unifex::tag_invoke(
           _set_error_fn{}, (Receiver &&) r, (Error&&) error);
     }
+
+    // direct call
     template(typename Receiver, typename Error)
       (requires (!tag_invocable<_set_error_fn, Receiver, Error>) AND
-         (!std::invocable<decltype(as_exception_ptr), Error>))
+         std::invocable<decltype(&Receiver::set_error), Receiver, Error>)
     auto operator()(Receiver&& r, Error&& error) const noexcept
         -> _result_t<Receiver, Error> {
       static_assert(
@@ -133,11 +136,15 @@ namespace _rec_cpo {
           "receiver.set_error() method must be nothrow invocable");
       return static_cast<Receiver&&>(r).set_error((Error&&) error);
     }
+
+    // call through as_exception_ptr
     template(typename Receiver, typename Error)
       (requires (!tag_invocable<_set_error_fn, Receiver, Error>) AND
+        (!std::invocable<decltype(&Receiver::set_error), Receiver, Error>) AND
+         std::invocable<decltype(&Receiver::set_error), Receiver, std::exception_ptr> AND
          std::invocable<decltype(as_exception_ptr), Error>)
     auto operator()(Receiver&& r, Error&& error) const noexcept
-    -> _result_t<Receiver, std::exception_ptr> {
+        -> _result_t<Receiver, std::exception_ptr> {
       static_assert(
           noexcept(static_cast<Receiver&&>(r).set_error(as_exception_ptr((Error&&) error))),
           "receiver.set_error() method must be nothrow invocable");
