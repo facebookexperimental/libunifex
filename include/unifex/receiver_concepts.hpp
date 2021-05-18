@@ -118,7 +118,7 @@ namespace _rec_cpo {
     }
     template(typename Receiver, typename Error)
       (requires (!tag_invocable<_set_error_fn, Receiver, Error>) &&
-         (!tag_invocable<decltype(as_exception_ptr), Error>))
+         (!std::invocable<decltype(as_exception_ptr), Error>))
     auto operator()(Receiver&& r, Error&& error) const noexcept
         -> _result_t<Receiver, Error> {
       static_assert(
@@ -128,7 +128,7 @@ namespace _rec_cpo {
     }
     template(typename Receiver, typename Error)
       (requires (!tag_invocable<_set_error_fn, Receiver, Error>) &&
-         tag_invocable<decltype(as_exception_ptr), Error>)
+         std::invocable<decltype(as_exception_ptr), Error>)
     auto operator()(Receiver&& r, Error&& error) const noexcept
     -> _result_t<Receiver, std::exception_ptr> {
       static_assert(

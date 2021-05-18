@@ -34,6 +34,12 @@ namespace unifex
         return eptr;
       }
 
+      // default std::error_code to std::exception_ptr conversion
+      std::exception_ptr operator()(std::error_code&& error) const noexcept {
+        return make_exception_ptr(
+            std::system_error{(std::error_code &&) error});
+      }
+
       // convert std::exception based types to std::exception_ptr
       template(typename Exception)
           (requires std::is_base_of_v<std::exception, Exception>)
@@ -49,14 +55,6 @@ namespace unifex
         return tag_invoke(*this, std::forward<ErrorCode>(error));
       }
     } as_exception_ptr{};
-
-    // default std::error_code -> std::exception_ptr conversion
-    inline std::exception_ptr
-    tag_invoke(tag_t<as_exception_ptr>, std::error_code&& error) noexcept {
-      return make_exception_ptr(
-          std::system_error{std::forward<std::error_code>(error)});
-    }
-
   }  // namespace _as_exception_ptr
 
   using _as_exception_ptr::as_exception_ptr;
