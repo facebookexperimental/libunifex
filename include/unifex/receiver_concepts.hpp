@@ -97,11 +97,18 @@ namespace _rec_cpo {
     using set_error_member_result_t =
       decltype(UNIFEX_DECLVAL(Receiver).set_error(UNIFEX_DECLVAL(Error)));
     template <typename Receiver, typename Error>
-    using _result_t =
-      typename conditional_t<
-        tag_invocable<_set_error_fn, Receiver, Error>,
-        meta_tag_invoke_result<_set_error_fn>,
-        meta_quote2<set_error_member_result_t>>::template apply<Receiver, Error>;
+    static auto _select() {
+      if constexpr (tag_invocable<_set_error_fn, Receiver, Error>) {
+        return meta_tag_invoke_result<_set_error_fn>{};
+      } else if constexpr (tag_invocable<_set_error_fn, Receiver, std::exception_ptr>) {
+        return meta_tag_invoke_result<_set_error_fn>{};
+      } else {
+        return meta_quote2<set_error_member_result_t>{};
+      }
+    }
+    template <typename Receiver, typename Error>
+    using _result_t = typename decltype(_set_error_fn::_select<Receiver, Error>())
+        ::template apply<Receiver, Error>;
   public:
     template(typename Receiver, typename Error)
       (requires tag_invocable<_set_error_fn, Receiver, Error>)
