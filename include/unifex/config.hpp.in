@@ -204,6 +204,14 @@
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
+  #define UNIFEX_NO_INLINE __attribute__((__noinline__))
+#elif defined(_MSC_VER)
+  #define UNIFEX_NO_INLINE __declspec(noinline)
+#else
+  #define UNIFEX_NO_INLINE
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
   #define UNIFEX_ASSUME_UNREACHABLE __builtin_unreachable()
 #elif defined(_MSC_VER)
   #define UNIFEX_ASSUME_UNREACHABLE __assume(0)
@@ -215,15 +223,15 @@
 # define UNIFEX_ASSERT assert
 #endif
 
-#if defined(__clang__) && defined(__apple_build_version__)
+#if defined(__clang__)
+  // Clang's optimizer interacts badly with its address sanitizer. Certain
+  // functions must have optimizations disabled in order to avoid triggering
+  // stack-use-after-scope-exit errors.
   #if __has_feature(address_sanitizer)
-    #define UNIFEX_APPLE_CLANG_ASAN_ENABLED 1
-    #define UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION [[clang::optnone]]
+    #define UNIFEX_CLANG_DISABLE_OPTIMIZATION __attribute__((__optnone__))
   #else
-    #define UNIFEX_APPLE_CLANG_ASAN_ENABLED 0
-    #define UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
+    #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
   #endif
 #else
-  #define UNIFEX_APPLE_CLANG_ASAN_ENABLED 0
-  #define UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
+  #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
 #endif
