@@ -177,7 +177,7 @@ TEST_F(AtCoroutineExit, OneCleanupActionWithStop) {
 
 TEST_F(AtCoroutineExit, TwoCleanupActionsWithStop) {
   sync_wait(test_two_cleanup_actions_with_stop());
-  EXPECT_EQ(result, 8);
+  EXPECT_EQ(result, 2);
 }
 
 TEST_F(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
@@ -187,7 +187,7 @@ TEST_F(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
 
 TEST_F(AtCoroutineExit, TwoCleanupActionsWithStopAndContinuation) {
   sync_wait(with_continuation(test_two_cleanup_actions_with_stop()));
-  EXPECT_EQ(result, 8);
+  EXPECT_EQ(result, 2);
 }
 
 TEST_F(AtCoroutineExit, StatefulCleanupAction) {
