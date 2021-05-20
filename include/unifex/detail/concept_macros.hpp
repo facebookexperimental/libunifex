@@ -195,7 +195,6 @@
       decltype(&NAME ## UNIFEX_CONCEPT_FRAGMENT_impl_<As...>)); \
     char (&NAME ## UNIFEX_CONCEPT_FRAGMENT_(...))[2] \
     /**/
-  #define M(ARG) ARG,
   #if defined(_MSC_VER) && !defined(__clang__)
     #define UNIFEX_CONCEPT_FRAGMENT_TRUE(...) \
       ::unifex::_concept::true_<decltype( \

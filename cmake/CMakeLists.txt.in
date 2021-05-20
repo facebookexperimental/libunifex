@@ -14,7 +14,7 @@ ExternalProject_Add(googletest
   # gmock understands noexcept function qualifiers
   # and for which usage of std::result_of has been
   # discontinued.
-  GIT_TAG           61f010d703b32de9bfb20ab90ece38ab2f25977f
+  GIT_TAG           aa9b44a18678dfdf57089a5ac22c1edb69f35da5
   SOURCE_DIR        "${CMAKE_CURRENT_BINARY_DIR}/googletest-src"
   BINARY_DIR        "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
   CONFIGURE_COMMAND ""
