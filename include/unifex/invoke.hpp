@@ -25,7 +25,7 @@
 
 namespace unifex {
 
-namespace _async_invoke {
+namespace _co_invoke {
 inline constexpr struct _fn {
     template (typename Fn, typename... Args)
       (requires tag_invocable<
@@ -50,10 +50,10 @@ inline constexpr struct _fn {
           (Fn&&) fn,
           (Args&&) args...);
     }
-} async_invoke{};
+} co_invoke{};
 } // namespace _co_invoke
 
-using _async_invoke::async_invoke;
+using _co_invoke::co_invoke;
 
 } // namespace unifex
 
