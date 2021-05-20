@@ -56,7 +56,7 @@ struct AtCoroutineExit : testing::Test {
   task<void> test_two_cleanup_actions_with_stop() {
     ++result;
     co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
-    co_await at_coroutine_exit([this]() -> task<void> { result += result; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> { result *= result; co_return; });
     co_await stop();
     ++result;
   }
@@ -177,7 +177,7 @@ TEST_F(AtCoroutineExit, OneCleanupActionWithStop) {
 
 TEST_F(AtCoroutineExit, TwoCleanupActionsWithStop) {
   sync_wait(test_two_cleanup_actions_with_stop());
-  EXPECT_EQ(result, 4);
+  EXPECT_EQ(result, 8);
 }
 
 TEST_F(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
@@ -187,7 +187,7 @@ TEST_F(AtCoroutineExit, OneCleanupActionWithStopAndContinuation) {
 
 TEST_F(AtCoroutineExit, TwoCleanupActionsWithStopAndContinuation) {
   sync_wait(with_continuation(test_two_cleanup_actions_with_stop()));
-  EXPECT_EQ(result, 4);
+  EXPECT_EQ(result, 8);
 }
 
 TEST_F(AtCoroutineExit, StatefulCleanupAction) {

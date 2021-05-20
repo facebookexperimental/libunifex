@@ -29,7 +29,7 @@ namespace _visit_continuations_cpo {
   inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
     template(typename Promise, typename Func)
-        (requires (!same_as<Promise, void>))
+        (requires (!same_as<Promise, void>) AND callable<_fn, Promise&, Func>)
     friend void tag_invoke(
         _fn cpo,
         coro::coroutine_handle<Promise> h,
@@ -191,6 +191,10 @@ template <>
 struct continuation_handle<void> {
   continuation_handle() = default;
 
+  // Because of a detail in the concepts emulation macros, it is not possible to
+  // forward-declare a constrained function and provide its definition later. So
+  // below we define a constrained constructor that trivially dispatches to an
+  // unconstrained implementation defined elsewhere.
   template (typename Promise)
     (requires (!same_as<Promise, void>))
   /*implicit*/ continuation_handle(coro::coroutine_handle<Promise> continuation) noexcept
@@ -261,7 +265,7 @@ coro::coroutine_handle<> _done_callback_for(void* address) noexcept {
 }
 
 template <typename Promise>
-inline static constexpr _continuation_handle_vtable _vtable_for {
+inline constexpr _continuation_handle_vtable _vtable_for {
   &_ci::_type_index_getter_for<Promise>,
   &_visit_for<Promise>,
   &_done_callback_for<Promise>
