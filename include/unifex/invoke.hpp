@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_traits.hpp>
 
 #include <functional>
 
@@ -24,35 +25,28 @@
 
 namespace unifex {
 
-namespace _tag {
-template <typename...>
-struct tag;
-} // namespace _tag
-template <typename... Ts>
-using tag = _tag::tag<Ts...>*;
-
 namespace _co_invoke {
 inline constexpr struct _fn {
     template (typename Fn, typename... Args)
       (requires tag_invocable<
           _fn,
-          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
+          type_identity<std::invoke_result_t<Fn, Args...>>,
           Fn,
           Args...>)
     UNIFEX_ALWAYS_INLINE constexpr auto operator()(Fn&& fn, Args&&... args) const
       noexcept(is_nothrow_tag_invocable_v<
           _fn,
-          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
+          type_identity<std::invoke_result_t<Fn, Args...>>,
           Fn,
           Args...>)
       -> tag_invoke_result_t<
           _fn,
-          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>,
+          type_identity<std::invoke_result_t<Fn, Args...>>,
           Fn,
           Args...> {
       return tag_invoke(
           *this,
-          tag<std::invoke_result_t<Fn, Args...>, Fn, Args...>{},
+          type_identity<std::invoke_result_t<Fn, Args...>>{},
           (Fn&&) fn,
           (Args&&) args...);
     }

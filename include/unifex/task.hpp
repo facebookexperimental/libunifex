@@ -249,7 +249,7 @@ struct _task<T>::type {
 
   template <typename Fn, typename... Args>
   friend type tag_invoke(
-      tag_t<co_invoke>, tag<type, Fn, Args...>, Fn fn, Args... args) {
+      tag_t<co_invoke>, type_identity<type>, Fn fn, Args... args) {
     co_return co_await std::invoke((Fn&&) fn, (Args&&) args...);
   }
 

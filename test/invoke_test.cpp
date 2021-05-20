@@ -67,4 +67,34 @@ TEST(CoInvoke, WithArgumentsWithByRefCaptures) {
   EXPECT_EQ(*result, 100);
 }
 
+TEST(CoInvoke, WithLvalueArgumentsWithByValueCaptures) {
+  int i = 42;
+  task<int> t = [=]() {
+    int arg = 58;
+    return co_invoke([=](int j) -> task<int> { co_return i + j; }, arg);
+  }();
+  std::optional<int> result = sync_wait(std::move(t));
+  ASSERT_TRUE(!!result);
+  EXPECT_EQ(*result, 100);
+}
+
+TEST(CoInvoke, WithLvalueArgumentsWithByRefCaptures) {
+  int i = 42;
+  task<int> t = [&]() {
+    int arg = 58;
+    return co_invoke([&](int j) -> task<int> { co_return i + j; }, arg);
+  }();
+  std::optional<int> result = sync_wait(std::move(t));
+  ASSERT_TRUE(!!result);
+  EXPECT_EQ(*result, 100);
+}
+
+TEST(CoInvoke, WithLvalueFunctionObject) {
+  auto fn = []() -> task<int> { co_return 42; };
+  task<int> t = co_invoke(fn);
+  std::optional<int> result = sync_wait(std::move(t));
+  ASSERT_TRUE(!!result);
+  EXPECT_EQ(*result, 42);
+}
+
 #endif // !UNIFEX_NO_COROUTINES
