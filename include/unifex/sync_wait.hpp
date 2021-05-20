@@ -112,7 +112,7 @@ template <typename T>
 using receiver_t = typename _receiver<T>::type;
 
 template <typename Result, typename Sender>
-UNIFEX_APPLE_CLANG_DISABLE_OPTIMIZATION
+UNIFEX_CLANG_DISABLE_OPTIMIZATION
 std::optional<Result> _impl(Sender&& sender) {
   using promise_t = _sync_wait::promise<Result>;
   promise_t promise;
