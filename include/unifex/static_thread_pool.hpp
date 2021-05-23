@@ -75,7 +75,7 @@ namespace _static_thread_pool {
         }
 
         template(typename Receiver)
-          (requires receiver<Receiver>)
+          (requires receiver_of<Receiver>)
         friend operation<Receiver>
         tag_invoke(tag_t<connect>, schedule_sender s, Receiver&& r) {
           return s.make_operation_((Receiver &&) r);
@@ -99,7 +99,8 @@ namespace _static_thread_pool {
       }
 
       friend class context;
-      explicit scheduler(context& pool) noexcept : pool_(pool) {}
+      explicit scheduler(context& pool) noexcept
+        : pool_(pool) {}
 
       friend bool operator==(scheduler a, scheduler b) noexcept {
         return &a.pool_ == &b.pool_;
