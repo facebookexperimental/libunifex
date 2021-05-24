@@ -35,7 +35,6 @@
 #endif
 
 #include <exception>
-#include <optional>
 
 #include <unifex/detail/prologue.hpp>
 
