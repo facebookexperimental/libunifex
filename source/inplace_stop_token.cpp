@@ -150,11 +150,12 @@ void inplace_stop_source::remove_callback(
     }
     unlock(oldState);
   } else {
+    auto notifyingThreadId = notifyingThreadId_;
     unlock(oldState);
 
     // Callback has either already been executed or is
     // currently executing on another thread.
-    if (std::this_thread::get_id() == notifyingThreadId_) {
+    if (std::this_thread::get_id() == notifyingThreadId) {
       if (callback->removedDuringCallback_ != nullptr) {
         *callback->removedDuringCallback_ = true;
       }
