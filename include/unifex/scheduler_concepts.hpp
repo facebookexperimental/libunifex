@@ -18,6 +18,7 @@
 
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/sender_for.hpp>
 
 #include <type_traits>
 #include <exception>
@@ -84,7 +85,8 @@ namespace _schedule {
   using _as_sender_t = typename _as_sender<remove_cvref_t<Executor>>::type;
 
   struct sender;
-  inline const struct _fn {
+
+  inline const struct _impl {
   private:
     template <typename Scheduler>
     static auto _select() noexcept {
@@ -100,14 +102,14 @@ namespace _schedule {
     }
     template <typename Scheduler>
     using _result_t =
-        typename decltype(_fn::_select<Scheduler>())::template apply<Scheduler>;
+        typename decltype(_impl::_select<Scheduler>())::template apply<Scheduler>;
   public:
     template(typename Scheduler)
       (requires _with_tag_invoke<Scheduler>)
     constexpr auto operator()(Scheduler&& s) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler>)
         -> _result_t<Scheduler> {
-      return tag_invoke(_fn{}, static_cast<Scheduler&&>(s));
+      return tag_invoke(schedule, static_cast<Scheduler&&>(s));
     }
     template(typename Scheduler)
       (requires (!_with_tag_invoke<Scheduler>) AND
@@ -125,11 +127,24 @@ namespace _schedule {
         -> _result_t<Executor> {
       return _result_t<Executor>{(Executor&&) e};
     }
+  } impl{};
+
+  template <typename S>
+  using _schedule_result_t = decltype(impl(UNIFEX_DECLVAL(S&&)));
+
+  inline const struct _fn {
+    template (typename Scheduler)
+      (requires callable<_impl, Scheduler>)
+    auto operator()(Scheduler&& sched) const
+        noexcept(noexcept(make_sender_for<schedule>(impl((Scheduler&&) sched))))
+        -> sender_for<schedule, _schedule_result_t<Scheduler>> {
+      return make_sender_for<schedule>(impl((Scheduler&&) sched));
+    }
 
     constexpr sender operator()() const noexcept;
   } schedule{};
 } // namespace _schedule
-using _schedule::schedule;
+inline const _schedule::_fn schedule {};
 
 template <typename S>
 using schedule_result_t = decltype(schedule(UNIFEX_DECLVAL(S&&)));
@@ -427,7 +442,7 @@ namespace _now {
 using _now::now;
 
 namespace _current {
-  inline constexpr struct _scheduler {
+  inline const struct _scheduler {
     auto schedule() const noexcept {
         return unifex::schedule();
     }

@@ -195,8 +195,7 @@ struct _awaiter {
 
     ~type() {
       if (coro_ & 1u) {
-        --coro_;
-        auto thisCoro = coro::coroutine_handle<>::from_address((void*) coro_);
+        auto thisCoro = coro::coroutine_handle<>::from_address((void*) --coro_);
         thisCoro.destroy();
         stopTokenAdapter_.unsubscribe();
         sched_.destruct();
