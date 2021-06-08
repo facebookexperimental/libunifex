@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/type_traits.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -38,11 +39,6 @@ template <>
 inline constexpr bool is_this_v<const this_&> = true;
 template <>
 inline constexpr bool is_this_v<const this_&&> = true;
-
-struct _ignore {
-  template <typename T>
-  /*implicit*/ _ignore(T&&) noexcept {}
-};
 
 template <typename>
 struct _replace_this;
