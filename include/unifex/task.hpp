@@ -117,6 +117,7 @@ struct _promise_base {
   continuation_handle<> continuation_;
   inplace_stop_token stoken_;
   any_scheduler_ref sched_{_default_scheduler};
+  bool rescheduled_ = false;
 };
 
 template <typename T>
@@ -193,9 +194,15 @@ struct _promise {
                 as_sender(unifex::await_transform(*this, (Value&&) value)),
                 this->sched_));
       } else if constexpr (unifex::sender<Value>) {
-        // We are co_await-ing a sender. Append a transition to the correct execution
-        // context and wrap the result in an awaiter:
-        return unifex::await_transform(*this, typed_via((Value&&) value, this->sched_));
+        // If we are co_await'ing a sender that is the result of calling schedule,
+        // do something special
+        if constexpr (is_sender_for_v<remove_cvref_t<Value>, schedule>) {
+          return transform_schedule_sender_((Value&&) value);
+        } else {
+          // Otherwise, append a transition to the correct execution context and wrap the
+          // result in an awaiter:
+          return unifex::await_transform(*this, typed_via((Value&&) value, this->sched_));
+        }
       } else {
         // Otherwise, we don't know how to await this type. Just return it and let the
         // compiler issue a diagnostic.
@@ -208,11 +215,34 @@ struct _promise {
     // - updates the coroutine's current scheduler
     // - schedules an async cleanup action that transitions back to the correct
     //   context at the end of the coroutine (if one has not already been scheduled).
-    // template <typename Sender>
-    // decltype(auto) await_transform(sender_for<schedule, Sender> snd) const {
-    //   // Return the inner sender, appropriately wrapped in an awaitable:
-    //   return unifex::transform(*this, std::move(snd).base());
-    // }
+    template <typename ScheduleSender>
+    decltype(auto) transform_schedule_sender_(ScheduleSender&& snd) {
+      // This sender is a scheduler provider. Get the scheduler. This get_scheduler
+      // call returns a reference to the scheduler stored within snd, which is an object
+      // whose lifetime spans a suspend point. So it's ok to build an any_scheduler_ref
+      // from it:
+      any_scheduler_ref newSched = get_scheduler(snd);
+
+      // If we haven't already inserted a cleanup action to take us back to the correct
+      // scheduler, do so now:
+      if (!std::exchange(this->rescheduled_, true)) {
+        // Create a cleanup action that transitions back onto the current scheduler:
+        auto cleanupTask = at_coroutine_exit(schedule, this->sched_);
+        // Insert the cleanup action into the head of the continuation chain by making
+        // direct calls to the cleanup task's awaiter member functions. See type
+        // _cleanup_task in at_coroutine_exit.hpp:
+        cleanupTask.await_suspend(coro::coroutine_handle<type>::from_promise(*this));
+        (void) cleanupTask.await_resume();
+      }
+
+      // Update the current scheduler. (Don't do this before we have inserted the
+      // cleanup action because the insertion of the cleanup action reads this task's
+      // current scheduler.)
+      this->sched_ = newSched;
+
+      // Return the inner sender, appropriately wrapped in an awaitable:
+      return unifex::await_transform(*this, std::move(snd).base());
+    }
 
     decltype(auto) result() {
       if (this->expected_.state_ == _state::exception) {

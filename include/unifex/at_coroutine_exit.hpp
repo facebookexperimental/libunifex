@@ -193,7 +193,7 @@ struct _die_on_done {
           _die_on_done_rec_t<Receiver>{(Receiver&&) rec});
     }
 
-    Sender sender_;
+    UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
   };
 };
 
@@ -245,7 +245,7 @@ struct _cleanup_promise : _cleanup_promise_base {
     return unifex::await_transform(*this, _die_on_done_fn{}((Value&&) value));
   }
 
-  std::tuple<Ts&...> args_;
+  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Ts&...> args_;
 };
 
 template <typename... Ts>
@@ -296,7 +296,7 @@ namespace _at_coroutine_exit {
   public:
     template (typename Action, typename... Ts)
       (requires callable<std::decay_t<Action>, std::decay_t<Ts>...>)
-    _cleanup_task<Ts...> operator()(Action&& action, Ts&&... ts) const {
+    _cleanup_task<std::decay_t<Ts>...> operator()(Action&& action, Ts&&... ts) const {
       return _fn::at_coroutine_exit((Action&&) action, (Ts&&) ts...);
     }
   } at_coroutine_exit{};

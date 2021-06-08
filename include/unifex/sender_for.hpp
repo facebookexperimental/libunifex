@@ -50,6 +50,7 @@ namespace unifex
               std::is_nothrow_move_constructible_v<Context>)
         : snd_((Sender&&) snd), ctx_{(Context&&) ctx} {}
 
+      // Forward all tag_invokes:
       template (typename CPO, typename Self, typename... Args)
         (requires same_as<sender_for, remove_cvref_t<Self>> AND
             (!callable<const Context&, CPO>) AND
@@ -60,7 +61,7 @@ namespace unifex
         return ((CPO&&) cpo)(((Self&&) self).snd_, (Args&&) args...);
       }
 
-      // Handle property queries:
+      // Handle custom property queries by consulting the context:
       template (typename CPO)
         (requires callable<const Context&, CPO>)
       UNIFEX_ALWAYS_INLINE
@@ -99,6 +100,12 @@ namespace unifex
 
   template <const auto& CPO>
   inline constexpr _sf::_make_sender_for<CPO> make_sender_for {};
+
+  template <typename T, const auto& CPO>
+  inline constexpr bool is_sender_for_v = false;
+
+  template <typename Sender, typename Context, const auto& CPO>
+  inline constexpr bool is_sender_for_v<sender_for<CPO, Sender, Context>, CPO> = true;
 
   template <const auto& CPO, typename Sender, typename Context>
   struct sender_traits<sender_for<CPO, Sender, Context>>
