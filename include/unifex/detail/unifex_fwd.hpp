@@ -28,7 +28,14 @@ namespace unifex {
 
     template <typename S, typename F, typename = void>
     extern const bool _can_submit;
-  } // detail
+
+    struct _ignore {
+      template <typename T>
+      /*implicit*/ _ignore(T&&) noexcept {}
+    };
+  } // namespace detail
+
+  using detail::_ignore;
 
   namespace _execute_cpo {
     extern const struct _fn execute;

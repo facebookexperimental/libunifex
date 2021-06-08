@@ -19,6 +19,11 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/transform.hpp>
+#include <unifex/just.hpp>
+#include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
+#include <unifex/transform_done.hpp>
+#include <unifex/transform_error.hpp>
 
 #include <cstdio>
 #include <thread>
@@ -27,12 +32,39 @@
 
 using namespace unifex;
 
-TEST(Finally, Pipeable) {
+TEST(Finally, Value) {
   timed_single_thread_context context;
 
-  schedule(context.get_scheduler())
-    | finally(schedule(context.get_scheduler()) 
-        | transform([](){ std::printf("finally\n"); }))
-    | transform([](){ std::printf("transform\n"); })
+  auto res = just(42)
+    | finally(schedule(context.get_scheduler()))
+    | transform([](int i){ return std::make_pair(i, std::this_thread::get_id() ); })
     | sync_wait();
+
+  ASSERT_FALSE(!res);
+  EXPECT_EQ(res->first, 42);
+  EXPECT_EQ(res->second, context.get_thread_id());
+}
+
+TEST(Finally, Done) {
+  timed_single_thread_context context;
+
+  auto res = just_done()
+    | finally(schedule(context.get_scheduler()))
+    | transform_done([](){ return just(std::this_thread::get_id()); })
+    | sync_wait();
+
+  ASSERT_FALSE(!res);
+  EXPECT_EQ(*res, context.get_thread_id());
+}
+
+TEST(Finally, Error) {
+  timed_single_thread_context context;
+
+  auto res = just_error(-1)
+    | finally(schedule(context.get_scheduler()))
+    | transform_error([]{ return just(std::this_thread::get_id()); })
+    | sync_wait();
+
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(*res, context.get_thread_id());
 }
