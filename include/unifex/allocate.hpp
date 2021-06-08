@@ -22,6 +22,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/blocking.hpp>
 
 #include <memory>
 #include <type_traits>
@@ -103,6 +104,10 @@ namespace _alloc {
           connect_result_t<member_t<Self, Sender>, Receiver>,
           remove_cvref_t<get_allocator_t<Receiver>>>{
           static_cast<Self&&>(s).sender_, (Receiver &&) r};
+    }
+
+    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+      return blocking(self.sender_);
     }
 
     Sender sender_;

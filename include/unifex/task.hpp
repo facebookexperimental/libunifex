@@ -79,6 +79,10 @@ struct _promise_base {
       return false;
     }
     static void await_resume() noexcept {}
+
+    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _final_suspend_awaiter_base&) noexcept {
+      return blocking_kind::always_inline;
+    }
   };
 
   coro::suspend_always initial_suspend() noexcept {

@@ -22,6 +22,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
+#include <unifex/blocking.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -50,6 +51,10 @@ namespace _get_stop_token {
         (requires same_as<Tag, tag_t<await_transform>>)
       friend auto tag_invoke(Tag, Promise& promise, _awaitable) noexcept {
         return _awaiter{_fn{}(promise)};
+      }
+
+      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaitable&) noexcept {
+        return blocking_kind::always_inline;
       }
     };
 

@@ -46,6 +46,9 @@ enum class _enum {
 };
 
 struct blocking_kind {
+  template <_enum Kind>
+  using constant = std::integral_constant<_enum, Kind>;
+
   blocking_kind() = default;
 
   constexpr blocking_kind(_enum kind) noexcept
@@ -53,7 +56,7 @@ struct blocking_kind {
   {}
 
   template <_enum Kind>
-  constexpr blocking_kind(std::integral_constant<_enum, Kind>) noexcept
+  constexpr blocking_kind(constant<Kind>) noexcept
     : value(Kind)
   {}
 
@@ -73,21 +76,10 @@ struct blocking_kind {
     return a.value != b.value;
   }
 
-  static constexpr struct _maybe
-    : std::integral_constant<_enum, _enum::maybe>
-  {} const maybe {};
-
-  static constexpr struct _never
-    : std::integral_constant<_enum, _enum::never>
-  {} const never {};
-
-  static constexpr struct _always
-    : std::integral_constant<_enum, _enum::always>
-  {} const always {};
-
-  static constexpr struct _always_inline
-    : std::integral_constant<_enum, _enum::always_inline>
-  {} const always_inline {};
+  static constexpr constant<_enum::maybe> maybe {};
+  static constexpr constant<_enum::never> never {};
+  static constexpr constant<_enum::always> always {};
+  static constexpr constant<_enum::always_inline> always_inline {};
 
   _enum value;
 };
@@ -109,17 +101,17 @@ struct _fn {
 
 namespace _cfn {
   template <_enum Kind>
-  static constexpr _enum _kind(std::integral_constant<_enum, Kind>) noexcept {
-    return Kind;
+  static constexpr auto _kind(blocking_kind::constant<Kind> kind) noexcept {
+    return kind;
   }
-  static constexpr _enum _kind(blocking_kind) noexcept {
-    return _enum{0};
+  static constexpr auto _kind(blocking_kind) noexcept {
+    return blocking_kind::maybe;
   }
 
   template <typename T>
-  constexpr _enum cblocking() noexcept {
+  constexpr auto cblocking() noexcept {
     using blocking_t = remove_cvref_t<decltype(_fn{}(UNIFEX_DECLVAL(T&)))>;
-    return _kind(blocking_t{});
+    return _cfn::_kind(blocking_t{});
   }
 }
 
