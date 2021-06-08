@@ -133,21 +133,6 @@ namespace detail {
     using next_types = typename S::template next_types<Variant, Tuple>;
   };
 
-// #if !UNIFEX_NO_COROUTINES
-//   template <typename A>
-//   struct _awaitable_sender_traits {
-//     template <
-//         template <typename...> class Variant,
-//         template <typename...> class Tuple>
-//     using value_types = Variant<Tuple<await_result_t<A>>>;
-
-//     template <template <typename...> class Variant>
-//     using error_types = Variant<std::exception_ptr>;
-
-//     static constexpr bool sends_done = true;
-//   };
-// #endif
-
   struct _no_sender_traits {
     using _unspecialized = void;
   };
@@ -186,10 +171,6 @@ namespace detail {
       return _void_sender_traits{};
     } else if constexpr (std::is_base_of_v<sender_base, S>) {
       return sender_base{};
-// #if !UNIFEX_NO_COROUTINES
-//     } else if constexpr (detail::_awaitable<S>) {
-//       return _awaitable_sender_traits<S>{};
-// #endif
     } else {
       return _no_sender_traits{};
     }

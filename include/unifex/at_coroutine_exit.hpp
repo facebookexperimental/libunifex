@@ -23,6 +23,7 @@
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/any_scheduler.hpp>
+#include <unifex/blocking.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -275,6 +276,10 @@ struct [[nodiscard]] _cleanup_task {
 
   std::tuple<Ts&...> await_resume() noexcept {
     return std::exchange(continuation_, {}).promise().args_;
+  }
+
+  friend auto tag_invoke(tag_t<blocking>, const _cleanup_task&) noexcept {
+    return blocking_kind::always_inline;
   }
 
 private:

@@ -276,6 +276,7 @@ struct _sender<Predecessor, Successor>::type {
     sender_traits<Predecessor>::sends_done ||
     sender_traits<Successor>::sends_done;
 
+  // TODO: give this a compile-time blocking when possible.
   friend constexpr blocking_kind tag_invoke(
       tag_t<blocking>,
       const sender& sender) {

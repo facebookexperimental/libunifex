@@ -33,6 +33,7 @@
 #include <unifex/continuations.hpp>
 #include <unifex/any_scheduler.hpp>
 #include <unifex/typed_via.hpp>
+#include <unifex/blocking.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -172,20 +173,21 @@ struct _promise {
     decltype(auto) await_transform(Value&& value)
         // TODO fix this noexcept
         noexcept(is_nothrow_callable_v<tag_t<unifex::await_transform>, type&, Value>) {
-      if constexpr (derived_from<remove_cvref_t<Value>, _task_base>) {
-        // We are co_await-ing a unifex::task. Assume that the task transitions back to
-        // the correct context automatically and doesn't need an additional transition.
+      if constexpr (derived_from<remove_cvref_t<Value>, _task_base> ||
+          blocking_kind::always_inline == cblocking<Value>()) {
+        // We are co_await-ing a unifex::task or something that completes inline. We don't
+        // need an additional transition.
         return unifex::await_transform(*this, (Value&&) value);
       } else if constexpr (tag_invocable<tag_t<unifex::await_transform>, type&, Value>
           || detail::_awaitable<Value>) {
         // Either await_transform has been customized or Value is an awaitable. Either
         // way, we can dispatch to the await_transform CPO, then insert a transition back
         // to the correct execution context.
-        // BUGBUG this is wrong because awaitables are not automatically typed_senders:
-        // return typed_via(
-        //     unifex::await_transform(*this, (Value&&) value),
-        //     this->sched_);
-        return unifex::await_transform(*this, (Value&&) value);
+        return unifex::await_transform(
+            *this,
+            typed_via(
+                as_sender(unifex::await_transform(*this, (Value&&) value)),
+                this->sched_));
       } else if constexpr (unifex::sender<Value>) {
         // We are co_await-ing a sender. Append a transition to the correct execution
         // context and wrap the result in an awaiter:
@@ -226,7 +228,14 @@ struct _awaiter {
       : coro_((std::uintptr_t) coro.address())
     {}
 
-    type(type&& other) noexcept = delete;
+    // The move constructor is only ever called /before/ the awaitable is awaited.
+    // In those cases, the other fields have not been initialized yet and so do not
+    // need to be moved.
+    type(type&& other) noexcept
+      : coro_(std::exchange(other.coro_, 0))
+    {
+      UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
+    }
 
     ~type() {
       if (coro_ & 1u) {
@@ -323,7 +332,7 @@ private:
 
   template<typename Receiver>
   friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
-    return unifex::connect_awaitable((type&&)t, (Receiver&&)r);
+    return unifex::connect_awaitable((type&&) t, (Receiver&&) r);
   }
 
   coro::coroutine_handle<promise_type> coro_;

@@ -321,6 +321,7 @@ namespace unifex
         : predecessor_(static_cast<Predecessor&&>(predecessor))
         , successor_(static_cast<Successor&&>(successor)) {}
 
+      // TODO: give this a compile-time blocking when possible.
       friend blocking_kind
       tag_invoke(tag_t<blocking>, const sender& sender) {
         const auto predBlocking = blocking(sender.predecessor_);
