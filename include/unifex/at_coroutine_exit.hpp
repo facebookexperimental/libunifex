@@ -22,6 +22,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/inline_scheduler.hpp>
+#include <unifex/any_scheduler.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -117,13 +118,14 @@ struct _cleanup_promise_base {
     return unstoppable_token{};
   }
 
-  // BUGBUG should cleanup actions inherit the current scheduler from the parent coroutine?
-  friend inline_scheduler
-  tag_invoke(tag_t<get_scheduler>, const _cleanup_promise_base&) noexcept {
-    return inline_scheduler{};
+  friend any_scheduler_ref
+  tag_invoke(tag_t<get_scheduler>, const _cleanup_promise_base& p) noexcept {
+    return p.sched_;
   }
 
+  inline static constexpr inline_scheduler _default_scheduler{};
   continuation_handle<> continuation_{};
+  any_scheduler_ref sched_{_default_scheduler};
   bool isUnhandledDone_{false};
 };
 
@@ -267,6 +269,7 @@ struct [[nodiscard]] _cleanup_task {
   bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
     continuation_.promise().continuation_ =
         exchange_continuation(parent.promise(), continuation_);
+    continuation_.promise().sched_ = get_scheduler(parent.promise());
     return false;
   }
 
