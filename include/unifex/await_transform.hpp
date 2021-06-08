@@ -27,6 +27,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/typed_via.hpp>
 
 #include <exception>
 #include <optional>
@@ -85,13 +86,13 @@ struct _awaitable_base<Promise, Value>::type {
   struct _rec {
   public:
     explicit _rec(_expected<Value>* result, coro::coroutine_handle<Promise> continuation) noexcept
-    : result_(result)
-    , continuation_(continuation)
+      : result_(result)
+      , continuation_(continuation)
     {}
 
     _rec(_rec&& r) noexcept
-    : result_(std::exchange(r.result_, nullptr))
-    , continuation_(std::exchange(r.continuation_, nullptr))
+      : result_(std::exchange(r.result_, nullptr))
+      , continuation_(std::exchange(r.continuation_, nullptr))
     {}
 
     template(class... Us)
@@ -201,14 +202,19 @@ inline constexpr struct _fn {
     // to avoid instantiating 'unifex::sender<Value>' concept check in
     // the case that _awaitable<Value> evaluates to true.
     if constexpr (detail::_awaitable<Value>) {
+      // TODO: We need to wrap awaitables in typed_via also
       return (Value&&) value;
     } else if constexpr (unifex::sender<Value>) {
-      if constexpr (unifex::sender_to<Value, _receiver_t<Promise, Value>>) {
+      // Wrap the sender in a via so that we always transition back to the proper
+      // execution context.
+      using ViaSender = typed_via_result_t<Value, get_scheduler_result_t<Promise&>>;
+      if constexpr (unifex::sender_to<ViaSender, _receiver_t<Promise, ViaSender>>) {
         auto h = coro::coroutine_handle<Promise>::from_promise(promise);
-        return _as_awaitable<Promise, Value>{(Value&&) value, h};
+        auto viaSender = typed_via((Value&&) value, get_scheduler(promise));
+        return _as_awaitable<Promise, ViaSender>{(ViaSender&&) viaSender, h};
       } else {
         static_assert(
-          unifex::sender_to<Value, _receiver_t<Promise, Value>>,
+          unifex::sender_to<ViaSender, _receiver_t<Promise, ViaSender>>,
           "This sender is not awaitable in this coroutine type.");
         return (Value&&) value;
       }

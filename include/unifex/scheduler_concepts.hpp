@@ -132,7 +132,7 @@ namespace _schedule {
   template <typename S>
   using _schedule_result_t = decltype(impl(UNIFEX_DECLVAL(S&&)));
 
-  inline const struct _fn {
+  struct _fn {
     template (typename Scheduler)
       (requires callable<_impl, Scheduler>)
     auto operator()(Scheduler&& sched) const
@@ -142,7 +142,7 @@ namespace _schedule {
     }
 
     constexpr sender operator()() const noexcept;
-  } schedule{};
+  };
 } // namespace _schedule
 inline const _schedule::_fn schedule {};
 
