@@ -284,6 +284,10 @@ class timed_single_thread_context {
   scheduler get_scheduler() noexcept {
     return scheduler{*this};
   }
+
+  std::thread::id get_thread_id() const noexcept {
+    return thread_.get_id();
+  }
 };
 
 namespace _timed_single_thread_context {

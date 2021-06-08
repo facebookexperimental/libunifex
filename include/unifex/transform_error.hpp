@@ -32,41 +32,43 @@
 
 namespace unifex {
 
-namespace _tfx_done {
-template <typename Source, typename Done, typename Receiver>
+namespace _tfx_error {
+template <typename Source, typename Error, typename Receiver>
 struct _op {
   class type;
 };
-template <typename Source, typename Done, typename Receiver>
-using operation_type = typename _op<Source, Done, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Error, typename Receiver>
+using operation_type = typename _op<Source, Error, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Done, typename Receiver>
+template <typename Source, typename Error, typename Receiver>
 struct _rcvr {
   class type;
 };
-template <typename Source, typename Done, typename Receiver>
-using receiver_type = typename _rcvr<Source, Done, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Error, typename Receiver>
+using receiver_type = typename _rcvr<Source, Error, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Done, typename Receiver>
+template <typename Source, typename Error, typename Receiver>
 struct _frcvr {
   class type;
 };
-template <typename Source, typename Done, typename Receiver>
-using final_receiver_type = typename _frcvr<Source, Done, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Error, typename Receiver>
+using final_receiver_type = typename _frcvr<Source, Error, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Done>
+template <typename Source, typename Error>
 struct _sndr {
   class type;
 };
 
-template <typename Source, typename Done>
-using _sender = typename _sndr<Source, Done>::type;
+template <typename Source, typename Error>
+using _sender = typename _sndr<Source, Error>::type;
 
-template <typename Source, typename Done, typename Receiver>
-class _rcvr<Source, Done, Receiver>::type {
-  using operation = operation_type<Source, Done, Receiver>;
-  using final_receiver = final_receiver_type<Source, Done, Receiver>;
-  using final_sender_t = callable_result_t<Done&>;
+enum class state { neither, source, final };
+
+template <typename Source, typename Error, typename Receiver>
+class _rcvr<Source, Error, Receiver>::type final {
+  using operation = operation_type<Source, Error, Receiver>;
+  using final_receiver = final_receiver_type<Source, Error, Receiver>;
+  using final_sender_t = callable_result_t<Error&>;
 
 public:
   explicit type(operation* op) noexcept
@@ -86,37 +88,35 @@ public:
 
   void set_done() noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
+    unifex::set_done(std::move(op_->receiver_));
+  }
+
+  void set_error(_ignore) noexcept {
+    UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_; // preserve pointer value.
     if constexpr (
-      is_nothrow_callable_v<Done> &&
+      is_nothrow_callable_v<Error> &&
       is_nothrow_connectable_v<final_sender_t, final_receiver>) {
-      op->startedOp_ = 0;
+      op->startedOp_ = state::neither;
       unifex::deactivate_union_member(op->sourceOp_);
       unifex::activate_union_member_with(op->finalOp_, [&] {
-        return unifex::connect(std::move(op->done_)(), final_receiver{op});
+        return unifex::connect(std::move(op->error_)(), final_receiver{op});
       });
-      op->startedOp_ = 0 - 1;
+      op->startedOp_ = state::final;
       unifex::start(op->finalOp_.get());
     } else {
       UNIFEX_TRY {
-        op->startedOp_ = 0;
+        op->startedOp_ = state::neither;
         unifex::deactivate_union_member(op->sourceOp_);
         unifex::activate_union_member_with(op->finalOp_, [&] {
-          return unifex::connect(std::move(op->done_)(), final_receiver{op});
+          return unifex::connect(std::move(op->error_)(), final_receiver{op});
         });
-        op->startedOp_ = 0 - 1;
+        op->startedOp_ = state::final;
         unifex::start(op->finalOp_.get());
       } UNIFEX_CATCH (...) {
         unifex::set_error(std::move(op->receiver_), std::current_exception());
       }
     }
-  }
-
-  template(typename Error)
-      (requires receiver<Receiver, Error>)
-  void set_error(Error&& error) noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error&&)error);
   }
 
 private:
@@ -148,9 +148,9 @@ private:
   operation* op_;
 };
 
-template <typename Source, typename Done, typename Receiver>
-class _frcvr<Source, Done, Receiver>::type {
-  using operation = operation_type<Source, Done, Receiver>;
+template <typename Source, typename Error, typename Receiver>
+class _frcvr<Source, Error, Receiver>::type {
+  using operation = operation_type<Source, Error, Receiver>;
 
 public:
   explicit type(operation* op) noexcept
@@ -173,11 +173,11 @@ public:
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  template(typename Error)
-    (requires receiver<Receiver, Error>)
-  void set_error(Error&& error) noexcept {
+  template(typename Error2)
+    (requires receiver<Receiver, Error2>)
+  void set_error(Error2&& error2) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error&&)error);
+    unifex::set_error(std::move(op_->receiver_), (Error2&&)error2);
   }
 
 private:
@@ -208,33 +208,38 @@ private:
   operation* op_;
 };
 
-template <typename Source, typename Done, typename Receiver>
-class _op<Source, Done, Receiver>::type {
-  using source_receiver = receiver_type<Source, Done, Receiver>;
-  using final_receiver = final_receiver_type<Source, Done, Receiver>;
+template <typename Source, typename Error, typename Receiver>
+class _op<Source, Error, Receiver>::type {
+  using source_receiver = receiver_type<Source, Error, Receiver>;
+  using final_receiver = final_receiver_type<Source, Error, Receiver>;
 
 public:
-  template <typename Done2, typename Receiver2>
-  explicit type(Source&& source, Done2&& done, Receiver2&& dest)
+  template <typename Error2, typename Receiver2>
+  explicit type(Source&& source, Error2&& error, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
-               std::is_nothrow_move_constructible_v<Done> &&
+               std::is_nothrow_move_constructible_v<Error> &&
                is_nothrow_connectable_v<Source, source_receiver>)
-  : done_((Done2&&)done)
+  : error_((Error2&&)error)
   , receiver_((Receiver2&&)dest)
   {
     unifex::activate_union_member_with(sourceOp_, [&] {
         return unifex::connect((Source&&)source, source_receiver{this});
       });
-    startedOp_ = 0 + 1;
+    startedOp_ = state::source;
   }
 
   ~type() {
-    if (startedOp_ < 0) {
-      unifex::deactivate_union_member(finalOp_);
-    } else if (startedOp_ > 0) {
+    switch (startedOp_) {
+    case state::neither:
+      break;
+    case state::source:
       unifex::deactivate_union_member(sourceOp_);
+      break;
+    case state::final:
+      unifex::deactivate_union_member(finalOp_);
+      break;
     }
-    startedOp_ = 0;
+    startedOp_ = state::neither;
   }
 
   void start() & noexcept {
@@ -247,22 +252,22 @@ private:
 
   using source_op_t = connect_result_t<Source, source_receiver>;
 
-  using final_sender_t = callable_result_t<Done>;
+  using final_sender_t = callable_result_t<Error>;
 
   using final_op_t = connect_result_t<final_sender_t, final_receiver>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS Done done_;
+  UNIFEX_NO_UNIQUE_ADDRESS Error error_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  int startedOp_ = 0;
+  state startedOp_ = state::neither;
   union {
     manual_lifetime<source_op_t> sourceOp_;
     manual_lifetime<final_op_t> finalOp_;
   };
 };
 
-template <typename Source, typename Done>
-class _sndr<Source, Done>::type {
-  using final_sender_t = callable_result_t<Done>;
+template <typename Source, typename Error>
+class _sndr<Source, Error>::type {
+  using final_sender_t = callable_result_t<Error>;
 
 public:
   template <template <typename...> class Variant,
@@ -282,83 +287,82 @@ public:
 
   static constexpr bool sends_done = sender_traits<final_sender_t>::sends_done;
 
-  template <typename Source2, typename Done2>
-  explicit type(Source2&& source, Done2&& done)
+  template <typename Source2, typename Error2>
+  explicit type(Source2&& source, Error2&& error)
     noexcept(
       std::is_nothrow_constructible_v<Source, Source2> &&
-      std::is_nothrow_constructible_v<Done, Done2>)
+      std::is_nothrow_constructible_v<Error, Error2>)
     : source_((Source2&&)source)
-    , done_((Done2&&)done)
+    , error_((Error2&&)error)
   {}
 
   template(
     typename Sender,
     typename Receiver,
     typename...,
-    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Done, Receiver>,
-    typename FinalReceiver = final_receiver_type<member_t<Sender, Source>, Done, Receiver>)
+    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Error, Receiver>,
+    typename FinalReceiver = final_receiver_type<member_t<Sender, Source>, Error, Receiver>)
       (requires same_as<remove_cvref_t<Sender>, type> AND
-          constructible_from<Done, member_t<Sender, Done>> AND
+          constructible_from<Error, member_t<Sender, Error>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
           sender_to<member_t<Sender, Source>, SourceReceiver> AND
           sender_to<final_sender_t, FinalReceiver>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
         is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
-        std::is_nothrow_constructible_v<Done, member_t<Sender, Done>> &&
+        std::is_nothrow_constructible_v<Error, member_t<Sender, Error>> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-      -> operation_type<member_t<Sender, Source>, Done, Receiver> {
-    return operation_type<member_t<Sender, Source>, Done, Receiver>{
+      -> operation_type<member_t<Sender, Source>, Error, Receiver> {
+    return operation_type<member_t<Sender, Source>, Error, Receiver>{
       static_cast<Sender&&>(s).source_,
-      static_cast<Sender&&>(s).done_,
+      static_cast<Sender&&>(s).error_,
       static_cast<Receiver&&>(r)
     };
   }
 
 private:
   Source source_;
-  Done done_;
+  Error error_;
 };
 
 namespace _cpo
 {
 struct _fn {
-  template <typename Source, typename Done>
-  auto operator()(Source&& source, Done&& done) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Done>)
-      -> tag_invoke_result_t<_fn, Source, Done> {
-    return tag_invoke(*this, (Source&&)source, (Done&&)done);
+  template <typename Source, typename Error>
+  auto operator()(Source&& source, Error&& error) const
+      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Error>)
+      -> tag_invoke_result_t<_fn, Source, Error> {
+    return tag_invoke(*this, (Source&&)source, (Error&&)error);
   }
 
-  template(typename Source, typename Done)
-    (requires (!tag_invocable<_fn, Source, Done>) AND
+  template(typename Source, typename Error)
+    (requires (!tag_invocable<_fn, Source, Error>) AND
         constructible_from<remove_cvref_t<Source>, Source> AND
-        constructible_from<remove_cvref_t<Done>, Done> AND
-        callable<remove_cvref_t<Done>> AND
-        sender<callable_result_t<remove_cvref_t<Done>>>)
-  auto operator()(Source&& source, Done&& done) const
+        constructible_from<remove_cvref_t<Error>, Error> AND
+        callable<remove_cvref_t<Error>>)
+  auto operator()(Source&& source, Error&& error) const
       noexcept(std::is_nothrow_constructible_v<
-                   _sender<remove_cvref_t<Source>, remove_cvref_t<Done>>,
+                   _sender<remove_cvref_t<Source>, remove_cvref_t<Error>>,
                    Source, 
-                   Done>)
-      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Done>> {
-    return _sender<remove_cvref_t<Source>, remove_cvref_t<Done>>{
-        (Source&&)source, (Done&&)done};
+                   Error>)
+      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Error>> {
+    return _sender<remove_cvref_t<Source>, remove_cvref_t<Error>>{
+        (Source&&)source, (Error&&)error};
   }
-  template(typename Done)
-      (requires callable<remove_cvref_t<Done>> AND
-        sender<callable_result_t<remove_cvref_t<Done>>>)
-  constexpr auto operator()(Done&& done) const
+  template(typename Error)
+      (requires callable<remove_cvref_t<Error>> AND
+        sender<callable_result_t<remove_cvref_t<Error>>>)
+  constexpr auto operator()(Error&& error) const
       noexcept(is_nothrow_callable_v<
-        tag_t<bind_back>, _fn, Done>)
-      -> bind_back_result_t<_fn, Done> {
-    return bind_back(*this, (Done&&)done);
+        tag_t<bind_back>, _fn, Error>)
+      -> bind_back_result_t<_fn, Error> {
+    return bind_back(*this, (Error&&)error);
   }
 };
 } // namespace _cpo
-} // namespace _tfx_done
+} // namespace _tfx_error
 
-inline constexpr _tfx_done::_cpo::_fn transform_done {};
+inline constexpr _tfx_error::_cpo::_fn transform_error {};
 
 } // namespace unifex
 
