@@ -36,9 +36,8 @@ namespace unifex
         (requires same_as<sender_for, remove_cvref_t<Self>> AND
             callable<CPO, member_t<Self, Sender>, Args...>)
       UNIFEX_ALWAYS_INLINE
-      friend auto tag_invoke(CPO cpo, Self&& self, Args&&... args)
-          noexcept(is_nothrow_callable_v<CPO, member_t<Self, Sender>, Args...>)
-          -> callable_result_t<CPO, member_t<Self, Sender>, Args...> {
+      friend decltype(auto) tag_invoke(CPO cpo, Self&& self, Args&&... args)
+          noexcept(is_nothrow_callable_v<CPO, member_t<Self, Sender>, Args...>) {
         return ((CPO&&) cpo)(((Self&&) self).snd_, (Args&&) args...);
       }
 
