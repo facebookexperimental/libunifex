@@ -37,6 +37,21 @@ namespace unifex {
 
   using detail::_ignore;
 
+  namespace _kv
+  {
+    template <typename Key, typename Value>
+    struct _kv {
+      struct type {
+        using key_type = Key;
+        using value_type = Value;
+        UNIFEX_NO_UNIQUE_ADDRESS Key key;
+        Value value;
+      };
+    };
+  } // namespace _kv
+  template <typename Key, typename Value>
+  using kv = typename _kv::_kv<Key, Value>::type;
+
   namespace _execute_cpo {
     extern const struct _fn execute;
   } // namespace _execute_cpo
@@ -58,5 +73,22 @@ namespace unifex {
   } // namespace _await_tfx
   extern const _await_tfx::_fn await_transform;
 #endif
+
+  namespace _schedule {
+    struct _fn;
+  } // namespace _schedule
+  extern const _schedule::_fn schedule;
+
+  namespace _sf {
+    template <const auto&, typename, typename>
+    struct sender_for;
+  } // namespace _sf
+  using _sf::sender_for;
+
+  template <typename>
+  struct sender_traits;
+
+  template <const auto& CPO, typename Sender, typename Context>
+  struct sender_traits<sender_for<CPO, Sender, Context>>;
 
 } // namespace unifex
