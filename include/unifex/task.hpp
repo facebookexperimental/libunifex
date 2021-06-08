@@ -32,6 +32,7 @@
 #include <unifex/at_coroutine_exit.hpp>
 #include <unifex/continuations.hpp>
 #include <unifex/any_scheduler.hpp>
+#include <unifex/typed_via.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -140,6 +141,8 @@ struct _return_value_or_void<void> {
   };
 };
 
+struct _task_base {};
+
 template <typename T>
 struct _promise {
   struct type : _promise_base, _return_value_or_void<T>::type {
@@ -165,13 +168,45 @@ struct _promise {
       this->expected_.state_ = _state::exception;
     }
 
-    template(typename Value)
-        (requires callable<decltype(unifex::await_transform), type&, Value>)
-    auto await_transform(Value&& value)
-        noexcept(is_nothrow_callable_v<decltype(unifex::await_transform), type&, Value>)
-        -> callable_result_t<decltype(unifex::await_transform), type&, Value> {
-      return unifex::await_transform(*this, (Value&&)value);
+    template <typename Value>
+    decltype(auto) await_transform(Value&& value)
+        // TODO fix this noexcept
+        noexcept(is_nothrow_callable_v<tag_t<unifex::await_transform>, type&, Value>) {
+      if constexpr (derived_from<remove_cvref_t<Value>, _task_base>) {
+        // We are co_await-ing a unifex::task. Assume that the task transitions back to
+        // the correct context automatically and doesn't need an additional transition.
+        return unifex::await_transform(*this, (Value&&) value);
+      } else if constexpr (tag_invocable<tag_t<unifex::await_transform>, type&, Value>
+          || detail::_awaitable<Value>) {
+        // Either await_transform has been customized or Value is an awaitable. Either
+        // way, we can dispatch to the await_transform CPO, then insert a transition back
+        // to the correct execution context.
+        // BUGBUG this is wrong because awaitables are not automatically typed_senders:
+        // return typed_via(
+        //     unifex::await_transform(*this, (Value&&) value),
+        //     this->sched_);
+        return unifex::await_transform(*this, (Value&&) value);
+      } else if constexpr (unifex::sender<Value>) {
+        // We are co_await-ing a sender. Append a transition to the correct execution
+        // context and wrap the result in an awaiter:
+        return unifex::await_transform(*this, typed_via((Value&&) value, this->sched_));
+      } else {
+        // Otherwise, we don't know how to await this type. Just return it and let the
+        // compiler issue a diagnostic.
+        return (Value&&) value;
+      }
     }
+
+    // co_await schedule(sched) is magical. It does the following:
+    // - transitions execution context
+    // - updates the coroutine's current scheduler
+    // - schedules an async cleanup action that transitions back to the correct
+    //   context at the end of the coroutine (if one has not already been scheduled).
+    // template <typename Sender>
+    // decltype(auto) await_transform(sender_for<schedule, Sender> snd) const {
+    //   // Return the inner sender, appropriately wrapped in an awaitable:
+    //   return unifex::transform(*this, std::move(snd).base());
+    // }
 
     decltype(auto) result() {
       if (this->expected_.state_ == _state::exception) {
@@ -237,7 +272,7 @@ struct _awaiter {
 };
 
 template <typename T>
-struct _task<T>::type {
+struct _task<T>::type : _task_base {
   using promise_type = typename _promise<T>::type;
   friend promise_type;
 

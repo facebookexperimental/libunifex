@@ -27,7 +27,6 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/typed_via.hpp>
 
 #include <exception>
 #include <optional>
@@ -184,7 +183,7 @@ public:
 template <typename Promise, typename Sender>
 using _as_awaitable = typename _awaitable<Promise, Sender>::type;
 
-inline constexpr struct _fn {
+struct _fn {
   // Call custom implementation if present.
   template(typename Promise, typename Value)
     (requires tag_invocable<_fn, Promise&, Value>)
@@ -202,19 +201,14 @@ inline constexpr struct _fn {
     // to avoid instantiating 'unifex::sender<Value>' concept check in
     // the case that _awaitable<Value> evaluates to true.
     if constexpr (detail::_awaitable<Value>) {
-      // TODO: We need to wrap awaitables in typed_via also
       return (Value&&) value;
     } else if constexpr (unifex::sender<Value>) {
-      // Wrap the sender in a via so that we always transition back to the proper
-      // execution context.
-      using ViaSender = typed_via_result_t<Value, get_scheduler_result_t<Promise&>>;
-      if constexpr (unifex::sender_to<ViaSender, _receiver_t<Promise, ViaSender>>) {
+      if constexpr (unifex::sender_to<Value, _receiver_t<Promise, Value>>) {
         auto h = coro::coroutine_handle<Promise>::from_promise(promise);
-        auto viaSender = typed_via((Value&&) value, get_scheduler(promise));
-        return _as_awaitable<Promise, ViaSender>{(ViaSender&&) viaSender, h};
+        return _as_awaitable<Promise, Value>{(Value&&) value, h};
       } else {
         static_assert(
-          unifex::sender_to<ViaSender, _receiver_t<Promise, ViaSender>>,
+          unifex::sender_to<Value, _receiver_t<Promise, Value>>,
           "This sender is not awaitable in this coroutine type.");
         return (Value&&) value;
       }
@@ -222,7 +216,7 @@ inline constexpr struct _fn {
       return (Value&&) value;
     }
   }
-} await_transform {};
+};
 
 } // namespace _await_tfx
 
@@ -235,7 +229,7 @@ inline constexpr struct _fn {
 //
 // Coroutine promise_types can implement their .await_transform() methods to
 // forward to this customisation point to enable use of type customisations.
-using _await_tfx::await_transform;
+inline constexpr _await_tfx::_fn await_transform {};
 
 } // namespace unifex
 

@@ -54,9 +54,9 @@ namespace unifex {
 
 #if !UNIFEX_NO_COROUTINES
   namespace _await_tfx {
-    extern const struct _fn await_transform;
-  }
-  using _await_tfx::await_transform;
+    struct _fn;
+  } // namespace _await_tfx
+  extern const _await_tfx::_fn await_transform;
 #endif
 
 } // namespace unifex
