@@ -19,7 +19,9 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/await_transform.hpp>
 #include <unifex/continuations.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/inline_scheduler.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -110,8 +112,15 @@ struct _cleanup_promise_base {
     visit_continuations(p.continuation_, (Func &&) func);
   }
 
-  friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
+  friend unstoppable_token
+  tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
     return unstoppable_token{};
+  }
+
+  // BUGBUG should cleanup actions inherit the current scheduler from the parent coroutine?
+  friend inline_scheduler
+  tag_invoke(tag_t<get_scheduler>, const _cleanup_promise_base&) noexcept {
+    return inline_scheduler{};
   }
 
   continuation_handle<> continuation_{};
@@ -139,6 +148,15 @@ struct _die_on_done_rec {
     [[noreturn]] void set_done() && noexcept {
       UNIFEX_ASSERT(!"A cleanup action tried to cancel. Calling terminate...");
       std::terminate();
+    }
+
+    template(typename CPO)
+      (requires is_receiver_query_cpo_v<CPO> AND
+                is_callable_v<CPO, const Receiver&>)
+    friend auto tag_invoke(CPO cpo, const type& p)
+        noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+        -> callable_result_t<CPO, const Receiver&> {
+      return cpo(p.rec_);
     }
   };
 };

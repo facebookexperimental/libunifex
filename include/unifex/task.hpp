@@ -19,6 +19,7 @@
 #include <unifex/await_transform.hpp>
 #include <unifex/connect_awaitable.hpp>
 #include <unifex/inplace_stop_token.hpp>
+#include <unifex/inline_scheduler.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/coroutine_concepts.hpp>
@@ -26,9 +27,11 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/type_traits.hpp>
 #include <unifex/invoke.hpp>
 #include <unifex/at_coroutine_exit.hpp>
 #include <unifex/continuations.hpp>
+#include <unifex/any_scheduler.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -94,13 +97,20 @@ struct _promise_base {
     return p.stoken_;
   }
 
+  friend any_scheduler_ref tag_invoke(tag_t<get_scheduler>, const _promise_base& p) noexcept {
+    return p.sched_;
+  }
+
   friend continuation_handle<> tag_invoke(
       tag_t<exchange_continuation>, _promise_base& p, continuation_handle<> action) noexcept {
     return std::exchange(p.continuation_, (continuation_handle<>&&) action);
   }
 
+  inline static constexpr inline_scheduler _default_scheduler{};
+
   continuation_handle<> continuation_;
   inplace_stop_token stoken_;
+  any_scheduler_ref sched_{_default_scheduler};
 };
 
 template <typename T>
@@ -178,15 +188,19 @@ struct _awaiter {
     using result_type = typename ThisPromise::result_type;
 
     explicit type(coro::coroutine_handle<ThisPromise> coro) noexcept
-    : coro_(coro)
+      : coro_((std::uintptr_t) coro.address())
     {}
 
-    type(type&& other) noexcept
-    : coro_(std::exchange(other.coro_, {}))
-    {}
+    type(type&& other) noexcept = delete;
 
     ~type() {
-      if (coro_) coro_.destroy();
+      if (coro_ & 1u) {
+        --coro_;
+        auto thisCoro = coro::coroutine_handle<>::from_address((void*) coro_);
+        thisCoro.destroy();
+        stopTokenAdapter_.unsubscribe();
+        sched_.destruct();
+      }
     }
 
     bool await_ready() noexcept {
@@ -195,23 +209,31 @@ struct _awaiter {
 
     coro::coroutine_handle<ThisPromise> await_suspend(
         coro::coroutine_handle<OtherPromise> h) noexcept {
-      UNIFEX_ASSERT(coro_);
-      auto& promise = coro_.promise();
+      UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
+      auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address((void*) coro_);
+      ++coro_; // mark the awaiter as needing cleanup
+      auto& promise = thisCoro.promise();
+      sched_.construct(get_scheduler(h.promise()));
       promise.continuation_ = h;
       promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
-      return coro_;
+      promise.sched_ = sched_.get();
+      return thisCoro;
     }
 
     result_type await_resume() {
       stopTokenAdapter_.unsubscribe();
-      scope_guard destroyOnExit{[this]() noexcept { std::exchange(coro_, {}).destroy(); }};
-      return coro_.promise().result();
+      sched_.destruct();
+      auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address(
+          (void*) std::exchange(--coro_, 0));
+      scope_guard destroyOnExit{[&]() noexcept { thisCoro.destroy(); }};
+      return thisCoro.promise().result();
     }
 
   private:
-    coro::coroutine_handle<ThisPromise> coro_;
+    std::uintptr_t coro_; // Stored as an integer so we can use the low bit as a dirty bit
+    manual_lifetime<get_scheduler_result_t<OtherPromise&>> sched_;
     UNIFEX_NO_UNIQUE_ADDRESS
-    detail::inplace_stop_token_adapter_subscription<stop_token_type_t<OtherPromise>> stopTokenAdapter_;
+    inplace_stop_token_adapter<stop_token_type_t<OtherPromise>> stopTokenAdapter_;
   };
 };
 
@@ -223,10 +245,10 @@ struct _task<T>::type {
   template<
     template<typename...> class Variant,
     template<typename...> class Tuple>
-  using value_types = Variant<
-    typename std::conditional_t<
-      std::is_void_v<T>, type_list<>, type_list<T>>
-    ::template apply<Tuple>>;
+  using value_types =
+    Variant<
+      typename conditional_t<std::is_void_v<T>, type_list<>, type_list<T>>
+        ::template apply<Tuple>>;
 
   template<
     template<typename...> class Variant>
@@ -239,7 +261,8 @@ struct _task<T>::type {
       coro_.destroy();
   }
 
-  type(type&& t) noexcept : coro_(std::exchange(t.coro_, {})) {}
+  type(type&& t) noexcept
+    : coro_(std::exchange(t.coro_, {})) {}
 
   type& operator=(type t) noexcept {
     std::swap(coro_, t.coro_);
@@ -257,7 +280,7 @@ private:
   using awaiter = typename _awaiter<promise_type, OtherPromise>::type;
 
   explicit type(coro::coroutine_handle<promise_type> h) noexcept
-      : coro_(h) {}
+    : coro_(h) {}
 
   template<typename Promise>
   friend awaiter<Promise> tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
