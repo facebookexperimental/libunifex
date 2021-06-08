@@ -232,6 +232,10 @@ namespace _as_sender {
       friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
         return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
       }
+
+      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& t) noexcept {
+        return unifex::blocking(t.awaitable_);
+      }
     private:
       Awaitable awaitable_;
     };
