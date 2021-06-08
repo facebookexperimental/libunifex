@@ -190,6 +190,9 @@ struct _fn {
   auto operator()(Promise& promise, Value&& value) const
     noexcept(is_nothrow_tag_invocable_v<_fn, Promise&, Value>)
     -> tag_invoke_result_t<_fn, Promise&, Value> {
+    static_assert(detail::_awaitable<tag_invoke_result_t<_fn, Promise&, Value>>,
+        "The return type of a customization of unifex::await_transform() "
+        "must satisfy the awaitable concept.");
     return unifex::tag_invoke(_fn{}, promise, (Value&&)value);
   }
 

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/detail/concept_macros.hpp>
 
@@ -56,8 +57,6 @@ namespace unifex {
       using type = T<Args...>;
     };
 
-    struct empty {};
-
     namespace _cpo {
       inline constexpr _fn tag_invoke{};
     }
@@ -85,7 +84,7 @@ namespace unifex {
     : conditional_t<
           is_tag_invocable_v<CPO, Args...>,
           _tag_invoke::defer<tag_invoke_result_t, CPO, Args...>,
-          _tag_invoke::empty> 
+          detail::_empty<>>
   {};
 
   template <typename CPO, typename... Args>

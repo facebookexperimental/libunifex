@@ -91,7 +91,7 @@ public:
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  void set_error(_ignore) noexcept {
+  void set_error(detail::_ignore) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_; // preserve pointer value.
     if constexpr (

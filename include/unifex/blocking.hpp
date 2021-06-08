@@ -81,7 +81,7 @@ struct blocking_kind {
   static constexpr constant<_enum::always> always {};
   static constexpr constant<_enum::always_inline> always_inline {};
 
-  _enum value;
+  _enum value{};
 };
 
 struct _fn {

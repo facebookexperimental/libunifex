@@ -175,11 +175,8 @@ struct _promise {
     }
 
     template <typename Value>
-    decltype(auto) await_transform(Value&& value)
-        // TODO fix this noexcept
-        noexcept(is_nothrow_callable_v<tag_t<unifex::await_transform>, type&, Value>) {
-      if constexpr (derived_from<remove_cvref_t<Value>, _task_base> ||
-          blocking_kind::always_inline == cblocking<Value>()) {
+    decltype(auto) await_transform(Value&& value) {
+      if constexpr (derived_from<remove_cvref_t<Value>, _task_base>) {
         // We are co_await-ing a unifex::task or something that completes inline. We don't
         // need an additional transition.
         return unifex::await_transform(*this, (Value&&) value);
@@ -187,26 +184,40 @@ struct _promise {
           || detail::_awaitable<Value>) {
         // Either await_transform has been customized or Value is an awaitable. Either
         // way, we can dispatch to the await_transform CPO, then insert a transition back
-        // to the correct execution context.
-        return unifex::await_transform(
-            *this,
-            typed_via(
-                as_sender(unifex::await_transform(*this, (Value&&) value)),
-                this->sched_));
+        // to the correct execution context if necessary.
+        return transform_awaitable_(unifex::await_transform(*this, (Value&&) value));
       } else if constexpr (unifex::sender<Value>) {
-        // If we are co_await'ing a sender that is the result of calling schedule,
-        // do something special
-        if constexpr (is_sender_for_v<remove_cvref_t<Value>, schedule>) {
-          return transform_schedule_sender_((Value&&) value);
-        } else {
-          // Otherwise, append a transition to the correct execution context and wrap the
-          // result in an awaiter:
-          return unifex::await_transform(*this, typed_via((Value&&) value, this->sched_));
-        }
+        return transform_sender_((Value&&) value);
       } else {
         // Otherwise, we don't know how to await this type. Just return it and let the
         // compiler issue a diagnostic.
         return (Value&&) value;
+      }
+    }
+
+    template <typename Awaitable>
+    decltype(auto) transform_awaitable_(Awaitable&& awaitable) {
+      if constexpr (blocking_kind::always_inline == cblocking<Awaitable>()) {
+        return (Awaitable&&) awaitable;
+      } else {
+        return unifex::await_transform(
+            *this,
+            typed_via(as_sender((Awaitable&&) awaitable), this->sched_));
+      }
+    }
+
+    template <typename Sender>
+    decltype(auto) transform_sender_(Sender&& sndr) {
+      if constexpr (blocking_kind::always_inline == cblocking<Sender>()) {
+        return unifex::await_transform(*this, (Sender&&) sndr);
+      } else if constexpr (is_sender_for_v<remove_cvref_t<Sender>, schedule>) {
+        // If we are co_await'ing a sender that is the result of calling schedule,
+        // do something special
+        return transform_schedule_sender_((Sender&&) sndr);
+      } else {
+        // Otherwise, append a transition to the correct execution context and wrap the
+        // result in an awaiter:
+        return unifex::await_transform(*this, typed_via((Sender&&) sndr, this->sched_));
       }
     }
 
@@ -260,7 +271,9 @@ struct _awaiter {
 
     explicit type(coro::coroutine_handle<ThisPromise> coro) noexcept
       : coro_((std::uintptr_t) coro.address())
-    {}
+    {
+      UNIFEX_ASSERT(coro_);
+    }
 
     // The move constructor is only ever called /before/ the awaitable is awaited.
     // In those cases, the other fields have not been initialized yet and so do not
@@ -273,10 +286,13 @@ struct _awaiter {
 
     ~type() {
       if (coro_ & 1u) {
-        auto thisCoro = coro::coroutine_handle<>::from_address((void*) --coro_);
-        thisCoro.destroy();
-        stopTokenAdapter_.unsubscribe();
-        sched_.destruct();
+        coro::coroutine_handle<>::from_address((void*) --coro_).destroy();
+        if constexpr (needs_stop_token_t::value)
+          stopTokenAdapter_.unsubscribe();
+        if constexpr (needs_scheduler_t::value)
+          sched_.destruct();
+      } else if (coro_) {
+        coro::coroutine_handle<>::from_address((void*) coro_).destroy();
       }
     }
 
@@ -290,16 +306,26 @@ struct _awaiter {
       auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address((void*) coro_);
       ++coro_; // mark the awaiter as needing cleanup
       auto& promise = thisCoro.promise();
-      sched_.construct(get_scheduler(h.promise()));
       promise.continuation_ = h;
-      promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
-      promise.sched_ = sched_.get();
+      if constexpr (needs_scheduler_t::value) {
+        sched_.construct(get_scheduler(h.promise()));
+        promise.sched_ = sched_.get();
+      } else {
+        promise.sched_ = get_scheduler(h.promise());
+      }
+      if constexpr (needs_stop_token_t::value) {
+        promise.stoken_ = stopTokenAdapter_.subscribe(get_stop_token(h.promise()));
+      } else {
+        promise.stoken_ = get_stop_token(h.promise());
+      }
       return thisCoro;
     }
 
     result_type await_resume() {
-      stopTokenAdapter_.unsubscribe();
-      sched_.destruct();
+      if constexpr (needs_stop_token_t::value)
+        stopTokenAdapter_.unsubscribe();
+      if constexpr (needs_scheduler_t::value)
+        sched_.destruct();
       auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address(
           (void*) std::exchange(--coro_, 0));
       scope_guard destroyOnExit{[&]() noexcept { thisCoro.destroy(); }};
@@ -307,10 +333,29 @@ struct _awaiter {
     }
 
   private:
+    using scheduler_t = remove_cvref_t<get_scheduler_result_t<OtherPromise&>>;
+    using stop_token_t = remove_cvref_t<stop_token_type_t<OtherPromise>>;
+    using needs_scheduler_t =
+        std::bool_constant<!same_as<scheduler_t, any_scheduler_ref>>;
+    using needs_stop_token_t =
+        std::bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
+
     std::uintptr_t coro_; // Stored as an integer so we can use the low bit as a dirty bit
-    manual_lifetime<get_scheduler_result_t<OtherPromise&>> sched_;
+    // Only store the scheduler and the stop_token in the awaiter if we need to type
+    // erase them. Otherwise, these members are "empty" and should take up no space
+    // because of the [[no_unique_address]] attribute.
+    // Note: for the compiler to fold the members away, they must have different types.
+    // Hence, the slightly odd-looking template parameter to the empty struct.
     UNIFEX_NO_UNIQUE_ADDRESS
-    inplace_stop_token_adapter<stop_token_type_t<OtherPromise>> stopTokenAdapter_;
+    conditional_t<
+        needs_scheduler_t::value,
+        manual_lifetime<scheduler_t>,
+        detail::_empty<0>> sched_;
+    UNIFEX_NO_UNIQUE_ADDRESS
+    conditional_t<
+        needs_stop_token_t::value,
+        inplace_stop_token_adapter<stop_token_t>,
+        detail::_empty<1>> stopTokenAdapter_;
   };
 };
 

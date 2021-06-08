@@ -216,7 +216,7 @@ namespace _as_sender {
       template <
           template <typename...> class Variant,
           template <typename...> class Tuple>
-      using value_types = Variant<Tuple<await_result_t<Awaitable>>>;
+      using value_types = Variant<Tuple<Result>>;
 
       template <template <typename...> class Variant>
       using error_types = Variant<std::exception_ptr>;
@@ -228,7 +228,7 @@ namespace _as_sender {
       {}
 
       template (typename Receiver)
-        (requires receiver_of<Receiver, await_result_t<Awaitable>>)
+        (requires receiver_of<Receiver, Result>)
       friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
         return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
       }
@@ -263,6 +263,10 @@ namespace _as_sender {
         (requires receiver_of<Receiver>)
       friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
         return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
+      }
+
+      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& t) noexcept {
+        return unifex::blocking(t.awaitable_);
       }
     private:
       Awaitable awaitable_;

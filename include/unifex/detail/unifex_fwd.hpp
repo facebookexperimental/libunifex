@@ -33,9 +33,10 @@ namespace unifex {
       template <typename T>
       /*implicit*/ _ignore(T&&) noexcept {}
     };
-  } // namespace detail
 
-  using detail::_ignore;
+    template <int=0>
+    struct _empty {};
+  } // namespace detail
 
   namespace _kv
   {

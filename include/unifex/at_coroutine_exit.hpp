@@ -278,7 +278,7 @@ struct [[nodiscard]] _cleanup_task {
     return std::exchange(continuation_, {}).promise().args_;
   }
 
-  friend auto tag_invoke(tag_t<blocking>, const _cleanup_task&) noexcept {
+  friend constexpr auto tag_invoke(tag_t<blocking>, const _cleanup_task&) noexcept {
     return blocking_kind::always_inline;
   }
 
