@@ -177,8 +177,8 @@ struct _promise {
     template <typename Value>
     decltype(auto) await_transform(Value&& value) {
       if constexpr (derived_from<remove_cvref_t<Value>, _task_base>) {
-        // We are co_await-ing a unifex::task or something that completes inline. We don't
-        // need an additional transition.
+        // We are co_await-ing a unifex::task, which completes inline because of task
+        // scheduler affinity. We don't need an additional transition.
         return unifex::await_transform(*this, (Value&&) value);
       } else if constexpr (tag_invocable<tag_t<unifex::await_transform>, type&, Value>
           || detail::_awaitable<Value>) {
@@ -198,7 +198,7 @@ struct _promise {
     template <typename Awaitable>
     decltype(auto) transform_awaitable_(Awaitable&& awaitable) {
       if constexpr (blocking_kind::always_inline == cblocking<Awaitable>()) {
-        return (Awaitable&&) awaitable;
+        return Awaitable{(Awaitable&&) awaitable};
       } else {
         return unifex::await_transform(
             *this,

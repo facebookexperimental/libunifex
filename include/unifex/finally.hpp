@@ -718,6 +718,10 @@ namespace unifex
 
       friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
         if constexpr (
+            blocking_kind::never == cblocking<SourceSender>() ||
+            blocking_kind::never == cblocking<CompletionSender>()) {
+          return blocking_kind::never;
+        } else if constexpr (
             blocking_kind::maybe != cblocking<SourceSender>() &&
             blocking_kind::maybe != cblocking<CompletionSender>()) {
           return blocking_kind::constant<

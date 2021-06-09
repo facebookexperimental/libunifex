@@ -43,6 +43,10 @@ namespace _get_stop_token {
         StopToken await_resume() noexcept {
           return (StopToken&&) stoken_;
         }
+
+        friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaiter&) noexcept {
+          return blocking_kind::always_inline;
+        }
       };
       template <typename StopToken>
       _awaiter(StopToken) -> _awaiter<StopToken>;
@@ -51,10 +55,6 @@ namespace _get_stop_token {
         (requires same_as<Tag, tag_t<await_transform>>)
       friend auto tag_invoke(Tag, Promise& promise, _awaitable) noexcept {
         return _awaiter{_fn{}(promise)};
-      }
-
-      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaitable&) noexcept {
-        return blocking_kind::always_inline;
       }
     };
 
