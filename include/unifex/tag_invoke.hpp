@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/detail/concept_macros.hpp>
 
@@ -56,13 +57,11 @@ namespace unifex {
       using type = T<Args...>;
     };
 
-    struct empty {};
-  }  // namespace _tag_invoke
-
-  namespace _tag_invoke_cpo {
-    inline constexpr _tag_invoke::_fn tag_invoke{};
-  }
-  using namespace _tag_invoke_cpo;
+    namespace _cpo {
+      inline constexpr _fn tag_invoke{};
+    }
+  } // namespace _tag_invoke
+  using namespace _tag_invoke::_cpo;
 
   template <auto& CPO>
   using tag_t = remove_cvref_t<decltype(CPO)>;
@@ -85,7 +84,7 @@ namespace unifex {
     : conditional_t<
           is_tag_invocable_v<CPO, Args...>,
           _tag_invoke::defer<tag_invoke_result_t, CPO, Args...>,
-          _tag_invoke::empty> 
+          detail::_empty<>>
   {};
 
   template <typename CPO, typename... Args>

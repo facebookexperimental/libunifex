@@ -37,6 +37,25 @@ namespace unifex
 {
   namespace _seq
   {
+    constexpr blocking_kind _blocking_kind(
+        blocking_kind predBlocking, blocking_kind succBlocking) noexcept {
+      if (predBlocking == blocking_kind::never) {
+        return blocking_kind::never;
+      } else if (
+          predBlocking == blocking_kind::always_inline &&
+          succBlocking == blocking_kind::always_inline) {
+        return blocking_kind::always_inline;
+      } else if (
+          (predBlocking == blocking_kind::always_inline ||
+          predBlocking == blocking_kind::always) &&
+          (succBlocking == blocking_kind::always_inline ||
+          succBlocking == blocking_kind::always)) {
+        return blocking_kind::always;
+      } else {
+        return blocking_kind::maybe;
+      }
+    }
+
     template <typename Predecessor, typename Successor, typename Receiver>
     struct _op {
       class type;
@@ -287,18 +306,16 @@ namespace unifex
     };
 
     template <typename Predecessor, typename Successor>
-    struct _sender {
-      class type;
+    struct _sndr {
+      struct type;
     };
     template <typename Predecessor, typename Successor>
-    using sender = typename _sender<
+    using _sender = typename _sndr<
         remove_cvref_t<Predecessor>,
         remove_cvref_t<Successor>>::type;
 
     template <typename Predecessor, typename Successor>
-    class _sender<Predecessor, Successor>::type {
-      using sender = type;
-    public:
+    struct _sndr<Predecessor, Successor>::type {
       template <
           template <typename...> class Variant,
           template <typename...> class Tuple>
@@ -325,24 +342,16 @@ namespace unifex
         : predecessor_(static_cast<Predecessor&&>(predecessor))
         , successor_(static_cast<Successor&&>(successor)) {}
 
-      friend blocking_kind
-      tag_invoke(tag_t<blocking>, const sender& sender) {
-        const auto predBlocking = blocking(sender.predecessor_);
-        const auto succBlocking = blocking(sender.successor_);
-        if (predBlocking == blocking_kind::never) {
-          return blocking_kind::never;
-        } else if (
-            predBlocking == blocking_kind::always_inline &&
-            succBlocking == blocking_kind::always_inline) {
-          return blocking_kind::always_inline;
-        } else if (
-            (predBlocking == blocking_kind::always_inline ||
-            predBlocking == blocking_kind::always) &&
-            (succBlocking == blocking_kind::always_inline ||
-            succBlocking == blocking_kind::always)) {
-          return blocking_kind::always;
+      friend auto tag_invoke(tag_t<blocking>, const type& self) {
+        if constexpr (
+            blocking_kind::maybe != cblocking<Predecessor>() &&
+            blocking_kind::maybe != cblocking<Successor>()) {
+          return blocking_kind::constant<
+              _seq::_blocking_kind(cblocking<Predecessor>(), cblocking<Successor>())>();
         } else {
-          return blocking_kind::maybe;
+          return _seq::_blocking_kind(
+              blocking(self.predecessor_),
+              blocking(self.successor_));
         }
       }
 
@@ -367,81 +376,81 @@ namespace unifex
       UNIFEX_NO_UNIQUE_ADDRESS Predecessor predecessor_;
       UNIFEX_NO_UNIQUE_ADDRESS Successor successor_;
     };
-  }  // namespace _seq
 
-  namespace _seq_cpo {
-    inline const struct _fn {
-      // Sequencing a single sender is just the same as returning the sender
-      // itself.
-      template <typename First>
-      remove_cvref_t<First> operator()(First&& first) const
-          noexcept(std::is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
-        return static_cast<First&&>(first);
-      }
+    namespace _cpo {
+      struct _fn {
+        // Sequencing a single sender is just the same as returning the sender
+        // itself.
+        template <typename First>
+        remove_cvref_t<First> operator()(First&& first) const
+            noexcept(std::is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
+          return static_cast<First&&>(first);
+        }
 
-      template(typename First, typename Second)
-        (requires sender<First> AND sender<Second> AND //
-          tag_invocable<_fn, First, Second>)
-      auto operator()(First&& first, Second&& second) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, First, Second>)
-          -> tag_invoke_result_t<_fn, First, Second> {
-        return unifex::tag_invoke(
-            _fn{}, static_cast<First&&>(first), static_cast<Second&&>(second));
-      }
+        template(typename First, typename Second)
+          (requires sender<First> AND sender<Second> AND //
+            tag_invocable<_fn, First, Second>)
+        auto operator()(First&& first, Second&& second) const
+            noexcept(is_nothrow_tag_invocable_v<_fn, First, Second>)
+            -> tag_invoke_result_t<_fn, First, Second> {
+          return unifex::tag_invoke(
+              _fn{}, static_cast<First&&>(first), static_cast<Second&&>(second));
+        }
 
-      template(typename First, typename Second)
-        (requires sender<First> AND sender<Second> AND //
-          (!tag_invocable<_fn, First, Second>))
-      auto operator()(First&& first, Second&& second) const
-          noexcept(std::is_nothrow_constructible_v<
-                  _seq::sender<First, Second>,
-                  First,
-                  Second>)
-              -> _seq::sender<First, Second> {
-        return _seq::sender<First, Second>{
-            static_cast<First&&>(first),
-            static_cast<Second&&>(second)};
-      }
+        template(typename First, typename Second)
+          (requires sender<First> AND sender<Second> AND //
+            (!tag_invocable<_fn, First, Second>))
+        auto operator()(First&& first, Second&& second) const
+            noexcept(std::is_nothrow_constructible_v<
+                    _seq::_sender<First, Second>,
+                    First,
+                    Second>)
+                -> _seq::_sender<First, Second> {
+          return _seq::_sender<First, Second>{
+              static_cast<First&&>(first),
+              static_cast<Second&&>(second)};
+        }
 
-      template(typename First, typename Second, typename Third, typename... Rest)
-        (requires sender<First> AND sender<Second> AND sender<Third> AND
-          (sender<Rest> &&...) AND tag_invocable<_fn, First, Second, Third, Rest...>)
-      auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
-          noexcept(is_nothrow_tag_invocable_v<_fn, First, Second, Third, Rest...>)
-          -> tag_invoke_result_t<_fn, First, Second, Third, Rest...> {
-        return unifex::tag_invoke(
-            _fn{},
-            static_cast<First&&>(first),
-            static_cast<Second&&>(second),
-            static_cast<Third&&>(third),
-            static_cast<Rest&&>(rest)...);
-      }
+        template(typename First, typename Second, typename Third, typename... Rest)
+          (requires sender<First> AND sender<Second> AND sender<Third> AND
+            (sender<Rest> &&...) AND tag_invocable<_fn, First, Second, Third, Rest...>)
+        auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
+            noexcept(is_nothrow_tag_invocable_v<_fn, First, Second, Third, Rest...>)
+            -> tag_invoke_result_t<_fn, First, Second, Third, Rest...> {
+          return unifex::tag_invoke(
+              _fn{},
+              static_cast<First&&>(first),
+              static_cast<Second&&>(second),
+              static_cast<Third&&>(third),
+              static_cast<Rest&&>(rest)...);
+        }
 
-      template(typename First, typename Second, typename Third, typename... Rest)
-        (requires sender<First> AND sender<Second> AND sender<Third> AND
-          (sender<Rest> &&...) AND (!tag_invocable<_fn, First, Second, Third, Rest...>))
-      auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
-          noexcept(is_nothrow_callable_v<_fn, First, Second> &&
-              is_nothrow_callable_v<
-                  _fn,
-                  callable_result_t<_fn, First, Second>,
-                  Third,
-                  Rest...>)
-          -> callable_result_t<
-              _fn,
-              callable_result_t<_fn, First, Second>,
-              Third,
-              Rest...> {
-        // Fall-back to pair-wise invocation of the sequence() CPO.
-        return (*this)(
-            (*this)(static_cast<First&&>(first), static_cast<Second&&>(second)),
-            static_cast<Third&&>(third),
-            static_cast<Rest&&>(rest)...);
-      }
-    } sequence{};
-  } // _seq_cpo
+        template(typename First, typename Second, typename Third, typename... Rest)
+          (requires sender<First> AND sender<Second> AND sender<Third> AND
+            (sender<Rest> &&...) AND (!tag_invocable<_fn, First, Second, Third, Rest...>))
+        auto operator()(First&& first, Second&& second, Third&& third, Rest&&... rest) const
+            noexcept(is_nothrow_callable_v<_fn, First, Second> &&
+                is_nothrow_callable_v<
+                    _fn,
+                    callable_result_t<_fn, First, Second>,
+                    Third,
+                    Rest...>)
+            -> callable_result_t<
+                _fn,
+                callable_result_t<_fn, First, Second>,
+                Third,
+                Rest...> {
+          // Fall-back to pair-wise invocation of the sequence() CPO.
+          return (*this)(
+              (*this)(static_cast<First&&>(first), static_cast<Second&&>(second)),
+              static_cast<Third&&>(third),
+              static_cast<Rest&&>(rest)...);
+        }
+      };
+    } // _cpo
+  } // namespace _seq
 
-  using _seq_cpo::sequence;
+  inline constexpr _seq::_cpo::_fn sequence {};
 
 } // namespace unifex
 

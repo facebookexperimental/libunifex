@@ -85,13 +85,13 @@ struct _awaitable_base<Promise, Value>::type {
   struct _rec {
   public:
     explicit _rec(_expected<Value>* result, coro::coroutine_handle<Promise> continuation) noexcept
-    : result_(result)
-    , continuation_(continuation)
+      : result_(result)
+      , continuation_(continuation)
     {}
 
     _rec(_rec&& r) noexcept
-    : result_(std::exchange(r.result_, nullptr))
-    , continuation_(std::exchange(r.continuation_, nullptr))
+      : result_(std::exchange(r.result_, nullptr))
+      , continuation_(std::exchange(r.continuation_, nullptr))
     {}
 
     template(class... Us)
@@ -185,13 +185,16 @@ public:
 template <typename Promise, typename Sender>
 using _as_awaitable = typename _awaitable<Promise, Sender>::type;
 
-inline const struct _fn {
+struct _fn {
   // Call custom implementation if present.
   template(typename Promise, typename Value)
     (requires tag_invocable<_fn, Promise&, Value>)
   auto operator()(Promise& promise, Value&& value) const
     noexcept(is_nothrow_tag_invocable_v<_fn, Promise&, Value>)
     -> tag_invoke_result_t<_fn, Promise&, Value> {
+    static_assert(detail::_awaitable<tag_invoke_result_t<_fn, Promise&, Value>>,
+        "The return type of a customization of unifex::await_transform() "
+        "must satisfy the awaitable concept.");
     return unifex::tag_invoke(_fn{}, promise, (Value&&)value);
   }
 
@@ -218,7 +221,7 @@ inline const struct _fn {
       return (Value&&) value;
     }
   }
-} await_transform {};
+};
 
 } // namespace _await_tfx
 
@@ -231,7 +234,7 @@ inline const struct _fn {
 //
 // Coroutine promise_types can implement their .await_transform() methods to
 // forward to this customisation point to enable use of type customisations.
-using _await_tfx::await_transform;
+inline constexpr _await_tfx::_fn await_transform {};
 
 } // namespace unifex
 

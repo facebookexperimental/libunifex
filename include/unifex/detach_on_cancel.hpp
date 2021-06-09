@@ -204,6 +204,23 @@ struct _sender<Sender>::type {
 
   static constexpr bool sends_done = true;
 
+  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+    if constexpr (same_as<blocking_kind,
+                      decltype(blocking(sender.upstreamSender_))>) {
+      // the sender returns a runtime-determined blocking_kind
+      blocking_kind blockValue = blocking(sender.upstreamSender_);
+      if (blockValue == blocking_kind::never) {
+        blockValue = blocking_kind::maybe;
+      }
+      return blockValue;
+    } else if constexpr (blocking_kind::never == cblocking<Sender>()) {
+      // the sender always returns never
+      return blocking_kind::maybe;
+    } else {
+      return cblocking<Sender>();
+    }
+  }
+
   template <typename This, typename Receiver>
   using operation_state_t =
       operation_state<member_t<This, Sender>, remove_cvref_t<Receiver>>;

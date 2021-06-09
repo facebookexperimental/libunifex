@@ -35,6 +35,25 @@
 namespace unifex {
 namespace _via {
 
+constexpr blocking_kind _blocking_kind(blocking_kind predBlocking, blocking_kind succBlocking) noexcept {
+  if (predBlocking == blocking_kind::never &&
+      succBlocking == blocking_kind::never) {
+    return blocking_kind::never;
+  } else if (
+      predBlocking == blocking_kind::always_inline &&
+      succBlocking == blocking_kind::always_inline) {
+    return blocking_kind::always_inline;
+  } else if (
+      (predBlocking == blocking_kind::always_inline ||
+        predBlocking == blocking_kind::always) &&
+      (succBlocking == blocking_kind::always_inline ||
+        succBlocking == blocking_kind::always)) {
+    return blocking_kind::always;
+  } else {
+    return blocking_kind::maybe;
+  }
+}
+
 template <typename Receiver, typename... Values>
 struct _value_receiver {
   struct type;
@@ -285,26 +304,14 @@ struct _sender<Predecessor, Successor>::type {
     sender_traits<Predecessor>::sends_done ||
     sender_traits<Successor>::sends_done;
 
-  friend constexpr blocking_kind tag_invoke(
-      tag_t<blocking>,
-      const sender& sender) {
-    const auto predBlocking = blocking(sender.pred_);
-    const auto succBlocking = blocking(sender.succ_);
-    if (predBlocking == blocking_kind::never &&
-        succBlocking == blocking_kind::never) {
-      return blocking_kind::never;
-    } else if (
-        predBlocking == blocking_kind::always_inline &&
-        succBlocking == blocking_kind::always_inline) {
-      return blocking_kind::always_inline;
-    } else if (
-        (predBlocking == blocking_kind::always_inline ||
-         predBlocking == blocking_kind::always) &&
-        (succBlocking == blocking_kind::always_inline ||
-         succBlocking == blocking_kind::always)) {
-      return blocking_kind::always;
+  friend constexpr auto tag_invoke(tag_t<blocking>, const sender& self) noexcept {
+    if constexpr (
+        blocking_kind::maybe != cblocking<Predecessor>() &&
+        blocking_kind::maybe != cblocking<Successor>()) {
+      return blocking_kind::constant<
+          _via::_blocking_kind(cblocking<Predecessor>(), cblocking<Successor>())>();
     } else {
-      return blocking_kind::maybe;
+      return _via::_blocking_kind(blocking(self.pred_), blocking(self.succ_));
     }
   }
 

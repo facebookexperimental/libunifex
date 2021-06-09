@@ -72,6 +72,26 @@ namespace unifex
         Receiver,
         std::decay_t<Values>...>::type;
 
+    constexpr blocking_kind _blocking_kind(
+        blocking_kind source,
+        blocking_kind completion) noexcept {
+      if (source == blocking_kind::never || completion == blocking_kind::never) {
+        return blocking_kind::never;
+      } else if (
+          source == blocking_kind::always_inline &&
+          completion == blocking_kind::always_inline) {
+        return blocking_kind::always_inline;
+      } else if (
+          (source == blocking_kind::always_inline ||
+          source == blocking_kind::always) &&
+          (completion == blocking_kind::always_inline ||
+          completion == blocking_kind::always)) {
+        return blocking_kind::always;
+      } else {
+        return blocking_kind::maybe;
+      }
+    }
+
     template <
         typename SourceSender,
         typename CompletionSender,
@@ -85,7 +105,7 @@ namespace unifex
       explicit type(operation_type* op) noexcept : op_(op) {}
 
       type(type&& other) noexcept
-      : op_(std::exchange(other.op_, nullptr)) {}
+        : op_(std::exchange(other.op_, nullptr)) {}
 
       void set_value() && noexcept {
         auto* const op = op_;
@@ -704,36 +724,54 @@ namespace unifex
                 static_cast<Receiver&&>(r)};
       }
 
+      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+        if constexpr (
+            blocking_kind::never == cblocking<SourceSender>() ||
+            blocking_kind::never == cblocking<CompletionSender>()) {
+          return blocking_kind::never;
+        } else if constexpr (
+            blocking_kind::maybe != cblocking<SourceSender>() &&
+            blocking_kind::maybe != cblocking<CompletionSender>()) {
+          return blocking_kind::constant<
+              _final::_blocking_kind(
+                  cblocking<SourceSender>(),
+                  cblocking<CompletionSender>())>{};
+        } else {
+          return _final::_blocking_kind(
+              blocking(self.source_),
+              blocking(self.completion_));
+        }
+      }
+
       SourceSender source_;
       CompletionSender completion_;
     };
-  }  // namespace _final
 
-  namespace _final_cpo
-  {
-    inline const struct _fn {
-      template <typename SourceSender, typename CompletionSender>
-      auto operator()(SourceSender&& source, CompletionSender&& completion) const
-          noexcept(std::is_nothrow_constructible_v<
-                  _final::sender<SourceSender, CompletionSender>,
-                  SourceSender,
-                  CompletionSender>) -> _final::sender<SourceSender, CompletionSender> {
-        return _final::sender<SourceSender, CompletionSender>{
-            static_cast<SourceSender&&>(source),
-            static_cast<CompletionSender&&>(completion)};
-      }
-      template <typename CompletionSender>
-      constexpr auto operator()(CompletionSender&& completion) const
-          noexcept(is_nothrow_callable_v<
-            tag_t<bind_back>, _fn, CompletionSender>)
-          -> bind_back_result_t<_fn, CompletionSender> {
-        return bind_back(*this, (CompletionSender&&)completion);
-      }
-    } finally{};
-  } // namespace _final_cpo
+    namespace _cpo
+    {
+      struct _fn {
+        template <typename SourceSender, typename CompletionSender>
+        auto operator()(SourceSender&& source, CompletionSender&& completion) const
+            noexcept(std::is_nothrow_constructible_v<
+                    _final::sender<SourceSender, CompletionSender>,
+                    SourceSender,
+                    CompletionSender>) -> _final::sender<SourceSender, CompletionSender> {
+          return _final::sender<SourceSender, CompletionSender>{
+              static_cast<SourceSender&&>(source),
+              static_cast<CompletionSender&&>(completion)};
+        }
+        template <typename CompletionSender>
+        constexpr auto operator()(CompletionSender&& completion) const
+            noexcept(is_nothrow_callable_v<
+              tag_t<bind_back>, _fn, CompletionSender>)
+            -> bind_back_result_t<_fn, CompletionSender> {
+          return bind_back(*this, (CompletionSender&&)completion);
+        }
+      };
+    } // namespace _cpo
+  } // namespace _final
 
-using _final_cpo::finally;
-
+  inline constexpr _final::_cpo::_fn finally {};
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

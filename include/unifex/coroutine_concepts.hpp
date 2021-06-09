@@ -60,7 +60,8 @@ struct await_result_impl<
 
 } // namespace detail
 
-inline const struct _get_awaiter_fn {
+namespace _get_awaiter {
+struct _fn {
   template <typename Awaitable>
   constexpr decltype(auto) operator()(Awaitable&& awaitable) const noexcept {
     if constexpr (detail::has_member_operator_co_await_v<Awaitable>) {
@@ -71,7 +72,10 @@ inline const struct _get_awaiter_fn {
       return static_cast<Awaitable&&>(awaitable);
     }
   }
-} get_awaiter {};
+};
+} // namespace _get_awaiter
+
+inline constexpr _get_awaiter::_fn get_awaiter {};
 
 template <typename Awaitable>
 using awaiter_type_t = decltype(get_awaiter(std::declval<Awaitable>()));

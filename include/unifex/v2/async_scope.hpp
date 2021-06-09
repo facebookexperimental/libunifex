@@ -431,6 +431,17 @@ struct _nest_sender<Sender>::type final {
     }
   }
 
+  friend constexpr auto
+  tag_invoke(tag_t<unifex::blocking>, const type&) noexcept {
+    if constexpr (
+        cblocking<Sender>() == blocking_kind::always_inline ||
+        cblocking<Sender>() == blocking_kind::always) {
+      return cblocking<Sender>();
+    } else {
+      return blocking_kind::maybe;
+    }
+  }
+
 private:
   scope_reference scope_;
   UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<Sender> sender_;

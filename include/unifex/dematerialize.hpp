@@ -24,6 +24,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/blocking.hpp>
 
 #include <type_traits>
 
@@ -179,6 +180,9 @@ namespace _demat {
           receiver_t<Receiver>{static_cast<Receiver&&>(r)});
     }
 
+    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+      return blocking(self.source_);
+    }
   private:
     Source source_;
   };
