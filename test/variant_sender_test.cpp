@@ -187,11 +187,15 @@ TEST(Variant, CombineJustAndJust_Invalid) {
   IntAndStringReceiver rec;
 
   auto just_variant_sender = func(true);
+  using JustInt = decltype(just_variant_sender);
+  static_assert(blocking_kind::always_inline == cblocking<JustInt>());
   EXPECT_FALSE(just_variant_sender.sends_done);
   auto op = unifex::connect(just_variant_sender, rec);
   unifex::start(op);
 
   auto just_string_sender = func(false);
+  using JustString = decltype(just_variant_sender);
+  static_assert(blocking_kind::always_inline == cblocking<JustString>());
   EXPECT_FALSE(just_variant_sender.sends_done);
   auto op2 = unifex::connect(just_string_sender, rec);
   unifex::start(op2);
@@ -207,6 +211,11 @@ using conditionally_lvalue_t = std::conditional_t<lvalue, std::add_lvalue_refere
 template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept, bool isLvalueReference = true>
 using is_noexcept = unifex::is_nothrow_connectable<conditionally_lvalue_t<test_sender_t<lvalueConnectNoexcept, rvalueConnectNoexcept>, isLvalueReference>, IntAndStringReceiver>;
 } // namespace
+
+TEST(Variant, BlockingKind) {
+  // default
+  static_assert(blocking_kind::maybe == cblocking<test_sender_t<true, true>>());
+}
 
 TEST(Variant, TestNoexcept) {
   auto both_no_except = is_noexcept<true, true>::value;

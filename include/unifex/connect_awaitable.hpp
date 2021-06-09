@@ -93,18 +93,14 @@ public:
 
     template <typename Value>
     auto await_transform(Value&& value) -> decltype(auto) {
-      if constexpr (callable<decltype(unifex::await_transform), promise_type&, Value>) {
-        return unifex::await_transform(*this, (Value&&)value);
-      } else {
-        return Value((Value &&) value);
-      }
+      return unifex::await_transform(*this, (Value&&) value);
     }
 
   #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const promise_type& p, Func&& func) {
-      visit_continuations(p.receiver_, (Func&&)func);
+      visit_continuations(p.receiver_, (Func&&) func);
     }
   #endif
 
@@ -142,21 +138,12 @@ public:
 } // namespace _await
 
 namespace _await_cpo {
-  template<typename... Ts>
-  using count_types = std::integral_constant<std::size_t, sizeof...(Ts)>;
-
-  template<typename Receiver>
-  struct set_value_applicator {
-    Receiver& receiver_;
-
-    template<typename... Values>
-    void operator()(Values&&... values) {
-      unifex::set_value(std::move(receiver_), (Values&&)values...);
-    }
-  };
-
   inline const struct _fn {
   private:
+    template <typename Awaitable>
+    using awaitable_single_value_result_t =
+        non_void_t<wrap_reference_t<decay_rvalue_t<await_result_t<Awaitable>>>>;
+
     struct _comma_hack {
       template <typename T>
       friend T&& operator,(T&& t, _comma_hack) noexcept {
@@ -164,6 +151,7 @@ namespace _await_cpo {
       }
       operator unit() const noexcept { return {}; }
     };
+
     template <typename Awaitable, typename Receiver>
     static auto connect_impl(Awaitable awaitable, Receiver receiver)
         -> _await::sender_task<Receiver> {
@@ -172,7 +160,13 @@ namespace _await_cpo {
       try {
 #endif // !UNIFEX_NO_EXCEPTIONS
 
-        using result_type = sender_single_value_result_t<Awaitable>;
+        // The _sender_task's promise type has an await_transform that passes the
+        // awaitable through unifex::await_transform. So take that into consideration
+        // when computing the result type:
+        using promise_type = typename _await::sender_task<Receiver>::promise_type;
+        using awaitable_type =
+            callable_result_t<tag_t<unifex::await_transform>, promise_type&, Awaitable>;
+        using result_type = awaitable_single_value_result_t<awaitable_type>;
 
         // This is a bit mind bending control-flow wise.
         // We are first evaluating the co_await expression.
@@ -184,31 +178,17 @@ namespace _await_cpo {
         // for the receiver to destroy the coroutine.
         co_yield [&](result_type&& result) {
               return [&] {
-                constexpr size_t valueOverloadCount =
-                    sender_value_types_t<Awaitable, count_types, single_value_type>::value;
-                static_assert(valueOverloadCount <= 1);
-
-                if constexpr (valueOverloadCount == 1) {
-                  constexpr size_t valueCount =
-                      sender_value_types_t<Awaitable, type_identity_t, count_types>::value;
-                  if constexpr (valueCount == 0) {
-                    unifex::set_value(std::move(receiver));
-                  } else if constexpr (valueCount == 1) {
-                    unifex::set_value(std::move(receiver), static_cast<result_type&&>(result));
-                  } else {
-                    std::apply(set_value_applicator<Receiver>{receiver}, (result_type&&)result);
-                  }
+                if constexpr (std::is_void_v<await_result_t<awaitable_type>>) {
+                  unifex::set_value(std::move(receiver));
                 } else {
-                  // Shouldn't complete with a value if there are no value_types
-                  // specified.
-                  std::terminate();
+                  unifex::set_value(std::move(receiver), static_cast<result_type&&>(result));
                 }
               };
             // The _comma_hack here makes this well-formed when the co_await
             // expression has type void. This could potentially run into trouble
             // if the type of the co_await expression itself overloads operator
             // comma, but that's pretty unlikely.
-            }((co_await (Awaitable &&)awaitable, _comma_hack{}));
+            }((co_await (Awaitable &&) awaitable, _comma_hack{}));
 #if !UNIFEX_NO_EXCEPTIONS
       } catch (...) {
         ex = std::current_exception();
@@ -223,12 +203,92 @@ namespace _await_cpo {
     template <typename Awaitable, typename Receiver>
     auto operator()(Awaitable&& awaitable, Receiver&& receiver) const
       -> _await::sender_task<remove_cvref_t<Receiver>> {
-      return connect_impl((Awaitable&&)awaitable, (Receiver&&)receiver);
+      return connect_impl((Awaitable&&) awaitable, (Receiver&&) receiver);
     }
   } connect_awaitable{};
 } // namespace _await_cpo
 
 using _await_cpo::connect_awaitable;
+
+// as_sender, for adapting an awaitable to be a typed sender
+namespace _as_sender {
+  template <typename Awaitable, typename Result = await_result_t<Awaitable>>
+  struct _sndr {
+    struct type {
+      template <
+          template <typename...> class Variant,
+          template <typename...> class Tuple>
+      using value_types = Variant<Tuple<Result>>;
+
+      template <template <typename...> class Variant>
+      using error_types = Variant<std::exception_ptr>;
+
+      static constexpr bool sends_done = true;
+
+      type(Awaitable awaitable)
+        : awaitable_((Awaitable&&) awaitable)
+      {}
+
+      template (typename Receiver)
+        (requires receiver_of<Receiver, Result>)
+      friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
+        return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
+      }
+
+      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& t) noexcept {
+        return unifex::blocking(t.awaitable_);
+      }
+    private:
+      Awaitable awaitable_;
+    };
+  };
+
+  template <typename Awaitable>
+  struct _sndr<Awaitable, void> {
+    struct type {
+      template <
+          template <typename...> class Variant,
+          template <typename...> class Tuple>
+      using value_types = Variant<Tuple<>>;
+
+      template <template <typename...> class Variant>
+      using error_types = Variant<std::exception_ptr>;
+
+      static constexpr bool sends_done = true;
+
+      explicit type(Awaitable awaitable)
+          noexcept(std::is_nothrow_move_constructible_v<Awaitable>)
+        : awaitable_((Awaitable&&) awaitable)
+      {}
+
+      template (typename Receiver)
+        (requires receiver_of<Receiver>)
+      friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
+        return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
+      }
+
+      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& t) noexcept {
+        return unifex::blocking(t.awaitable_);
+      }
+    private:
+      Awaitable awaitable_;
+    };
+  };
+
+  template <typename Awaitable>
+  using _sender = typename _sndr<Awaitable>::type;
+
+  struct _fn {
+    template (typename Awaitable)
+      (requires detail::_awaitable<Awaitable>)
+    _sender<remove_cvref_t<Awaitable>> operator()(Awaitable&& awaitable) const {
+      return _sender<remove_cvref_t<Awaitable>>{(Awaitable&&) awaitable};
+    }
+  };
+} // namespace _as_sender
+
+// Transforms an awaitable into a typed sender:
+inline constexpr _as_sender::_fn as_sender {};
 
 } // namespace unifex
 

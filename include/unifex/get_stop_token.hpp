@@ -22,6 +22,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/unstoppable_token.hpp>
+#include <unifex/blocking.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -41,6 +42,10 @@ namespace _get_stop_token {
         }
         StopToken await_resume() noexcept {
           return (StopToken&&) stoken_;
+        }
+
+        friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaiter&) noexcept {
+          return blocking_kind::always_inline;
         }
       };
 

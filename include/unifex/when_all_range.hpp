@@ -305,6 +305,19 @@ private:
         std::move((static_cast<Sender2&&>(sender)).senders_)};
   }
 
+  // Combine the blocking-nature of each of the child operations.
+  friend constexpr auto tag_invoke(
+      unifex::tag_t<unifex::blocking> /* unused */, const type&) noexcept {
+    if constexpr (
+        unifex::cblocking<Sender>() == unifex::blocking_kind::always_inline ||
+        unifex::cblocking<Sender>() == unifex::blocking_kind::always) {
+      return unifex::cblocking<Sender>();
+    } else {
+      // we complete inline if the input is empty so every other case is "maybe"
+      return unifex::blocking_kind::maybe;
+    }
+  }
+
   std::vector<Sender> senders_;
 };
 

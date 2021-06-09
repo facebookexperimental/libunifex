@@ -19,9 +19,13 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/await_transform.hpp>
 #include <unifex/continuations.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/inline_scheduler.hpp>
+#include <unifex/any_scheduler.hpp>
+#include <unifex/blocking.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -115,11 +119,19 @@ struct _cleanup_promise_base {
   }
 #endif
 
-  friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
+  friend unstoppable_token
+  tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
     return unstoppable_token{};
   }
 
+  friend any_scheduler
+  tag_invoke(tag_t<get_scheduler>, const _cleanup_promise_base& p) noexcept {
+    return p.sched_;
+  }
+
+  inline static constexpr inline_scheduler _default_scheduler{};
   continuation_handle<> continuation_{};
+  any_scheduler sched_{_default_scheduler};
   bool isUnhandledDone_{false};
 };
 
@@ -144,6 +156,15 @@ struct _die_on_done_rec {
     [[noreturn]] void set_done() && noexcept {
       UNIFEX_ASSERT(!"A cleanup action tried to cancel. Calling terminate...");
       std::terminate();
+    }
+
+    template(typename CPO)
+      (requires is_receiver_query_cpo_v<CPO> AND
+                is_callable_v<CPO, const Receiver&>)
+    friend auto tag_invoke(CPO cpo, const type& p)
+        noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
+        -> callable_result_t<CPO, const Receiver&> {
+      return cpo(p.rec_);
     }
   };
 };
@@ -177,7 +198,7 @@ struct _die_on_done {
           _die_on_done_rec_t<Receiver>{(Receiver&&) rec});
     }
 
-    Sender sender_;
+    UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
   };
 };
 
@@ -229,7 +250,7 @@ struct _cleanup_promise : _cleanup_promise_base {
     return unifex::await_transform(*this, _die_on_done_fn{}((Value&&) value));
   }
 
-  std::tuple<Ts&...> args_;
+  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Ts&...> args_;
 };
 
 template <typename... Ts>
@@ -251,14 +272,24 @@ struct [[nodiscard]] _cleanup_task {
   }
 
   template <typename Promise>
-  bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
+  bool await_suspend_impl_(Promise& parent) noexcept {
     continuation_.promise().continuation_ =
-        exchange_continuation(parent.promise(), continuation_);
+        exchange_continuation(parent, continuation_);
+    continuation_.promise().sched_ = get_scheduler(parent);
     return false;
   }
 
+  template <typename Promise>
+  bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
+    return await_suspend_impl_(parent.promise());
+  }
+
   std::tuple<Ts&...> await_resume() noexcept {
-    return std::exchange(continuation_, {}).promise().args_;
+    return std::move(std::exchange(continuation_, {}).promise().args_);
+  }
+
+  friend constexpr auto tag_invoke(tag_t<blocking>, const _cleanup_task&) noexcept {
+    return blocking_kind::always_inline;
   }
 
 private:
@@ -275,7 +306,7 @@ namespace _at_coroutine_exit {
   public:
     template (typename Action, typename... Ts)
       (requires callable<std::decay_t<Action>, std::decay_t<Ts>...>)
-    _cleanup_task<Ts...> operator()(Action&& action, Ts&&... ts) const {
+    _cleanup_task<std::decay_t<Ts>...> operator()(Action&& action, Ts&&... ts) const {
       return _fn::at_coroutine_exit((Action&&) action, (Ts&&) ts...);
     }
   } at_coroutine_exit{};

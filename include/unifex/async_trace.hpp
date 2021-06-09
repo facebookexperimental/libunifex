@@ -103,7 +103,7 @@ namespace _async_trace {
       return operation<Receiver>{(Receiver &&) r};
     }
 
-    friend blocking_kind tag_invoke(tag_t<blocking>, const sender&) noexcept {
+    friend auto tag_invoke(tag_t<blocking>, const sender&) noexcept {
       return blocking_kind::always_inline;
     }
   };
