@@ -72,10 +72,10 @@ class _rcvr<Source, Error, Receiver>::type final {
 
 public:
   explicit type(operation* op) noexcept
-  : op_(op) {}
+    : op_(op) {}
 
   type(type&& other) noexcept
-  : op_(std::exchange(other.op_, {}))
+    : op_(std::exchange(other.op_, {}))
   {}
  
   template(typename... Values)
@@ -91,7 +91,7 @@ public:
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  void set_error(_ignore) noexcept {
+  void set_error(detail::_ignore) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_; // preserve pointer value.
     if constexpr (
@@ -154,10 +154,10 @@ class _frcvr<Source, Error, Receiver>::type {
 
 public:
   explicit type(operation* op) noexcept
-  : op_(op) {}
+    : op_(op) {}
 
   type(type&& other) noexcept
-  : op_(std::exchange(other.op_, {}))
+    : op_(std::exchange(other.op_, {}))
   {}
  
   template(typename... Values)
@@ -269,6 +269,12 @@ template <typename Source, typename Error>
 class _sndr<Source, Error>::type {
   using final_sender_t = callable_result_t<Error>;
 
+  template <typename Sender, typename Receiver>
+  using source_receiver_t = receiver_type<member_t<Sender, Source>, Error, Receiver>;
+
+  template <typename Sender, typename Receiver>
+  using final_receiver_t = final_receiver_type<member_t<Sender, Source>, Error, Receiver>;
+
 public:
   template <template <typename...> class Variant,
             template <typename...> class Tuple>
@@ -296,20 +302,16 @@ public:
     , error_((Error2&&)error)
   {}
 
-  template(
-    typename Sender,
-    typename Receiver,
-    typename...,
-    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Error, Receiver>,
-    typename FinalReceiver = final_receiver_type<member_t<Sender, Source>, Error, Receiver>)
+  template(typename Sender, typename Receiver)
       (requires same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Error, member_t<Sender, Error>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          sender_to<member_t<Sender, Source>, SourceReceiver> AND
-          sender_to<final_sender_t, FinalReceiver>)
+          receiver<Receiver> AND
+          sender_to<member_t<Sender, Source>, source_receiver_t<Sender, Receiver>> AND
+          sender_to<final_sender_t, final_receiver_t<Sender, Receiver>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
-       noexcept(
-        is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
+      noexcept(
+        is_nothrow_connectable_v<member_t<Sender, Source>, source_receiver_t<Sender, Receiver>> &&
         std::is_nothrow_constructible_v<Error, member_t<Sender, Error>> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
       -> operation_type<member_t<Sender, Source>, Error, Receiver> {
