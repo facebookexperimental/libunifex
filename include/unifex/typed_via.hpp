@@ -63,6 +63,11 @@ namespace _typed_via {
 } // namespace _typed_via
 
 inline constexpr _typed_via::_fn typed_via {};
+
+template <typename Source, typename Scheduler>
+using typed_via_result_t =
+    decltype(typed_via(UNIFEX_DECLVAL(Source&&), UNIFEX_DECLVAL(Scheduler&&)));
+
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

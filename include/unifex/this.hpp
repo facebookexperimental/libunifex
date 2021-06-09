@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/type_traits.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -39,11 +40,6 @@ inline constexpr bool is_this_v<const this_&> = true;
 template <>
 inline constexpr bool is_this_v<const this_&&> = true;
 
-struct _ignore {
-  template <typename T>
-  /*implicit*/ _ignore(T&&) noexcept {}
-};
-
 template <typename>
 struct _replace_this;
 
@@ -53,7 +49,7 @@ struct _replace_this<void> {
   using apply = Arg;
 
   template <typename Arg>
-  static Arg&& get(Arg&& arg, _ignore) noexcept {
+  static Arg&& get(Arg&& arg, detail::_ignore) noexcept {
     return (Arg &&) arg;
   }
 };
@@ -64,7 +60,7 @@ struct _replace_this<this_> {
   using apply = T;
 
   template <typename T>
-  static T&& get(_ignore, T& obj) noexcept {
+  static T&& get(detail::_ignore, T& obj) noexcept {
     return (T &&) obj;
   }
 };
@@ -75,7 +71,7 @@ struct _replace_this<this_&> {
   using apply = T&;
 
   template <typename T>
-  static T& get(_ignore, T& obj) noexcept {
+  static T& get(detail::_ignore, T& obj) noexcept {
     return obj;
   }
 };
@@ -86,7 +82,7 @@ struct _replace_this<this_&&> {
   using apply = T&&;
 
   template <typename T>
-  static T&& get(_ignore, T& obj) noexcept {
+  static T&& get(detail::_ignore, T& obj) noexcept {
     return (T &&) obj;
   }
 };
@@ -97,7 +93,7 @@ struct _replace_this<const this_&> {
   using apply = const T&;
 
   template <typename T>
-  static const T& get(_ignore, T& obj) noexcept {
+  static const T& get(detail::_ignore, T& obj) noexcept {
     return obj;
   }
 };
@@ -108,7 +104,7 @@ struct _replace_this<const this_&&> {
   using type = const T&&;
 
   template <typename T>
-  static const T&& get(_ignore, T& obj) noexcept {
+  static const T&& get(detail::_ignore, T& obj) noexcept {
     return (const T&&) obj;
   }
 };
@@ -136,7 +132,7 @@ struct _extract_this {
 template <bool... IsThis>
 struct _extract_this<false, IsThis...> {
   template <typename... TRest>
-  decltype(auto) operator()(_ignore, TRest&&... rest) const noexcept {
+  decltype(auto) operator()(detail::_ignore, TRest&&... rest) const noexcept {
     static_assert(sizeof...(IsThis) > 0, "Arguments to extract_this");
     return _extract_this<IsThis...>{}((TRest &&) rest...);
   }

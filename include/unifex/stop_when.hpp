@@ -317,6 +317,7 @@ namespace unifex
       template(typename Self, typename Receiver)
           (requires
               same_as<remove_cvref_t<Self>, type> AND
+              receiver<Receiver> AND
               sender_to<
                   member_t<Self, Source>,
                   stop_when_source_receiver<
