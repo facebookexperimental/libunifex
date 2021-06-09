@@ -85,7 +85,7 @@ class _sender<Error>::type {
     return {static_cast<This&&>(that).error_, static_cast<Receiver&&>(r)};
   }
 
-  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type&) noexcept {
+  friend constexpr auto tag_invoke(tag_t<blocking>, const type&) noexcept {
     return blocking_kind::always_inline;
   }
 };

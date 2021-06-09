@@ -89,7 +89,7 @@ class context {
  public:
   class scheduler {
     class schedule_task {
-      friend constexpr blocking_kind tag_invoke(
+      friend constexpr auto tag_invoke(
           tag_t<blocking>,
           const schedule_task&) noexcept {
         return blocking_kind::never;
