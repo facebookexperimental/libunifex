@@ -337,9 +337,9 @@ struct _awaiter {
     using scheduler_t = remove_cvref_t<get_scheduler_result_t<OtherPromise&>>;
     using stop_token_t = remove_cvref_t<stop_token_type_t<OtherPromise>>;
     using needs_scheduler_t =
-        std::bool_constant<!same_as<scheduler_t, any_scheduler_ref>>;
+        bool_constant<!same_as<scheduler_t, any_scheduler_ref>>;
     using needs_stop_token_t =
-        std::bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
+        bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
 
     std::uintptr_t coro_; // Stored as an integer so we can use the low bit as a dirty bit
     // Only store the scheduler and the stop_token in the awaiter if we need to type
