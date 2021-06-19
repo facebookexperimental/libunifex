@@ -89,10 +89,9 @@ namespace _swap {
     };
 } // namespace _swap
 
-namespace _swap_cpo {
+inline namespace _swap_cpo {
 inline constexpr _swap::_fn swap {};
 } // namespace _swap_cpo
-using _swap_cpo::swap;
 
 template <typename, typename, typename>
 inline constexpr bool is_swappable_with_v = false;
