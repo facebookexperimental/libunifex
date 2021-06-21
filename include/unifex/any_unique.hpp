@@ -23,6 +23,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/detail/vtable.hpp>
 #include <unifex/detail/with_type_erased_tag_invoke.hpp>
+#include <unifex/detail/with_forwarding_tag_invoke.hpp>
 
 #include <memory>
 #include <utility>
@@ -31,60 +32,6 @@
 
 namespace unifex {
 namespace _any_unique {
-
-template <
-    typename Derived,
-    typename CPO,
-    bool NoExcept,
-    typename Sig>
-struct _with_forwarding_tag_invoke;
-
-template <
-    typename Derived,
-    typename CPO,
-    bool NoExcept = false,
-    typename Sig = typename CPO::type_erased_signature_t>
-using with_forwarding_tag_invoke =
-    typename _with_forwarding_tag_invoke<Derived, CPO, NoExcept, Sig>::type;
-
-template <
-    typename Derived,
-    typename CPO,
-    bool NoExcept,
-    typename Ret,
-    typename... Args>
-struct _with_forwarding_tag_invoke<
-    Derived,
-    CPO,
-    NoExcept,
-    Ret(Args...)> {
-  struct type {
-    friend Ret tag_invoke(
-        base_cpo_t<CPO> cpo,
-        replace_this_t<Args, Derived>... args) noexcept(NoExcept) {
-      static_assert(!NoExcept || noexcept(extract_this<Args...>{}(args...)));
-      auto& wrapper = extract_this<Args...>{}(args...);
-      auto& wrapped = wrapper.value;
-      static_assert(
-          !NoExcept || noexcept(std::move(cpo)(
-              replace_this<Args>::get((Args &&) args, wrapped)...)));
-      return std::move(cpo)(replace_this<Args>::get((Args &&) args, wrapped)...);
-    }
-  };
-};
-
-template <
-    typename Derived,
-    typename CPO,
-    typename Ret,
-    typename... Args>
-struct _with_forwarding_tag_invoke<
-    Derived,
-    CPO,
-    false,
-    Ret(Args...) noexcept>
-  : _with_forwarding_tag_invoke<Derived, CPO, true, Ret(Args...)> {
-};
 
 struct _deallocate_cpo {
   using type_erased_signature_t = void(this_&) noexcept;
@@ -121,13 +68,17 @@ struct _concrete_impl {
           allocCopy, &impl, 1);
     }
 
+    friend Concrete& tag_invoke(tag_t<detail::get_wrapped_object>, base& self) noexcept {
+      return self.value;
+    }
+
     UNIFEX_NO_UNIQUE_ADDRESS Concrete value;
     UNIFEX_NO_UNIQUE_ADDRESS allocator_type alloc;
   };
 
   template <typename... CPOs>
   struct impl {
-    struct type : base, private with_forwarding_tag_invoke<base, CPOs>... {
+    struct type : base, private detail::with_forwarding_tag_invoke<base, CPOs>... {
       using base::base;
     };
   };
