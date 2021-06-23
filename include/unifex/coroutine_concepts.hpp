@@ -77,7 +77,7 @@ struct _fn {
 inline constexpr _get_awaiter::_fn get_awaiter {};
 
 template <typename Awaitable>
-using awaiter_type_t = remove_cvref_t<decltype(get_awaiter(std::declval<Awaitable>()))>;
+using awaiter_type_t = decltype(get_awaiter(std::declval<Awaitable>()));
 
 template <typename Awaitable>
 using await_result_t =
