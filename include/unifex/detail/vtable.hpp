@@ -24,7 +24,20 @@
 namespace unifex {
 namespace detail {
 
-template <typename CPO, typename T, bool NoExcept, typename Ret, typename... Args>
+// Queries about whether or not a given type, T, supports a given CPO.
+template <typename T, typename CPO, typename Sig = typename CPO::type_erased_signature_t>
+inline constexpr bool supports_type_erased_cpo_v = false;
+
+template <typename T, typename CPO, typename Ret, typename... Args>
+inline constexpr bool supports_type_erased_cpo_v<T, CPO, Ret(Args...)> = is_callable_r_v<Ret, CPO, replace_this_t<Args, T>...>;
+
+template <typename T, typename CPO, typename Ret, typename... Args>
+inline constexpr bool supports_type_erased_cpo_v<T, CPO, Ret(Args...) noexcept> = is_nothrow_callable_r_v<Ret, CPO, replace_this_t<Args, T>...>;
+
+template<typename T, typename... CPOs>
+inline constexpr bool supports_type_erased_cpos_v = (supports_type_erased_cpo_v<T, CPOs> && ...);
+
+template<typename CPO, typename T, bool NoExcept, typename Ret, typename... Args>
 Ret _vtable_invoke(
     CPO cpo,
     replace_this_with_void_ptr_t<Args>... args) noexcept(NoExcept) {
