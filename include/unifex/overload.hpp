@@ -67,8 +67,6 @@ using base_cpo_t = typename _overload::base_cpo<CPO>::type;
 template <auto& CPO, typename Sig>
 using overload_t = typename _overload::_cpo_t<tag_t<CPO>, Sig>::type;
 
-
-
 template <typename Sig, typename CPO>
 constexpr typename _overload::_cpo_t<CPO, Sig>::type const&
 overload(CPO const&, _overload::_sig<Sig> = {}) noexcept {
