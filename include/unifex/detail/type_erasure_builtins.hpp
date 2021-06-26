@@ -27,8 +27,11 @@
 // copy/move constructors.
 //
 // These CPOs can be passed to the list of CPOs for a vtable<> to create vtable
-// entries for these operations. These CPOs are only customisable through the
-// builtin operations and not via tag_invoke().
+// entries for these operations. These CPOs are customisable by defining the
+// corresponding special member function instead of using tag_invoke().
+// e.g. _destroy_cpo is customised by defining a destructor.
+//      _move_construct_cpo is customised by defining a move-constructor.
+//      _copy_construct_cpo is customsied by defining a copy-constructor.
 //
 
 namespace unifex
@@ -56,7 +59,8 @@ namespace unifex
               !RequireNoexceptMove ||
               std::is_nothrow_move_constructible_v<T>))  //
           void
-          operator()(void* p, T&& src) const noexcept(RequireNoexceptMove) {
+          operator()(void* p, T&& src) const
+          noexcept(std::is_nothrow_move_constructible_v<T>) {
         ::new (p) T(static_cast<T&&>(src));
       }
     };
@@ -72,7 +76,7 @@ namespace unifex
               std::is_nothrow_copy_constructible_v<T>))  //
           void
           operator()(void* p, const T& src) const
-          noexcept(RequireNoexceptCopy) {
+          noexcept(std::is_nothrow_copy_constructible_v<T>) {
         ::new (p) T(src);
       }
     };
