@@ -107,8 +107,16 @@ TEST(AnyObjectTest, ImplicitConstruction) {
 }
 
 TEST(AnyObjectTest, InPlaceConstruction) {
-  any_typeidable x{std::in_place_type<float>, 42};
-  EXPECT_TRUE(get_typeid(x) == unifex::type_id<float>());
+  {
+    struct some_default_constructible {};
+    any_typeidable a(std::in_place_type<some_default_constructible>);
+    EXPECT_TRUE(get_typeid(a) == unifex::type_id<some_default_constructible>());
+  }
+  {
+    // With conversion
+    any_typeidable x{std::in_place_type<float>, 42};
+    EXPECT_TRUE(get_typeid(x) == unifex::type_id<float>());
+  }
 }
 
 TEST(AnyObjectTest, InPlaceConstructionOnlyConstructsOnce) {
@@ -156,7 +164,7 @@ TEST(AnyObjectTest, MoveConstructorDoesNotMoveLargeObjects) {
   instance_counter::reset_counts();
 
   struct big_instance_counter : instance_counter {
-      std::byte extra[40];
+    std::byte extra[40];
   };
 
   using any_small_object = unifex::any_object<

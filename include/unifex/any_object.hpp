@@ -44,6 +44,15 @@ namespace unifex
     class type;
   };
 
+  template <typename T>
+  inline constexpr bool _is_in_place_type = false;
+  template <typename T>
+  inline constexpr bool _is_in_place_type<std::in_place_type_t<T>> = true;
+
+  template <typename T>
+  inline constexpr bool _is_any_object_tag_argument =
+      _is_in_place_type<T> || std::is_same_v<T, std::allocator_arg_t>;
+
   template <
       std::size_t InlineSize,
       std::size_t InlineAlignment,
@@ -80,10 +89,11 @@ namespace unifex
         CPOs...>;
 
   public:
-    template(typename T)                                       //
-        (requires (!same_as<remove_cvref_t<T>, type>) AND // 
-        can_be_type_erased_v<remove_cvref_t<T>> AND  //
-             constructible_from<remove_cvref_t<T>, T>)         //
+    template(typename T)                                        //
+        (requires(!same_as<remove_cvref_t<T>, type>) AND        //
+         (!_is_any_object_tag_argument<remove_cvref_t<T>>) AND  //
+             can_be_type_erased_v<remove_cvref_t<T>> AND        //
+                 constructible_from<remove_cvref_t<T>, T>)      //
         /*implicit*/ type(T&& object) noexcept(
             is_storable_inplace_v<remove_cvref_t<T>>&&
                 std::is_nothrow_constructible_v<remove_cvref_t<T>, T>)
