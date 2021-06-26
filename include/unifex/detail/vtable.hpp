@@ -56,7 +56,9 @@ Ret _vtable_invoke(
           *static_cast<T*>(thisPointer))...);
 }
 
-template <typename CPO, typename Sig = typename CPO::type_erased_signature_t>
+    template <typename... CPOs>
+    struct inline_vtable_holder;
+
 struct vtable_entry;
 
 template <typename CPO, typename Ret, typename... Args>
@@ -74,8 +76,9 @@ struct vtable_entry<CPO, Ret(Args...) noexcept> {
   }
 
 private:
-  explicit constexpr vtable_entry(fn_t* fn) noexcept
-    : fn_(fn) {}
+      template <typename... CPOs>
+      friend struct inline_vtable_holder;
+
 
   fn_t* fn_;
 };
@@ -95,8 +98,10 @@ struct vtable_entry<CPO, Ret(Args...)> {
   }
 
 private:
-  explicit constexpr vtable_entry(fn_t* fn) noexcept
-    : fn_(fn) {}
+      template<typename... CPOs>
+      friend struct inline_vtable_holder;
+
+      explicit constexpr vtable_entry(fn_t* fn) noexcept : fn_(fn) {}
 
   fn_t* fn_;
 };
@@ -115,6 +120,8 @@ struct vtable : private vtable_entry<CPOs>... {
   }
 
 private:
+      friend inline_vtable_holder<CPOs...>;
+
   explicit constexpr vtable(vtable_entry<CPOs>... entries) noexcept
     : vtable_entry<CPOs>{entries}... {}
 };
@@ -148,16 +155,16 @@ struct inline_vtable_holder {
   constexpr inline_vtable_holder(const inline_vtable_holder& other) noexcept = default;
 
   // Casting from an inline_vtable with a superset of vtable entries
-  template<typename... OtherCPOs>
-  /* implicit */ inline_vtable_holder(const inline_vtable_holder<OtherCPOs...>& other) noexcept {
-      return inline_vtable_holder{other->template get<CPOs>()...};
-  }
+      template <typename... OtherCPOs>
+      /* implicit */ inline_vtable_holder(
+          const inline_vtable_holder<OtherCPOs...>& other) noexcept
+        : vtable_(vtable_entry<CPOs>(other->template get<CPOs>())...) {}
 
   // Casting from an indirect_vtable with a superset of vtable entries
-  template<typename... OtherCPOs>
-  /* implicit */ inline_vtable_holder(indirect_vtable_holder<OtherCPOs...> other) noexcept {
-      return inline_vtable_holder{other->template get<CPOs>()...};
-  }
+      template <typename... OtherCPOs>
+      /* implicit */ inline_vtable_holder(
+          indirect_vtable_holder<OtherCPOs...> other) noexcept
+        : vtable_(vtable_entry<CPOs>(other->template get<CPOs>())...) {}
 
   template <typename T>
   static constexpr inline_vtable_holder create() {
