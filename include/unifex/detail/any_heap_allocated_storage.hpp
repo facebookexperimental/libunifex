@@ -130,7 +130,8 @@ namespace unifex
           return self.state_->object;
         }
 
-        friend const T& tag_invoke(tag_t<get_wrapped_object>, const base& self) noexcept {
+        friend const T&
+        tag_invoke(tag_t<get_wrapped_object>, const base& self) noexcept {
           assert(self.state_ != nullptr);
           return self.state_->object;
         }
@@ -152,8 +153,10 @@ namespace unifex
       using type = typename concrete<CPOs...>::type;
     };
 
-    template<typename T, typename Allocator, typename... CPOs>
-    using any_heap_allocated_storage = typename _any_heap_allocated_storage<T, Allocator>::template type<CPOs...>;
+    template <typename T, typename Allocator, typename... CPOs>
+    using any_heap_allocated_storage =
+        typename _any_heap_allocated_storage<T, Allocator>::template type<
+            CPOs...>;
 
   }  // namespace detail
 }  // namespace unifex
