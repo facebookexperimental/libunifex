@@ -72,7 +72,7 @@ namespace unifex
         InlineSize < sizeof(void*) ? sizeof(void*) : InlineSize;
 
     template <typename T>
-    static constexpr bool is_storable_inplace_v =
+    static constexpr bool can_be_stored_inplace_v =
         (sizeof(T) <= padded_size && alignof(T) <= padded_alignment);
 
     template <typename T>
@@ -95,11 +95,9 @@ namespace unifex
              can_be_type_erased_v<remove_cvref_t<T>> AND        //
                  constructible_from<remove_cvref_t<T>, T>)      //
         /*implicit*/ type(T&& object) noexcept(
-            is_storable_inplace_v<remove_cvref_t<T>>&&
+            can_be_stored_inplace_v<remove_cvref_t<T>>&&
                 std::is_nothrow_constructible_v<remove_cvref_t<T>, T>)
-      : type(
-            std::in_place_type<remove_cvref_t<T>>, static_cast<T&&>(object)) {
-    }
+      : type(std::in_place_type<remove_cvref_t<T>>, static_cast<T&&>(object)) {}
 
     template(typename T, typename Allocator)                   //
         (requires can_be_type_erased_v<remove_cvref_t<T>> AND  //
@@ -107,7 +105,7 @@ namespace unifex
         explicit type(
             std::allocator_arg_t,
             Allocator allocator,
-            T&& value) noexcept(is_storable_inplace_v<remove_cvref_t<T>>&&
+            T&& value) noexcept(can_be_stored_inplace_v<remove_cvref_t<T>>&&
                                     std::is_nothrow_constructible_v<
                                         remove_cvref_t<T>,
                                         T>)
@@ -117,8 +115,8 @@ namespace unifex
             std::in_place_type<remove_cvref_t<T>>,
             static_cast<T&&>(value)) {}
 
-    template(typename T, typename... Args)   //
-        (requires is_storable_inplace_v<T>)  //
+    template(typename T, typename... Args)     //
+        (requires can_be_stored_inplace_v<T>)  //
         explicit type(std::in_place_type_t<T>, Args&&... args) noexcept(
             std::is_nothrow_constructible_v<T, Args...>)
       : vtable_(vtable_holder_t::template create<T>()) {
@@ -127,7 +125,7 @@ namespace unifex
 
     template(typename T, typename... Args)                       //
         (requires can_be_type_erased_v<T> AND                    //
-         (!is_storable_inplace_v<T>) AND                         //
+         (!can_be_stored_inplace_v<T>) AND                       //
              std::is_default_constructible_v<DefaultAllocator>)  //
         explicit type(std::in_place_type_t<T>, Args&&... args)
       : type(
@@ -138,7 +136,7 @@ namespace unifex
 
     template(typename T, typename Allocator, typename... Args)  //
         (requires can_be_type_erased_v<T> AND                   //
-             is_storable_inplace_v<T>)                          //
+             can_be_stored_inplace_v<T>)                        //
         explicit type(
             std::allocator_arg_t,
             Allocator,
@@ -149,7 +147,7 @@ namespace unifex
 
     template(typename T, typename Alloc, typename... Args)  //
         (requires can_be_type_erased_v<T> AND               //
-         (!is_storable_inplace_v<T>))                       //
+         (!can_be_stored_inplace_v<T>))                     //
         explicit type(
             std::allocator_arg_t,
             Alloc alloc,
