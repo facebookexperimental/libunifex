@@ -18,6 +18,7 @@
 #include <unifex/detail/vtable.hpp>
 #include <unifex/detail/with_type_erased_tag_invoke.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/swap.hpp>
 
 #include <utility>
 #include <type_traits>
@@ -49,9 +50,8 @@ class _any_ref<CPOs...>::type
     , impl_((void*) std::addressof(impl)) {}
 
   void swap(type& other) noexcept {
-    using std::swap;
-    swap(vtable_, other.vtable_);
-    swap(impl_, other.impl_);
+    unifex::swap(vtable_, other.vtable_);
+    unifex::swap(impl_, other.impl_);
   }
 
   // Two any_ref's compare equal IFF they refer to the same object (shallow).
