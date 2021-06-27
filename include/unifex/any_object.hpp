@@ -213,7 +213,7 @@ namespace unifex
   // Simpler version that chooses some appropriate defaults for you.
   template <typename... CPOs>
   using any_object = basic_any_object<
-      4 * sizeof(void*),
+      3 * sizeof(void*),
       alignof(void*),
       true,
       std::allocator<std::byte>,
