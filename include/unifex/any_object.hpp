@@ -41,6 +41,31 @@ namespace unifex
       typename DefaultAllocator,
       typename... CPOs>
   struct _any_object {
+    // WORKAROUND: Define these static-constexpr members here instead of in the
+    // nested
+    // '::type' class below to work around an issue under MSVC where usages of
+    // these variables in requires-clauses in 'type' constructors complains
+    // about use of uninitialized variables causing these expressions to not be
+    // constexpr.
+
+    // Pad size/alignment out to allow storage of at least a pointer.
+    static constexpr std::size_t padded_alignment =
+        InlineAlignment < alignof(void*) ? alignof(void*) : InlineAlignment;
+    static constexpr std::size_t padded_size =
+        InlineSize < sizeof(void*) ? sizeof(void*) : InlineSize;
+
+    template <typename T>
+    static constexpr bool can_be_stored_inplace_v =
+        (sizeof(T) <= padded_size && alignof(T) <= padded_alignment);
+
+    template <typename T>
+    static constexpr bool can_be_type_erased_v =
+        unifex::detail::supports_type_erased_cpos_v<
+            T,
+            detail::_destroy_cpo,
+            detail::_move_construct_cpo<RequireNoexceptMove>,
+            CPOs...>;
+
     class type;
   };
 
@@ -65,24 +90,6 @@ namespace unifex
       RequireNoexceptMove,
       DefaultAllocator,
       CPOs...>::type : private with_type_erased_tag_invoke<type, CPOs>... {
-    // Pad size/alignment out to allow storage of at least a pointer.
-    static constexpr std::size_t padded_alignment =
-        InlineAlignment < alignof(void*) ? alignof(void*) : InlineAlignment;
-    static constexpr std::size_t padded_size =
-        InlineSize < sizeof(void*) ? sizeof(void*) : InlineSize;
-
-    template <typename T>
-    static constexpr bool can_be_stored_inplace_v =
-        (sizeof(T) <= padded_size && alignof(T) <= padded_alignment);
-
-    template <typename T>
-    static constexpr bool can_be_type_erased_v =
-        detail::supports_type_erased_cpos_v<
-            T,
-            detail::_destroy_cpo,
-            detail::_move_construct_cpo<RequireNoexceptMove>,
-            CPOs...>;
-
     using vtable_holder_t = detail::indirect_vtable_holder<
         detail::_destroy_cpo,
         detail::_move_construct_cpo<RequireNoexceptMove>,

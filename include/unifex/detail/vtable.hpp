@@ -18,6 +18,9 @@
 #include <unifex/config.hpp>
 #include <unifex/overload.hpp>
 #include <unifex/this.hpp>
+#include <unifex/type_traits.hpp>
+
+#include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -26,10 +29,7 @@ namespace unifex
   namespace detail
   {
     // Queries about whether or not a given type, T, supports a given CPO.
-    template <
-        typename T,
-        typename CPO,
-        typename Sig = typename CPO::type_erased_signature_t>
+    template <typename T, typename CPO, typename Sig>
     inline constexpr bool supports_type_erased_cpo_v = false;
 
     template <typename T, typename CPO, typename Ret, typename... Args>
@@ -43,7 +43,10 @@ namespace unifex
 
     template <typename T, typename... CPOs>
     inline constexpr bool supports_type_erased_cpos_v =
-        (supports_type_erased_cpo_v<T, CPOs> && ...);
+        (supports_type_erased_cpo_v<
+            T,
+            CPOs,
+            typename CPOs::type_erased_signature_t> && ...);
 
     template <
         typename CPO,
