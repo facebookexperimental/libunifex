@@ -226,6 +226,9 @@ inline constexpr bool _is_callable_r_v<true, R, Fn, As...> = std::is_convertible
 template<typename R, typename Fn, typename... As>
 inline constexpr bool is_callable_r_v = _is_callable_r_v<is_callable_v<Fn, As...>, R, Fn, As...>;
 
+template<typename R, typename Fn, typename... As>
+struct is_callable_r : std::bool_constant<is_callable_r_v<R, Fn, As...>> {};
+
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
     noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
