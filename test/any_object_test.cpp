@@ -25,11 +25,6 @@
 
 #include <unifex/detail/prologue.hpp>
 
-static_assert(unifex::is_callable_v<unifex::detail::_destroy_cpo, int&>);
-static_assert(unifex::detail::supports_type_erased_cpo_v<
-              int,
-              unifex::detail::_destroy_cpo>);
-
 namespace
 {
   inline constexpr struct get_typeid_cpo {
@@ -41,8 +36,8 @@ namespace
       return unifex::type_id<T>();
     }
 
-    template(typename T)                                     //
-        (requires unifex::tag_invocable<get_typeid_cpo, T>)  //
+    template(typename T)                                            //
+        (requires unifex::tag_invocable<get_typeid_cpo, const T&>)  //
         auto
         operator()(const T& x) const noexcept
         -> unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
@@ -114,7 +109,7 @@ TEST(AnyObjectTest, InPlaceConstruction) {
   }
   {
     // With conversion
-    any_typeidable x{std::in_place_type<float>, 42};
+    any_typeidable x(std::in_place_type<float>, 42);
     EXPECT_TRUE(get_typeid(x) == unifex::type_id<float>());
   }
 }
@@ -123,7 +118,7 @@ TEST(AnyObjectTest, InPlaceConstructionOnlyConstructsOnce) {
   instance_counter::reset_counts();
 
   {
-    any_typeidable x{std::in_place_type<instance_counter>};
+    any_typeidable x(std::in_place_type<instance_counter>);
     EXPECT_EQ(instance_counter::get_constructor_count(), 1);
     EXPECT_EQ(instance_counter::get_instance_count(), 1);
   }
@@ -143,7 +138,7 @@ TEST(AnyObjectTest, MoveConstructionMovesSmallObjects) {
       unifex::tag_t<get_typeid>>;
 
   {
-    any_small_object x{std::in_place_type<instance_counter>};
+    any_small_object x(std::in_place_type<instance_counter>);
 
     EXPECT_EQ(instance_counter::get_instance_count(), 1);
 
@@ -175,7 +170,7 @@ TEST(AnyObjectTest, MoveConstructorDoesNotMoveLargeObjects) {
       unifex::tag_t<get_typeid>>;
 
   {
-    any_small_object x{std::in_place_type<big_instance_counter>};
+    any_small_object x(std::in_place_type<big_instance_counter>);
 
     EXPECT_EQ(instance_counter::get_instance_count(), 1);
 
@@ -223,11 +218,13 @@ TEST(AnyObjectTest, SmallObjectsDontCallAllocator) {
       always_fails_allocator<std::byte>,
       get_typeid_cpo>;
 
-  EXPECT_NO_THROW(any_small_object(std::in_place_type<sized_type<4, 4>>));
-  EXPECT_NO_THROW(any_small_object(std::in_place_type<sized_type<8, 4>>));
-  EXPECT_NO_THROW(any_small_object(std::in_place_type<sized_type<16, 4>>));
-  EXPECT_NO_THROW(any_small_object(std::in_place_type<sized_type<4, 8>>));
-  EXPECT_NO_THROW(any_small_object(std::in_place_type<sized_type<16, 8>>));
+  any_small_object x(std::in_place_type<sized_type<4, 4>>);
+
+  EXPECT_NO_THROW((any_small_object(std::in_place_type<sized_type<4, 4>>)));
+  EXPECT_NO_THROW((any_small_object(std::in_place_type<sized_type<8, 4>>)));
+  EXPECT_NO_THROW((any_small_object(std::in_place_type<sized_type<16, 4>>)));
+  EXPECT_NO_THROW((any_small_object(std::in_place_type<sized_type<4, 8>>)));
+  EXPECT_NO_THROW((any_small_object(std::in_place_type<sized_type<16, 8>>)));
 }
 
 TEST(AnyObjectTest, LargeObjectsCallAllocator) {
@@ -239,9 +236,11 @@ TEST(AnyObjectTest, LargeObjectsCallAllocator) {
       get_typeid_cpo>;
 
   EXPECT_THROW(
-      any_small_object(std::in_place_type<sized_type<32, 4>>), std::bad_alloc);
+      (any_small_object(std::in_place_type<sized_type<32, 4>>)),
+      std::bad_alloc);
   EXPECT_THROW(
-      any_small_object(std::in_place_type<sized_type<16, 16>>), std::bad_alloc);
+      (any_small_object(std::in_place_type<sized_type<16, 16>>)),
+      std::bad_alloc);
 }
 
 TEST(AnyObjectTest, UseDefaultAllocatorIfNotSpecified) {
@@ -250,15 +249,17 @@ TEST(AnyObjectTest, UseDefaultAllocatorIfNotSpecified) {
 
   // Shouldn't throw as we have specified a non-default allocator as a
   // parameter.
-  EXPECT_NO_THROW(any_small_object(
+  any_small_object x{
       std::allocator_arg,
-      std::allocator<std::byte>{},
-      std::in_place_type<sized_type<32, 4>>));
+      std::allocator<std::byte>(),
+      std::in_place_type<sized_type<32, 4>>};
+  EXPECT_TRUE((get_typeid(x) == unifex::type_id<sized_type<32, 4>>()));
 
   // Should throw since it will fall-back to using the default allocator which
   // always throws.
   EXPECT_THROW(
-      any_small_object(std::in_place_type<sized_type<32, 4>>), std::bad_alloc);
+      (any_small_object(std::in_place_type<sized_type<32, 4>>)),
+      std::bad_alloc);
 }
 
 namespace
