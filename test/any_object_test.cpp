@@ -48,7 +48,7 @@ namespace
     }
   } get_typeid{};
 
-  using any_typeidable = unifex::any_object<
+  using any_typeidable = unifex::basic_any_object<
       8,
       8,
       true,
@@ -130,7 +130,7 @@ TEST(AnyObjectTest, InPlaceConstructionOnlyConstructsOnce) {
 TEST(AnyObjectTest, MoveConstructionMovesSmallObjects) {
   instance_counter::reset_counts();
 
-  using any_small_object = unifex::any_object<
+  using any_small_object = unifex::basic_any_object<
       sizeof(instance_counter),
       alignof(instance_counter),
       true,
@@ -162,7 +162,7 @@ TEST(AnyObjectTest, MoveConstructorDoesNotMoveLargeObjects) {
     std::byte extra[40];
   };
 
-  using any_small_object = unifex::any_object<
+  using any_small_object = unifex::basic_any_object<
       sizeof(instance_counter),
       alignof(instance_counter),
       true,
@@ -211,7 +211,7 @@ namespace
 }  // namespace
 
 TEST(AnyObjectTest, SmallObjectsDontCallAllocator) {
-  using any_small_object = unifex::any_object<
+  using any_small_object = unifex::basic_any_object<
       16,
       8,
       true,
@@ -228,7 +228,7 @@ TEST(AnyObjectTest, SmallObjectsDontCallAllocator) {
 }
 
 TEST(AnyObjectTest, LargeObjectsCallAllocator) {
-  using any_small_object = unifex::any_object<
+  using any_small_object = unifex::basic_any_object<
       16,
       8,
       true,
@@ -245,7 +245,7 @@ TEST(AnyObjectTest, LargeObjectsCallAllocator) {
 
 TEST(AnyObjectTest, UseDefaultAllocatorIfNotSpecified) {
   using any_small_object = unifex::
-      any_object<4, 4, true, always_fails_allocator<std::byte>, get_typeid_cpo>;
+      basic_any_object<4, 4, true, always_fails_allocator<std::byte>, get_typeid_cpo>;
 
   // Shouldn't throw as we have specified a non-default allocator as a
   // parameter.
@@ -278,7 +278,7 @@ namespace
   } get_foo{};
 
   using any_foo =
-      unifex::any_object<16, 16, true, std::allocator<std::byte>, get_foo_cpo>;
+      unifex::basic_any_object<16, 16, true, std::allocator<std::byte>, get_foo_cpo>;
 
   struct foo_supported {
     int foo = 0;

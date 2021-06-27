@@ -203,12 +203,21 @@ namespace unifex
       bool RequireNoexceptMove,
       typename DefaultAllocator,
       typename... CPOs>
-  using any_object = typename _any_object<
+  using basic_any_object = typename _any_object<
       InlineSize,
       InlineAlignment,
       RequireNoexceptMove,
       DefaultAllocator,
       CPOs...>::type;
+
+  // Simpler version that chooses some appropriate defaults for you.
+  template <typename... CPOs>
+  using any_object = basic_any_object<
+      4 * sizeof(void*),
+      alignof(void*),
+      true,
+      std::allocator<std::byte>,
+      CPOs...>;
 
 }  // namespace unifex
 
