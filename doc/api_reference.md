@@ -6,6 +6,7 @@
   * `get_allocator()`
   * `get_execution_policy()`
 * Sender Factories
+  * `create`
   * `just()`
   * `just_done()` / `stop()`
   * `just_error()`
@@ -146,6 +147,47 @@ If a receiver does not customise the `get_execution_policy()` CPO then it
 will default to returning the `sequenced_policy`.
 
 # Sender Factories
+
+### `create<ValueTypes...>(callable)`
+
+_Synopsis:_ A utility for building a sender-based async API out of a C-style async API
+that accepts a `void*` context and a callback.
+
+_Example:_
+```c++
+// A void-returning C-style async API that accepts a context and a continuation:
+using callback_t = void(void* /*context*/, int /*result*/);
+void old_c_style_api(int a, int b, void* context, callback_t* callback_fn);
+
+// A sender-based async API implemented in terms of the C-style API (using C++20):
+unifex::typed_sender auto new_sender_api(int a, int b) {
+  return unifex::create<int>([=](auto& rec) {
+    old_c_style_api(a, b, &rec, [](void* context, int result) {
+      unifex::void_cast<decltype(rec)>(context).set_value(result);
+    });
+  });
+}
+```
+
+`ValueTypes...` is a pack representing the value types of the resulting sender. It should
+be the list of value type(s) accepted by the callback (with the exception of the `void*`
+context). In the above example, since `callback_t` accepts an `int` as the result of the
+async computation, we pass `int` as the template argument to `create`.
+
+The first argument to `create` is a `void`-returning callable that accepts an lvalue
+reference to an object whose type satisfies the `unifex::receiver_of<ValueTypes...>`
+concept. This function should dispatch to the C-style callback (see example).
+
+The second argument is an optional extra bit of data to be bundled with the receiver
+passed to the callable. E.g., if the first argument to `create` is a lambda that accepts
+`(auto& rec)` and the second argument is `42`, then from within the body of the lambda,
+the value of the expression `rec.context()` is `42`.
+
+`create` returns a typed sender that, when connected and started, dispatches to the
+wrapped C-style API with the callback of your choosing. The receiver passed to the
+callable wraps the receiver passed to `connect`. The callback should "complete" the
+receiver passed to the callable, which will complete the receiver passed to `connect` in
+turn.
 
 ### `just(args...)`
 
