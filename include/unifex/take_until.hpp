@@ -140,6 +140,15 @@ struct _stream<SourceStream, TriggerStream>::type {
             return r.get_stop_source().get_token();
           }
 
+          template(typename CPO)
+              (requires is_receiver_query_cpo_v<CPO>)
+          friend auto tag_invoke(CPO cpo, const receiver_wrapper& r) noexcept(
+              is_nothrow_callable_v<CPO, const Receiver&>)
+              -> callable_result_t<CPO, const Receiver&> {
+            return std::move(cpo)(std::as_const(r.op_.receiver_));
+          }
+
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -147,6 +156,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               Func&& func) {
             std::invoke(func, r.op_.receiver_);
           }
+        #endif
         };
 
         take_until_stream& stream_;
@@ -237,6 +247,15 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.source_cleanup_error(std::move(error));
           }
 
+          template(typename CPO)
+              (requires is_receiver_query_cpo_v<CPO>)
+          friend auto tag_invoke(CPO cpo, const source_receiver& r) noexcept(
+              is_nothrow_callable_v<CPO, const Receiver&>)
+              -> callable_result_t<CPO, const Receiver&> {
+            return std::move(cpo)(std::as_const(r.op_.receiver_));
+          }
+
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -244,6 +263,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               Func&& func) {
             std::invoke(func, r.op_.receiver_);
           }
+        #endif
         };
 
         struct trigger_receiver {
@@ -266,6 +286,15 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.trigger_cleanup_error(std::move(error));
           }
 
+          template(typename CPO)
+              (requires is_receiver_query_cpo_v<CPO>)
+          friend auto tag_invoke(CPO cpo, const trigger_receiver& r) noexcept(
+              is_nothrow_callable_v<CPO, const Receiver&>)
+              -> callable_result_t<CPO, const Receiver&> {
+            return std::move(cpo)(std::as_const(r.op_.receiver_));
+          }
+
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -273,6 +302,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               Func&& func) {
             std::invoke(func, r.op_.receiver_);
           }
+        #endif
         };
 
         take_until_stream& stream_;

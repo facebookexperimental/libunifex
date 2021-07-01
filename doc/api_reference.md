@@ -13,6 +13,7 @@
   * `just_void_or_done()`
   * `stop_if_requested()`
 * Sender Algorithms
+  * `detach_on_cancel()`
   * `then()`
   * `finally()`
   * `via()`
@@ -23,6 +24,7 @@
   * `let_done()`
   * `let_value_with()`
   * `let_value_with_stop_source()`
+  * `let_value_with_stop_token()`
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
@@ -242,10 +244,32 @@ caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
 # Sender Algorithms
 
+### `detach_on_cancel(Sender sender) -> Sender`
+
+Takes a Sender and produces a new Sender that will heap-allocate its operation
+state for the purpose of detaching a slow operation upon request to stop.
+
+Completion of the `sender` is otherwise delegated to the new Sender.
+
 ### `then(Sender predecessor, Func func) -> Sender`
 
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
+
+For example:
+```c++
+then(some_operation(),
+    [](auto& x) {
+      return func(x);
+    });
+```
+is roughly equivalent to the following coroutine code:
+```c++
+{
+  auto x = co_await some_operation();
+  func(x);
+}
+```
 
 ### `let_value(Sender pred, Invocable func) -> Sender`
 
@@ -355,6 +379,28 @@ Calling `.request_stop()` on the stop-source passed to the function requests
 cancellation of the operation returned by the function. Note that cancellation
 may also be requested through the stop-token of the receiver that is connected
 to the sender returned by `let_value_with_stop_source()`.
+
+### `let_value_with_stop_token(Invocable func) -> Sender`
+
+The `let_value_with_stop_token()` algorithm takes a function object that is
+invoked at `unifex::connect()` time with an `inplace_stop_token` object that
+can be used to receive a stop-request sent by the parent operation through the
+receiver it passes to connect().
+
+The function invocation must return a Sender which is immediately connected.
+The result of the sender returned from the function becomes the result of the
+`let_value_with_stop_token()` sender.
+
+The stop-token passed to the function is only guaranteed to be valid until
+the sender returned by the function completes.
+
+For example:
+```c++
+let_value_with_stop_token(
+    [](unifex::inplace_stop_token stop_token) {
+      return other_operation(stop_token);
+    });
+```
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
@@ -1190,4 +1236,22 @@ namespace unifex
     void spawn_call_on(scheduler, invocable);
   };
 }
+```
+
+### `variant_sender`
+
+Non-type erased sender that is parameterized on multiple sender types.
+Receivers must implement `set_value` for all value types produced by all
+senders.
+
+```
+defer(
+  [condition]()
+      -> variant_sender<decltype(just(42)), decltype(just(true))> {
+    if (condition) {
+      return just(42);
+    } else {
+      return just(true);
+    }
+  });
 ```

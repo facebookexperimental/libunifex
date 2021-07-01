@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/fused_stop_source.hpp>
 #include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -56,21 +57,24 @@ public:
     template(typename... Values)
         (requires receiver_of<Receiver, Values...>)
     void set_value(Values&&... values) noexcept(is_nothrow_receiver_of_v<Receiver, Values...>) {
+        op_.stopSource_.deregister_callbacks();
         unifex::set_value(std::move(receiver_), (Values&&)values...);
     }
 
     template(typename Error)
         (requires receiver<Receiver, Error>)
     void set_error(Error&& error) noexcept {
+        op_.stopSource_.deregister_callbacks();
         unifex::set_error(std::move(receiver_), (Error&&)error);
     }
 
     void set_done() noexcept {
+        op_.stopSource_.deregister_callbacks();
         unifex::set_done(std::move(receiver_));
     }
 
     friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const type& r) noexcept {
-        return r.op_.stop_source_.get_token();
+        return r.op_.stopSource_.get_token();
     }
 
     template(typename CPO, typename Self)
@@ -131,48 +135,54 @@ private:
     UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
 };
 
-struct _stop_source_operation_callback {
-    explicit _stop_source_operation_callback(inplace_stop_source& source) noexcept :
-        source_{source} {}
-    void operator()() noexcept {
-        source_.request_stop();
-    }
-    inplace_stop_source& source_;
-};
-
-template<typename SuccessorFactory, typename Receiver>
+template <typename SuccessorFactory, typename Receiver>
 struct _stop_source_operation<SuccessorFactory, Receiver>::type {
+  using stop_token_type = stop_token_type_t<Receiver>;
+  using stop_source_type = fused_stop_source<stop_token_type>;
+  using receiver_t = stop_source_receiver<
+      operation<SuccessorFactory, Receiver>,
+      remove_cvref_t<Receiver>>;
+  using inner_sender_t =
+      std::invoke_result_t<SuccessorFactory&&, stop_source_type&>;
 
-    template <typename SuccessorFactory2, typename Receiver2>
-    type(SuccessorFactory2&& func, Receiver2&& r) :
-        func_{(SuccessorFactory2&&)func},
-        stop_source_{},
-        // Chain the stop token so that downstream cancellation also affects this
-        // operation
-        stop_callback_(
-            unifex::get_stop_token(r),
-            _stop_source_operation_callback(stop_source_)),
-        innerOp_(
-              unifex::connect(
-                ((SuccessorFactory&&)func_)(stop_source_),
-                stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver2>>{
-                    *this,
-                    static_cast<Receiver2&&>(r)})) {
-    }
+private:
+  static constexpr bool successor_is_nothrow =
+      std::is_nothrow_invocable_v<SuccessorFactory&&, stop_source_type>;
+  static constexpr bool inner_receiver_nothrow_constructible =
+      std::is_nothrow_constructible_v<receiver_t, type*, Receiver&&>;
+  static constexpr bool nothrow_connectable =
+      is_nothrow_connectable_v<inner_sender_t, receiver_t>;
 
-    void start() noexcept {
-        unifex::start(innerOp_);
-    }
+  auto connect_inner_op(SuccessorFactory& func, Receiver&& r) noexcept(
+      successor_is_nothrow && inner_receiver_nothrow_constructible &&
+          nothrow_connectable) {
+    return unifex::connect(
+        static_cast<SuccessorFactory&&>(func)(stopSource_),
+        receiver_t{*this, static_cast<Receiver&&>(r)});
+  }
 
-    template<class F>
-    using callback_type = typename stop_token_type_t<Receiver>::template callback_type<F>;
-    UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
-    UNIFEX_NO_UNIQUE_ADDRESS unifex::inplace_stop_source stop_source_;
-    UNIFEX_NO_UNIQUE_ADDRESS callback_type<_stop_source_operation_callback> stop_callback_;
-    connect_result_t<
-        callable_result_t<SuccessorFactory, unifex::inplace_stop_source&>,
-        stop_source_receiver<operation<SuccessorFactory, Receiver>, remove_cvref_t<Receiver>>>
-        innerOp_;
+public:
+  template <typename SuccessorFactory2, typename Receiver2>
+  type(SuccessorFactory2&& func, Receiver2&& r) noexcept(
+      std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>&&
+          std::is_nothrow_constructible_v<Receiver, Receiver2>&& noexcept(
+              connect_inner_op(func, (Receiver2 &&) r)))
+    : func_{(SuccessorFactory2 &&) func}
+    , receiverToken_(get_stop_token(r))
+    , innerOp_(connect_inner_op(func_, (Receiver2 &&) r)) {}
+
+  UNIFEX_NO_UNIQUE_ADDRESS stop_source_type stopSource_;
+  UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
+  UNIFEX_NO_UNIQUE_ADDRESS stop_token_type receiverToken_;
+  UNIFEX_NO_UNIQUE_ADDRESS connect_result_t<
+      callable_result_t<SuccessorFactory, stop_source_type&>,
+      receiver_t>
+      innerOp_;
+
+  void start() noexcept {
+    stopSource_.register_callbacks(receiverToken_);
+    unifex::start(innerOp_);
+  }
 };
 
 namespace _cpo {

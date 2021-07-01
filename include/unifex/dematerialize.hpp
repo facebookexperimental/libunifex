@@ -75,6 +75,7 @@ namespace _demat {
       return static_cast<CPO&&>(cpo)(std::as_const(r.receiver_));
     }
 
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) noexcept(std::
                                   is_nothrow_invocable_v<
@@ -82,6 +83,7 @@ namespace _demat {
                                       const Receiver&>) {
       std::invoke(func, std::as_const(r.receiver_));
     }
+  #endif
 
    private:
     Receiver receiver_;

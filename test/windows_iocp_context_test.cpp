@@ -36,7 +36,6 @@
 #include <unifex/just_from.hpp>
 
 #include <chrono>
-#include <cstring>
 #include <thread>
 
 #include <gtest/gtest.h>

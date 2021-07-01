@@ -54,10 +54,11 @@ struct _cleanup_promise_base {
 
     // Clang before clang-12 has a bug with coroutines that self-destruct in an
     // await_suspend that uses symmetric transfer. It appears that MSVC has the same
-    // bug. So instead of symmetric transfer, we accept the stack growth and resume
+    // bug, while Emscripten, the WebAssembly compiler just doesn't support tail calls yet.
+    // So instead of symmetric transfer, we accept the stack growth and resume
     // the continuation from within await_suspend.
 #if (defined(__clang__) && (defined(__apple_build_version__) || __clang_major__ < 12)) || \
-    defined(_MSC_VER)
+    defined(_MSC_VER) || defined(__EMSCRIPTEN__)
     template <typename CleanupPromise>
     // Apple-clang and clang-10 and prior need for await_suspend to be noinline.
     // MSVC and clang-11 can tolerate await_suspend to be inlined, so force it.
@@ -105,12 +106,14 @@ struct _cleanup_promise_base {
     return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void
   tag_invoke(tag_t<visit_continuations>, const _cleanup_promise_base& p, Func&& func) {
     // Skip cleanup actions when visiting continuations:
     visit_continuations(p.continuation_, (Func &&) func);
   }
+#endif
 
   friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
     return unstoppable_token{};

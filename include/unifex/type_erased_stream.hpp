@@ -15,9 +15,11 @@
  */
 #pragma once
 
+#include <unifex/any_scheduler.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/config.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/inplace_stop_token.hpp>
@@ -32,14 +34,14 @@ namespace unifex {
 namespace _type_erase {
 
 template <typename... Values>
-struct _stream {
+struct _stream final {
   struct type;
 };
 template <typename... Values>
 using stream = typename _stream<Values...>::type;
 
 template <typename... Values>
-struct _stream<Values...>::type {
+struct _stream<Values...>::type final {
   struct next_receiver_base {
     virtual void set_value(Values&&... values) noexcept = 0;
     virtual void set_done() noexcept = 0;
@@ -48,6 +50,7 @@ struct _stream<Values...>::type {
     using visitor_t = void(const continuation_info&, void*);
 
    private:
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -55,8 +58,16 @@ struct _stream<Values...>::type {
         Func&& func) {
       visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
+  #endif
+
+    friend auto
+    tag_invoke(tag_t<get_scheduler>, const next_receiver_base& receiver) noexcept {
+      return receiver.get_scheduler();
+    }
 
     virtual continuation_info get_continuation_info() const = 0;
+
+    virtual any_scheduler get_scheduler() const noexcept = 0;
   };
 
   struct cleanup_receiver_base {
@@ -64,6 +75,8 @@ struct _stream<Values...>::type {
     virtual void set_error(std::exception_ptr ex) noexcept = 0;
 
    private:
+
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -71,12 +84,20 @@ struct _stream<Values...>::type {
         Func&& func) {
       visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
+  #endif
+
+    friend auto
+    tag_invoke(tag_t<get_scheduler>, const cleanup_receiver_base& receiver) noexcept {
+      return receiver.get_scheduler();
+    }
 
     virtual continuation_info get_continuation_info() const noexcept = 0;
+
+    virtual any_scheduler get_scheduler() const noexcept = 0;
   };
 
   struct stream_base {
-    virtual ~stream_base() {}
+    virtual ~stream_base() {};
     virtual void start_next(
         next_receiver_base& receiver,
         inplace_stop_token stopToken) noexcept = 0;
@@ -84,7 +105,7 @@ struct _stream<Values...>::type {
   };
 
   template <typename Receiver>
-  struct _next_receiver {
+  struct _next_receiver final {
     struct type final : next_receiver_base {
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
@@ -107,13 +128,17 @@ struct _stream<Values...>::type {
       continuation_info get_continuation_info() const noexcept override {
         return continuation_info::from_continuation(receiver_);
       }
+
+      any_scheduler get_scheduler() const noexcept override {
+        return unifex::get_scheduler(receiver_);
+      }
     };
   };
   template <typename Receiver>
   using next_receiver = typename _next_receiver<remove_cvref_t<Receiver>>::type;
 
   template <typename Receiver>
-  struct _cleanup_receiver {
+  struct _cleanup_receiver final {
     struct type final : cleanup_receiver_base {
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
@@ -132,6 +157,10 @@ struct _stream<Values...>::type {
       continuation_info get_continuation_info() const noexcept override {
         return continuation_info::from_continuation(receiver_);
       }
+
+      any_scheduler get_scheduler() const noexcept override {
+        return unifex::get_scheduler(receiver_);
+      }
     };
   };
   template <typename Receiver>
@@ -139,7 +168,7 @@ struct _stream<Values...>::type {
       typename _cleanup_receiver<remove_cvref_t<Receiver>>::type;
 
   template <typename Stream>
-  struct _stream {
+  struct _stream final {
     struct type final : stream_base {
       using stream = type;
       UNIFEX_NO_UNIQUE_ADDRESS Stream stream_;
@@ -147,7 +176,7 @@ struct _stream<Values...>::type {
       // TODO: static_assert that all values() overloads produced
       // by source Stream are convertible to and same arity as Values...
 
-      struct next_receiver_wrapper {
+      struct next_receiver_wrapper final {
         next_receiver_base& receiver_;
         stream& stream_;
         inplace_stop_token stopToken_;
@@ -188,6 +217,7 @@ struct _stream<Values...>::type {
           return r.stopToken_;
         }
 
+      #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         template <typename Func>
         friend void tag_invoke(
             tag_t<visit_continuations>,
@@ -195,9 +225,16 @@ struct _stream<Values...>::type {
             Func&& func) {
           visit_continuations(receiver.receiver_, (Func &&) func);
         }
+      #endif
+
+        friend any_scheduler tag_invoke(
+            tag_t<get_scheduler>,
+            const next_receiver_wrapper& receiver) noexcept {
+          return unifex::get_scheduler(receiver.receiver_);
+        }
       };
 
-      struct cleanup_receiver_wrapper {
+      struct cleanup_receiver_wrapper final {
         cleanup_receiver_base& receiver_;
         stream& stream_;
 
@@ -217,12 +254,20 @@ struct _stream<Values...>::type {
           std::move(*this).set_error(make_exception_ptr((Error&)error));
         }
 
+      #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         template <typename Func>
         friend void tag_invoke(
             tag_t<visit_continuations>,
             const cleanup_receiver_wrapper& receiver,
             Func&& func) {
           visit_continuations(receiver.receiver_, (Func &&) func);
+        }
+      #endif
+
+        friend any_scheduler tag_invoke(
+            tag_t<get_scheduler>,
+            const cleanup_receiver_wrapper& receiver) noexcept {
+          return unifex::get_scheduler(receiver.receiver_);
         }
       };
 
@@ -245,7 +290,7 @@ struct _stream<Values...>::type {
           unifex::activate_union_member_with(next_, [&] {
               return connect(
                   next(stream_),
-                  next_receiver_wrapper{receiver, *this, std::move(stopToken)});
+                  next_receiver_wrapper{receiver, *this, stopToken});
             });
           start(next_.get());
         } UNIFEX_CATCH (...) {
@@ -270,7 +315,7 @@ struct _stream<Values...>::type {
   template <typename Stream>
   using stream = typename _stream<remove_cvref_t<Stream>>::type;
 
-  struct next_sender {
+  struct next_sender final {
     stream_base& stream_;
 
     template <template <typename...> class Variant,
@@ -283,9 +328,9 @@ struct _stream<Values...>::type {
     static constexpr bool sends_done = true;
 
     template <typename Receiver>
-    struct _op {
-      struct type {
-        struct cancel_callback {
+    struct _op final {
+      struct type final {
+        struct cancel_callback final {
           inplace_stop_source& stopSource_;
           void operator()() noexcept {
             stopSource_.request_stop();
@@ -327,7 +372,7 @@ struct _stream<Values...>::type {
     }
   };
 
-  struct cleanup_sender {
+  struct cleanup_sender final {
     stream_base& stream_;
 
     template <template <typename...> class Variant,
@@ -340,8 +385,8 @@ struct _stream<Values...>::type {
     static constexpr bool sends_done = true;
 
     template <typename Receiver>
-    struct _op {
-      struct type {
+    struct _op final {
+      struct type final {
         stream_base& stream_;
         cleanup_receiver<Receiver> receiver_;
 
@@ -383,7 +428,7 @@ struct _stream<Values...>::type {
 
 namespace _type_erase_cpo {
   template <typename... Ts>
-  struct _fn {
+  struct _fn final {
     template <typename Stream>
     _type_erase::stream<Ts...> operator()(Stream&& strm) const {
       return _type_erase::stream<Ts...>{(Stream &&) strm};
@@ -399,6 +444,9 @@ namespace _type_erase_cpo {
 
 template <typename... Ts>
 inline constexpr _type_erase_cpo::_fn<Ts...> type_erase {};
+
+template <typename... Ts>
+using type_erased_stream = typename _type_erase::stream<Ts...>;
 
 } // namespace unifex
 

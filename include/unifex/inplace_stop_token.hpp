@@ -125,15 +125,7 @@ class inplace_stop_token {
 
   inplace_stop_token(const inplace_stop_token& other) noexcept = default;
 
-  inplace_stop_token(inplace_stop_token&& other) noexcept
-      : source_(std::exchange(other.source_, {})) {}
-
   inplace_stop_token& operator=(const inplace_stop_token& other) noexcept = default;
-
-  inplace_stop_token& operator=(inplace_stop_token&& other) noexcept {
-    source_ = std::exchange(other.source_, nullptr);
-    return *this;
-  }
 
   bool stop_requested() const noexcept {
     return source_ != nullptr && source_->stop_requested();

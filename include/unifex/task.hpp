@@ -42,6 +42,28 @@ namespace unifex {
 namespace _task {
 using namespace _util;
 
+struct coro_holder {
+  explicit coro_holder(coro::coroutine_handle<> h) noexcept
+      : coro_(std::move(h)) {}
+
+  coro_holder(coro_holder&& other) noexcept
+      : coro_(std::exchange(other.coro_, {})) {}
+
+  ~coro_holder() {
+    if (coro_) {
+      coro_.destroy();
+    }
+  }
+
+  coro_holder& operator=(coro_holder rhs) noexcept {
+    std::swap(coro_, rhs.coro_);
+    return *this;
+  }
+
+ protected:
+  coro::coroutine_handle<> coro_;
+};
+
 template <typename T>
 struct _task {
   struct [[nodiscard]] type;
@@ -49,10 +71,14 @@ struct _task {
 
 struct _promise_base {
   struct _final_suspend_awaiter_base {
-    static bool await_ready() noexcept {
+    bool await_ready() noexcept {
       return false;
     }
-    static void await_resume() noexcept {}
+    void await_resume() noexcept {}
+
+    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _final_suspend_awaiter_base&) noexcept {
+      return blocking_kind::always_inline;
+    }
   };
 
   coro::suspend_always initial_suspend() noexcept {
@@ -63,11 +89,13 @@ struct _promise_base {
     return continuation_.done();
   }
 
+#ifdef UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void
   tag_invoke(tag_t<visit_continuations>, const _promise_base& p, Func&& func) {
     visit_continuations(p.continuation_, (Func &&) func);
   }
+#endif
 
   friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const _promise_base& p) noexcept {
     return p.stoken_;
@@ -121,8 +149,10 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
-#if defined(_MSC_VER) && !defined(__clang__)
-        // MSVC doesn't seem to like symmetric transfer in this final awaiter
+
+#if (defined(_MSC_VER) && !defined(__clang__)) || defined(__EMSCRIPTEN__)
+        // MSVC doesn't seem to like symmetric transfer in this final awaiter and
+        // the Emscripten (WebAssembly) compiler doesn't support tail-calls
         void await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_.handle().resume();
         }

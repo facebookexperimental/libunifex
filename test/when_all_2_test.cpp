@@ -21,6 +21,7 @@
 #include <unifex/just.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/repeat_effect_until.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
@@ -208,4 +209,10 @@ TEST(WhenAll2, ErrorCancelsRest) {
         just_from([]() { throw 1; })));
   } catch (...) {
   }
+}
+
+TEST(WhenAll2, SenderIsLvalueConnectable) {
+  auto test = unifex::when_all(unifex::just(), unifex::just());
+
+  unifex::sync_wait(test);
 }

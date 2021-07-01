@@ -125,11 +125,13 @@ struct _awaitable_base<Promise, Value>::type {
       return std::move(cpo)(p);
     }
 
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const _rec& r, Func&& func) {
       visit_continuations(r.continuation_.promise(), (Func&&)func);
     }
+  #endif
 
   private:
     _expected<Value>* result_;

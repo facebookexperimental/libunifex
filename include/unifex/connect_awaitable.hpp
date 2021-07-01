@@ -100,11 +100,13 @@ public:
       }
     }
 
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const promise_type& p, Func&& func) {
       visit_continuations(p.receiver_, (Func&&)func);
     }
+  #endif
 
     template(typename CPO)
       (requires is_receiver_query_cpo_v<CPO> AND

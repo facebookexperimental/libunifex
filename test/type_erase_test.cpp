@@ -22,6 +22,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
+#include <unifex/type_erased_stream.hpp>
 #include <unifex/typed_via_stream.hpp>
 
 #include <cstdio>
@@ -30,36 +31,49 @@
 
 using namespace unifex;
 
-TEST(type_erase, Smoke) {
-  single_thread_context context1;
-  single_thread_context context2;
+namespace {
+single_thread_context context1;
+single_thread_context context2;
+}  // namespace
 
+TEST(type_erase, UseType) {
+  auto functor = []() -> unifex::type_erased_stream<int> {
+    return type_erase<int>(typed_via_stream(
+        context1.get_scheduler(),
+        on_stream(
+            context2.get_scheduler(),
+            transform_stream(range_stream{0, 10}, [](int value) {
+              return value * value;
+            }))));
+  };
+  sync_wait(then(
+      for_each(functor(), [](int value) { std::printf("got %i\n", value); }),
+      []() { std::printf("done\n"); }));
+}
+
+TEST(type_erase, Smoke) {
   sync_wait(then(
       for_each(
-            type_erase<int>(
-                typed_via_stream(
-                    context1.get_scheduler(),
-                    on_stream(
-                        context2.get_scheduler(),
-                        transform_stream(
-                            range_stream{0, 10},
-                            [](int value) { return value * value; })))),
+          type_erase<int>(typed_via_stream(
+              context1.get_scheduler(),
+              on_stream(
+                  context2.get_scheduler(),
+                  transform_stream(
+                      range_stream{0, 10},
+                      [](int value) { return value * value; })))),
           [](int value) { std::printf("got %i\n", value); }),
       []() { std::printf("done\n"); }));
 }
 
 TEST(type_erase, Pipeable) {
-  single_thread_context context1;
-  single_thread_context context2;
-
-  range_stream{0, 10}
-    | transform_stream(
-        [](int value) { return value * value; })
-    | on_stream(context2.get_scheduler())
-    | typed_via_stream(context1.get_scheduler())
-    | type_erase<int>()
-    | for_each(
-        [](int value) { std::printf("got %i\n", value); })
-    | then([]() { std::printf("done\n"); })
-    | sync_wait();
+  range_stream{0, 10}                                           //
+      | transform_stream(                                       //
+            [](int value) { return value * value; })            //
+      | on_stream(context2.get_scheduler())                     //
+      | typed_via_stream(context1.get_scheduler())              //
+      | type_erase<int>()                                       //
+      | for_each(                                               //
+            [](int value) { std::printf("got %i\n", value); })  //
+      | then([]() { std::printf("done\n"); })                   //
+      | sync_wait();
 }
