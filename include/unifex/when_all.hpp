@@ -189,6 +189,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
     return r.get_stop_source().get_token();
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -196,6 +197,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
       Func&& func) {
     std::invoke(func, r.get_receiver());
   }
+#endif
 };
 
 template <typename Receiver, typename... Senders>
@@ -205,9 +207,10 @@ struct _op<Receiver, Senders...>::type {
   template <std::size_t Index, typename Receiver2, typename... Senders2>
   friend struct _element_receiver;
 
-  explicit type(Receiver&& receiver, Senders&&... senders)
-    : receiver_((Receiver &&) receiver),
-      ops_(*this, (Senders &&) senders...) {}
+  template <typename Receiver2, typename... Senders2>
+  explicit type(Receiver2&& receiver, Senders2&&... senders)
+    : receiver_((Receiver2 &&) receiver),
+      ops_(*this, (Senders2 &&) senders...) {}
 
   void start() noexcept {
     stopCallback_.construct(
@@ -227,7 +230,7 @@ struct _op<Receiver, Senders...>::type {
     element_complete();
   }
 
-  private:
+private:
   void element_complete() noexcept {
     if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
       deliver_result();
@@ -265,6 +268,7 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
+  static constexpr std::size_t callback_running_bit{1};
   std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
   std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
   // a running cancel_operation increments refCount
@@ -302,7 +306,7 @@ inline constexpr bool when_all_connectable_v =
 template <typename... Senders>
 class _sender<Senders...>::type {
   using sender = type;
- public:
+public:
   static_assert(sizeof...(Senders) > 0);
 
   template <
@@ -325,13 +329,13 @@ class _sender<Senders...>::type {
         when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
   friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
     -> operation<Receiver, member_t<Sender, Senders>...> {
-    return std::apply([&](Senders&&... senders) {
+    return std::apply([&](auto&&... senders) {
       return operation<Receiver, member_t<Sender, Senders>...>{
-          (Receiver &&) receiver, (Senders &&) senders...};
+          (Receiver &&) receiver, static_cast<decltype(senders)>(senders)...};
     }, static_cast<Sender &&>(sender).senders_);
   }
 
- private:
+private:
 
   // Customise the 'blocking' CPO to combine the blocking-nature
   // of each of the child operations.

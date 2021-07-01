@@ -15,16 +15,24 @@
  */
 #pragma once
 
-#include <unifex/config.hpp>
-#include <unifex/let_value.hpp>
+#include <unifex/unstoppable_token.hpp>
+#include <unifex/with_query_value.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
-UNIFEX_DEPRECATED_HEADER("let.hpp is deprecated. Use let_value.hpp instead.")
-
 namespace unifex {
-[[deprecated("unifex::let has been renamed to unifex::let_value")]]
-inline constexpr _let_v::_cpo::_fn let {};
-} // namespace unifex
+namespace _unstoppable {
+inline const struct _fn {
+  template <typename Sender>
+  constexpr auto operator()(Sender&& sender) const noexcept {
+    return with_query_value(
+        (Sender &&) sender, get_stop_token, unstoppable_token{});
+  }
+} unstoppable{};
+}  // namespace _unstoppable
+
+using _unstoppable::unstoppable;
+
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

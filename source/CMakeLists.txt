@@ -10,6 +10,8 @@ set_target_properties(unifex PROPERTIES
 
 target_sources(unifex
   PRIVATE
+    async_auto_reset_event.cpp
+    async_manual_reset_event.cpp
     async_mutex.cpp
     exception.cpp
     inplace_stop_token.cpp

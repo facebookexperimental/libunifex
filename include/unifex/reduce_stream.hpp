@@ -95,10 +95,12 @@ struct _error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type
     return {};
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
     std::invoke(func, r.op_.receiver_);
   }
+#endif
 };
 
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
@@ -144,10 +146,12 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type 
     return {};
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
     std::invoke(func, r.op_.receiver_);
   }
+#endif
 };
 
 template <typename StreamSender, typename State, typename ReducerFunc, typename Receiver>
@@ -177,6 +181,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -184,6 +189,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
       Func&& func) {
     std::invoke(func, r.op_.receiver_);
   }
+#endif
 
   template <typename... Values>
   void set_value(Values... values) && noexcept {

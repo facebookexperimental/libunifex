@@ -13,18 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
+#include <unifex/just.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/on.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/unstoppable.hpp>
 
-#include <unifex/config.hpp>
-#include <unifex/let_error.hpp>
+#include <gtest/gtest.h>
 
-#include <unifex/detail/prologue.hpp>
+using namespace unifex;
 
-UNIFEX_DEPRECATED_HEADER("transform_error.hpp is deprecated. Use let_error.hpp instead.")
+TEST(Unstoppable, Smoke) {
+  single_thread_context thread;
 
-namespace unifex {
-[[deprecated("unifex::transform_error has been renamed to unifex::let_error")]]
-inline constexpr _let_e::_cpo::_fn transform_error {};
-} // namespace unifex
+  auto result =
+      sync_wait(let_value_with_stop_source([&](auto& stopSource) noexcept {
+        stopSource.request_stop();
 
-#include <unifex/detail/epilogue.hpp>
+        return unstoppable(on(thread.get_scheduler(), just()));
+      }));
+  EXPECT_TRUE(result.has_value());
+}

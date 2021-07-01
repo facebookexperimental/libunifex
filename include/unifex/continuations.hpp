@@ -75,14 +75,17 @@ namespace _ci {
 class continuation_info;
 
 struct _continuation_info_vtable {
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   using callback_t = void(const continuation_info&, void*);
   using visitor_t = void(const void*, callback_t*, void*);
   using type_index_getter_t = type_index() noexcept;
 
   type_index_getter_t* typeIndexGetter_;
   visitor_t* visit_;
+#endif
 };
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
 inline type_index _default_type_index_getter() noexcept {
   return type_id<void>();
 }
@@ -94,6 +97,7 @@ template <typename F>
 void _invoke_visitor(const continuation_info& info, void* data) {
   std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
 }
+#endif
 
 class continuation_info {
  public:
@@ -114,12 +118,13 @@ class continuation_info {
   }
 #endif
 
-  type_index type() const noexcept {
-    return vtable_->typeIndexGetter_();
-  }
-
   const void* address() const noexcept {
     return address_;
+  }
+
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
+  type_index type() const noexcept {
+    return vtable_->typeIndexGetter_();
   }
 
   template <typename F>
@@ -132,23 +137,30 @@ class continuation_info {
         &_invoke_visitor<F>,
         const_cast<void*>(static_cast<const void*>(std::addressof(f))));
   }
+#endif
 
  private:
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   explicit continuation_info(
       const void* address,
       const _continuation_info_vtable* vtable) noexcept
-    : address_(address)
-    , vtable_(vtable) {}
+    : vtable_(vtable), address_(address) {}
 
   inline static constexpr _continuation_info_vtable default_vtable_ {
     &_default_type_index_getter,
     &_default_visit
   };
 
-  const void* address_{nullptr};
   const _continuation_info_vtable* vtable_{&default_vtable_};
+#else
+  explicit continuation_info(const void* address, const _continuation_info_vtable*) noexcept
+  : address_(address) {}
+#endif
+
+  const void* address_{nullptr};
 };
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
 template <typename Continuation>
 type_index _type_index_getter_for() noexcept {
   return type_id<Continuation>();
@@ -162,11 +174,14 @@ void _visit_for(const void* address, _continuation_info_vtable::callback_t* cb, 
         cb(continuation_info::from_continuation(continuation), data);
       });
 }
+#endif
 
 template <typename Continuation>
 inline constexpr _continuation_info_vtable _vtable_for {
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   &_type_index_getter_for<Continuation>,
   &_visit_for<Continuation>
+#endif
 };
 
 template <typename Continuation>
@@ -223,6 +238,7 @@ struct continuation_handle<void> {
     return continuation_info::from_continuation(*this);
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename F>
   friend void
   tag_invoke(tag_t<visit_continuations>, const continuation_handle<>& c, F&& f) {
@@ -233,14 +249,17 @@ struct continuation_handle<void> {
         &_ci::_invoke_visitor<F>,
         const_cast<void*>(static_cast<const void*>(std::addressof(f))));
   }
+#endif
 
 private:
   friend continuation_info;
 
   inline static constexpr _continuation_handle_vtable default_vtable_ {
     {
+    #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         &_ci::_default_type_index_getter,
         &_ci::_default_visit,
+    #endif
     },
     &_default_done_callback
   };
@@ -252,6 +271,7 @@ private:
   const _continuation_handle_vtable* vtable_ {&default_vtable_};
 };
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
 template <typename Promise>
 void _visit_for(const void* address, _ci::_continuation_info_vtable::callback_t* cb, void* data) {
   visit_continuations(
@@ -262,6 +282,7 @@ void _visit_for(const void* address, _ci::_continuation_info_vtable::callback_t*
         cb(continuation_info::from_continuation(continuation), data);
       });
 }
+#endif
 
 template <typename Promise>
 coro::coroutine_handle<> _done_callback_for(void* address) noexcept {
@@ -271,8 +292,10 @@ coro::coroutine_handle<> _done_callback_for(void* address) noexcept {
 template <typename Promise>
 inline constexpr _continuation_handle_vtable _vtable_for {
   {
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         &_ci::_type_index_getter_for<Promise>,
         &_visit_for<Promise>,
+  #endif
   },
   &_done_callback_for<Promise>
 };
@@ -320,11 +343,13 @@ struct continuation_handle {
     return self_.info();
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename F>
   friend void
   tag_invoke(tag_t<visit_continuations>, const continuation_handle<Promise>& c, F&& f) {
     visit_continuations(c.self_, (F&&) f);
   }
+#endif
 
 private:
   friend continuation_info;

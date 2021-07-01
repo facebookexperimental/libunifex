@@ -35,21 +35,21 @@ namespace unifex {
 
 namespace _let_e {
 template <typename Source, typename Func, typename Receiver>
-struct _op {
+struct _op final {
   class type;
 };
 template <typename Source, typename Func, typename Receiver>
 using operation_type = typename _op<Source, Func, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Func, typename Receiver>
-struct _rcvr {
+struct _rcvr final {
   class type;
 };
 template <typename Source, typename Func, typename Receiver>
 using receiver_type = typename _rcvr<Source, Func, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Func, typename Receiver, typename Error>
-struct _frcvr {
+struct _frcvr final {
   class type;
 };
 template <typename Source, typename Func, typename Receiver, typename Error>
@@ -57,7 +57,7 @@ using final_receiver_type =
     typename _frcvr<Source, Func, remove_cvref_t<Receiver>, Error>::type;
 
 template <typename Source, typename Func>
-struct _sndr {
+struct _sndr final {
   class type;
 };
 
@@ -100,38 +100,32 @@ public:
     unifex::set_done(std::move(op->receiver_));
   }
 
-#if defined(_MSC_VER) && !defined(__clang__) // cl.exe
   template <typename ErrorValue>
-#else
-  template (typename ErrorValue)
-    (requires callable<Func, ErrorValue> AND
-      // For some reason, MSVC chokes on this when compiling with real concepts
-      sender_to<
-          callable_result_t<Func, ErrorValue>,
-          final_receiver<ErrorValue>>)
-#endif
-  void set_error(ErrorValue e) noexcept {
+  void set_error(ErrorValue&& e) noexcept {
     // local copy, b/c deactivate_union_member deletes this
     auto op = op_;
     UNIFEX_ASSERT(op != nullptr);
 
-    using final_sender_t = callable_result_t<Func, ErrorValue>;
-    using final_op_t =
-        unifex::connect_result_t<final_sender_t, final_receiver<ErrorValue>>;
+    using final_sender_t = callable_result_t<Func, remove_cvref_t<ErrorValue>&>;
+    using final_op_t = connect_result_t<
+        final_sender_t,
+        final_receiver<remove_cvref_t<ErrorValue>>>;
 
     UNIFEX_TRY {
       scope_guard destroyPredOp = [&]() noexcept {
         unifex::deactivate_union_member(op->sourceOp_);
       };
-      auto& err = op->error_.template construct<ErrorValue>((ErrorValue &&) e);
+      auto& err = op->error_.template construct<remove_cvref_t<ErrorValue>>(
+          (ErrorValue &&) e);
       destroyPredOp.reset();
       scope_guard destroyErr = [&]() noexcept {
-        op->error_.template destruct<ErrorValue>();
+        op->error_.template destruct<remove_cvref_t<ErrorValue>>();
       };
       auto& finalOp =
           unifex::activate_union_member_with<final_op_t>(op->finalOp_, [&] {
             return unifex::connect(
-                std::move(op->func_)(err), final_receiver<ErrorValue>{op});
+                std::move(op->func_)(err),
+                final_receiver<remove_cvref_t<ErrorValue>>{op});
           });
       unifex::start(finalOp);
       destroyErr.release();
@@ -152,6 +146,7 @@ private:
     return std::move(cpo)(r.get_receiver());
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -161,6 +156,7 @@ private:
                                 const Receiver&>) {
     func(r.get_receiver());
   }
+#endif
 
   const Receiver& get_receiver() const noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
@@ -171,8 +167,9 @@ private:
 };
 
 template <typename Source, typename Func, typename Receiver, typename Error>
-class _frcvr<Source, Func, Receiver, Error>::type {
+class _frcvr<Source, Func, Receiver, Error>::type final {
   using operation = operation_type<Source, Func, Receiver>;
+  static_assert(!std::is_reference_v<Error>);
 
 public:
   explicit type(operation* op) noexcept : op_(op) {}
@@ -216,8 +213,8 @@ public:
 
 private:
   static void cleanup(operation* op) noexcept {
-    using final_sender_t = callable_result_t<Func, Error>;
-    using final_op_t = unifex::connect_result_t<final_sender_t, type>;
+    using final_sender_t = callable_result_t<Func, Error&>;
+    using final_op_t = connect_result_t<final_sender_t, type>;
     UNIFEX_ASSERT(op != nullptr);
     unifex::deactivate_union_member<final_op_t>(op->finalOp_);
     op->error_.template destruct<Error>();
@@ -232,6 +229,7 @@ private:
     return std::move(cpo)(r.get_receiver());
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -241,6 +239,7 @@ private:
                                 const Receiver&>) {
     func(r.get_receiver());
   }
+#endif
 
   const Receiver& get_receiver() const noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
@@ -251,7 +250,7 @@ private:
 };
 
 template <typename Source, typename Func, typename Receiver>
-class _op<Source, Func, Receiver>::type {
+class _op<Source, Func, Receiver>::type final {
   using source_receiver = receiver_type<Source, Func, Receiver>;
   template <typename Error>
   using final_receiver = final_receiver_type<Source, Func, Receiver, Error>;
@@ -294,10 +293,11 @@ private:
   using source_op_t = connect_result_t<Source, source_receiver>;
 
   template <typename Error>
-  using final_sender_t = callable_result_t<Func, remove_cvref_t<Error>>;
+  using final_sender_t = callable_result_t<Func, remove_cvref_t<Error>&>;
 
   template <typename Error>
-  using final_receiver_t = final_receiver_type<Source, Func, Receiver, Error>;
+  using final_receiver_t =
+      final_receiver_type<Source, Func, Receiver, remove_cvref_t<Error>>;
 
   template <typename Error>
   using final_op_t =
@@ -327,17 +327,13 @@ template<typename... Senders>
 using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
 
 template <typename Source, typename Func>
-class _sndr<Source, Func>::type {
+class _sndr<Source, Func>::type final {
 
   template <typename Error>
-  using final_sender = callable_result_t<Func, remove_cvref_t<Error>>;
+  using final_sender = callable_result_t<Func, remove_cvref_t<Error>&>;
 
   using final_senders_list =
       map_type_list_t<sender_error_type_list_t<Source>, final_sender>;
-
-  template <typename Sender, typename Receiver>
-  using source_receiver =
-      receiver_type<member_t<Sender, Source>, Func, Receiver>;
 
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
@@ -378,17 +374,18 @@ public:
     , func_((Func2&&)func)
   {}
 
-  template(typename Sender, typename Receiver)
-      (requires receiver<Receiver> AND
-          same_as<remove_cvref_t<Sender>, type> AND
+  template(
+    typename Sender,
+    typename Receiver,
+    typename...,
+    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Func, Receiver>)
+      (requires same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Func, member_t<Sender, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          sender_to<Source, source_receiver<Sender, Receiver>>)
+          sender_to<Source, SourceReceiver>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
-        is_nothrow_connectable_v<
-            member_t<Sender, Source>,
-            source_receiver<Sender, Receiver>> &&
+        is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
         std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
       -> operation_type<Source, Func, Receiver> {
@@ -406,7 +403,7 @@ private:
 
 namespace _cpo
 {
-struct _fn {
+struct _fn final {
   template(typename Source, typename Func)
     (requires tag_invocable<_fn, Source, Func> AND
         sender<Source>)

@@ -61,7 +61,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   void set_value() noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
 
@@ -122,7 +122,8 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_rcvr());
   }
-  
+
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -132,9 +133,10 @@ private:
                                 const Receiver&>) {
     std::invoke(func, r.get_rcvr());
   }
+#endif
 
   const Receiver& get_rcvr() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -223,8 +225,8 @@ public:
         is_nothrow_connectable_v<Source&, receiver_t<Source, Predicate, remove_cvref_t<Receiver>>>)
         -> operation_type<Source, Predicate, remove_cvref_t<Receiver>> {
     return operation_type<Source, Predicate, remove_cvref_t<Receiver>>{
-      static_cast<Sender&&>(s).source_, 
-      static_cast<Sender&&>(s).predicate_, 
+      static_cast<Sender&&>(s).source_,
+      static_cast<Sender&&>(s).predicate_,
       (Receiver&&)r
     };
   }
@@ -254,7 +256,7 @@ inline const struct repeat_effect_until_cpo {
   auto operator()(Source&& source, Predicate&& predicate) const
       noexcept(std::is_nothrow_constructible_v<
                    repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>>,
-                   Source, 
+                   Source,
                    Predicate>)
       -> repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>> {
     return repeat_effect_until_sender<remove_cvref_t<Source>, std::decay_t<Predicate>>{

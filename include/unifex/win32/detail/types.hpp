@@ -42,6 +42,11 @@ namespace unifex::win32
 #else
 #  define UNIFEX_NAMELESS_UNION
 #endif
+#if defined(__GNUC__)
+#  define UNIFEX_NAMELESS_UNION __extension__
+#else
+#  define UNIFEX_NAMELESS_UNION
+#endif
   struct overlapped {
     ulong_ptr_t Internal;
     ulong_ptr_t InternalHigh;

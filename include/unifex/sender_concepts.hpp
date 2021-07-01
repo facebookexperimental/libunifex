@@ -22,6 +22,10 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/receiver_concepts.hpp>
 
+#if !UNIFEX_NO_COROUTINES
+#include <unifex/coroutine_concepts.hpp>
+#endif
+
 #include <exception>
 #include <tuple>
 #include <type_traits>
@@ -109,7 +113,17 @@ namespace detail {
   };
 
 // Workaround for unknown MSVC (19.28.29333) bug
-#ifndef _MSC_VER
+#ifdef _MSC_VER
+  template <typename S>
+  inline constexpr bool _has_sender_traits =
+      !std::is_base_of_v<_no_sender_traits, sender_traits<S>>;
+#elif UNIFEX_CXX_CONCEPTS
+  template <typename S>
+  concept _has_sender_traits =
+      !requires {
+        typename sender_traits<S>::_unspecialized;
+      };
+#else
   template <typename S>
   UNIFEX_CONCEPT_FRAGMENT(  //
     _not_has_sender_traits, //
@@ -120,10 +134,6 @@ namespace detail {
   UNIFEX_CONCEPT         //
     _has_sender_traits = //
       (!UNIFEX_FRAGMENT(detail::_not_has_sender_traits, S));
-#else
-  template <typename S>
-  inline constexpr bool _has_sender_traits =
-      !std::is_base_of_v<_no_sender_traits, sender_traits<S>>; 
 #endif
 
   template <typename S>
@@ -181,7 +191,7 @@ namespace _start_cpo {
       return op.start();
     }
   } start{};
-} // namespace _start
+} // namespace _start_cpo
 using _start_cpo::start;
 
 namespace _connect {
@@ -220,6 +230,7 @@ namespace _connect {
           return type_always<void>{};
         }
       }
+
       template <typename Sender, typename Receiver>
       using _result_t = typename decltype(_fn::_select<Sender, Receiver>())
           ::template apply<Sender, Receiver>;
@@ -247,10 +258,6 @@ namespace _connect {
 } // namespace _connect
 inline const _connect::_cpo::_fn connect {};
 
-template <typename Sender, typename Receiver>
-using connect_result_t =
-  decltype(connect(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Receiver)));
-
 #if UNIFEX_CXX_CONCEPTS
 // Define the sender_to concept without macros for
 // improved diagnostics:
@@ -276,6 +283,10 @@ UNIFEX_CONCEPT //
     receiver<Receiver> &&
     UNIFEX_FRAGMENT(_sender_to, Sender, Receiver);
 #endif
+
+template <typename Sender, typename Receiver>
+using connect_result_t =
+  decltype(connect(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Receiver)));
 
 /// \cond
 template <typename Sender, typename Receiver>

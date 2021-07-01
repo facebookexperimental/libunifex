@@ -93,14 +93,15 @@ private:
 
 template<typename StateFactory, typename SuccessorFactory, typename Receiver>
 struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
-  type(StateFactory&& stateFactory, SuccessorFactory&& func, Receiver&& r) :
-    stateFactory_(static_cast<StateFactory&&>(stateFactory)),
-    func_(static_cast<SuccessorFactory&&>(func)),
+  template <typename StateFactory2, typename SuccessorFactory2, typename Receiver2>
+  type(StateFactory2&& stateFactory, SuccessorFactory2&& func, Receiver2&& r) :
+    stateFactory_(static_cast<StateFactory2&&>(stateFactory)),
+    func_(static_cast<SuccessorFactory2&&>(func)),
     state_(static_cast<StateFactory&&>(stateFactory_)()),
     innerOp_(
         unifex::connect(
         static_cast<SuccessorFactory&&>(func_)(state_),
-        static_cast<Receiver&&>(r))) {
+        static_cast<Receiver2&&>(r))) {
   }
 
   void start() & noexcept {

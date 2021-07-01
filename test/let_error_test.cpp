@@ -13,21 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/let_error.hpp>
-
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
+#include <unifex/let_error.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
 #if !UNIFEX_NO_COROUTINES
-#include <unifex/task.hpp>
-#endif // !UNIFEX_NO_COROUTINES
+#  include <unifex/task.hpp>
+#endif  // !UNIFEX_NO_COROUTINES
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 
@@ -68,7 +67,9 @@ TEST(TransformError, StayError) {
   int count = 0;
 
   auto op = sequence(
-      on(scheduler, just_error(42) | let_error([](auto&&) { return just(); })),
+      on(scheduler,
+         just_error(42)  //
+             | let_error([](auto&&) { return just(); })),
       just_from([&] { ++count; }));
   sync_wait(std::move(op));
 
@@ -138,41 +139,83 @@ TEST(TransformError, JustError) {
   EXPECT_EQ(*one, 42);
 }
 
+TEST(TransformError, SequenceRef) {
+  auto one = just_error(42)  //
+      | let_error([](auto& e) mutable {
+               return sequence(just_from([] {}), just_error(std::move(e)));
+             })                //
+      | let_error(just_int{})  //
+      | sync_wait();
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
+
+TEST(TransformError, SequenceVal) {
+  auto one = just_error(42)  //
+      | let_error([](auto e) mutable {
+               return sequence(just_from([] {}), just_error(std::move(e)));
+             })                //
+      | let_error(just_int{})  //
+      | sync_wait();
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
+
+TEST(TransformError, SequenceFwd) {
+  auto one = just_error(42)  //
+      | let_error([](auto&& e) mutable {
+               return sequence(
+                   just_from([] {}), just_error(static_cast<decltype(e)&&>(e)));
+             })                //
+      | let_error(just_int{})  //
+      | sync_wait();
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
+
 #if !UNIFEX_NO_COROUTINES
 TEST(TransformError, WithTask) {
-  auto value =
-    let_error(
-      then([]() -> task<int> { co_return 41; }(), [](auto) { return 42; }),
-      [](auto&&) { return just(-1); }
-    )
-    | let_done([]() { return just(-2); })
-    | sync_wait();
+  auto value = let_error(
+                   then(
+                       []() -> task<int> {
+                         co_return 41;
+                       }(),
+                       [](auto) { return 42; }),
+                   [](auto&&) { return just(-1); })  //
+      | let_done([]() { return just(-2); })          //
+      | sync_wait();
 
   EXPECT_TRUE(value.has_value());
   EXPECT_EQ(*value, 42);
 
-#if !UNIFEX_NO_EXCEPTIONS
-  auto error =
-    let_error(
-      then([]() -> task<int> { throw std::runtime_error(""); co_return 41; }(), [](auto) { return 42; }),
-      [](auto&&) { return just(-1); }
-    )
-    | let_done([]() { return just(-2); })
-    | sync_wait();
+#  if !UNIFEX_NO_EXCEPTIONS
+  auto error = let_error(
+                   then(
+                       []() -> task<int> {
+                         throw std::runtime_error("");
+                         co_return 41;
+                       }(),
+                       [](auto) { return 42; }),
+                   [](auto&&) { return just(-1); })  //
+      | let_done([]() { return just(-2); })          //
+      | sync_wait();
 
   EXPECT_TRUE(error.has_value());
   EXPECT_EQ(*error, -1);
-#endif // !UNIFEX_NO_EXCEPTIONS
+#  endif  // !UNIFEX_NO_EXCEPTIONS
 
-  auto done =
-    let_error(
-      then([]() -> task<int> { co_await just_done(); co_return 41; }(), [](auto) { return 42; }),
-      [](auto&&) { return just(-1); }
-    )
-    | let_done([]() { return just(-2); })
-    | sync_wait();
+  auto done = let_error(
+                  then(
+                      []() -> task<int> {
+                        co_await just_done();
+                        co_return 41;
+                      }(),
+                      [](auto) { return 42; }),
+                  [](auto&&) { return just(-1); })  //
+      | let_done([]() { return just(-2); })         //
+      | sync_wait();
 
   EXPECT_TRUE(done.has_value());
   EXPECT_EQ(*done, -2);
 }
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

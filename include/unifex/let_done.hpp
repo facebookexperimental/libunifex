@@ -75,7 +75,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values) noexcept(
@@ -129,7 +129,8 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -139,9 +140,10 @@ private:
                                 const Receiver&>) {
     func(r.get_receiver());
   }
+#endif
 
   const Receiver& get_receiver() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -159,7 +161,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values) noexcept(
@@ -189,7 +191,8 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -199,9 +202,10 @@ private:
                                 const Receiver&>) {
     func(r.get_receiver());
   }
+#endif
 
   const Receiver& get_receiver() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -343,7 +347,7 @@ struct _fn {
   auto operator()(Source&& source, Done&& done) const
       noexcept(std::is_nothrow_constructible_v<
                    _sender<remove_cvref_t<Source>, remove_cvref_t<Done>>,
-                   Source, 
+                   Source,
                    Done>)
       -> _sender<remove_cvref_t<Source>, remove_cvref_t<Done>> {
     return _sender<remove_cvref_t<Source>, remove_cvref_t<Done>>{
