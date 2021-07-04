@@ -68,7 +68,7 @@ class sender {
     return {static_cast<Receiver&&>(r)};
   }
 
-  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const sender&) noexcept {
+  friend constexpr auto tag_invoke(tag_t<blocking>, const sender&) noexcept {
     return blocking_kind::always_inline;
   }
 };

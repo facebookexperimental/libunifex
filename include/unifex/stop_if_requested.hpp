@@ -19,6 +19,7 @@
 #include <unifex/coroutine.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/blocking.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -81,6 +82,10 @@ private:
     auto connect(Receiver&& rec) const
       -> typename _op<remove_cvref_t<Receiver>>::type {
       return typename _op<remove_cvref_t<Receiver>>::type{(Receiver&&) rec};
+    }
+
+    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _sender&) noexcept {
+      return blocking_kind::always_inline;
     }
   };
 

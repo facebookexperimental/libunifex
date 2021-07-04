@@ -22,10 +22,11 @@
 
 namespace unifex {
 
-enum class blocking_kind {
+namespace _block {
+enum class _enum {
   // No guarantees about the timing and context on which the receiver will
   // be called.
-  maybe,
+  maybe = 0,
 
   // Always completes asynchronously.
   // Guarantees that the receiver will not be called on the current thread
@@ -44,8 +45,46 @@ enum class blocking_kind {
   always_inline
 };
 
-namespace _blocking {
-inline const struct _fn {
+struct blocking_kind {
+  template <_enum Kind>
+  using constant = std::integral_constant<_enum, Kind>;
+
+  blocking_kind() = default;
+
+  constexpr blocking_kind(_enum kind) noexcept
+    : value(kind)
+  {}
+
+  template <_enum Kind>
+  constexpr blocking_kind(constant<Kind>) noexcept
+    : value(Kind)
+  {}
+
+  constexpr operator _enum() const noexcept {
+    return value;
+  }
+
+  constexpr _enum operator()() const noexcept {
+    return value;
+  }
+
+  friend constexpr bool operator==(blocking_kind a, blocking_kind b) noexcept {
+    return a.value == b.value;
+  }
+
+  friend constexpr bool operator!=(blocking_kind a, blocking_kind b) noexcept {
+    return a.value != b.value;
+  }
+
+  static constexpr constant<_enum::maybe> maybe {};
+  static constexpr constant<_enum::never> never {};
+  static constexpr constant<_enum::always> always {};
+  static constexpr constant<_enum::always_inline> always_inline {};
+
+  _enum value{};
+};
+
+struct _fn {
   template(typename Sender)
     (requires tag_invocable<_fn, const Sender&>)
   constexpr auto operator()(const Sender& s) const
@@ -55,12 +94,32 @@ inline const struct _fn {
   }
   template(typename Sender)
     (requires (!tag_invocable<_fn, const Sender&>))
-  constexpr blocking_kind operator()(const Sender&) const noexcept {
+  constexpr auto operator()(const Sender&) const noexcept {
     return blocking_kind::maybe;
   }
-} blocking{};
-} // namespace _blocking
-using _blocking::blocking;
+};
+
+namespace _cfn {
+  template <_enum Kind>
+  static constexpr auto _kind(blocking_kind::constant<Kind> kind) noexcept {
+    return kind;
+  }
+  static constexpr auto _kind(blocking_kind) noexcept {
+    return blocking_kind::maybe;
+  }
+
+  template <typename T>
+  constexpr auto cblocking() noexcept {
+    using blocking_t = remove_cvref_t<decltype(_fn{}(UNIFEX_DECLVAL(T&)))>;
+    return _cfn::_kind(blocking_t{});
+  }
+}
+
+} // namespace _block
+
+inline constexpr _block::_fn blocking {};
+using _block::_cfn::cblocking;
+using _block::blocking_kind;
 
 } // namespace unifex
 

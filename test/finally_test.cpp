@@ -68,3 +68,15 @@ TEST(Finally, Error) {
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(*res, context.get_thread_id());
 }
+
+TEST(Finally, BlockingKind) {
+  auto snd1 = finally(just(), just());
+  using Snd1 = decltype(snd1);
+  static_assert(blocking_kind::always_inline == cblocking<Snd1>());
+
+  timed_single_thread_context context;
+  
+  auto snd2 = finally(just(), schedule(context.get_scheduler()));
+  using Snd2 = decltype(snd2);
+  static_assert(blocking_kind::maybe == cblocking<Snd2>());
+}
