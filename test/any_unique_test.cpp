@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include <unifex/any_unique.hpp>
+#include <unifex/any_ref.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/memory_resource.hpp>
 #include <unifex/type_index.hpp>
