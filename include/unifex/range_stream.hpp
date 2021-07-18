@@ -22,30 +22,35 @@
 
 #include <type_traits>
 #include <utility>
+#include <ranges>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _range {
+
+template <std::ranges::range Range>
 struct stream;
 
-template <typename Receiver>
+template <typename Receiver, std::ranges::range Range>
 struct _op {
   struct type;
 };
-template <typename Receiver>
-using operation = typename _op<remove_cvref_t<Receiver>>::type;
+template <typename Receiver, std::ranges::range Range>
+using operation = typename _op<remove_cvref_t<Receiver>, Range>::type;
 
-template <typename Receiver>
-struct _op<Receiver>::type {
-  stream& stream_;
+template <typename Receiver, std::ranges::range Range>
+struct _op<Receiver, Range>::type {
+
+  stream<Range>& stream_;
   Receiver receiver_;
 
   void start() noexcept;
 };
 
+template <std::ranges::range Range>
 struct next_sender {
-  stream& stream_;
+  stream<Range>& stream_;
 
   template <
       template <typename...> class Variant,
@@ -59,26 +64,30 @@ struct next_sender {
 
   friend constexpr blocking_kind tag_invoke(
       tag_t<blocking>,
-      const stream&) noexcept {
+      const stream<Range>&) noexcept {
     return blocking_kind::always_inline;
   }
 
   template <typename Receiver>
-  operation<Receiver> connect(Receiver&& receiver) && {
-    return operation<Receiver>{stream_, (Receiver &&) receiver};
+  operation<Receiver, Range> connect(Receiver&& receiver) && {
+    return operation<Receiver, Range>{stream_, (Receiver &&) receiver};
   }
   template <typename Receiver>
   void connect(Receiver&& receiver) const& = delete;
 };
 
+template <std::ranges::range Range>
 struct stream {
-  int next_;
-  int max_;
+  using iterator_t = std::ranges::iterator_t<Range>;
+  using sentinel_t = std::ranges::sentinel_t<Range>;
 
-  explicit stream(int max) : next_(0), max_(max) {}
-  explicit stream(int start, int max) : next_(start), max_(max) {}
+  iterator_t begin_;
+  sentinel_t end_;
 
-  friend next_sender tag_invoke(tag_t<next>, stream& s) noexcept {
+  explicit stream(Range&& r) : begin_(std::begin(r)), end_(std::end(r)) {}
+  explicit stream(iterator_t begin, sentinel_t end) : begin_(begin), end_(end) {}
+
+  friend next_sender<Range> tag_invoke(tag_t<next>, stream<Range>& s) noexcept {
     return next_sender{s};
   }
 
@@ -87,17 +96,18 @@ struct stream {
   }
 };
 
-template <typename Receiver>
-void _op<Receiver>::type::start() noexcept {
-  if (stream_.next_ < stream_.max_) {
-    unifex::set_value(std::move(receiver_), stream_.next_++);
+template <typename Receiver, std::ranges::range Range>
+void _op<Receiver, Range>::type::start() noexcept {
+  if (stream_.begin_ < stream_.end_) {
+    unifex::set_value(std::move(receiver_), *stream_.begin_++);
   } else {
     unifex::set_done(std::move(receiver_));
   }
 }
 } // namespace _range
 
-using range_stream = _range::stream;
+template <std::ranges::range Range>
+using range_stream = _range::stream<Range>;
 
 } // namespace unifex
 
