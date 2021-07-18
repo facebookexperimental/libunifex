@@ -37,7 +37,7 @@ int main() {
               on_stream(
                   context2.get_scheduler(),
                   transform_stream(
-                      range_stream{0, 10},
+                      range_stream{std::views::iota(0, 10)},
                       [](int value) { return value * value; }))),
           [](int value) { std::printf("got %i\n", value); }),
       []() { std::printf("done\n"); }));

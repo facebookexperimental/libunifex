@@ -31,7 +31,7 @@ TEST(reduce_stream, Smoke) {
   sync_wait(transform(
       reduce_stream(
           transform_stream(
-              range_stream{0, 10},
+              range_stream{std::views::iota(0, 10)},
               [](int value) { return value * value; }),
           0,
           [](int state, int value) { return state + value; }),
@@ -44,7 +44,7 @@ TEST(reduce_stream, Smoke) {
 TEST(reduce_stream, Pipeable) {
   int finalResult;
 
-  range_stream{0, 10}
+  range_stream{std::views::iota(0, 10)}
     | transform_stream(
         [](int value) { return value * value; })
     | reduce_stream(

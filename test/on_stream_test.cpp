@@ -39,7 +39,7 @@ TEST(on_stream, Smoke) {
               on_stream(
                   context2.get_scheduler(),
                   transform_stream(
-                      range_stream{0, 10},
+                      range_stream{std::views::iota(0, 10)},
                       [](int value) { return value * value; }))),
           [](int value) { std::printf("got %i\n", value); }),
       []() { std::printf("done\n"); }));
@@ -49,7 +49,7 @@ TEST(on_stream, Pipeable) {
   single_thread_context context1;
   single_thread_context context2;
 
-  range_stream{0, 10}
+  range_stream{std::views::iota(0, 10)}
     | transform_stream(
         [](int value) { return value * value; })
     | on_stream(context2.get_scheduler())

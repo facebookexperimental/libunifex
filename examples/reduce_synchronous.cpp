@@ -29,7 +29,7 @@ int main() {
   sync_wait(transform(
       reduce_stream(
           transform_stream(
-              range_stream{0, 10},
+              range_stream{std::views::iota(0, 10)},
               [](int value) { return value * value; }),
           0,
           [](int state, int value) { return state + value; }),

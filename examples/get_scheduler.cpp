@@ -46,7 +46,7 @@ int main() {
   sync_wait(with_query_value(
       transform(
           for_each(via_stream(current_scheduler,
-                              transform_stream(range_stream{0, 10},
+                              transform_stream(range_stream{std::views::iota(0, 10)},
                                                [](int value) {
                                                  return value * value;
                                                })),

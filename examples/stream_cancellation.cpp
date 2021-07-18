@@ -37,7 +37,7 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  auto op = on_stream(current_scheduler, range_stream{0, 20})
+  auto op = on_stream(current_scheduler, range_stream{std::views::iota(0, 20)})
     | for_each([](int value) {
         // Simulate some work
         std::printf("processing %i\n", value);
