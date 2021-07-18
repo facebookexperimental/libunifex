@@ -40,7 +40,7 @@ int main() {
   sync_wait(
       stop_when(
           for_each(
-              delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
+              delay(range_stream{std::views::iota(0, 100)}, context.get_scheduler(), 100ms),
               [startTime](int value) {
                 auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);

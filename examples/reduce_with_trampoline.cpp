@@ -34,7 +34,7 @@ int main() {
           typed_via_stream(
               trampoline_scheduler{},
               transform_stream(
-                  range_stream{0, 100'000},
+                  range_stream{std::views::iota(0, 100'000)},
                   [](int value) { return value * value; })),
           0,
           [](int state, int value) { return state + 10 * value; }),

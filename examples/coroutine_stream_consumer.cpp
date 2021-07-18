@@ -62,7 +62,7 @@ int main() {
 
     auto s = take_until(
         stop_immediately<int>(
-            delay(range_stream{0, 100}, context.get_scheduler(), 50ms)),
+            delay(range_stream{std::views::iota(0, 100)}, context.get_scheduler(), 50ms)),
         single(schedule_after(context.get_scheduler(), 500ms)));
 
     int sum = 0;

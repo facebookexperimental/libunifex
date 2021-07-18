@@ -31,13 +31,13 @@ TEST(ForEach, Smoke) {
   sync_wait(transform(
     for_each(
       transform_stream(
-        range_stream{0, 10}, [](int value) { return value * value; }),
+        range_stream{std::views::iota(0, 10)}, [](int value) { return value * value; }),
       [](int value) { std::printf("got %i\n", value); }),
     []() { std::printf("done\n"); }));
 }
 
 TEST(ForEach, Pipeable) {
-  range_stream{0, 10}
+  range_stream{std::views::iota(0, 10)}
     | transform_stream(
         [](int value) { return value * value; })
     | for_each(

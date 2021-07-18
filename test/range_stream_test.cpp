@@ -14,47 +14,48 @@
  * limitations under the License.
  */
 #include <unifex/for_each.hpp>
-#include <unifex/on_stream.hpp>
 #include <unifex/range_stream.hpp>
-#include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/typed_via_stream.hpp>
+
+#include <cstdio>
+#include <numeric>
 
 #include <gtest/gtest.h>
 
-#include <cstdio>
-
 using namespace unifex;
 
-TEST(on_stream, Smoke) {
-  single_thread_context context1;
-  single_thread_context context2;
-
-  sync_wait(transform(
-      for_each(
-          typed_via_stream(
-              context1.get_scheduler(),
-              on_stream(
-                  context2.get_scheduler(),
-                  transform_stream(
-                      range_stream{std::views::iota(0, 10)},
-                      [](int value) { return value * value; }))),
-          [](int value) { std::printf("got %i\n", value); }),
-      []() { std::printf("done\n"); }));
-}
-
-TEST(on_stream, Pipeable) {
-  single_thread_context context1;
-  single_thread_context context2;
-
+TEST(range_stream, iota) {
   range_stream{std::views::iota(0, 10)}
-    | transform_stream(
-        [](int value) { return value * value; })
-    | on_stream(context2.get_scheduler())
-    | typed_via_stream(context1.get_scheduler())
+    | transform_stream([](int value) { return value * value; })
     | for_each([](int value) { std::printf("got %i\n", value); })
     | transform([]() { std::printf("done\n"); })
     | sync_wait();
+}
+
+TEST(range_stream, iota_vector) {
+  std::vector v{10};
+  std::iota(std::begin(v), std::end(v), 0);
+
+  range_stream{v}
+  | transform_stream([](int value) { return value * value; })
+  | for_each([](int value) { std::printf("got %i\n", value); })
+  | transform([]() { std::printf("done\n"); })
+  | sync_wait();
+}
+
+TEST(range_stream, rvalue_array) {
+  range_stream{std::array{"foo", "bar", "baz"}}
+  | for_each([](std::string_view value) { std::printf("got %s\n", value.data()); })
+  | transform([]() { std::printf("done\n"); })
+  | sync_wait();
+}
+
+TEST(range_stream, lvalue_array) {
+  constexpr std::array words = {"foo", "bar", "baz"};
+  range_stream{words}
+  | for_each([](std::string_view value) { std::printf("got %s\n", value.data()); })
+  | transform([]() { std::printf("done\n"); })
+  | sync_wait();
 }

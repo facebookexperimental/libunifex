@@ -41,7 +41,7 @@ TEST(Delay, Smoke) {
   sync_wait(
       stop_when(
           for_each(
-              delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
+              delay(range_stream{std::views::iota(0, 100)}, context.get_scheduler(), 100ms),
               [startTime](int value) {
                 auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);
@@ -56,7 +56,7 @@ TEST(Delay, Pipeable) {
 
   auto startTime = steady_clock::now();
 
-  range_stream{0, 100}
+  range_stream{std::views::iota(0, 100)}
     | delay(context.get_scheduler(), 100ms)
     | for_each(
         [startTime](int value) {

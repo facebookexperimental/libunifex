@@ -56,7 +56,7 @@ TEST(get_scheduler, current_scheduler) {
   sync_wait(with_query_value(
       transform(
           for_each(via_stream(current_scheduler,
-                              transform_stream(range_stream{0, 10},
+                              transform_stream(range_stream{std::views::iota(0, 10)},
                                                [](int value) {
                                                  return value * value;
                                                })),
@@ -70,7 +70,7 @@ TEST(get_scheduler, Pipeable) {
 
   // Check that this can propagate through multiple levels of
   // composed operations.
-  range_stream{0, 10}
+  range_stream{std::views::iota(0, 10)}
     | transform_stream([](int value) {
         return value * value;
     })
