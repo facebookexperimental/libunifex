@@ -85,7 +85,7 @@ struct stream {
   sentinel_t end_;
 
   explicit stream(Range&& r) : begin_(std::begin(r)), end_(std::end(r)) {}
-  explicit stream(iterator_t begin, sentinel_t end) : begin_(begin), end_(end) {}
+  explicit stream(Range& r) : begin_(std::begin(r)), end_(std::end(r)) {}
 
   friend next_sender<Range> tag_invoke(tag_t<next>, stream<Range>& s) noexcept {
     return next_sender{s};
