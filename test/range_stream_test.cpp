@@ -44,15 +44,16 @@ TEST(range_stream, iota_vector) {
   | transform([]() { std::printf("done\n"); })
   | sync_wait();
 }
+
 TEST(range_stream, rvalue_array) {
   range_stream{std::array{"foo", "bar", "baz"}}
   | for_each([](std::string_view value) { std::printf("got %s\n", value.data()); })
   | transform([]() { std::printf("done\n"); })
   | sync_wait();
 }
+
 TEST(range_stream, lvalue_array) {
   constexpr std::array words = {"foo", "bar", "baz"};
-
   range_stream{words}
   | for_each([](std::string_view value) { std::printf("got %s\n", value.data()); })
   | transform([]() { std::printf("done\n"); })
