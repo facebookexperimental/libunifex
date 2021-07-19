@@ -480,8 +480,8 @@ class _byref<CPOs...>::type
     return self.impl_;
   }
 
-  void* impl_;
   vtable_holder_t vtable_;
+  void* impl_;
 };
 
 } // namespace _any_unique
