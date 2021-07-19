@@ -18,3 +18,11 @@ elseif("x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC")
 else()
   message(WARNING "[unifex warning]: unknown compiler ${CMAKE_CXX_COMPILER_ID} !")
 endif()
+
+if (MSVC)
+    # warning level 3 and all warnings as errors
+    add_compile_options(/W3 /WX)
+else()
+    # lots of warnings and all warnings as errors
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
