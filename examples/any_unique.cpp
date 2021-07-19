@@ -30,7 +30,7 @@ inline constexpr struct get_typeid_cpo {
       unifex::type_index(const unifex::this_&) noexcept;
 
   template <typename T>
-  friend unifex::type_index tag_invoke(get_typeid_cpo, const T& x) {
+  friend unifex::type_index tag_invoke(get_typeid_cpo, const T&) {
     return unifex::type_id<T>();
   }
 

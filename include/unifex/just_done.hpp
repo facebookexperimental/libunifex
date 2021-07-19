@@ -62,7 +62,7 @@ class sender {
   template(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, sender> AND
         receiver<Receiver>)
-  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
+  friend auto tag_invoke(tag_t<connect>, This&&, Receiver&& r)
       noexcept
       -> operation<Receiver> {
     return {static_cast<Receiver&&>(r)};
