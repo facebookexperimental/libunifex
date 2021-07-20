@@ -528,14 +528,12 @@ void io_uring_context::acquire_completion_queue_items() noexcept {
     UNIFEX_ASSERT(count <= cqEntryCount_);
 
     operation_base head;
-    operation_base* tail = &head;
 
     LOGX("got %u completions\n", count);
 
     operation_queue completionQueue;
 
     for (std::uint32_t i = 0; i < count; ++i) {
-      auto index = (cqHead + i) & mask;
       auto& cqe = cqEntries_[(cqHead + i) & mask];
 
       if (cqe.user_data == remote_queue_event_user_data) {

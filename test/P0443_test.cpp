@@ -42,7 +42,7 @@ namespace {
   struct throwing_executor {
     UNIFEX_TEMPLATE(typename Fn)
       (requires invocable<Fn&>)
-    void execute(Fn fn) const {
+    void execute(Fn) const {
       throw std::runtime_error("sorry, charlie");
     }
     [[maybe_unused]] friend bool operator==(throwing_executor, throwing_executor) noexcept {

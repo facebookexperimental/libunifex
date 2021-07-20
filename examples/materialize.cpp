@@ -29,7 +29,7 @@ using namespace unifex;
 int main() {
     single_thread_context ctx;
 
-    std::optional<int> result = sync_wait(
+    [[maybe_unused]] std::optional<int> result = sync_wait(
         dematerialize(
             materialize(
                 transform(
