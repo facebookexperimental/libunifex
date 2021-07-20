@@ -101,7 +101,7 @@ int main() {
   }
 
   auto pipe_bench = [](auto& rPipeRef, auto& buffer, auto scheduler, int seconds,
-                       auto& data, auto& reps, auto& offset) {
+                       [[maybe_unused]] auto& data, auto& reps, [[maybe_unused]] auto& offset) {
     return defer([&, scheduler, seconds] {
       return defer([&] {
         return
