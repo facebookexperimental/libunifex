@@ -24,6 +24,12 @@
 
 #include <unifex/config.hpp>
 
+UNIFEX_DIAGNOSTIC_PUSH
+
+#if defined(__clang__)
+    #pragma clang diagnostic ignored "-Wkeyword-macro"
+#endif
+
 #if UNIFEX_CXX_CONCEPTS
   #define template(...) \
     template <__VA_ARGS__> UNIFEX_PP_EXPAND \
@@ -33,5 +39,7 @@
     template <__VA_ARGS__ UNIFEX_TEMPLATE_SFINAE_AUX_ \
     /**/
 #endif
+
+UNIFEX_DIAGNOSTIC_POP
 
 #define AND UNIFEX_AND

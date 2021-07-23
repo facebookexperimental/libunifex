@@ -332,7 +332,7 @@ public:
   template(typename CPO, typename Sender, typename Receiver)
       (requires same_as<CPO, tag_t<unifex::connect>> AND
         same_as<remove_cvref_t<Sender>, type>)
-  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+  friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
       -> operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver> {
     return operation<decltype((static_cast<Sender&&>(sender).pred_)), SuccessorFactory, Receiver>{
         static_cast<Sender&&>(sender).pred_,

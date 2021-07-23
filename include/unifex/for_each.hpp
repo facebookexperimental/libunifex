@@ -37,7 +37,7 @@ namespace _for_each {
       }
     };
     struct _reduce {
-      void operator()(unit s) const noexcept {}
+      void operator()(unit) const noexcept {}
     };
   } // namespace _impl
 
