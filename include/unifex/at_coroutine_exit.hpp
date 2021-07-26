@@ -267,11 +267,16 @@ struct [[nodiscard]] _cleanup_task {
   }
 
   template <typename Promise>
-  bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
+  bool await_suspend_impl_(Promise& parent) noexcept {
     continuation_.promise().continuation_ =
-        exchange_continuation(parent.promise(), continuation_);
-    continuation_.promise().sched_ = get_scheduler(parent.promise());
+        exchange_continuation(parent, continuation_);
+    continuation_.promise().sched_ = get_scheduler(parent);
     return false;
+  }
+
+  template <typename Promise>
+  bool await_suspend(coro::coroutine_handle<Promise> parent) noexcept {
+    return await_suspend_impl_(parent.promise());
   }
 
   std::tuple<Ts&...> await_resume() noexcept {

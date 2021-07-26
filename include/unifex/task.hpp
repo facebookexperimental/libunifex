@@ -29,7 +29,6 @@
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/invoke.hpp>
-#include <unifex/at_coroutine_exit.hpp>
 #include <unifex/continuations.hpp>
 #include <unifex/any_scheduler.hpp>
 #include <unifex/typed_via.hpp>
@@ -85,6 +84,8 @@ struct _promise_base {
     }
   };
 
+  void transform_schedule_sender_impl_(any_scheduler_ref newSched);
+
   coro::suspend_always initial_suspend() noexcept {
     return {};
   }
@@ -108,7 +109,7 @@ struct _promise_base {
   }
 
   friend continuation_handle<> tag_invoke(
-      tag_t<exchange_continuation>, _promise_base& p, continuation_handle<> action) noexcept {
+      const tag_t<exchange_continuation>&, _promise_base& p, continuation_handle<> action) noexcept {
     return std::exchange(p.continuation_, (continuation_handle<>&&) action);
   }
 
@@ -232,24 +233,7 @@ struct _promise {
       // call returns a reference to the scheduler stored within snd, which is an object
       // whose lifetime spans a suspend point. So it's ok to build an any_scheduler_ref
       // from it:
-      any_scheduler_ref newSched = get_scheduler(snd);
-
-      // If we haven't already inserted a cleanup action to take us back to the correct
-      // scheduler, do so now:
-      if (!std::exchange(this->rescheduled_, true)) {
-        // Create a cleanup action that transitions back onto the current scheduler:
-        auto cleanupTask = at_coroutine_exit(schedule, this->sched_);
-        // Insert the cleanup action into the head of the continuation chain by making
-        // direct calls to the cleanup task's awaiter member functions. See type
-        // _cleanup_task in at_coroutine_exit.hpp:
-        cleanupTask.await_suspend(coro::coroutine_handle<type>::from_promise(*this));
-        (void) cleanupTask.await_resume();
-      }
-
-      // Update the current scheduler. (Don't do this before we have inserted the
-      // cleanup action because the insertion of the cleanup action reads this task's
-      // current scheduler.)
-      this->sched_ = newSched;
+      transform_schedule_sender_impl_(get_scheduler(snd));
 
       // Return the inner sender, appropriately wrapped in an awaitable:
       return unifex::await_transform(*this, std::move(snd).base());
