@@ -91,7 +91,7 @@ namespace unifex
               std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
               (std::is_nothrow_constructible_v<remove_cvref_t<Queries>, Queries> &&...)) {
         return sender_for<CPO, remove_cvref_t<Sender>, _context<remove_cvref_t<Queries>...>>{
-            (Sender&&) snd, _context<remove_cvref_t<Queries>...>{(Queries&&) queries...}};
+            (Sender&&) snd, _context<remove_cvref_t<Queries>...>{{(Queries&&) queries}...}};
       }
     };
   } // namespace _sf
