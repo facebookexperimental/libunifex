@@ -138,11 +138,11 @@ namespace _schedule {
 template <typename S>
 concept //
   scheduler = //
-    copy_constructible<remove_cvref_t<S>> &&
-    equality_comparable<remove_cvref_t<S>> &&
     requires(S&& s) {
       _schedule::_impl{}((S&&) s);
-    };
+    } &&
+    copy_constructible<remove_cvref_t<S>> &&
+    equality_comparable<remove_cvref_t<S>>;
 #else
 template <typename S>
 UNIFEX_CONCEPT_FRAGMENT( //
@@ -153,9 +153,9 @@ UNIFEX_CONCEPT_FRAGMENT( //
 template <typename S>
 UNIFEX_CONCEPT //
   scheduler = //
+    UNIFEX_FRAGMENT(unifex::_scheduler, S) &&
     copy_constructible<remove_cvref_t<S>> &&
-    equality_comparable<remove_cvref_t<S>> &&
-    UNIFEX_FRAGMENT(unifex::_scheduler, S);
+    equality_comparable<remove_cvref_t<S>>;
 #endif
 
 namespace _get_scheduler {
