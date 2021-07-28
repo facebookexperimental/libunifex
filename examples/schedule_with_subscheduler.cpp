@@ -22,11 +22,11 @@ using namespace unifex;
 
 int main() {
   timed_single_thread_context context;
-  auto scheduler = context.get_scheduler();
+  auto schedr = context.get_scheduler();
 
   std::optional<bool> result = sync_wait(transform(
-      schedule_with_subscheduler(scheduler),
-      [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
+      schedule_with_subscheduler(schedr),
+      [&](auto subScheduler) noexcept { return subScheduler == schedr; }));
 
   if (result.has_value() && result.value()) {
     // Success

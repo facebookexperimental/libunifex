@@ -138,11 +138,11 @@ namespace _schedule {
 template <typename S>
 concept //
   scheduler = //
-    copy_constructible<remove_cvref_t<S>> &&
-    equality_comparable<remove_cvref_t<S>> &&
     requires(S&& s) {
       _schedule::_impl{}((S&&) s);
-    };
+    } &&
+    copy_constructible<remove_cvref_t<S>> &&
+    equality_comparable<remove_cvref_t<S>>;
 #else
 template <typename S>
 UNIFEX_CONCEPT_FRAGMENT( //
@@ -153,9 +153,9 @@ UNIFEX_CONCEPT_FRAGMENT( //
 template <typename S>
 UNIFEX_CONCEPT //
   scheduler = //
+    UNIFEX_FRAGMENT(unifex::_scheduler, S) &&
     copy_constructible<remove_cvref_t<S>> &&
-    equality_comparable<remove_cvref_t<S>> &&
-    UNIFEX_FRAGMENT(unifex::_scheduler, S);
+    equality_comparable<remove_cvref_t<S>>;
 #endif
 
 namespace _get_scheduler {
@@ -461,35 +461,37 @@ namespace _now {
 using _now::now;
 
 namespace _current {
+#if !UNIFEX_NO_COROUTINES
+  template <typename Scheduler>
+  struct _awaiter {
+    Scheduler sched_;
+
+    static constexpr bool await_ready() noexcept {
+      return true;
+    }
+    void await_suspend(coro::coroutine_handle<>) const noexcept {
+    }
+    Scheduler await_resume() {
+      return (Scheduler&&) sched_;
+    }
+    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaiter&) noexcept {
+      return blocking_kind::always_inline;
+    }
+  };
+  template <typename Scheduler>
+  _awaiter(Scheduler) -> _awaiter<Scheduler>;
+#endif // !UNIFEX_NO_COROUTINES
+
   struct _scheduler {
 #if !UNIFEX_NO_COROUTINES
   private:
-    template <typename Scheduler>
-    struct _awaiter {
-      Scheduler sched_;
-
-      static constexpr bool await_ready() noexcept {
-        return true;
-      }
-      void await_suspend(coro::coroutine_handle<>) const noexcept {
-      }
-      Scheduler await_resume() {
-        return (Scheduler&&) sched_;
-      }
-      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaiter&) noexcept {
-        return blocking_kind::always_inline;
-      }
-    };
-    template <typename Scheduler>
-    _awaiter(Scheduler) -> _awaiter<Scheduler>;
-
     // `co_await current_scheduler()` to fetch a coroutine's current scheduler.
     template (typename Tag, typename Promise)
       (requires same_as<Tag, tag_t<await_transform>> AND scheduler_provider<Promise&>)
     friend auto tag_invoke(Tag, Promise& promise, _scheduler) noexcept {
       return _awaiter{get_scheduler(promise)};
     }
-#endif
+#endif // !UNIFEX_NO_COROUTINES
 
   public:
     auto schedule() const noexcept {

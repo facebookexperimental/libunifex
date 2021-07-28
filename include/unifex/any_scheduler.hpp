@@ -221,12 +221,37 @@ using any_scheduler_ref_impl =
         _get_type_index,
         overload<bool(const this_&, const any_scheduler_ref<CPOs...>&) noexcept>(_equal_to)>;
 
+#if defined(__GLIBCXX__)
+template <typename>
+inline constexpr bool _is_tuple = false;
+
+template <typename... Ts>
+inline constexpr bool _is_tuple<std::tuple<Ts...>> = true;
+
+template <typename... Ts>
+inline constexpr bool _is_tuple<std::tuple<Ts...> const> = true;
+#endif
+
 template <typename... CPOs>
 struct _with<CPOs...>::any_scheduler_ref {
+#if !defined(__GLIBCXX__)
   template (typename Scheduler)
-    (requires (!same_as<const Scheduler, const any_scheduler_ref>) AND scheduler<Scheduler>)
+    (requires (!same_as<const Scheduler, const any_scheduler_ref>) AND
+      scheduler<Scheduler>)
   /* implicit */ any_scheduler_ref(Scheduler& sched) noexcept
     : impl_(sched) {}
+#else
+  // Under-constrained implicit tuple converting constructor from a
+  // single argument doesn't exclude instances of the tuple type
+  // itself, so it is considered for copy/move constructors, leading
+  // to constraint recursion with the any_scheduler_ref constructor
+  // below.
+  template (typename Scheduler)
+    (requires (!same_as<const Scheduler, const any_scheduler_ref>) AND
+      (!_is_tuple<Scheduler>) AND scheduler<Scheduler>)
+  /* implicit */ any_scheduler_ref(Scheduler& sched) noexcept
+    : impl_(sched) {}
+#endif
 
   struct _sender {
     template <template <class...> class Variant, template <class...> class Tuple>

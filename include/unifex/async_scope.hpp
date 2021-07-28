@@ -236,7 +236,7 @@ public:
   }
 };
 
-};
+} // namespace _async_scope
 
 using _async_scope::async_scope;
 

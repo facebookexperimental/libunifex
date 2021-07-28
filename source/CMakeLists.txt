@@ -7,15 +7,16 @@ add_library(unifex "")
 
 target_sources(unifex
   PRIVATE
+    async_manual_reset_event.cpp
     async_mutex.cpp
     exception.cpp
     inplace_stop_token.cpp
     manual_event_loop.cpp
     static_thread_pool.cpp
+    task.cpp
     thread_unsafe_event_loop.cpp
     timed_single_thread_context.cpp
-    trampoline_scheduler.cpp
-    async_manual_reset_event.cpp)
+    trampoline_scheduler.cpp)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_sources(unifex

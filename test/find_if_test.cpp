@@ -43,7 +43,7 @@ TEST(find_if, find_if_sequential) {
               return v == another_parameter;
             },
             unifex::seq),
-        [](std::vector<int>::iterator v, int another_parameter) noexcept {
+        [](std::vector<int>::iterator v, [[maybe_unused]] int another_parameter) noexcept {
           UNIFEX_ASSERT(another_parameter == 3);
           return v;
         }));
@@ -76,7 +76,7 @@ TEST(find_if, find_if_parallel) {
                 return v == another_parameter;
               },
               unifex::par),
-          [](std::vector<int>::iterator v, int another_parameter) noexcept {
+          [](std::vector<int>::iterator v, [[maybe_unused]] int another_parameter) noexcept {
             UNIFEX_ASSERT(another_parameter == checkValue);
             return v;
           })));
@@ -120,7 +120,7 @@ TEST(find_if, Pipeable) {
           },
           unifex::seq)
       | transform(
-          [](std::vector<int>::iterator v, int another_parameter) noexcept {
+          [](std::vector<int>::iterator v, [[maybe_unused]] int another_parameter) noexcept {
             UNIFEX_ASSERT(another_parameter == 3);
             return v;
           });

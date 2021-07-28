@@ -379,7 +379,7 @@ class _byval<CPOs...>::type
           (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
-  explicit type(std::in_place_type_t<Concrete> tag, Args&&... args)
+  explicit type([[maybe_unused]] std::in_place_type_t<Concrete> tag, Args&&... args)
     : impl_(new Concrete((Args&&) args...))
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
@@ -480,8 +480,8 @@ class _byref<CPOs...>::type
     return self.impl_;
   }
 
-  void* impl_;
   vtable_holder_t vtable_;
+  void* impl_;
 };
 
 } // namespace _any_unique
