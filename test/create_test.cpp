@@ -57,7 +57,7 @@ struct CreateTest : testing::Test {
 
 TEST_F(CreateTest, BasicTest) {
   auto snd = [this](int a, int b) {
-    return create<int>([=](auto& rec) {
+    return create<int>([a, b, this](auto& rec) {
       static_assert(receiver_of<decltype(rec), int>);
       anIntAPI(a, b, &rec, [](void* context, int result) {
         unifex::void_cast<decltype(rec)>(context).set_value(result);
@@ -93,7 +93,7 @@ TEST_F(CreateTest, VoidWithContextTest) {
 
 TEST_F(CreateTest, AwaitTest) {
   auto tsk = [this](int a, int b) -> task<int> {
-    co_return co_await create<int>([=](auto& rec) {
+    co_return co_await create<int>([a, b, this](auto& rec) {
       anIntAPI(a, b, &rec, [](void* context, int result) {
         unifex::void_cast<decltype(rec)>(context).set_value(result);
       });
