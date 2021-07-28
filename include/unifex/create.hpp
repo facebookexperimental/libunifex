@@ -138,7 +138,7 @@ struct _fn {
     (requires move_constructible<Fn>)
   _sender<Fn, ValueTypes...> operator()(Fn fn) const
       noexcept(std::is_nothrow_constructible_v<_sender<Fn, ValueTypes...>, Fn>) {
-    return _sender<Fn, ValueTypes...>{(Fn&&) fn};
+    return _sender<Fn, ValueTypes...>{{(Fn&&) fn}};
   }
   template (typename Fn, typename Context)
     (requires move_constructible<Fn> AND move_constructible<Context>)
@@ -147,7 +147,7 @@ struct _fn {
           _sender_with_context<Fn, Context, ValueTypes...>,
           Fn,
           Context>) {
-    return _sender_with_context<Fn, Context, ValueTypes...>{(Fn&&) fn, (Context&&) ctx};
+    return _sender_with_context<Fn, Context, ValueTypes...>{{(Fn&&) fn, (Context&&) ctx}};
   }
 };
 } // namespace _cpo
