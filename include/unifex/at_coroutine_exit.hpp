@@ -275,7 +275,7 @@ struct [[nodiscard]] _cleanup_task {
   }
 
   std::tuple<Ts&...> await_resume() noexcept {
-    return std::exchange(continuation_, {}).promise().args_;
+    return std::move(std::exchange(continuation_, {}).promise().args_);
   }
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const _cleanup_task&) noexcept {
