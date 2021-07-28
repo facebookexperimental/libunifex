@@ -1,7 +1,7 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2 with LLVM exceptions
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * you may not use this socket except in compliance with the License.
  * the License. You may obtain a copy of the License at
  *
