@@ -73,7 +73,7 @@ TEST_F(CreateTest, BasicTest) {
 TEST_F(CreateTest, VoidWithContextTest) {
   bool called = false;
   auto snd = [&called, this]() {
-    return create<>([&called, this](auto& rec) {
+    return create<>([this](auto& rec) {
       static_assert(receiver_of<decltype(rec)>);
       aVoidAPI(&rec, [](void* context) {
         auto& rec2 = unifex::void_cast<decltype(rec)>(context);
