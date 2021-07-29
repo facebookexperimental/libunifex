@@ -20,15 +20,6 @@
 
 namespace unifex {
   namespace detail {
-    template <typename, typename = void>
-    extern const bool _is_executor;
-
-    template <typename E, typename R, typename = void>
-    extern const bool _can_execute;
-
-    template <typename S, typename F, typename = void>
-    extern const bool _can_submit;
-
     struct _ignore {
       template <typename T>
       /*implicit*/ _ignore(T&&) noexcept {}
@@ -37,20 +28,20 @@ namespace unifex {
 
   using detail::_ignore;
 
-  namespace _execute_cpo {
-    extern const struct _fn execute;
-  } // namespace _execute_cpo
-  using _execute_cpo::execute;
+  namespace _execute::_cpo {
+    struct _fn;
+  } // namespace _execute::_cpo
+  extern const _execute::_cpo::_fn execute;
 
   namespace _submit_cpo {
     extern const struct _fn submit;
   } // namespace _submit_cpo
   using _submit_cpo::submit;
 
-  namespace _connect_cpo {
-    extern const struct _fn connect;
-  } // namespace _connect_cpo
-  using _connect_cpo::connect;
+  namespace _connect::_cpo {
+    struct _fn;
+  } // namespace _connect::_cpo
+  extern const _connect::_cpo::_fn connect;
 
 #if !UNIFEX_NO_COROUTINES
   namespace _await_tfx {

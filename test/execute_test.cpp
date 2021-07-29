@@ -13,22 +13,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/single_thread_context.hpp>
-#include <unifex/execute.hpp>
-#include <unifex/scheduler_concepts.hpp>
 
-#include <cstdio>
+#include <unifex/execute.hpp>
+#include <unifex/inline_scheduler.hpp>
+
+#include <gtest/gtest.h>
 
 using namespace unifex;
 
-int main() {
-    single_thread_context ctx;
+TEST(Execute, execute_with_scheduler) {
+  int i = 0;
+  execute(inline_scheduler{}, [&]() { ++i; });
+  EXPECT_EQ(1, i);
+}
 
-    for (int i = 0; i < 5; ++i) {
-        execute(ctx.get_scheduler(), [i]() {
-            printf("hello execute() %i\n", i);
-        });
+TEST(Execute, Pipeable) {
+  int i = 0;
+  struct _receiver {
+    int *p;
+    void set_value() && noexcept {
+      *p += 1;
     }
-
-    return 0;
+    void set_error(std::exception_ptr) && noexcept {
+      *p += 2;
+    }
+    void set_done() && noexcept {
+      *p += 4;
+    }
+  };
+  schedule(inline_scheduler{})
+    | submit(_receiver{&i});
+  EXPECT_EQ(1, i);
 }

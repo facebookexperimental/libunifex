@@ -43,32 +43,6 @@ namespace detail {
   template <template <template <typename...> class> class>
   struct _has_error_types;
 
-  template <typename F, typename S>
-  struct _as_receiver;
-
-  template <typename R, typename E>
-  struct _as_invocable {
-    R* r_ ;
-    explicit _as_invocable(R& r) noexcept
-      : r_(std::addressof(r)) {}
-    _as_invocable(_as_invocable&& other) noexcept
-      : r_(std::exchange(other.r_, nullptr)) {}
-    ~_as_invocable() {
-      if(r_)
-        unifex::set_done((R&&) *r_);
-    }
-
-    void operator()() & noexcept {
-      UNIFEX_TRY {
-        unifex::set_value((R&&) *r_);
-        r_ = nullptr;
-      } UNIFEX_CATCH(...) {
-        unifex::set_error((R&&) *r_, std::current_exception());
-        r_ = nullptr;
-      }
-    }
-  };
-
   template <typename S>
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_sender_types_impl, //
@@ -157,8 +131,6 @@ namespace detail {
       return _typed_bulk_sender_traits<S>{};
     } else if constexpr (_has_sender_types<S>) {
       return _typed_sender_traits<S>{};
-    } else if constexpr (_is_executor<S>) {
-      return _void_sender_traits{};
     } else if constexpr (std::is_base_of_v<sender_base, S>) {
       return sender_base{};
     } else {
@@ -211,13 +183,12 @@ namespace _start_cpo {
 } // namespace _start
 using _start_cpo::start;
 
-namespace _connect_cpo {
-  using detail::_can_execute;
-
+namespace _connect {
   template <typename Sender, typename Receiver>
   using _member_connect_result_t =
       decltype((UNIFEX_DECLVAL(Sender&&)).connect(
           UNIFEX_DECLVAL(Receiver&&)));
+
   template <typename Sender, typename Receiver>
   UNIFEX_CONCEPT_FRAGMENT( //
     _has_member_connect_,  //
@@ -228,85 +199,52 @@ namespace _connect_cpo {
   UNIFEX_CONCEPT //
     _with_member_connect = //
       sender<Sender> &&
-      UNIFEX_FRAGMENT(_connect_cpo::_has_member_connect_, Sender, Receiver);
+      UNIFEX_FRAGMENT(_connect::_has_member_connect_, Sender, Receiver);
+
   template <typename Sender, typename Receiver>
   UNIFEX_CONCEPT //
     _with_tag_invoke = //
-      sender<Sender> && tag_invocable<_fn, Sender, Receiver>;
-  template <typename Executor, typename Receiver>
-  UNIFEX_CONCEPT //
-    _with_execute = //
-      receiver_of<Receiver> && _can_execute<Executor, Receiver>;
+      sender<Sender> && tag_invocable<_cpo::_fn, Sender, Receiver>;
 
-  inline const struct _fn {
-   private:
-    template <typename Executor, typename Receiver>
-    struct _as_op {
-      struct type {
-        remove_cvref_t<Executor> e_;
-        remove_cvref_t<Receiver> r_;
-
-        void start() noexcept {
-          UNIFEX_TRY {
-            using _as_invocable =
-              detail::_as_invocable<remove_cvref_t<Receiver>, Executor>;
-            unifex::execute(std::move(e_), _as_invocable{r_});
-          } UNIFEX_CATCH(...) {
-            // BUGBUG: see https://github.com/executors/executors/issues/463
-            // unifex::set_error(std::move(r_), std::current_exception());
-          }
+  namespace _cpo {
+    struct _fn {
+     private:
+      template <typename Sender, typename Receiver>
+      static auto _select() {
+        if constexpr (_with_tag_invoke<Sender, Receiver>) {
+          return meta_tag_invoke_result<_fn>{};
+        } else if constexpr (_with_member_connect<Sender, Receiver>) {
+          return meta_quote2<_member_connect_result_t>{};
+        } else {
+          return type_always<void>{};
         }
-      };
-    };
-    template <typename Executor, typename Receiver>
-    using _as_operation = typename _as_op<Executor, Receiver>::type;
-    template <typename Sender, typename Receiver>
-    static auto _select() {
-      if constexpr (_with_tag_invoke<Sender, Receiver>) {
-        return meta_tag_invoke_result<_fn>{};
-      } else if constexpr (_with_member_connect<Sender, Receiver>) {
-        return meta_quote2<_member_connect_result_t>{};
-      } else if constexpr (_with_execute<Sender, Receiver>) {
-        return meta_quote2<_as_operation>{};
-      } else {
-        return type_always<void>{};
       }
-    }
-    template <typename Sender, typename Receiver>
-    using _result_t = typename decltype(_fn::_select<Sender, Receiver>())
-        ::template apply<Sender, Receiver>;
-   public:
-    template(typename Sender, typename Receiver)
-      (requires receiver<Receiver> AND
-          _with_tag_invoke<Sender, Receiver>)
-    auto operator()(Sender&& s, Receiver&& r) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>) ->
-        _result_t<Sender, Receiver> {
-      return unifex::tag_invoke(_fn{}, (Sender &&) s, (Receiver &&) r);
-    }
-    template(typename Sender, typename Receiver)
-      (requires receiver<Receiver> AND
-          (!_with_tag_invoke<Sender, Receiver>) AND
-          _with_member_connect<Sender, Receiver>)
-    auto operator()(Sender&& s, Receiver&& r) const
-        noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r))) ->
-        _result_t<Sender, Receiver> {
-      return ((Sender &&) s).connect((Receiver &&) r);
-    }
-    template(typename Executor, typename Receiver)
-      (requires receiver<Receiver> AND
-          (!_with_tag_invoke<Executor, Receiver>) AND
-          (!_with_member_connect<Executor, Receiver>) AND
-          _with_execute<Executor, Receiver>)
-    auto operator()(Executor&& e, Receiver&& r) const
-        noexcept(std::is_nothrow_constructible_v<
-          _as_operation<Executor, Receiver>, Executor, Receiver>) ->
-        _result_t<Executor, Receiver> {
-      return _as_operation<Executor, Receiver>{(Executor &&) e, (Receiver &&) r};
-    }
-  } connect{};
-} // namespace _connect_cpo
-using _connect_cpo::connect;
+      template <typename Sender, typename Receiver>
+      using _result_t = typename decltype(_fn::_select<Sender, Receiver>())
+          ::template apply<Sender, Receiver>;
+
+     public:
+      template(typename Sender, typename Receiver)
+        (requires receiver<Receiver> AND
+            _with_tag_invoke<Sender, Receiver>)
+      auto operator()(Sender&& s, Receiver&& r) const
+          noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>) ->
+          _result_t<Sender, Receiver> {
+        return unifex::tag_invoke(_fn{}, (Sender &&) s, (Receiver &&) r);
+      }
+      template(typename Sender, typename Receiver)
+        (requires receiver<Receiver> AND
+            (!_with_tag_invoke<Sender, Receiver>) AND
+            _with_member_connect<Sender, Receiver>)
+      auto operator()(Sender&& s, Receiver&& r) const
+          noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r))) ->
+          _result_t<Sender, Receiver> {
+        return ((Sender &&) s).connect((Receiver &&) r);
+      }
+    };
+  } // namespace _cpo
+} // namespace _connect
+inline constexpr _connect::_cpo::_fn connect {};
 
 #if UNIFEX_CXX_CONCEPTS
 // Define the sender_to concept without macros for
@@ -342,7 +280,6 @@ using connect_result_t =
 template <typename Sender, typename Receiver>
 using operation_t [[deprecated("Use connect_result_t instead of operation_t")]] =
     connect_result_t<Sender, Receiver>;
-/// \endcond
 
 template <typename Sender, typename Receiver>
 [[deprecated("Use sender_to instead of is_connectable_v")]]
@@ -352,6 +289,7 @@ inline constexpr bool is_connectable_v =
 template <typename Sender, typename Receiver>
 using is_connectable [[deprecated]] =
   is_callable<decltype(connect), Sender, Receiver>;
+/// \endcond
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =
@@ -359,26 +297,6 @@ inline constexpr bool is_nothrow_connectable_v =
 
 template <typename Sender, typename Receiver>
 using is_nothrow_connectable = is_nothrow_callable<decltype(connect), Sender, Receiver>;
-
-/// \cond
-namespace detail {
-  template <typename S, typename F, typename>
-  inline constexpr bool _can_submit =
-      sender_to<S, _as_receiver<remove_cvref_t<F>, S>>;
-#if UNIFEX_CXX_CONCEPTS
-  template <typename S1, typename R, typename S2>
-    requires same_as<remove_cvref_t<S1>, remove_cvref_t<S2>>
-  inline constexpr bool _can_submit<S1, _as_invocable<R, S2>> = false;
-#else
-  template <typename S1, typename R, typename S2>
-  inline constexpr bool _can_submit<
-      S1,
-      _as_invocable<R, S2>,
-      std::enable_if_t<UNIFEX_IS_SAME(remove_cvref_t<S1>, remove_cvref_t<S2>)>> =
-    false;
-#endif
-} // namespace detail
-/// \endcond
 
 template <
     typename Sender,
@@ -441,4 +359,3 @@ constexpr bool is_sender_nofail_v =
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
-#include <unifex/executor_concepts.hpp>

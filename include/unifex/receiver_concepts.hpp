@@ -185,7 +185,7 @@ inline constexpr bool is_receiver_query_cpo_v = !is_one_of_v<
     _rec_cpo::_set_next_fn,
     _rec_cpo::_set_error_fn,
     _rec_cpo::_set_done_fn,
-    _connect_cpo::_fn>;
+    _connect::_cpo::_fn>;
 
 template <typename T>
 using is_receiver_cpo = std::bool_constant<is_receiver_cpo_v<T>>;
