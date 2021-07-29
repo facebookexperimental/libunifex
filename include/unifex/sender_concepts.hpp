@@ -244,7 +244,7 @@ namespace _connect {
     };
   } // namespace _cpo
 } // namespace _connect
-inline constexpr _connect::_cpo::_fn connect {};
+inline const _connect::_cpo::_fn connect {};
 
 #if UNIFEX_CXX_CONCEPTS
 // Define the sender_to concept without macros for

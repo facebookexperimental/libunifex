@@ -23,6 +23,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/span.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/get_stop_token.hpp>
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_list.hpp>
