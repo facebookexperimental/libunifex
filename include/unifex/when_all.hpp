@@ -310,7 +310,7 @@ class _sender<Senders...>::type {
       (requires same_as<CPO, tag_t<unifex::connect>> AND
         same_as<remove_cvref_t<Sender>, type> AND
         when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
-  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+  friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
     -> operation<Receiver, member_t<Sender, Senders>...> {
     return unifex::apply([&](Senders&&... senders) {
       return operation<Receiver, member_t<Sender, Senders>...>{

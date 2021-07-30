@@ -137,8 +137,8 @@ UNIFEX_DIAGNOSTIC_POP
     }
 
 private:
-    Receiver receiver_;
     Integral count_;
+    Receiver receiver_;
 };
 
 template<typename Scheduler, typename Integral>

@@ -170,10 +170,10 @@ class delegating_scheduler {
     return delegating_sender{context_};
   }
 
-  friend bool operator==(delegating_scheduler, delegating_scheduler) noexcept {
+  [[maybe_unused]] friend bool operator==(delegating_scheduler, delegating_scheduler) noexcept {
     return true;
   }
-  friend bool operator!=(delegating_scheduler, delegating_scheduler) noexcept {
+  [[maybe_unused]] friend bool operator!=(delegating_scheduler, delegating_scheduler) noexcept {
     return false;
   }
 

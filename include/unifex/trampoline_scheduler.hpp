@@ -152,10 +152,10 @@ public:
   schedule_sender schedule() const noexcept {
     return schedule_sender{maxRecursionDepth_};
   }
-  friend bool operator==(scheduler a, scheduler b) noexcept {
+  friend bool operator==(scheduler, scheduler) noexcept {
     return true;
   }
-  friend bool operator!=(scheduler a, scheduler b) noexcept {
+  friend bool operator!=(scheduler, scheduler) noexcept {
     return false;
   }
 };

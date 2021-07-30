@@ -115,7 +115,7 @@ using AnySenderOfTestTypes = Types<
     void(int, std::string),
     void(int, std::string) noexcept>;
 
-TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes);
+TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes, );
 
 template <typename SenderSig, typename ReceiverSig = SenderSig, typename... ExtraReceiverSigs>
 void testWrappingAJust() noexcept {

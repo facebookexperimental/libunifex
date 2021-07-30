@@ -302,7 +302,7 @@ get_iocp_entries:
     UNIFEX_ASSERT(offset >= 0);
 
     std::ptrdiff_t index = offset / sizeof(vectored_io_state);
-    UNIFEX_ASSERT(index < ioPoolSize_);
+    UNIFEX_ASSERT(index < static_cast<std::ptrdiff_t>(ioPoolSize_));
 
     return &pool[index];
   }

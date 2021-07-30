@@ -219,7 +219,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                 unifex::transform(
                   unifex::transform_done(
                     std::move(bulk_phase),
-                    [&stopSource, &state](){
+                    [&state](){
                       if(state.found_flag == true) {
                         // If the item was found, then continue as if not cancelled
                         return just();

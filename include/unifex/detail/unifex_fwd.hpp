@@ -86,6 +86,11 @@ namespace unifex {
   } // namespace _sf
   using _sf::sender_for;
 
+  namespace _xchg_cont {
+    extern const struct _fn exchange_continuation;
+  } // _xchg_cont
+  using _xchg_cont::exchange_continuation;
+
   template <typename>
   struct sender_traits;
 
