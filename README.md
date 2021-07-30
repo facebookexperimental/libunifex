@@ -111,7 +111,7 @@ ninja test
 
 # License
 
-This project is made available under the Apache License, version 2.0.
+This project is made available under the Apache License, version 2.0, with LLVM Exceptions.
 
 See [LICENSE.txt](LICENSE.txt) for details.
 
