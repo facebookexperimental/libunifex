@@ -20,6 +20,8 @@
 #include <unifex/await_transform.hpp>
 #include <unifex/continuations.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/unstoppable_token.hpp>
+#include <unifex/get_stop_token.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
