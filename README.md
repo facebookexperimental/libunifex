@@ -122,5 +122,5 @@ See also:
 # References
 
 C++ standardisation papers:
-* [P0443R13](https://wg21.link/P0443R13) "A Unified Executors Proposal for C++"
+* [P2300r1](https://wg21.link/P2300r1) "`std::execution`"
 * ...
