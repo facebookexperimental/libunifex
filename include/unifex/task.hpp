@@ -43,6 +43,13 @@
 
 #include <unifex/detail/prologue.hpp>
 
+#if defined(__clang__) && defined(__apple_build_version__) && \
+    defined(__clang_major__) && (__clang_major__ > 12) && defined(__arm__)
+#define UNIFEX_XCODE_13_TARGETING_ARMv7 1
+#else
+#define UNIFEX_XCODE_13_TARGETING_ARMv7 0
+#endif
+
 namespace unifex {
 namespace _task {
 using namespace _util;
@@ -163,9 +170,20 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
+
+#if UNIFEX_XCODE_13_TARGETING_ARMv7
+        // Xcode 13's Clang has a bug with symmetric transfer on ARMv7 chips.
+        // It's fixed by https://reviews.llvm.org/D104807, but the fix hasn't
+        // been cherry-picked.  To work around the issue, we resume the
+        // continuation ourselves instead of relying on symmetric transfer.
+        void await_suspend(coro::coroutine_handle<type> h) noexcept {
+          h.promise().continuation_.resume();
+        }
+#else
         auto await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_.handle();
         }
+#endif
       };
       return awaiter{};
     }
@@ -285,8 +303,13 @@ struct _awaiter {
       return false;
     }
 
+#if UNIFEX_XCODE_13_TARGETING_ARMv7
+    void await_suspend(
+        coro::coroutine_handle<OtherPromise> h) {
+#else
     coro::coroutine_handle<ThisPromise> await_suspend(
         coro::coroutine_handle<OtherPromise> h) noexcept {
+#endif
       UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
       auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address((void*) coro_);
       ++coro_; // mark the awaiter as needing cleanup
@@ -303,7 +326,15 @@ struct _awaiter {
       } else {
         promise.stoken_ = get_stop_token(h.promise());
       }
+#if UNIFEX_XCODE_13_TARGETING_ARMv7
+      // Xcode 13's Clang has a bug with symmetric transfer on ARMv7 chips.
+      // It's fixed by https://reviews.llvm.org/D104807, but the fix hasn't
+      // been cherry-picked.  To work around the issue, we resume the
+      // continuation ourselves instead of relying on symmetric transfer.
+      thisCoro.resume();
+#else
       return thisCoro;
+#endif
     }
 
     result_type await_resume() {
@@ -408,5 +439,7 @@ template <typename T>
 using task = typename _task::_task<T>::type;
 
 } // namespace unifex
+
+#undef UNIFEX_XCODE_13_TARGETING_ARMv7
 
 #include <unifex/detail/epilogue.hpp>
