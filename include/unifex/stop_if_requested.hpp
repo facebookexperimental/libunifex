@@ -35,7 +35,7 @@ private:
         Receiver rec_;
         void start() & noexcept {
           UNIFEX_TRY {
-            if (get_stop_token(std::as_const(rec_)).stop_requested()) {
+            if (get_stop_token(as_const(rec_)).stop_requested()) {
               unifex::set_done((Receiver&&) rec_);
             } else {
               unifex::set_value((Receiver&&) rec_);
