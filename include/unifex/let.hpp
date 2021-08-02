@@ -261,7 +261,7 @@ template<typename Sender>
 struct sends_done_impl : bool_constant<sender_traits<Sender>::sends_done> {};
 
 template <typename... Successors>
-using any_sends_done = std::disjunction<sends_done_impl<Successors>...>;
+using any_sends_done = disjunction<sends_done_impl<Successors>...>;
 
 template <typename Predecessor, typename SuccessorFactory>
 class _sender<Predecessor, SuccessorFactory>::type {

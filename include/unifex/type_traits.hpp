@@ -21,6 +21,10 @@
 
 #include <unifex/functional.hpp>
 
+#if defined(UNIFEX_USE_ABSEIL)
+#include <absl/meta/type_traits.h>
+#endif
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -133,6 +137,12 @@ template <class Fn, class... Args>
 struct is_nothrow_invocable
   : bool_constant<is_nothrow_invocable_v<Fn, Args...>>
 {};
+#endif
+
+#if defined(UNIFEX_USE_ABSEIL)
+using absl::disjunction;
+#else
+using std::disjunction;
 #endif
 
 template <std::size_t Len, class... Types>

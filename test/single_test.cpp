@@ -30,6 +30,7 @@
 
 using namespace unifex;
 using namespace std::chrono;
+using namespace std::literals;
 
 TEST(single, Smoke) {
   thread_unsafe_event_loop eventLoop;

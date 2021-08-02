@@ -316,7 +316,7 @@ template<typename Sender>
 struct sends_done_impl : bool_constant<sender_traits<Sender>::sends_done> {};
 
 template<typename... Senders>
-using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
+using any_sends_done = disjunction<sends_done_impl<Senders>...>;
 
 template <typename Source, typename Func>
 class _sender<Source, Func>::type {

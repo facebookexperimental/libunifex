@@ -32,6 +32,7 @@
 
 using namespace unifex;
 using namespace std::chrono;
+using namespace std::literals;
 
 TEST(Delay, Smoke) {
   timed_single_thread_context context;

@@ -116,11 +116,11 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
       _result<_compose::_fn, remove_cvref_t<Other>, type>{
           {}, // _result_base
           {}, // _compose::_fn
-          {(Other&&) other, (Self&&) self}})) {
+          std::tuple{(Other&&) other, (Self&&) self}})) {
     return _result<_compose::_fn, remove_cvref_t<Other>, type>{
         {}, // _result_base
         {}, // _compose::_fn
-        {(Other&&) other, (Self&&) self}};
+        std::tuple{(Other&&) other, (Self&&) self}};
   }
 };
 
@@ -128,9 +128,9 @@ inline const struct _fn {
   template <typename Cpo, typename... ArgN>
   constexpr auto operator()(Cpo cpo, ArgN&&... argN) const
       noexcept(noexcept(
-          _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, {(ArgN &&) argN...}}))
+          _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, std::tuple{(ArgN &&) argN...}}))
       -> _result<Cpo, std::decay_t<ArgN>...> {
-    return _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, {(ArgN &&) argN...}};
+    return _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, std::tuple{(ArgN &&) argN...}};
   }
 } bind_back{};
 

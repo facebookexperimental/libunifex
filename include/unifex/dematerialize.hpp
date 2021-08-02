@@ -79,7 +79,7 @@ namespace _demat {
     }
 
     template <typename Func>
-    friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) noexcept(std::
+    friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) noexcept(
                                   is_nothrow_invocable_v<
                                       Func&,
                                       const Receiver&>) {
