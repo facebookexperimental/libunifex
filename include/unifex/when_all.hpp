@@ -364,7 +364,7 @@ class _sender<Senders...>::type {
 namespace _cpo {
   struct _fn {
     template (typename... Senders)
-      (requires (typed_sender<Senders> &&...) AND tag_invocable<_fn, Senders...>)
+      (requires (unifex::sender<Senders> &&...) AND tag_invocable<_fn, Senders...>)
     auto operator()(Senders&&... senders) const
         -> tag_invoke_result_t<_fn, Senders...> {
       return tag_invoke(*this, (Senders &&) senders...);
