@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_value.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/static_thread_pool.hpp>

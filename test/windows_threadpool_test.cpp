@@ -22,7 +22,7 @@
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/just.hpp>
 #include <unifex/materialize.hpp>
 
@@ -85,7 +85,7 @@ TEST(windows_thread_pool, schedule_cancellation_thread_safety) {
     auto sch = tp.get_scheduler();
 
     unifex::sync_wait(unifex::repeat_effect_until(
-        unifex::transform_done(
+        unifex::let_done(
             unifex::stop_when(
                 unifex::repeat_effect(unifex::schedule(sch)),
                 unifex::schedule(sch)),
@@ -116,7 +116,7 @@ TEST(windows_thread_pool, schedule_after_cancellation) {
     bool ranWork = false;
 
     unifex::sync_wait(
-        unifex::transform_done(
+        unifex::let_done(
             unifex::stop_when(
                 unifex::then(
                     unifex::schedule_after(s, 5s),
@@ -153,7 +153,7 @@ TEST(windows_thread_pool, schedule_at_cancellation) {
     bool ranWork = false;
 
     unifex::sync_wait(
-        unifex::transform_done(
+        unifex::let_done(
             unifex::stop_when(
                 unifex::then(
                     unifex::schedule_at(s, startTime + 5s),

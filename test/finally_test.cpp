@@ -22,8 +22,8 @@
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
-#include <unifex/transform_done.hpp>
-#include <unifex/transform_error.hpp>
+#include <unifex/let_done.hpp>
+#include <unifex/let_error.hpp>
 
 #include <cstdio>
 #include <thread>
@@ -50,7 +50,7 @@ TEST(Finally, Done) {
 
   auto res = just_done()
     | finally(schedule(context.get_scheduler()))
-    | transform_done([](){ return just(std::this_thread::get_id()); })
+    | let_done([](){ return just(std::this_thread::get_id()); })
     | sync_wait();
 
   ASSERT_FALSE(!res);
@@ -62,7 +62,7 @@ TEST(Finally, Error) {
 
   auto res = just_error(-1)
     | finally(schedule(context.get_scheduler()))
-    | transform_error([]{ return just(std::this_thread::get_id()); })
+    | let_error([]{ return just(std::this_thread::get_id()); })
     | sync_wait();
 
   ASSERT_TRUE(res.has_value());

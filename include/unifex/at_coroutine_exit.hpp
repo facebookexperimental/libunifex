@@ -121,7 +121,7 @@ struct _cleanup_promise_base {
 };
 
 // The die_on_done algorithm implemented here could be implemented in terms of
-// transform_done, but this implementation is simpler since it doesn't instantiate
+// let_done, but this implementation is simpler since it doesn't instantiate
 // a bunch of templates that will never be needed (no need to connect or start a
 // sender returned from the done transform function).
 template <typename Receiver>

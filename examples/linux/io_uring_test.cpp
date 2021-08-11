@@ -20,7 +20,7 @@
 
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/linux/io_uring_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/scope_guard.hpp>
@@ -51,7 +51,7 @@ static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
 // This could be made generic across any scheduler that supports the
 // async_write_only_file() CPO.
 auto write_new_file(io_uring_context::scheduler s, const char* path) {
-  return let_with(
+  return let_value_with(
       [s, path]() {
         // Call the 'open_file_write_only' CPO with the scheduler.
         // This will return a file object that satisfies an
@@ -76,7 +76,7 @@ auto write_new_file(io_uring_context::scheduler s, const char* path) {
 }
 
 auto read_file(io_uring_context::scheduler s, const char* path) {
-  return let_with(
+  return let_value_with(
       [s, path]() { return open_file_read_only(s, path); },
       [buffer = std::vector<char>{}](auto& file) mutable {
         buffer.resize(100);

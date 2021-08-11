@@ -18,7 +18,7 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
 #include <unifex/then.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
 

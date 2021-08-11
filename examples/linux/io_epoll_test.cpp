@@ -36,7 +36,7 @@
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/typed_via.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/defer.hpp>
 #include <unifex/just_from.hpp>
@@ -119,7 +119,7 @@ int main() {
           // stop reads after requested time
         | stop_when(schedule_at(scheduler, now(scheduler) + std::chrono::seconds(seconds)))
           // complete with void when requested time expires
-        | transform_done([]{return just();});
+        | let_done([]{return just();});
     });
   };
 
@@ -131,7 +131,7 @@ int main() {
         defer([&, databuffer] { return discard(async_write_some(wPipeRef, databuffer)); })
           | typed_via(scheduler)
           | repeat_effect()
-          | transform_done([]{return just();})
+          | let_done([]{return just();})
           | with_query_value(get_stop_token, stopToken),
         just_from([&]{ printf("writes stopped!\n"); }));
   };

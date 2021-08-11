@@ -23,7 +23,7 @@
 #include <unifex/then.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_value.hpp>
 
 #include <exception>
 #include <cstdio>

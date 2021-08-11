@@ -200,9 +200,6 @@ implemented:
 | `execution::transfer` | Not yet implemented |
 | `execution::transfer_just` | Not yet implemented |
 | `execution::upon_*` | Not yet implemented |
-| `execution::let_value` | `unifex::let` |
-| `execution::let_error` | `unifex::transform_error` |
-| `execution::let_done` | `unifex::transform_done` |
 | `execution::into_variant` | Not yet implemented |
 | `execution::bulk` | Not implemented (but see `unifex::bulk_schedule`) |
 | `execution::split` | Not yet implemented |

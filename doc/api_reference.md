@@ -13,13 +13,15 @@
   * `stop_if_requested()`
 * Sender Algorithms
   * `then()`
-  * `transform_done()`
   * `finally()`
   * `via()`
   * `typed_via()`
   * `on()`
-  * `let()`
-  * `let_with_stop_source()`
+  * `let_value()`
+  * `let_error()`
+  * `let_done()`
+  * `let_value_with()`
+  * `let_value_with_stop_source()`
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
@@ -229,7 +231,7 @@ is started, invokes the callable and connects and starts the returned sender.
 If the invocation of the callable exits with an exception, the exception is
 caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
-`defer(callable)` is synonymous with `let(just(), callable)`.
+`defer(callable)` is synonymous with `let_value(just(), callable)`.
 
 # Sender Algorithms
 
@@ -238,17 +240,114 @@ caught and passed to the receiver's `set_error` with `std::current_exception()`.
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
 
-### `transform_done(Sender predecessor, Func func) -> Sender`
+### `let_value(Sender pred, Invocable func) -> Sender`
+
+The `let_value()` algorithm accepts a predecessor task that produces a value that
+you want remain alive for the duration of a successor operation.
+
+When the predecessor operation completes with a value, the function `func`
+is invoked with lvalue references to copies of the values produced by
+the predecessor. This invocation must return a Sender.
+
+The references passed to `func` remain valid until the returned sender
+completes, at which point the variables go out of scope.
+
+For example:
+```c++
+let_value(some_operation(),
+    [](auto& x) {
+      return other_operation(x);
+    });
+```
+is roughly equivalent to the following coroutine code:
+```c++
+{
+  auto x = co_await some_operation();
+  co_await other_operation(x);
+}
+```
+
+If the predecessor completes with value then the `let_value()` operation as a
+whole will complete with the result of the successor.
+
+If the predecessor completes with done/error then `func` is not invoked
+and the operation as a whole completes with that done/error signal.
+
+### `let_error(Sender predecessor, Func func) -> Sender`
+
+Returns a sender that calls `auto finalSender = func()` in `set_error()` and then
+starts the returned `finalSender`. This allows a call to `set_error` to be
+delayed, to be transformed into an done signal or a value, etc..
+
+### `let_done(Sender predecessor, Func func) -> Sender`
 
 Returns a sender that calls `auto finalSender = func()` in `set_done()` and then
 starts the returned `finalSender`. This allows a call to `set_done` to be
 delayed, to be transformed into an error or a value, etc..
 
-### `transform_error(Sender predecessor, Func func) -> Sender`
+### `let_value_with(Invocable state_factory, Invocable func) -> Sender`
 
-Returns a sender that calls `auto finalSender = func()` in `set_error()` and then
-starts the returned `finalSender`. This allows a call to `set_error` to be
-delayed, to be transformed into an done signal or a value, etc..
+The `let_value_with()` algorithm accepts an invocable that produces a value that
+you want remain alive for the duration of a successor operation.
+
+When the `let_value_with` sender is connected the invocable is called to construct
+the result in-place in the operation state.
+In-place construction of the result is where `let_value_with` differs from `let_value`
+in that the result of `state_factory` can be a non-moveable type, such as
+`std::atomic` that will be constructed in-place in the operation state.
+
+The references passed to `func` remain valid until the returned sender
+completes, at which point the variables go out of scope.
+
+For example:
+```c++
+let_value_with(
+    some_factory,
+    [](auto& x) {
+      return other_operation(x);
+    });
+```
+is roughly equivalent to the following coroutine code:
+```c++
+{
+  auto x = some_factory();
+  co_await other_operation(x);
+}
+```
+
+If `state_factory` returns successfully then the `let_value_with()` operation
+as a whole will complete with the result of the successor.
+
+If `state_factory()` completes with an exception then the exception will
+propagate out of the `connect` operation.
+
+### `let_value_with_stop_source(Invocable func) -> Sender`
+
+The `let_value_with_stop_source()` algorithm constructs an
+`inplace_stop_token` that remains alive for the duration of an operation.
+
+`func` is invoked with an lvalue reference to an `inplace_stop_source`
+derived from the `inplace_stop_token`. This invocation must return a
+Sender.
+
+The `inplace_stop_token` is provided to the `Sender` returned by `func`
+via a call to `get_stop_token` on the provided `Receiver`.
+
+The reference passed to `func` remain valid until the returned sender
+completes, at which point the `inplace_stop_token` goes out of scope.
+
+For example:
+```c++
+let_value_with_stop_source(
+    [](unifex::inplace_stop_source& stop_source) {
+      return other_operation(stop_source);
+    });
+```
+
+Calling `.request_stop()` on the stop-source passed to the function requests
+cancellation of the operation returned by the function. Note that cancellation
+may also be requested through the stop-token of the receiver that is connected
+to the sender returned by `let_value_with_stop_source()`.
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
@@ -306,103 +405,6 @@ that signal and never starts executing `sender`.
 The `on()` algorithm may be customised by particular schedulers
 and/or scheduler+sender combinations to provide an alternative
 impllementation.
-
-### `let(Sender pred, Invocable func) -> Sender`
-
-The `let()` algorithm accepts a predecessor task that produces a value that
-you want remain alive for the duration of a successor operation.
-
-When the predecessor operation completes with a value, the function `func`
-is invoked with lvalue references to copies of the values produced by
-the predecessor. This invocation must return a Sender.
-
-The references passed to `func` remain valid until the returned sender
-completes, at which point the variables go out of scope.
-
-For example:
-```c++
-let(some_operation(),
-    [](auto& x) {
-      return other_operation(x);
-    });
-```
-is roughly equivalent to the following coroutine code:
-```c++
-{
-  auto x = co_await some_operation();
-  co_await other_operation(x);
-}
-```
-
-If the predecessor completes with value then the `let()` operation as a
-whole will complete with the result of the successor.
-
-If the predecessor completes with done/error then `func` is not invoked
-and the operation as a whole completes with that done/error signal.
-
-### `let_with(Invocable state_factory, Invocable func) -> Sender`
-
-The `let_with()` algorithm accepts an invocable that produces a value that
-you want remain alive for the duration of a successor operation.
-
-When the `let_with` sender is connected the invocable is called to construct
-the result in-place in the operation state.
-In-place construction of the result is where `let_with` differs from `let`
-in that the result of `state_factory` can be a non-moveable type, such as
-`std::atomic` that will be constructed in-place in the operation state.
-
-The references passed to `func` remain valid until the returned sender
-completes, at which point the variables go out of scope.
-
-For example:
-```c++
-let_with(
-    some_factory,
-    [](auto& x) {
-      return other_operation(x);
-    });
-```
-is roughly equivalent to the following coroutine code:
-```c++
-{
-  auto x = some_factory();
-  co_await other_operation(x);
-}
-```
-
-If `state_factory` returns successfully then the `let_with()` operation
-as a whole will complete with the result of the successor.
-
-If `state_factory()` completes with an exception then the exception will
-propagate out of the `connect` operation.
-
-### `let_with_stop_source(Invocable func) -> Sender`
-
-The `let_with_stop_source()` algorithm constructs an
-`inplace_stop_token` that remains alive for the duration of an operation.
-
-`func` is invoked with an lvalue reference to an `inplace_stop_source`
-derived from the `inplace_stop_token`. This invocation must return a
-Sender.
-
-The `inplace_stop_token` is provided to the `Sender` returned by `func`
-via a call to `get_stop_token` on the provided `Receiver`.
-
-The reference passed to `func` remain valid until the returned sender
-completes, at which point the `inplace_stop_token` goes out of scope.
-
-For example:
-```c++
-let_with_stop_source(
-    [](unifex::inplace_stop_source& stop_source) {
-      return other_operation(stop_source);
-    });
-```
-
-Calling `.request_stop()` on the stop-source passed to the function requests
-cancellation of the operation returned by the function. Note that cancellation
-may also be requested through the stop-token of the receiver that is connected
-to the sender returned by `let_with_stop_source()`.
 
 ### `sequence(Sender... predecessors, Sender last) -> Sender`
 

@@ -17,7 +17,7 @@
 #include <unifex/async_scope.hpp>
 
 #include <unifex/just_from.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/single_thread_context.hpp>
@@ -35,7 +35,7 @@ using unifex::connect;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
 using unifex::just_from;
-using unifex::let_with;
+using unifex::let_value_with;
 using unifex::schedule;
 using unifex::scope_guard;
 using unifex::sequence;
@@ -71,7 +71,7 @@ struct async_scope_test : testing::Test {
 
     scope.spawn_on(
         thread.get_scheduler(),
-        let_with(
+        let_value_with(
           [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
             executed = true;
             return 42;
@@ -197,7 +197,7 @@ TEST_F(async_scope_test, lots_of_threads_works) {
         [&]() noexcept {
           scope.spawn_on(
               thread.get_scheduler(),
-              let_with(
+              let_value_with(
                 [&] { return decr{count, evt3}; },
                 [&](decr&) noexcept {
                   return sequence(
