@@ -19,7 +19,7 @@
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/on.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>

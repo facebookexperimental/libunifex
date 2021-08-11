@@ -18,7 +18,7 @@
 
 #include <unifex/win32/windows_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/stop_when.hpp>
@@ -42,7 +42,7 @@ TEST(windows_thread_pool, custom_thread_pool) {
 
     std::atomic<int> count = 0;
 
-    auto incrementCountOnTp = unifex::transform(unifex::schedule(s), [&] { ++count; });
+    auto incrementCountOnTp = unifex::then(unifex::schedule(s), [&] { ++count; });
 
     unifex::sync_wait(unifex::when_all(
         incrementCountOnTp,
@@ -62,7 +62,7 @@ TEST(windows_thread_pool, schedule_completes_on_a_different_thread) {
     unifex::win32::windows_thread_pool tp;
     const auto mainThreadId = std::this_thread::get_id();
     auto workThreadId = unifex::sync_wait(
-        unifex::transform(
+        unifex::then(
             unifex::schedule(tp.get_scheduler()),
             [&]() noexcept { return std::this_thread::get_id(); }));
     EXPECT_NE(workThreadId, mainThreadId);
@@ -72,7 +72,7 @@ TEST(windows_thread_pool, schedule_multiple_in_parallel) {
     unifex::win32::windows_thread_pool tp;
     auto sch = tp.get_scheduler();
 
-    unifex::sync_wait(unifex::transform(
+    unifex::sync_wait(unifex::then(
         unifex::when_all(
             unifex::schedule(sch),
             unifex::schedule(sch),
@@ -118,7 +118,7 @@ TEST(windows_thread_pool, schedule_after_cancellation) {
     unifex::sync_wait(
         unifex::transform_done(
             unifex::stop_when(
-                unifex::transform(
+                unifex::then(
                     unifex::schedule_after(s, 5s),
                     [&] { ranWork = true; }),
                 unifex::schedule_after(s, 5ms)),
@@ -155,7 +155,7 @@ TEST(windows_thread_pool, schedule_at_cancellation) {
     unifex::sync_wait(
         unifex::transform_done(
             unifex::stop_when(
-                unifex::transform(
+                unifex::then(
                     unifex::schedule_at(s, startTime + 5s),
                     [&] { ranWork = true; }),
                 unifex::schedule_at(s, startTime + 5ms)),

@@ -17,7 +17,7 @@
 #include <unifex/when_all.hpp>
 #include <unifex/materialize.hpp>
 #include <unifex/dematerialize.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -32,7 +32,7 @@ int main() {
     [[maybe_unused]] std::optional<int> result = sync_wait(
         dematerialize(
             materialize(
-                transform(
+                then(
                     schedule(ctx.get_scheduler()),
                     []() { return 42; }))));
     UNIFEX_ASSERT(result.value() == 42);

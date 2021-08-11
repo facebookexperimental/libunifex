@@ -17,7 +17,7 @@
 
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -52,7 +52,7 @@ namespace _subschedule {
       typename _detail::_return_value<remove_cvref_t<T>>::type;
 
     template <typename Scheduler>
-    using _default_result_t = _tfx::sender<
+    using _default_result_t = _then::sender<
         callable_result_t<decltype(schedule), Scheduler&>,
         _return_value<Scheduler>>;
     template <typename Scheduler>

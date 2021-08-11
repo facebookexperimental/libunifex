@@ -28,7 +28,7 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>
 #include <unifex/transform_done.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/just.hpp>
 
 #include <chrono>
@@ -40,7 +40,7 @@ template<typename Sender>
 auto done_as_optional(Sender&& sender) {
   using value_type = unifex::sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
   return unifex::transform_done(
-    unifex::transform((Sender&&)sender, [](auto&&... values) {
+    unifex::then((Sender&&)sender, [](auto&&... values) {
       return std::optional<value_type>{std::in_place, static_cast<decltype(values)>(values)...};
     }), []() {
       return unifex::just(std::optional<value_type>(std::nullopt));

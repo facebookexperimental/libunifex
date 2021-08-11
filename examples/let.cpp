@@ -19,7 +19,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
@@ -33,7 +33,7 @@ int main() {
   timed_single_thread_context context;
 
   auto async = [&](auto&& func) {
-    return transform(
+    return then(
         schedule_after(context.get_scheduler(), 100ms),
         (decltype(func))func);
   };
@@ -61,7 +61,7 @@ int main() {
   // More complicated 'let' example that shows recursive let-scopes,
   // additional
 
-  sync_wait(transform(
+  sync_wait(then(
       when_all(
           let(asyncVector(),
               [&](std::vector<int>& v) {

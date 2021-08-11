@@ -12,7 +12,7 @@
   * `just_error()`
   * `stop_if_requested()`
 * Sender Algorithms
-  * `transform()`
+  * `then()`
   * `transform_done()`
   * `finally()`
   * `via()`
@@ -212,7 +212,7 @@ and then calling `set_value()` with no arguments.
 If the invocation of the callable exits with an exception, the exception is
 caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
-`just_from(callable)` is synonymous with `transform(just(), callable)`.
+`just_from(callable)` is synonymous with `then(just(), callable)`.
 
 ### `stop_if_requested()`
 
@@ -233,7 +233,7 @@ caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
 # Sender Algorithms
 
-### `transform(Sender predecessor, Func func) -> Sender`
+### `then(Sender predecessor, Func func) -> Sender`
 
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
@@ -243,6 +243,12 @@ Returns a sender that transforms the value of the `predecessor` by calling
 Returns a sender that calls `auto finalSender = func()` in `set_done()` and then
 starts the returned `finalSender`. This allows a call to `set_done` to be
 delayed, to be transformed into an error or a value, etc..
+
+### `transform_error(Sender predecessor, Func func) -> Sender`
+
+Returns a sender that calls `auto finalSender = func()` in `set_error()` and then
+starts the returned `finalSender`. This allows a call to `set_error` to be
+delayed, to be transformed into an done signal or a value, etc..
 
 ### `finally(Sender source, Sender completion) -> Sender`
 

@@ -21,7 +21,7 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/stop_when.hpp>
 
 #include <chrono>
@@ -45,7 +45,7 @@ int main() {
                 auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);
               }),
-          transform(
+          then(
             schedule_after(context.get_scheduler(), 500ms),
             [] { std::printf("cancelling\n"); })));
 

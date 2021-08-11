@@ -22,7 +22,7 @@
 
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/just.hpp>
 #include <unifex/stop_if_requested.hpp>
@@ -100,7 +100,7 @@ template<typename Sender>
 auto done_as_optional(Sender&& sender) {
   using value_type = sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
   return transform_done(
-    transform((Sender&&)sender, [](auto&&... values) {
+    then((Sender&&)sender, [](auto&&... values) {
       return std::optional<value_type>{std::in_place, static_cast<decltype(values)>(values)...};
     }), []() {
       return just(std::optional<value_type>(std::nullopt));

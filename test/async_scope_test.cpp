@@ -22,7 +22,7 @@
 #include <unifex/sequence.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 
 #include <gtest/gtest.h>
 
@@ -43,7 +43,7 @@ using unifex::single_thread_context;
 using unifex::start;
 using unifex::sync_wait;
 using unifex::tag_t;
-using unifex::transform;
+using unifex::then;
 
 struct signal_on_destruction {
   async_manual_reset_event* destroyed_;
@@ -192,7 +192,7 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     // This should stress-test job submission and cancellation.
     scope.spawn_on(
       thread.get_scheduler(),
-      transform(
+      then(
         evt1.async_wait(),
         [&]() noexcept {
           scope.spawn_on(

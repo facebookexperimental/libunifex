@@ -19,7 +19,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/find_if.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/on.hpp>
 
@@ -36,7 +36,7 @@ TEST(find_if, find_if_sequential) {
     // onwards to the result.
     // Precise API shape for the data being passed through is TBD, this is
     // one option only.
-    std::optional<std::vector<int>::iterator> result = sync_wait(transform(
+    std::optional<std::vector<int>::iterator> result = sync_wait(then(
         find_if(
             just(begin(input), end(input), 3),
             [&](const int& v, int another_parameter) noexcept {
@@ -67,7 +67,7 @@ TEST(find_if, find_if_parallel) {
     std::optional<std::vector<int>::iterator> result = sync_wait(
       unifex::on(
         ctx.get_scheduler(),
-        transform(
+        then(
           find_if(
               just(begin(input), end(input), checkValue),
               [&](const int& v, int another_parameter) noexcept {
@@ -119,7 +119,7 @@ TEST(find_if, Pipeable) {
             return v == another_parameter;
           },
           unifex::seq)
-      | transform(
+      | then(
           [](std::vector<int>::iterator v, [[maybe_unused]] int another_parameter) noexcept {
             UNIFEX_ASSERT(another_parameter == 3);
             return v;

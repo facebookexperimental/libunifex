@@ -31,7 +31,7 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/typed_via.hpp>
@@ -54,7 +54,7 @@ using namespace std::chrono_literals;
 
 inline constexpr auto sink = [](auto&&...){};
 
-inline constexpr auto discard = transform(sink);
+inline constexpr auto discard = then(sink);
 
 //! Seconds to warmup the benchmark
 static constexpr int WARMUP_DURATION = 3;
@@ -81,12 +81,12 @@ int main() {
       inplace_stop_source timerStopSource;
       auto task = when_all(
           schedule_at(scheduler, now(scheduler) + 1s)
-            | transform([] { std::printf("timer 1 completed (1s)\n"); }),
+            | then([] { std::printf("timer 1 completed (1s)\n"); }),
           schedule_at(scheduler, now(scheduler) + 2s)
-            | transform([] { std::printf("timer 2 completed (2s)\n"); }))
+            | then([] { std::printf("timer 2 completed (2s)\n"); }))
         | stop_when(
           schedule_at(scheduler, now(scheduler) + 1500ms)
-            | transform([] { std::printf("timer 3 completed (1.5s) cancelling\n"); }));
+            | then([] { std::printf("timer 3 completed (1.5s) cancelling\n"); }));
       sync_wait(std::move(task));
       auto endTime = std::chrono::steady_clock::now();
 
@@ -108,7 +108,7 @@ int main() {
           // do read:
           async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))
           | discard
-          | transform([&] {
+          | then([&] {
               UNIFEX_ASSERT(data[(reps + offset) % sizeof(data)] == buffer[0]);
               ++reps;
             });

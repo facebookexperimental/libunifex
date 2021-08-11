@@ -19,7 +19,7 @@
 #include <unifex/just.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/on.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/transform_error.hpp>
 #include <unifex/sequence.hpp>

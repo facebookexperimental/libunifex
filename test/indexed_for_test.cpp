@@ -15,7 +15,7 @@
  */
 #include <unifex/just.hpp>
 #include <unifex/let.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/indexed_for.hpp>

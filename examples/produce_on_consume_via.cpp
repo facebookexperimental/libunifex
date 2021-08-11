@@ -18,7 +18,7 @@
 #include <unifex/range_stream.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/typed_via_stream.hpp>
 
@@ -30,7 +30,7 @@ int main() {
   single_thread_context context1;
   single_thread_context context2;
 
-  sync_wait(transform(
+  sync_wait(then(
       for_each(
           typed_via_stream(
               context1.get_scheduler(),

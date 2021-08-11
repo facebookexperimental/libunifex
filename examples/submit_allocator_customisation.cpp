@@ -19,7 +19,7 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/submit.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/via.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_allocator.hpp>
@@ -71,7 +71,7 @@ void test(Scheduler scheduler, Allocator allocator) {
   auto addToValue = [&](int x) {
     // The via() is expected to allocate when it calls submit().
     // NOTE: This may start failing if we ever merge via() and typed_via().
-    return transform(via(scheduler, just(x)), [&](int x) {
+    return then(via(scheduler, just(x)), [&](int x) {
       std::printf("got %i\n", x);
       value += x;
     });

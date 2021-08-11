@@ -18,7 +18,7 @@
 
 #include <unifex/win32/low_latency_iocp_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/stop_when.hpp>
@@ -88,7 +88,7 @@ TEST(low_latency_iocp_context, schedule_multiple) {
 
     unifex::sync_wait(unifex::when_all(
         unifex::schedule(s),
-        unifex::transform(
+        unifex::then(
             unifex::schedule(s),
             [&]() {
                 UNIFEX_ASSERT(std::this_thread::get_id() == ioThread.get_id());
@@ -156,7 +156,7 @@ auto repeat_n(Sender&& sender, size_t count) {
 
 template<typename Sender>
 auto discard_value(Sender&& sender) {
-    return unifex::transform((Sender&&)sender, [](auto&&...) noexcept {});
+    return unifex::then((Sender&&)sender, [](auto&&...) noexcept {});
 }
 
 template<typename Sender>

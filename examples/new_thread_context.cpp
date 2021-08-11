@@ -18,7 +18,7 @@
 
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 
 #include <atomic>
@@ -52,7 +52,7 @@ int main() {
     unifex::new_thread_context ctx;
 
     auto makeThreadTask = [&](int i) {
-        return unifex::transform(
+        return unifex::then(
             unifex::schedule(ctx.get_scheduler()),
             [i] {
                 std::stringstream s;

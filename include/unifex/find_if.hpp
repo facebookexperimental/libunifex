@@ -27,7 +27,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_done.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
@@ -122,7 +122,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
         Iterator end_it,
         Values&&... values) noexcept {
       // Sequential implementation
-      return unifex::transform(
+      return unifex::then(
           unifex::just(std::forward<Values>(values)...),
           [this, begin_it, end_it](auto... values) {
             for(auto it = begin_it; it != end_it; ++it) {
@@ -215,7 +215,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                   )
                 );
               return
-                unifex::transform(
+                unifex::then(
                   unifex::transform_done(
                     std::move(bulk_phase),
                     [&state](){

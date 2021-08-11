@@ -18,7 +18,7 @@
 #include <unifex/just_error.hpp>
 #include <unifex/materialize.hpp>
 #include <unifex/dematerialize.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -35,7 +35,7 @@ TEST(Materialize, Smoke) {
     std::optional<int> result = sync_wait(
         dematerialize(
             materialize(
-                transform(
+                then(
                     schedule(ctx.get_scheduler()),
                     []() { return 42; }))));
 
@@ -47,7 +47,7 @@ TEST(Materialize, Pipeable) {
     single_thread_context ctx;
 
     std::optional<int> result = schedule(ctx.get_scheduler())
-      | transform(
+      | then(
         []() { return 42; })
       | materialize()
       | dematerialize()
