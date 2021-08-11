@@ -360,19 +360,26 @@ class _sender<Senders...>::type {
 
   std::tuple<Senders...> senders_;
 };
-} // namespace _when_all
 
-namespace _when_all_cpo {
-  inline const struct _fn {
-    template <typename... Senders>
+namespace _cpo {
+  struct _fn {
+    template (typename... Senders)
+      (requires (unifex::sender<Senders> &&...) AND tag_invocable<_fn, Senders...>)
+    auto operator()(Senders&&... senders) const
+        -> tag_invoke_result_t<_fn, Senders...> {
+      return tag_invoke(*this, (Senders &&) senders...);
+    }
+    template (typename... Senders)
+      (requires (typed_sender<Senders> &&...) AND (!tag_invocable<_fn, Senders...>))
     auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {
       return _when_all::sender<Senders...>{(Senders &&) senders...};
     }
-  } when_all{};
-} // namespace _when_all_cpo
+  };
+} // namespace _cpo
+} // namespace _when_all
 
-using _when_all_cpo::when_all;
+inline constexpr _when_all::_cpo::_fn when_all{};
 
 } // namespace unifex
 
