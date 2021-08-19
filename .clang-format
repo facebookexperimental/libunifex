@@ -36,7 +36,7 @@ BraceWrapping: {
   AfterControlStatement: false,
   AfterEnum: false,
   AfterFunction: false,
-  AfterNamespace: true,
+  AfterNamespace: false,
   AfterStruct: false,
   AfterUnion: false,
   BeforeCatch: false,
@@ -76,7 +76,7 @@ IndentPPDirectives: AfterHash
 IndentWrappedFunctionNames: false
 KeepEmptyLinesAtTheStartOfBlocks: false
 MaxEmptyLinesToKeep: 1
-NamespaceIndentation: All
+NamespaceIndentation: None
 PointerAlignment: Left
 ReflowComments: true
 SortIncludes: true
