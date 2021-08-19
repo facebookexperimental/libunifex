@@ -67,6 +67,28 @@ template <typename Sender>
 UNIFEX_CONCEPT _single_typed_sender =
   typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
 
+struct coro_holder {
+  explicit coro_holder(coro::coroutine_handle<> h) noexcept
+      : coro_(std::move(h)) {}
+
+  coro_holder(coro_holder&& other) noexcept
+      : coro_(std::exchange(other.coro_, {})) {}
+
+  ~coro_holder() {
+    if (coro_) {
+      coro_.destroy();
+    }
+  }
+
+  coro_holder& operator=(coro_holder rhs) noexcept {
+    std::swap(coro_, rhs.coro_);
+    return *this;
+  }
+
+ protected:
+  coro::coroutine_handle<> coro_;
+};
+
 template <typename T>
 struct _task {
   struct [[nodiscard]] type;
@@ -253,7 +275,7 @@ struct _awaiter {
   struct type {
     using result_type = typename ThisPromise::result_type;
 
-    explicit type(coro::coroutine_handle<ThisPromise> coro) noexcept
+    explicit type(coro::coroutine_handle<> coro) noexcept
       : coro_((std::uintptr_t) coro.address())
     {
       UNIFEX_ASSERT(coro_);
@@ -312,7 +334,7 @@ struct _awaiter {
         sched_.destruct();
       auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address(
           (void*) std::exchange(--coro_, 0));
-      scope_guard destroyOnExit{[&]() noexcept { thisCoro.destroy(); }};
+      coro_holder destroyOnExit{thisCoro};
       return thisCoro.promise().result();
     }
 
@@ -344,7 +366,7 @@ struct _awaiter {
 };
 
 template <typename T>
-struct _task<T>::type : _task_base {
+struct _task<T>::type : _task_base, coro_holder {
   using promise_type = typename _promise<T>::type;
   friend promise_type;
 
@@ -362,18 +384,9 @@ struct _task<T>::type : _task_base {
 
   static constexpr bool sends_done = true;
 
-  ~type() {
-    if (coro_)
-      coro_.destroy();
-  }
+  type(type&& t) noexcept = default;
 
-  type(type&& t) noexcept
-    : coro_(std::exchange(t.coro_, {})) {}
-
-  type& operator=(type t) noexcept {
-    std::swap(coro_, t.coro_);
-    return *this;
-  }
+  type& operator=(type&& t) noexcept = default;
 
   template <typename Fn, typename... Args>
   friend type tag_invoke(
@@ -386,7 +399,7 @@ private:
   using awaiter = typename _awaiter<promise_type, OtherPromise>::type;
 
   explicit type(coro::coroutine_handle<promise_type> h) noexcept
-    : coro_(h) {}
+    : coro_holder(h) {}
 
   template<typename Promise>
   friend awaiter<Promise> tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
@@ -397,8 +410,6 @@ private:
   friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
     return unifex::connect_awaitable((type&&) t, (Receiver&&) r);
   }
-
-  coro::coroutine_handle<promise_type> coro_;
 };
 
 } // namespace _task
