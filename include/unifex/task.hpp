@@ -270,35 +270,50 @@ struct _promise {
   };
 };
 
+struct tagged_coro_holder {
+  explicit tagged_coro_holder(coro::coroutine_handle<> h) noexcept
+      : coro_((std::uintptr_t) h.address()) {
+    UNIFEX_ASSERT(coro_);
+  }
+
+  tagged_coro_holder(tagged_coro_holder&& other) noexcept
+      : coro_(std::exchange(other.coro_, 0)) {
+      UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
+  }
+
+  ~tagged_coro_holder() {
+    static constexpr std::uintptr_t mask = ~(std::uintptr_t{1u});
+
+    if ((coro_ & mask) != 0u) {
+      auto address = reinterpret_cast<void*>(coro_ & mask);
+      coro::coroutine_handle<>::from_address(address).destroy();
+    }
+  }
+
+ protected:
+  std::uintptr_t coro_;
+};
+
 template<typename ThisPromise, typename OtherPromise>
 struct _awaiter {
-  struct type {
+  struct type : tagged_coro_holder {
     using result_type = typename ThisPromise::result_type;
 
     explicit type(coro::coroutine_handle<> coro) noexcept
-      : coro_((std::uintptr_t) coro.address())
-    {
-      UNIFEX_ASSERT(coro_);
-    }
+      : tagged_coro_holder(coro) {}
 
     // The move constructor is only ever called /before/ the awaitable is awaited.
     // In those cases, the other fields have not been initialized yet and so do not
     // need to be moved.
     type(type&& other) noexcept
-      : coro_(std::exchange(other.coro_, 0))
-    {
-      UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
-    }
+      : tagged_coro_holder(std::move(other)) {}
 
     ~type() {
       if (coro_ & 1u) {
-        coro::coroutine_handle<>::from_address((void*) --coro_).destroy();
         if constexpr (needs_stop_token_t::value)
           stopTokenAdapter_.unsubscribe();
         if constexpr (needs_scheduler_t::value)
           sched_.destruct();
-      } else if (coro_) {
-        coro::coroutine_handle<>::from_address((void*) coro_).destroy();
       }
     }
 
