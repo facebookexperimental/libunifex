@@ -291,6 +291,7 @@ struct tagged_coro_holder {
   }
 
  protected:
+  // Stored as an integer so we can use the low bit as a dirty bit
   std::uintptr_t coro_;
 };
 
@@ -361,7 +362,6 @@ struct _awaiter {
     using needs_stop_token_t =
         std::bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
 
-    std::uintptr_t coro_; // Stored as an integer so we can use the low bit as a dirty bit
     // Only store the scheduler and the stop_token in the awaiter if we need to type
     // erase them. Otherwise, these members are "empty" and should take up no space
     // because of the [[no_unique_address]] attribute.
