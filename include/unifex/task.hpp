@@ -184,8 +184,8 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
-        auto await_suspend(coro::coroutine_handle<type> h) noexcept {
-          return h.promise().continuation_.handle();
+        void await_suspend(coro::coroutine_handle<type> h) noexcept {
+          return h.promise().continuation_.handle().resume();
         }
       };
       return awaiter{};
