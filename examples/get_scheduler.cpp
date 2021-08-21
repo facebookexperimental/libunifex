@@ -44,7 +44,7 @@ int main() {
   // Check that this can propagate through multiple levels of
   // composed operations.
   sync_wait(with_query_value(
-      transform(
+      then(
           for_each(via_stream(current_scheduler,
                               transform_stream(range_stream{0, 10},
                                                [](int value) {

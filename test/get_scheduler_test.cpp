@@ -54,7 +54,7 @@ TEST(get_scheduler, current_scheduler) {
   // Check that this can propagate through multiple levels of
   // composed operations.
   sync_wait(with_query_value(
-      transform(
+      then(
           for_each(via_stream(current_scheduler,
                               transform_stream(range_stream{0, 10},
                                                [](int value) {
@@ -76,7 +76,7 @@ TEST(get_scheduler, Pipeable) {
     })
     | via_stream(current_scheduler)
     | for_each([](int value) { std::printf("got %i\n", value); })
-    | transform([]() { std::printf("done\n"); })
+    | then([]() { std::printf("done\n"); })
     | with_query_value(get_scheduler, ctx.get_scheduler())
     | sync_wait();
 }

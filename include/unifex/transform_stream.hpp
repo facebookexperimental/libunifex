@@ -16,7 +16,7 @@
 #pragma once
 
 #include <unifex/next_adapt_stream.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/bind_back.hpp>
 
 #include <functional>
@@ -30,7 +30,7 @@ namespace _tfx_stream {
     auto operator()(StreamSender&& stream, Func&& func) const {
       return next_adapt_stream(
           (StreamSender &&) stream, [func = (Func &&) func](auto&& sender) mutable {
-            return transform((decltype(sender))sender, std::ref(func));
+            return then((decltype(sender))sender, std::ref(func));
           });
     }
     template <typename Func>

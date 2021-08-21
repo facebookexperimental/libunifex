@@ -17,7 +17,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 
 #include <atomic>
@@ -26,7 +26,7 @@ using namespace unifex;
 
 template <typename Scheduler, typename F>
 auto run_on(Scheduler&& s, F&& func) {
-  return transform(schedule((Scheduler &&) s), (F &&) func);
+  return then(schedule((Scheduler &&) s), (F &&) func);
 }
 
 int main() {

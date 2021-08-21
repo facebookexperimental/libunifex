@@ -17,7 +17,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>

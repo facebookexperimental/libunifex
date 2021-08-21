@@ -16,7 +16,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/for_each.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/range_stream.hpp>
 
 #include <cstdio>
@@ -24,7 +24,7 @@
 using namespace unifex;
 
 int main() {
-  sync_wait(transform(
+  sync_wait(then(
       for_each(
           transform_stream(
               range_stream{0, 10}, [](int value) { return value * value; }),

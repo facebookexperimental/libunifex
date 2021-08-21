@@ -16,7 +16,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
@@ -32,9 +32,9 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  sync_wait(transform(
+  sync_wait(then(
       when_all(
-          transform(
+          then(
               schedule_after(scheduler, 100ms),
               [=]() {
                 auto time = steady_clock::now() - startTime;
@@ -42,7 +42,7 @@ int main() {
                 std::cout << "part1 finished - [" << timeMs << "]\n";
                 return time;
               }),
-          transform(
+          then(
               schedule_after(scheduler, 200ms),
               [=]() {
                 auto time = steady_clock::now() - startTime;
