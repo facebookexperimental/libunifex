@@ -67,6 +67,28 @@ template <typename Sender>
 UNIFEX_CONCEPT _single_typed_sender =
   typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
 
+struct coro_holder {
+  explicit coro_holder(coro::coroutine_handle<> h) noexcept
+      : coro_(std::move(h)) {}
+
+  coro_holder(coro_holder&& other) noexcept
+      : coro_(std::exchange(other.coro_, {})) {}
+
+  ~coro_holder() {
+    if (coro_) {
+      coro_.destroy();
+    }
+  }
+
+  coro_holder& operator=(coro_holder rhs) noexcept {
+    std::swap(coro_, rhs.coro_);
+    return *this;
+  }
+
+ protected:
+  coro::coroutine_handle<> coro_;
+};
+
 template <typename T>
 struct _task {
   struct [[nodiscard]] type;
@@ -162,9 +184,16 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
+#if defined(_MSC_VER) && !defined(__clang__)
+        // MSVC doesn't seem to like symmetric transfer in this final awaiter
+        void await_suspend(coro::coroutine_handle<type> h) noexcept {
+          return h.promise().continuation_.handle().resume();
+        }
+#else
         auto await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_.handle();
         }
+#endif
       };
       return awaiter{};
     }
@@ -248,35 +277,51 @@ struct _promise {
   };
 };
 
+struct tagged_coro_holder {
+  explicit tagged_coro_holder(coro::coroutine_handle<> h) noexcept
+      : coro_((std::uintptr_t) h.address()) {
+    UNIFEX_ASSERT(coro_);
+  }
+
+  tagged_coro_holder(tagged_coro_holder&& other) noexcept
+      : coro_(std::exchange(other.coro_, 0)) {
+      UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
+  }
+
+  ~tagged_coro_holder() {
+    static constexpr std::uintptr_t mask = ~(std::uintptr_t{1u});
+
+    if ((coro_ & mask) != 0u) {
+      auto address = reinterpret_cast<void*>(coro_ & mask);
+      coro::coroutine_handle<>::from_address(address).destroy();
+    }
+  }
+
+ protected:
+  // Stored as an integer so we can use the low bit as a dirty bit
+  std::uintptr_t coro_;
+};
+
 template<typename ThisPromise, typename OtherPromise>
 struct _awaiter {
-  struct type {
+  struct type : tagged_coro_holder {
     using result_type = typename ThisPromise::result_type;
 
-    explicit type(coro::coroutine_handle<ThisPromise> coro) noexcept
-      : coro_((std::uintptr_t) coro.address())
-    {
-      UNIFEX_ASSERT(coro_);
-    }
+    explicit type(coro::coroutine_handle<> coro) noexcept
+      : tagged_coro_holder(coro) {}
 
     // The move constructor is only ever called /before/ the awaitable is awaited.
     // In those cases, the other fields have not been initialized yet and so do not
     // need to be moved.
     type(type&& other) noexcept
-      : coro_(std::exchange(other.coro_, 0))
-    {
-      UNIFEX_ASSERT(coro_ && ((coro_ & 1u) == 0u));
-    }
+      : tagged_coro_holder(std::move(other)) {}
 
     ~type() {
       if (coro_ & 1u) {
-        coro::coroutine_handle<>::from_address((void*) --coro_).destroy();
         if constexpr (needs_stop_token_t::value)
           stopTokenAdapter_.unsubscribe();
         if constexpr (needs_scheduler_t::value)
           sched_.destruct();
-      } else if (coro_) {
-        coro::coroutine_handle<>::from_address((void*) coro_).destroy();
       }
     }
 
@@ -312,7 +357,7 @@ struct _awaiter {
         sched_.destruct();
       auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address(
           (void*) std::exchange(--coro_, 0));
-      scope_guard destroyOnExit{[&]() noexcept { thisCoro.destroy(); }};
+      coro_holder destroyOnExit{thisCoro};
       return thisCoro.promise().result();
     }
 
@@ -324,7 +369,6 @@ struct _awaiter {
     using needs_stop_token_t =
         std::bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
 
-    std::uintptr_t coro_; // Stored as an integer so we can use the low bit as a dirty bit
     // Only store the scheduler and the stop_token in the awaiter if we need to type
     // erase them. Otherwise, these members are "empty" and should take up no space
     // because of the [[no_unique_address]] attribute.
@@ -344,7 +388,7 @@ struct _awaiter {
 };
 
 template <typename T>
-struct _task<T>::type : _task_base {
+struct _task<T>::type : _task_base, coro_holder {
   using promise_type = typename _promise<T>::type;
   friend promise_type;
 
@@ -362,18 +406,9 @@ struct _task<T>::type : _task_base {
 
   static constexpr bool sends_done = true;
 
-  ~type() {
-    if (coro_)
-      coro_.destroy();
-  }
+  type(type&& t) noexcept = default;
 
-  type(type&& t) noexcept
-    : coro_(std::exchange(t.coro_, {})) {}
-
-  type& operator=(type t) noexcept {
-    std::swap(coro_, t.coro_);
-    return *this;
-  }
+  type& operator=(type&& t) noexcept = default;
 
   template <typename Fn, typename... Args>
   friend type tag_invoke(
@@ -386,7 +421,7 @@ private:
   using awaiter = typename _awaiter<promise_type, OtherPromise>::type;
 
   explicit type(coro::coroutine_handle<promise_type> h) noexcept
-    : coro_(h) {}
+    : coro_holder(h) {}
 
   template<typename Promise>
   friend awaiter<Promise> tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
@@ -397,8 +432,6 @@ private:
   friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
     return unifex::connect_awaitable((type&&) t, (Receiver&&) r);
   }
-
-  coro::coroutine_handle<promise_type> coro_;
 };
 
 } // namespace _task
