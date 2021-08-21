@@ -3,3 +3,5 @@ build/
 .vs/
 /CMakeSettings.json
 /Folder.DotSettings.user
+/compile_commands.json
+/.cache
