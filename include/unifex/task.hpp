@@ -142,9 +142,16 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
+#if defined(_MSC_VER) && !defined(__clang__)
+        // MSVC doesn't seem to like symmetric transfer in this final awaiter
+        void await_suspend(coro::coroutine_handle<type> h) noexcept {
+          return h.promise().continuation_.handle().resume();
+        }
+#else
         auto await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_.handle();
         }
+#endif
       };
       return awaiter{};
     }
