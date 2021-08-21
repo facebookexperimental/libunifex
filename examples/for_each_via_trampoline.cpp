@@ -17,7 +17,7 @@
 #include <unifex/range_stream.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/trampoline_scheduler.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/typed_via_stream.hpp>
 
@@ -26,7 +26,7 @@
 using namespace unifex;
 
 int main() {
-  sync_wait(transform(
+  sync_wait(then(
       for_each(
           typed_via_stream(
               trampoline_scheduler{},

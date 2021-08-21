@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/let_value.hpp>
+#include <unifex/then.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
@@ -114,7 +114,7 @@ int main() {
         vec[idx] = vec[idx] + i + idx;
       });
 
-  auto transform_sender = transform(
+  auto transform_sender = then(
     std::move(indexed_for_sender), [](std::vector<int> vec, int /*i*/){return vec;});
 
   // Slight difference from p1897R2 because unifex's sync_wait returns an optional

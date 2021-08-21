@@ -18,7 +18,7 @@
 #include <unifex/finally.hpp>
 #include <unifex/just.hpp>
 #include <unifex/ready_done_sender.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/any_scheduler.hpp>
 
@@ -176,7 +176,7 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanError) {
   using any_sender = typename test_t::any_sender;
 
   any_sender sender = finally(test_t::default_just(),
-      transform(just(), [] {
+      then(just(), [] {
         throw std::runtime_error("uh oh");
       }));
 

@@ -17,7 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_value.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -28,7 +28,7 @@ namespace unifex
       template (typename Callable)
         (requires callable<Callable> AND sender<callable_result_t<Callable>>)
       constexpr auto operator()(Callable&& callable) const {
-        return let(just(), (Callable&&) callable);
+        return let_value(just(), (Callable&&) callable);
       }
     } defer{};
   } // namespace _defer

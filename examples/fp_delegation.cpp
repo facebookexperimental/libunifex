@@ -189,7 +189,7 @@ int main() {
 
   // Try inner context, then outer context, delegating to ctx if necessary
   sync_wait(
-      transform(
+      then(
           for_each(
               via_stream(
                   outer_delegating_ctx.get_scheduler(),

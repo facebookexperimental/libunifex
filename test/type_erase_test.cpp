@@ -19,7 +19,7 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/type_erased_stream.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/typed_via_stream.hpp>
 
@@ -33,7 +33,7 @@ TEST(type_erase, Smoke) {
   single_thread_context context1;
   single_thread_context context2;
 
-  sync_wait(transform(
+  sync_wait(then(
       for_each(
             type_erase<int>(
                 typed_via_stream(
@@ -59,6 +59,6 @@ TEST(type_erase, Pipeable) {
     | type_erase<int>()
     | for_each(
         [](int value) { std::printf("got %i\n", value); })
-    | transform([]() { std::printf("done\n"); })
+    | then([]() { std::printf("done\n"); })
     | sync_wait();
 }
