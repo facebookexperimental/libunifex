@@ -18,18 +18,18 @@
 
 #include <unifex/win32/low_latency_iocp_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/materialize.hpp>
 #include <unifex/span.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/trampoline_scheduler.hpp>
 #include <unifex/typed_via.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/on.hpp>
 #include <unifex/defer.hpp>
@@ -89,7 +89,7 @@ TEST(low_latency_iocp_context, schedule_multiple) {
 
     unifex::sync_wait(unifex::when_all(
         unifex::schedule(s),
-        unifex::transform(
+        unifex::then(
             unifex::schedule(s),
             [&]() {
                 UNIFEX_ASSERT(std::this_thread::get_id() == ioThread.get_id());
@@ -157,14 +157,14 @@ auto repeat_n(Sender&& sender, size_t count) {
 
 template<typename Sender>
 auto discard_value(Sender&& sender) {
-    return unifex::transform((Sender&&)sender, [](auto&&...) noexcept {});
+    return unifex::then((Sender&&)sender, [](auto&&...) noexcept {});
 }
 
 template<typename Sender>
 auto measure_time(Sender&& sender, std::string tag = {}) {
     using namespace std::chrono;
 
-    return unifex::let_with(
+    return unifex::let_value_with(
         [] { return steady_clock::now(); },
         [sender=(Sender&&)sender, tag=std::move(tag)](const steady_clock::time_point& startTime) {
             return unifex::finally(

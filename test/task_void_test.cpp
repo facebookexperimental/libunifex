@@ -23,7 +23,7 @@
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/task.hpp>
 
 #include <gtest/gtest.h>

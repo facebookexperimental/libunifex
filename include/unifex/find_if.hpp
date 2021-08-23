@@ -17,8 +17,8 @@
 
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let_with.hpp>
-#include <unifex/let_with_stop_source.hpp>
+#include <unifex/let_value_with.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -27,8 +27,8 @@
 #include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
-#include <unifex/transform.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/then.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bulk_join.hpp>
@@ -123,7 +123,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
         Iterator end_it,
         Values&&... values) noexcept {
       // Sequential implementation
-      return unifex::transform(
+      return unifex::then(
           unifex::just(std::forward<Values>(values)...),
           [this, begin_it, end_it](auto... values) {
             for(auto it = begin_it; it != end_it; ++it) {
@@ -139,7 +139,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     // Cancellable parallel algorithm.
     // This version is two phase to avoid a non-trivial atomic in the middle.
     // With more built-in algorithms it can be simplified:
-    //  * let_with to allocate non-movable state in the operation state.
+    //  * let_value_with to allocate non-movable state in the operation state.
     //  * unpack to deal with tuple to pack conversion
     // It could also be simplified by making more of the code custom, but I wanted
     // to demonstrate reuse of internal algorithms to build something more compelex
@@ -168,23 +168,23 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
         std::vector<Iterator> perChunkState;
       };
 
-      // The outer let keeps the vector of found results and the found flag
+      // The outer let_value keeps the vector of found results and the found flag
       // alive for the duration.
-      // let_with constructs the vector and found_flag directly in the operation
+      // let_value_with constructs the vector and found_flag directly in the operation
       // state.
       // Use a two phase process largely to demonstrate a simple multi-phase algorithm
       // and to avoid using a cmpexch loop on an intermediate iterator.
       return
-      unifex::let(
+      unifex::let_value(
         unifex::just(std::forward<Values>(values)...),
         [func = std::move(func_), sched = std::move(sched), begin_it,
         chunk_size, end_it, num_chunks](Values&... values) mutable {
-          return unifex::let_with([&](){return State{false, std::vector<Iterator>(num_chunks, end_it)};},[&](State& state) {
+          return unifex::let_value_with([&](){return State{false, std::vector<Iterator>(num_chunks, end_it)};},[&](State& state) {
             // Inject a stop source and make it available for inner operations.
             // This stop source propagates into the algorithm through the receiver,
             // such that it will cancel the bulk_schedule operation.
             // It is also triggered if the downstream stop source is triggered.
-            return unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) mutable {
+            return unifex::let_value_with_stop_source([&](unifex::inplace_stop_source& stopSource) mutable {
               auto bulk_phase = unifex::bulk_join(
                   unifex::bulk_transform(
                     unifex::bulk_schedule(std::move(sched), num_chunks),
@@ -216,8 +216,8 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                   )
                 );
               return
-                unifex::transform(
-                  unifex::transform_done(
+                unifex::then(
+                  unifex::let_done(
                     std::move(bulk_phase),
                     [&state](){
                       if(state.found_flag == true) {

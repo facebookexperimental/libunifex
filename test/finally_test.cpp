@@ -18,12 +18,12 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
-#include <unifex/transform_done.hpp>
-#include <unifex/transform_error.hpp>
+#include <unifex/let_done.hpp>
+#include <unifex/let_error.hpp>
 
 #include <cstdio>
 #include <thread>
@@ -37,7 +37,7 @@ TEST(Finally, Value) {
 
   auto res = just(42)
     | finally(schedule(context.get_scheduler()))
-    | transform([](int i){ return std::make_pair(i, std::this_thread::get_id() ); })
+    | then([](int i){ return std::make_pair(i, std::this_thread::get_id() ); })
     | sync_wait();
 
   ASSERT_FALSE(!res);
@@ -50,7 +50,7 @@ TEST(Finally, Done) {
 
   auto res = just_done()
     | finally(schedule(context.get_scheduler()))
-    | transform_done([](){ return just(std::this_thread::get_id()); })
+    | let_done([](){ return just(std::this_thread::get_id()); })
     | sync_wait();
 
   ASSERT_FALSE(!res);
@@ -62,7 +62,7 @@ TEST(Finally, Error) {
 
   auto res = just_error(-1)
     | finally(schedule(context.get_scheduler()))
-    | transform_error([]{ return just(std::this_thread::get_id()); })
+    | let_error([]{ return just(std::this_thread::get_id()); })
     | sync_wait();
 
   ASSERT_TRUE(res.has_value());

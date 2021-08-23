@@ -25,7 +25,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/sequence.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/on.hpp>
 
@@ -172,7 +172,7 @@ public:
         just_from([this]() noexcept {
           request_stop();
         }),
-        transform(evt_.async_wait(), [this]() noexcept {
+        then(evt_.async_wait(), [this]() noexcept {
           // make sure to synchronize with all the fetch_subs being done while
           // operations complete
           (void)opState_.load(std::memory_order_acquire);

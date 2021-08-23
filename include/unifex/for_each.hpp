@@ -16,7 +16,7 @@
 #pragma once
 
 #include <unifex/reduce_stream.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/functional.hpp>
@@ -46,7 +46,7 @@ namespace _for_each {
   private:
     template <typename Stream, typename Func>
     using _default_result_t =
-        decltype(transform(
+        decltype(then(
           reduce_stream(
             UNIFEX_DECLVAL(Stream),
             unit{},
@@ -70,7 +70,7 @@ namespace _for_each {
       (requires (!tag_invocable<_fn, Stream, Func>))
     auto operator()(Stream&& stream, Func&& func) const
         -> _result_t<Stream, Func> {
-      return transform(
+      return then(
           reduce_stream(
               (Stream &&) stream,
               unit{},

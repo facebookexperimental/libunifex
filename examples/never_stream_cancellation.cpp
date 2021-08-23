@@ -19,7 +19,7 @@
 #include <unifex/never.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
@@ -41,7 +41,7 @@ int main() {
             std::printf("got value");
             std::fflush(stdout);
           }),
-      transform(
+      then(
         schedule_after(context.get_scheduler(), 100ms),
         [] { std::printf("trigger completing, about to request stop\n"); })));
 

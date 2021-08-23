@@ -17,7 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -28,7 +28,7 @@ namespace unifex
       template (typename Callable)
         (requires callable<Callable>)
       constexpr auto operator()(Callable&& callable) const {
-        return transform(just(), (Callable&&) callable);
+        return then(just(), (Callable&&) callable);
       }
     } just_from{};
   } // namespace _just_froom

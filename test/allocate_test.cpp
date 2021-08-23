@@ -17,7 +17,7 @@
 #include <unifex/allocate.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
 #include <array>
@@ -33,7 +33,7 @@ TEST(Allocate, Smoke) {
   auto thread = threadContext.get_scheduler();
   int count = 0;
 
-  sync_wait(allocate(transform(
+  sync_wait(allocate(then(
       schedule(thread), [&] { ++count; })));
 
   EXPECT_EQ(count, 1);
@@ -46,7 +46,7 @@ TEST(Allocate, Pipeable) {
   int count = 0;
 
   schedule(thread)
-    | transform([&] { ++count; })
+    | then([&] { ++count; })
     | allocate()
     | sync_wait();
 

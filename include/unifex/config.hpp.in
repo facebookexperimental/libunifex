@@ -288,3 +288,17 @@
 #else
   #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
 #endif
+
+#if !defined(UNIFEX_DEPRECATED_HEADER)
+  #ifdef __GNUC__
+    #define UNIFEX_PRAGMA(X) _Pragma(#X)
+    #define UNIFEX_DEPRECATED_HEADER(MSG) UNIFEX_PRAGMA(GCC warning MSG)
+  #elif defined(_MSC_VER)
+    #define UNIFEX_STRINGIZE_(MSG) #MSG
+    #define UNIFEX_STRINGIZE(MSG) UNIFEX_STRINGIZE_(MSG)
+    #define UNIFEX_DEPRECATED_HEADER(MSG) \
+        __pragma(message(__FILE__ "(" UNIFEX_STRINGIZE(__LINE__) ") : Warning: " MSG))
+  #endif
+#else
+  #define UNIFEX_DEPRECATED_HEADER(MSG) /**/
+#endif

@@ -197,13 +197,9 @@ implemented:
 
 | P2300 algorithm | Libunifex equivalent |
 |-----------------|----------------------|
-| `execution::then` | `unifex::transform` |
 | `execution::transfer` | Not yet implemented |
 | `execution::transfer_just` | Not yet implemented |
 | `execution::upon_*` | Not yet implemented |
-| `execution::let_value` | `unifex::let` |
-| `execution::let_error` | `unifex::transform_error` |
-| `execution::let_done` | `unifex::transform_done` |
 | `execution::into_variant` | Not yet implemented |
 | `execution::bulk` | Not implemented (but see `unifex::bulk_schedule`) |
 | `execution::split` | Not yet implemented |
@@ -366,10 +362,10 @@ auto [a, b, c] = co_await... foo();
 
 This can also potentially help unify the `void` and non-`void` cases.
 
-e.g. When implementing a `transform()` operation, instead of needing to write this:
+e.g. When implementing a `then()` operation, instead of needing to write this:
 ```c++
 template<typename AsyncOp, typename Func>
-task transform(AsyncOp op, Func f) {
+task then(AsyncOp op, Func f) {
     if constexpr (std::is_void_v<await_result_t<AsyncOp>>) {
         co_await std::move(op);
         f();
@@ -382,7 +378,7 @@ task transform(AsyncOp op, Func f) {
 We could just write:
 ```c++
 template<typename AsyncOp, typename Func>
-task transform(AsyncOp op, Func f) {
+task then(AsyncOp op, Func f) {
   f(co_await... std::move(op));
 }
 ```

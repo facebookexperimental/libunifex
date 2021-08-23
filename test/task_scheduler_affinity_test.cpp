@@ -22,12 +22,11 @@
 
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/stop_if_requested.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/just.hpp>
-#include <unifex/transform_done.hpp>
-#include <unifex/transform_error.hpp>
+#include <unifex/let_done.hpp>
 
 #include <gtest/gtest.h>
 
@@ -42,7 +41,7 @@ UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
 task<std::pair<std::thread::id, std::thread::id>> child(Scheduler s) {
   auto that_id =
-      co_await transform(schedule(s), []{ return std::this_thread::get_id(); });
+      co_await then(schedule(s), []{ return std::this_thread::get_id(); });
   // Should have automatically transitioned back to the original thread:
   auto this_id = std::this_thread::get_id();
   co_return std::make_pair(this_id, that_id);
@@ -108,7 +107,7 @@ UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
 task<std::thread::id> test_context_restored_on_cancel(Scheduler s) {
   // swallow the cancellation signal:
-  (void) co_await transform_done(
+  (void) co_await let_done(
       test_context_restored_on_cancel_2(s),
       []() noexcept { return just(); });
   co_return std::this_thread::get_id();

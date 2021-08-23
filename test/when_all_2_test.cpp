@@ -16,7 +16,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/utility.hpp>
 #include <unifex/variant.hpp>
@@ -49,9 +49,9 @@ TEST(WhenAll2, Smoke) {
   bool ranFinalCallback = false;
 
   try {
-    sync_wait(transform(
+    sync_wait(then(
         when_all(
-            transform(
+            then(
                 schedule_after(scheduler, 100ms),
                 [&]() -> steady_clock::time_point::duration {
                   ranPart1Callback = true;
@@ -61,7 +61,7 @@ TEST(WhenAll2, Smoke) {
                             << "ms] throwing\n";
                   throw my_error{};
                 }),
-            transform(
+            then(
                 schedule_after(scheduler, 200ms),
                 [&]() {
                   ranPart2Callback = true;

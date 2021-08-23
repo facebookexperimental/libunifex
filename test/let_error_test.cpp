@@ -17,10 +17,11 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
-#include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
 #include <unifex/on.hpp>
-#include <unifex/transform.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/then.hpp>
+#include <unifex/let_done.hpp>
+#include <unifex/let_error.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/just_from.hpp>
@@ -34,7 +35,7 @@ using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
-TEST(TransformDone, Smoke) {
+TEST(TransformError, Smoke) {
   timed_single_thread_context context;
 
   auto scheduler = context.get_scheduler();
@@ -44,16 +45,18 @@ TEST(TransformDone, Smoke) {
   sync_wait(
     stop_when(
       sequence(
-        transform_done(
-          schedule_after(scheduler, 200ms), 
-          []{ return just(); }), 
+        let_error(
+          let_done(
+            schedule_after(scheduler, 200ms), 
+            []{ return just_error(-1); }),
+          []{ return just(); }),
         just_from([&]{ ++count; })),
       schedule_after(scheduler, 100ms)));
 
   EXPECT_EQ(count, 1);
 }
 
-TEST(TransformDone, StayDone) {
+TEST(TransformError, StayError) {
   timed_single_thread_context context;
 
   auto scheduler = context.get_scheduler();
@@ -61,14 +64,14 @@ TEST(TransformDone, StayDone) {
   int count = 0;
 
   auto op = sequence(
-    on(scheduler, just_done() | transform_done([]{ return just(); })),
+    on(scheduler, just_error(42) | let_error([]{ return just(); })),
     just_from([&]{ ++count; }));
   sync_wait(std::move(op));
 
   EXPECT_EQ(count, 1);
 }
 
-TEST(TransformDone, Pipeable) {
+TEST(TransformError, Pipeable) {
   timed_single_thread_context context;
 
   auto scheduler = context.get_scheduler();
@@ -77,8 +80,8 @@ TEST(TransformDone, Pipeable) {
 
   sequence(
     schedule_after(scheduler, 200ms)
-      | transform_done(
-          []{ return just(); }), 
+      | let_done([]{ return just_error(-1); })
+      | let_error([]{ return just(); }), 
     just_from([&]{ ++count; }))
     | stop_when(schedule_after(scheduler, 100ms))
     | sync_wait();
@@ -86,18 +89,18 @@ TEST(TransformDone, Pipeable) {
   EXPECT_EQ(count, 1);
 }
 
-TEST(TransformDone, WithValue) {
+TEST(TransformError, WithValue) {
   auto one = 
-    just_done()
-    | transform_done([] { return just(42); })
+    just_error(-1)
+    | let_error([]{ return just(42); })
     | sync_wait();
 
   EXPECT_TRUE(one.has_value());
   EXPECT_EQ(*one, 42);
 
   auto multiple = 
-    just_done()
-    | transform_done([] { return just(42, 1, 2); })
+    just_error(-1)
+    | let_error([]{ return just(42, 1, 2); })
     | sync_wait();
 
   EXPECT_TRUE(multiple.has_value());

@@ -27,8 +27,8 @@
 #include <unifex/task.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>
-#include <unifex/transform_done.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/let_done.hpp>
+#include <unifex/then.hpp>
 #include <unifex/just.hpp>
 #include <unifex/optional.hpp>
 
@@ -40,8 +40,8 @@ using namespace unifex;
 template<typename Sender>
 auto done_as_optional(Sender&& sender) {
   using value_type = unifex::sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
-  return unifex::transform_done(
-    unifex::transform((Sender&&)sender, [](auto&&... values) {
+  return unifex::let_done(
+    unifex::then((Sender&&)sender, [](auto&&... values) {
       return optional<value_type>{in_place, static_cast<decltype(values)>(values)...};
     }), []() {
       return unifex::just(optional<value_type>(nullopt));
@@ -50,7 +50,7 @@ auto done_as_optional(Sender&& sender) {
 
 template<typename Sender>
 auto done_as_void(Sender&& sender) {
-  return transform_done((Sender&&)sender, [] { return just(); });
+  return let_done((Sender&&)sender, [] { return just(); });
 }
 
 int main() {

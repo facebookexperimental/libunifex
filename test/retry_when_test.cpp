@@ -20,10 +20,10 @@
 
 #include <unifex/retry_when.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_value.hpp>
 
 #include <exception>
 #include <cstdio>
@@ -57,7 +57,7 @@ TEST(retry_when, WorksAsExpected) {
   EXPECT_THROW(
     unifex::sync_wait(
       unifex::retry_when(
-        unifex::transform(unifex::schedule_after(scheduler, 10ms), [&] {
+        unifex::then(unifex::schedule_after(scheduler, 10ms), [&] {
             ++operationCount;
             std::printf("[%d] %d: operation about to fail\n", (int)timeSinceStartInMs(), operationCount);
             throw some_error{};
@@ -103,7 +103,7 @@ TEST(retry_when, Pipeable) {
 
   EXPECT_THROW(
     unifex::schedule_after(scheduler, 10ms)
-      | unifex::transform([&] {
+      | unifex::then([&] {
           ++operationCount;
           std::printf("[%d] %d: operation about to fail\n", (int)timeSinceStartInMs(), operationCount);
           throw some_error{};

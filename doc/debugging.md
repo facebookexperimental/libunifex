@@ -44,7 +44,7 @@ of the async stack at this point.
 For example: Some helpers to dump an async trace.
 ```c++
 auto dump_async_trace(std::string tag = {}) {
-  return transform(
+  return then(
       async_trace_sender{},
       [tag = std::move(tag)](const std::vector<async_trace_entry>& entries) {
         std::cout << "Async Trace (" << tag << "):\n";
