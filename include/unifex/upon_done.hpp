@@ -161,7 +161,7 @@ public:
     return bind_back(*this, (Func &&)(func));
   }
 };
-};  // namespace _cpo
+}  // namespace _cpo
 }  // namespace _upon_done
 inline constexpr _upon_done::_cpo::_fn upon_done{};
 }  // namespace unifex
