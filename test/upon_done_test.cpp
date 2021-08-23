@@ -1,3 +1,4 @@
+#include <unifex/just.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/upon_done.hpp>
@@ -29,4 +30,15 @@ TEST(Pipeable, UponDone){
     | sync_wait();
 
   EXPECT_EQ(count, 2);
+}
+
+TEST(NotCalled, UponDone){
+  int count = 0;
+
+  auto x = just(42)
+    | upon_done([&]{count++;})
+    | sync_wait();
+
+  EXPECT_EQ(count, 0);
+  EXPECT_EQ(x.value(), 42);
 }
