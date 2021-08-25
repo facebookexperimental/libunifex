@@ -2,48 +2,69 @@
 #include <unifex/just_error.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/upon_error.hpp>
-#include <iostream>
 
-#include <chrono>
-#include <iostream>
 #include <type_traits>
 
 #include <gtest/gtest.h>
 
 using namespace unifex;
-using namespace std::chrono;
-using namespace std::chrono_literals;
 
 TEST(UponError, Working) {
-  int err_code = 0;
-  try {
-    sync_wait(upon_error(just_error(42), [] { return 2; }));
-  } catch (int err) {
-    err_code = err;
-  }
-  EXPECT_EQ(err_code, 2);
+  int val = 0;
+  auto res = sync_wait(upon_error(just_error(42), [&](auto err_val) {
+    val = err_val;
+    return 2;
+  }));
+  EXPECT_EQ(val, 42);
+  EXPECT_EQ(res.value(), 2);
 }
 
 TEST(Pipeable, UponError) {
-  int err_code = 0;
-  try {
-    just_error(42)
-      | upon_error([]{ return 2; })
-      | sync_wait();
-  } catch (int err) {
-    err_code = err;
-  }
-  EXPECT_EQ(err_code, 2);
+  int val = 0;
+  auto res = just_error(42) 
+    | upon_error([&](auto err_val) {
+        val = err_val;
+        return 2;
+      })
+    | sync_wait();
+  EXPECT_EQ(val, 42);
+  EXPECT_EQ(res.value(), 2);
 }
 
 TEST(NotCalled, UponError) {
-  int err_code = 0;
-  try {
+  int val = 0;
+  auto res = just(42)
+    | upon_error([&](auto) {
+      val = 1;
+      return 2;
+    })
+    | sync_wait();
+  EXPECT_EQ(val, 0);
+  EXPECT_EQ(res.value(), 42);
+}
+
+TEST(ExceptionHandling, UponError) {
+  int val = 0;
+  try{
     just(42)
-      | upon_error([]{ return 2; })
+      | upon_error([&](auto) {
+        val = 1;
+        throw 2;
+        return 2;
+      })
       | sync_wait();
-  } catch (int err) {
-    err_code = err;
+  } catch(int err){
+    EXPECT_EQ(err, 2);
   }
-  EXPECT_EQ(err_code, 0);
+  EXPECT_EQ(val, 0);
+}
+
+TEST(VoidReturn, UponError) {
+  int val = 0;
+  just_error(42) 
+    | upon_error([&](auto){
+        val = 2;
+      })
+    | sync_wait();
+  EXPECT_EQ(val, 2);
 }

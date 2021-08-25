@@ -17,6 +17,20 @@
 namespace unifex {
 namespace _upon_error {
 
+namespace detail {
+template <typename Result, typename = void>
+struct result_overload {
+  using type = type_list<Result>;
+};
+template <typename Result>
+struct result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
+  using type = type_list<Result>;
+};
+
+template <typename Result>
+using result_overload_t = typename result_overload<Result>::type;
+}  // namespace detail
+
 template <typename Receiver, typename Func>
 struct _receiver {
   struct type;
@@ -35,16 +49,35 @@ struct _receiver<Receiver, Func>::type {
   }
 
   template <typename Error>
-  void set_error(Error&&) && noexcept {
-    if constexpr (noexcept(std::invoke((Func &&) func_))) {
-      unifex::set_error((Receiver &&) receiver_, std::invoke((Func &&) func_));
-    } else {
-      UNIFEX_TRY {
-        unifex::set_error(
-            (Receiver &&) receiver_, std::invoke((Func &&) func_));
+  void set_error(Error&& error) && noexcept {
+    using result_t = std::invoke_result_t<Func, Error>;
+    if constexpr (std::is_void_v<result_t>) {
+      if constexpr (noexcept(std::invoke((Func &&) func_, (Error &&) error))) {
+        std::invoke((Func &&) func_, (Error &&) error);
+        unifex::set_value((Receiver &&) receiver_);
+      } else {
+        UNIFEX_TRY {
+          std::invoke((Func &&) func_, (Error &&) error);
+          unifex::set_value((Receiver &&) receiver_);
+        }
+        UNIFEX_CATCH(...) {
+          unifex::set_error((Receiver &&) receiver_, std::current_exception());
+        }
       }
-      UNIFEX_CATCH(...) {
-        unifex::set_error((Receiver &&) receiver_, std::current_exception());
+    } else {
+      if constexpr (noexcept(std::invoke((Func &&) func_, (Error &&) error))) {
+        unifex::set_value(
+            (Receiver &&) receiver_,
+            std::invoke((Func &&) func_, (Error &&) error));
+      } else {
+        UNIFEX_TRY {
+          unifex::set_value(
+              (Receiver &&) receiver_,
+              std::invoke((Func &&) func_, (Error &&) error));
+        }
+        UNIFEX_CATCH(...) {
+          unifex::set_error((Receiver &&) receiver_, std::current_exception());
+        }
       }
     }
   }
@@ -77,18 +110,24 @@ struct _sender<Predecessor, Func>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
+private:
+  template <typename Error>
+  using result =
+      type_list<detail::result_overload_t<std::invoke_result_t<Func, Error>>>;
+
 public:
   template <
       template <typename...>
       class Variant,
       template <typename...>
       class Tuple>
-  using value_types = sender_value_types_t<Predecessor, Variant, Tuple>;
+  using value_types = type_list_nested_apply_t<
+      sender_error_types_t<Predecessor, result>,
+      Variant,
+      Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = typename concat_type_lists_unique_t<
-      type_list<std::invoke_result_t<Func>>,
-      type_list<std::exception_ptr>>::template apply<Variant>;
+  using error_types = type_list<std::exception_ptr>::apply<Variant>;
 
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
@@ -134,11 +173,7 @@ private:
 
 public:
   template(typename Sender, typename Func)(
-      requires std::is_invocable_v<Func> AND(
-          !std::is_same_v<std::invoke_result_t<Func>, void>)
-          AND tag_invocable<_fn, Sender, Func>
-
-      ) auto
+      requires tag_invocable<_fn, Sender, Func>) auto
   operator()(Sender&& predecessor, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
           -> _result_t<Sender, Func> {
@@ -146,9 +181,7 @@ public:
   }
 
   template(typename Sender, typename Func)(
-      requires std::is_invocable_v<Func> AND(
-          !std::is_same_v<std::invoke_result_t<Func>, void>)
-          AND(!tag_invocable<_fn, Sender, Func>)) auto
+      requires(!tag_invocable<_fn, Sender, Func>)) auto
   operator()(Sender&& predecessor, Func&& func) const
       noexcept(std::is_nothrow_constructible_v<
                _upon_error::sender<Sender, Func>,
@@ -158,9 +191,8 @@ public:
         (Sender &&)(predecessor), (Func &&)(func)};
   }
 
-  template(typename Func)(requires std::is_invocable_v<Func> AND(
-      !std::is_same_v<std::invoke_result_t<Func>, void>)) constexpr auto
-  operator()(Func&& func) const
+  template <typename Func>
+  constexpr auto operator()(Func&& func) const
       noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&)(func));
