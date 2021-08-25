@@ -263,15 +263,34 @@ bool examine_potentials(board_element *b, bool *progress) {
     return valid_board(b);
 }
 
+struct any_solve_scheduler;
+
 using SchedulerQueries =
   with_receiver_queries<
+    overload<any_solve_scheduler(const this_&)>(unifex::get_scheduler),
     overload<inplace_stop_token(const this_&) noexcept>(get_stop_token)>;
 
-using any_solve_scheduler = SchedulerQueries::any_scheduler;
+using any_solve_scheduler_impl = SchedulerQueries::any_scheduler;
+
+struct any_solve_scheduler {
+  UNIFEX_TEMPLATE (typename Sched)
+    (requires (!same_as<Sched, any_solve_scheduler>) UNIFEX_AND
+      scheduler<Sched> UNIFEX_AND
+      constructible_from<any_solve_scheduler_impl, Sched>)
+  any_solve_scheduler(Sched sch)
+    : impl_(std::move(sch))
+  {}
+  auto schedule() const {
+    return unifex::schedule(impl_);
+  }
+  bool operator==(const any_solve_scheduler&) const = default;
+private:
+  any_solve_scheduler_impl impl_;
+};
 
 using SenderQueries =
   with_receiver_queries<
-    // overload<any_solve_scheduler(const this_&) noexcept>(unifex::get_scheduler), // <-- this fails
+    overload<any_solve_scheduler(const this_&)>(unifex::get_scheduler),
     overload<inplace_stop_token(const this_&) noexcept>(get_stop_token)>;
 
 using any_solve = SenderQueries::any_sender_of<>;
@@ -282,7 +301,7 @@ std::atomic<unsigned> partialsolvestarts;
 any_solve partial_solve(board_element *board, unsigned first_potential_set) {
     unsigned id = ++partialsolveid;
 
-    return //on(current_scheduler, <-- if both the other failures are fixed then this should work 
+    return on(current_scheduler,
     defer([=, first_set = first_potential_set]() -> any_solve {
         unsigned seq = ++partialsolvestarts;
         unsigned first_potential_set = first_set;
@@ -332,7 +351,7 @@ any_solve partial_solve(board_element *board, unsigned first_potential_set) {
             };
         }
         return {just()};
-    });//);
+    }));
 }
 
 std::tuple<unsigned, steady_clock::duration> solve(static_thread_pool::scheduler pool) {
@@ -401,7 +420,7 @@ int main(int argc, char* argv[]) {
     auto pool = poolContext.get_scheduler();
 
     any_solve_scheduler pl{pool};
-    // any_solve_scheduler cs{current_scheduler}; // <----- this fails
+    any_solve_scheduler cs{current_scheduler};
 
     auto [number, solve_time] = solve(pool);
 
