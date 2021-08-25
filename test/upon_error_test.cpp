@@ -3,8 +3,6 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/upon_error.hpp>
 
-#include <type_traits>
-
 #include <gtest/gtest.h>
 
 using namespace unifex;
@@ -19,7 +17,7 @@ TEST(UponError, Working) {
   EXPECT_EQ(res.value(), 2);
 }
 
-TEST(Pipeable, UponError) {
+TEST(UponError, Pipeable) {
   int val = 0;
   auto res = just_error(42) 
     | upon_error([&](auto err_val) {
@@ -31,11 +29,11 @@ TEST(Pipeable, UponError) {
   EXPECT_EQ(res.value(), 2);
 }
 
-TEST(NotCalled, UponError) {
+TEST(UponError, NotCalled) {
   int val = 0;
   auto res = just(42)
     | upon_error([&](auto) {
-      val = 1;
+      val++;
       return 2;
     })
     | sync_wait();
@@ -43,14 +41,13 @@ TEST(NotCalled, UponError) {
   EXPECT_EQ(res.value(), 42);
 }
 
-TEST(ExceptionHandling, UponError) {
+TEST(UponError, ExceptionHandling) {
   int val = 0;
   try{
     just(42)
       | upon_error([&](auto) {
         val = 1;
         throw 2;
-        return 2;
       })
       | sync_wait();
   } catch(int err){
@@ -59,12 +56,13 @@ TEST(ExceptionHandling, UponError) {
   EXPECT_EQ(val, 0);
 }
 
-TEST(VoidReturn, UponError) {
+TEST(UponError, VoidReturnCallback) {
   int val = 0;
-  just_error(42) 
+  auto res = just(42) 
     | upon_error([&](auto){
         val = 2;
       })
     | sync_wait();
-  EXPECT_EQ(val, 2);
+  EXPECT_EQ(val, 0);
+  EXPECT_EQ(res.value(), 42);
 }

@@ -3,14 +3,9 @@
 #include <unifex/just_done.hpp>
 #include <unifex/upon_done.hpp>
 
-#include <chrono>
-#include <iostream>
-
 #include <gtest/gtest.h>
 
 using namespace unifex;
-using namespace std::chrono;
-using namespace std::chrono_literals;
 
 TEST(UponDone, Working) {
   int count = 0;
@@ -18,7 +13,7 @@ TEST(UponDone, Working) {
   EXPECT_EQ(count, 1);
 }
 
-TEST(Pipeable, UponDone){
+TEST(UponDone, Pipeable){
   int count = 0;
 
   just_done()
@@ -32,7 +27,7 @@ TEST(Pipeable, UponDone){
   EXPECT_EQ(count, 2);
 }
 
-TEST(NotCalled, UponDone){
+TEST(UponDone, NotCalled){
   int count = 0;
 
   auto x = just(42)
@@ -41,4 +36,27 @@ TEST(NotCalled, UponDone){
 
   EXPECT_EQ(count, 0);
   EXPECT_EQ(x.value(), 42);
+}
+
+TEST(UponDone, ReturningValue) {
+  int count = 0;
+  auto res = just_done()
+    | upon_done([&]{
+        count++;
+        return 42;
+        })
+    | sync_wait();
+  EXPECT_EQ(count, 1);
+  EXPECT_EQ(res.value(), 42);
+}
+
+TEST(UponDone, VoidReturnCallback) {
+  int count = 0;
+  auto res = just(32)
+    | upon_done([&]{
+        count++;
+      })
+    | sync_wait();
+  EXPECT_EQ(count, 0);
+  EXPECT_EQ(res.value(), 32);
 }

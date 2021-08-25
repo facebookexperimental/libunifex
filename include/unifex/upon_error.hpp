@@ -24,11 +24,12 @@ struct result_overload {
 };
 template <typename Result>
 struct result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
-  using type = type_list<Result>;
+  using type = type_list<>;
 };
 
 template <typename Result>
 using result_overload_t = typename result_overload<Result>::type;
+
 }  // namespace detail
 
 template <typename Receiver, typename Func>
@@ -111,9 +112,13 @@ struct _sender<Predecessor, Func>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
 
 private:
+  /*
+   * This helper returns type_list<Result> if invoking func returns Result
+   * else if func returns void then helper returns type_list<>
+   */
   template <typename Error>
-  using result =
-      type_list<detail::result_overload_t<std::invoke_result_t<Func, Error>>>;
+  using invoked_result_t =
+      detail::result_overload_t<std::invoke_result_t<Func, Error>>;
 
 public:
   template <
@@ -122,7 +127,12 @@ public:
       template <typename...>
       class Tuple>
   using value_types = type_list_nested_apply_t<
-      sender_error_types_t<Predecessor, result>,
+      type_list<concat_type_lists_unique_t<
+          sender_value_types_t<
+              Predecessor,
+              concat_type_lists_unique_t,
+              type_list>,
+          sender_error_types_t<Predecessor, invoked_result_t>>>,
       Variant,
       Tuple>;
 
