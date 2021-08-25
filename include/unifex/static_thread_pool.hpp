@@ -89,7 +89,7 @@ namespace _static_thread_pool {
         context& pool_;
       };
 
-      schedule_sender make_sender_() const {
+      schedule_sender make_sender_() const noexcept {
         return schedule_sender{pool_};
       }
 
