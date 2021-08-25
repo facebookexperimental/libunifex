@@ -123,9 +123,9 @@ namespace _get_scheduler {
   inline const struct _fn {
     template (typename SchedulerProvider)
         (requires tag_invocable<_fn, const SchedulerProvider&>)
-    auto operator()(const SchedulerProvider& context) const noexcept
+    auto operator()(const SchedulerProvider& context) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider&>)
         -> tag_invoke_result_t<_fn, const SchedulerProvider&> {
-      static_assert(is_nothrow_tag_invocable_v<_fn, const SchedulerProvider&>);
       static_assert(
           scheduler<tag_invoke_result_t<_fn, const SchedulerProvider&>>);
       return tag_invoke(*this, context);
@@ -178,8 +178,7 @@ struct sender {
             schedule_result_t<
                 get_scheduler_result_t<const remove_cvref_t<Receiver>&>>,
             Receiver> {
-    auto scheduler = get_scheduler(std::as_const(r));
-    return connect(schedule(std::move(scheduler)), (Receiver &&) r);
+    return connect(schedule(get_scheduler(std::as_const(r))), (Receiver &&) r);
   }
 };
 
@@ -257,12 +256,15 @@ namespace _schedule_after {
       (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
         -> connect_result_t<
-            schedule_after_result_t<std::decay_t<
-                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&,
+            schedule_after_result_t<
+                get_scheduler_result_t<const remove_cvref_t<Receiver>&>,
                 const Duration&>,
             Receiver> {
-      auto scheduler = get_scheduler(std::as_const(r));
-      return connect(schedule_after(scheduler, std::as_const(s.duration_)), (Receiver&&) r);
+      return connect(
+          schedule_after(
+              get_scheduler(std::as_const(r)),
+              std::as_const(s.duration_)),
+          (Receiver&&) r);
     }
 
     Duration duration_;
@@ -341,12 +343,15 @@ namespace _schedule_at {
       (requires receiver<Receiver>)
     friend auto tag_invoke(tag_t<connect>, const type& s, Receiver&& r)
         -> connect_result_t<
-            schedule_at_result_t<std::decay_t<
-                get_scheduler_result_t<const remove_cvref_t<Receiver>&>>&,
+            schedule_at_result_t<
+                get_scheduler_result_t<const remove_cvref_t<Receiver>&>,
                 const TimePoint&>,
             Receiver> {
-      auto scheduler = get_scheduler(std::as_const(r));
-      return connect(schedule_at(scheduler, std::as_const(s.time_point_)), (Receiver&&) r);
+      return connect(
+          schedule_at(
+              get_scheduler(std::as_const(r)),
+              std::as_const(s.time_point_)),
+          (Receiver&&) r);
     }
 
     TimePoint time_point_;
