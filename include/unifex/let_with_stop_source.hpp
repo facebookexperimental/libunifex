@@ -24,7 +24,7 @@ UNIFEX_DEPRECATED_HEADER("let_with_stop_source.hpp is deprecated. Use let_value_
 
 namespace unifex {
 [[deprecated("unifex::let_with_stop_source has been renamed to unifex::let_value_with_stop_source")]]
-inline constexpr _let_v_w_stop_srce::_cpo::_fn let_with_stop_source {};
+inline constexpr _let_v_w_stop_src::_cpo::_fn let_with_stop_source {};
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
