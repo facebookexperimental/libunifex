@@ -4,6 +4,8 @@
 #include <unifex/upon_error.hpp>
 
 #include <gtest/gtest.h>
+#include <type_traits>
+#include <variant>
 
 using namespace unifex;
 
