@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/let_value.hpp>
+#include <unifex/then.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
