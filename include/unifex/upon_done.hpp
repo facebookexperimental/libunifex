@@ -112,11 +112,33 @@ struct _sender<Predecessor, Func>::type {
 
 private:
   /*
-   * This helper returns type_list<Result> if func returns Result
-   * else if func returns void then helper returns type_list<>
+   * This helper returns type_list<type_list<Result>> if func returns Result
+   * else if func returns void then helper returns type_list<type_list<>>
    */
   using invoked_result_t =
-      detail::result_overload_t<std::invoke_result_t<Func>>;
+      type_list<detail::result_overload_t<std::invoke_result_t<Func>>>;
+
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using sets_done_predecessor_value_type_t = type_list_nested_apply_t<
+      concat_type_lists_unique_t<
+          sender_value_types_t<Predecessor, type_list, type_list>,
+          invoked_result_t>,
+      Variant,
+      Tuple>;
+
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using no_sets_done_predecessor_value_type_t = type_list_nested_apply_t<
+      sender_value_types_t<Predecessor, type_list, type_list>,
+      Variant,
+      Tuple>;
 
 public:
   template <
@@ -124,15 +146,10 @@ public:
       class Variant,
       template <typename...>
       class Tuple>
-  using value_types = type_list_nested_apply_t<
-      type_list<concat_type_lists_unique_t<
-          sender_value_types_t<
-              Predecessor,
-              concat_type_lists_unique_t,
-              type_list>,
-          invoked_result_t>>,
-      Variant,
-      Tuple>;
+  using value_types = std::conditional_t<
+      Predecessor::sends_done,
+      sets_done_predecessor_value_type_t<Variant, Tuple>,
+      no_sets_done_predecessor_value_type_t<Variant, Tuple>>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<

@@ -113,12 +113,12 @@ struct _sender<Predecessor, Func>::type {
 
 private:
   /*
-   * This helper returns type_list<Result> if invoking func returns Result
-   * else if func returns void then helper returns type_list<>
+   * This helper returns type_list<type_list<Result>> if invoking func returns
+   * Result else if func returns void then helper returns type_list<type_list<>>
    */
   template <typename Error>
   using invoked_result_t =
-      detail::result_overload_t<std::invoke_result_t<Func, Error>>;
+      type_list<detail::result_overload_t<std::invoke_result_t<Func, Error>>>;
 
 public:
   template <
@@ -127,12 +127,9 @@ public:
       template <typename...>
       class Tuple>
   using value_types = type_list_nested_apply_t<
-      type_list<concat_type_lists_unique_t<
-          sender_value_types_t<
-              Predecessor,
-              concat_type_lists_unique_t,
-              type_list>,
-          sender_error_types_t<Predecessor, invoked_result_t>>>,
+      concat_type_lists_unique_t<
+          sender_value_types_t<Predecessor, type_list, type_list>,
+          sender_error_types_t<Predecessor, invoked_result_t>>,
       Variant,
       Tuple>;
 
