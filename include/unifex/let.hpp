@@ -17,7 +17,6 @@
 
 #include <unifex/config.hpp>
 #include <unifex/let_value.hpp>
-#include <unifex/then.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -25,7 +24,7 @@ UNIFEX_DEPRECATED_HEADER("let.hpp is deprecated. Use let_value.hpp instead.")
 
 namespace unifex {
 [[deprecated("unifex::let has been renamed to unifex::let_value")]]
-inline constexpr _then::_cpo::_fn let {};
+inline constexpr _let_v::_cpo::_fn let {};
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
