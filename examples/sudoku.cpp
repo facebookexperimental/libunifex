@@ -53,7 +53,7 @@ inline constexpr auto sink = [](auto&&...){};
 inline constexpr auto discard = then(sink);
 
 template <typename F>
-auto fork(F f) {
+auto fork(F&& f) {
   return let_value(schedule(), (F&&) f);
 }
 
@@ -80,16 +80,16 @@ typedef struct {
 void read_board(const char *filename) {
     FILE *fp;
     int input;
-    fp = fopen(filename, "r");
+    fp = std::fopen(filename, "r");
     if (!fp) {
         fprintf(stderr, "sudoku: Could not open input file '%s'.\n", filename);
         std::exit(-1);
     }
     for (unsigned i = 0; i < BOARD_SIZE; ++i) {
-        if (fscanf(fp, "%d", &input))
+        if (std::fscanf(fp, "%d", &input))
             init_values[i] = input;
         else {
-            fprintf(stderr, "sudoku: Error in input file at entry %d, assuming 0.\n", i);
+            std::fprintf(stderr, "sudoku: Error in input file at entry %d, assuming 0.\n", i);
             init_values[i] = 0;
         }
     }
