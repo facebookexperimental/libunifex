@@ -275,7 +275,8 @@ using Queries =
 using any_solve = Queries::any_sender_of<>;
 
 any_solve partial_solve(std::unique_ptr<board_element[]> board, unsigned first_potential_set) {
-    return fork([=, board = std::move(board)]() mutable -> any_solve {
+    return fork([=, b = board.release()]() mutable -> any_solve {
+        std::unique_ptr<board_element[]> board{std::exchange(b, nullptr)};
         if (fixed_board(board.get())) {
             if (++nSols == 1 && verbose) {
                 print_board(board.get());
