@@ -24,7 +24,6 @@
 #include <unifex/stop_when.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/then.hpp>
-#include <unifex/sequence.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just.hpp>
@@ -35,6 +34,7 @@
 #include <chrono>
 #include <charconv>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <string>
 #include <string_view>
@@ -66,11 +66,12 @@ const unsigned BOARD_DIM = 9;
 std::atomic<unsigned> nSols;
 bool find_one = false;
 bool verbose = false;
-unsigned short init_values[BOARD_SIZE] = { 1, 0, 0, 9, 0, 0, 0, 8, 0, 0, 8, 0, 2, 0, 0, 0, 0,
-                                           0, 0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 5, 2, 1, 0, 0, 4,
-                                           0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 7, 4, 0, 0, 7, 0, 0,
-                                           0, 3, 0, 0, 3, 0, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 0,
-                                           0, 1, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 0 };
+unsigned short init_values[BOARD_SIZE] = { 2, 0, 1, 0, 0, 0, 0, 8, 0, 0, 8, 0, 2, 1, 
+                                           9, 6, 0, 0, 0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 
+                                           5, 2, 1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5, 
+                                           0, 0, 7, 4, 0, 0, 7, 0, 0, 0, 3, 0, 0, 3, 
+                                           0, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 3, 0, 1, 
+                                           0, 0, 5, 0, 0, 0, 8, 0, 0, 0, 6, };
 
 typedef struct {
     unsigned short solved_element;
@@ -78,22 +79,24 @@ typedef struct {
 } board_element;
 
 void read_board(const char *filename) {
-    FILE *fp;
-    int input;
-    fp = std::fopen(filename, "r");
+    int input = 0;
+    std::ifstream fp{filename};
     if (!fp) {
-        fprintf(stderr, "sudoku: Could not open input file '%s'.\n", filename);
+        std::cerr << "sudoku: Could not open input file '" << filename << "'.\n";
         std::exit(-1);
     }
     for (unsigned i = 0; i < BOARD_SIZE; ++i) {
-        if (std::fscanf(fp, "%d", &input))
+        fp >> input;
+        if (fp) {
             init_values[i] = input;
-        else {
-            std::fprintf(stderr, "sudoku: Error in input file at entry %d, assuming 0.\n", i);
-            init_values[i] = 0;
+        } else if (fp.bad()) {
+          std::cerr << "sudoku: IO error in input file '" << filename << "'.\n";
+          std::exit(-1);
+        } else {
+          std::cerr << "sudoku: Error in input file at entry " << i << ", assuming 0.\n";
+          init_values[i] = 0;
         }
     }
-    fclose(fp);
 }
 
 void print_board(board_element *b) {
