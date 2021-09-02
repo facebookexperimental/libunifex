@@ -269,7 +269,7 @@ struct any_solve_scheduler;
 
 using Queries =
   with_receiver_queries<
-    overload<static_thread_pool::scheduler(const this_&)>(unifex::get_scheduler),
+    overload<static_thread_pool::scheduler(const this_&) noexcept>(unifex::get_scheduler),
     overload<inplace_stop_token(const this_&) noexcept>(get_stop_token)>;
 
 using any_solve = Queries::any_sender_of<>;
