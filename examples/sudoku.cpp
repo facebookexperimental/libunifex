@@ -24,6 +24,7 @@
 #include <unifex/stop_when.hpp>
 #include <unifex/static_thread_pool.hpp>
 #include <unifex/then.hpp>
+#include <unifex/sequence.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just.hpp>
@@ -52,8 +53,8 @@ inline constexpr auto sink = [](auto&&...){};
 inline constexpr auto discard = then(sink);
 
 template <typename F>
-auto defer(F f) {
-  return let_value(just(), (F&&) f);
+auto fork(F f) {
+  return let_value(schedule(), (F&&) f);
 }
 
 //
@@ -63,8 +64,6 @@ auto defer(F f) {
 const unsigned BOARD_SIZE = 81;
 const unsigned BOARD_DIM = 9;
 std::atomic<unsigned> nSols;
-std::atomic<unsigned> nPotentialBoards;
-std::atomic<unsigned> nDeletedBoards;
 bool find_one = false;
 bool verbose = false;
 unsigned short init_values[BOARD_SIZE] = { 1, 0, 0, 9, 0, 0, 0, 8, 0, 0, 8, 0, 2, 0, 0, 0, 0,
@@ -263,57 +262,41 @@ bool examine_potentials(board_element *b, bool *progress) {
     return valid_board(b);
 }
 
-using SchedulerQueries =
+struct any_solve_scheduler;
+
+using Queries =
   with_receiver_queries<
+    overload<static_thread_pool::scheduler(const this_&)>(unifex::get_scheduler),
     overload<inplace_stop_token(const this_&) noexcept>(get_stop_token)>;
 
-using any_solve_scheduler = SchedulerQueries::any_scheduler;
+using any_solve = Queries::any_sender_of<>;
 
-using SenderQueries =
-  with_receiver_queries<
-    // overload<any_solve_scheduler(const this_&) noexcept>(unifex::get_scheduler), // <-- this fails
-    overload<inplace_stop_token(const this_&) noexcept>(get_stop_token)>;
-
-using any_solve = SenderQueries::any_sender_of<>;
-
-std::atomic<unsigned> partialsolveid;
-std::atomic<unsigned> partialsolvestarts;
-
-any_solve partial_solve(board_element *board, unsigned first_potential_set) {
-    unsigned id = ++partialsolveid;
-
-    return //on(current_scheduler, <-- if both the other failures are fixed then this should work 
-    defer([=, first_set = first_potential_set]() -> any_solve {
-        unsigned seq = ++partialsolvestarts;
-        unsigned first_potential_set = first_set;
-        std::unique_ptr<board_element> b(board);
-        ++nDeletedBoards;
-        if (fixed_board(b.get())) {
+any_solve partial_solve(std::unique_ptr<board_element[]> board, unsigned first_potential_set) {
+    return fork([=, board = std::move(board)]() mutable -> any_solve {
+        if (fixed_board(board.get())) {
             if (++nSols == 1 && verbose) {
-                printf("partial_solve id: %u, starts: %u\n", id, seq);
-                print_board(b.get());
+                print_board(board.get());
             }
             if (find_one) {
               return {just_done()};
             }
             return {just()};
         }
-        calculate_potentials(b.get());
+        calculate_potentials(board.get());
         bool progress = true;
-        bool success = examine_potentials(b.get(), &progress);
+        bool success = examine_potentials(board.get(), &progress);
         if (success && progress) {
-            return {partial_solve(b.release(), first_potential_set)};
+            return {partial_solve(std::move(board), first_potential_set)};
         }
         else if (success && !progress) {
-            while (b.get()[first_potential_set].solved_element != 0)
+            while (board.get()[first_potential_set].solved_element != 0)
                 ++first_potential_set;
-            auto potential_board = [=, b = std::move(b)](unsigned short potential) -> any_solve {
-                if (1 << (potential - 1) & b.get()[first_potential_set].potential_set) {
+            auto potential_board = [=, board = std::move(board)](unsigned short potential) -> any_solve {
+                if (1 << (potential - 1) & board.get()[first_potential_set].potential_set) {
                     std::unique_ptr<board_element[]> new_board{new board_element[BOARD_SIZE]};
-                    copy_board(b.get(), new_board.get());
+                    copy_board(board.get(), new_board.get());
                     new_board.get()[first_potential_set].solved_element = potential;
-                    ++nPotentialBoards;
-                    return {partial_solve(new_board.release(), first_potential_set)};
+                    return {partial_solve(std::move(new_board), first_potential_set)};
                 }
                 return {just()};
             };
@@ -327,31 +310,28 @@ any_solve partial_solve(board_element *board, unsigned first_potential_set) {
                 potential_board(6),
                 potential_board(7),
                 potential_board(8),
-                potential_board(9)) 
-              | discard
+                potential_board(9)
+              ) | discard
             };
         }
         return {just()};
-    });//);
+    });
 }
 
 std::tuple<unsigned, steady_clock::duration> solve(static_thread_pool::scheduler pool) {
     nSols = 0;
-    nPotentialBoards = 0;
-    nDeletedBoards = 0;
-    partialsolveid = 0;
-    partialsolvestarts = 0;
     std::unique_ptr<board_element[]> start_board{new board_element[BOARD_SIZE]};
     init_board(start_board.get(), init_values);
     auto start = steady_clock::now();
-    ++nPotentialBoards;
     inplace_stop_source stop;
     auto canceled = [](){
-      printf("\ncanceled\n\n");
+      if (verbose) {
+        printf("\ncanceled \n\n");
+      }
     };
     inplace_stop_token::template callback_type<decltype(canceled)> callback(stop.get_token(), canceled);
     sync_wait(
-        partial_solve(start_board.release(), 0) 
+        partial_solve(std::move(start_board), 0) 
         | with_query_value(get_scheduler, pool) 
         | with_query_value(get_stop_token, stop.get_token()));
     return std::make_tuple((unsigned)nSols, steady_clock::now() - start);
@@ -400,9 +380,6 @@ int main(int argc, char* argv[]) {
     static_thread_pool poolContext(p);
     auto pool = poolContext.get_scheduler();
 
-    any_solve_scheduler pl{pool};
-    // any_solve_scheduler cs{current_scheduler}; // <----- this fails
-
     auto [number, solve_time] = solve(pool);
 
     if (!silent) {
@@ -416,9 +393,6 @@ int main(int argc, char* argv[]) {
                number,
                p,
                std::chrono::duration_cast<double_sec>(solve_time).count());
-      }
-      if (nPotentialBoards > nDeletedBoards) {
-          printf("Leaked %u boards!\n", nPotentialBoards - nDeletedBoards);
       }
     }
   }
