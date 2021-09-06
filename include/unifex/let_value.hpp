@@ -56,12 +56,12 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
-    cleanup();
     UNIFEX_TRY {
       // Taking by value here to force a copy on the offchance the value
       // objects lives in the operation state (e.g., just), in which
       // case the call to cleanup() would invalidate them.
       [this](auto... copies) {
+        cleanup();
         unifex::set_value(
             std::move(op_.receiver_), (decltype(copies) &&) copies...);
       } ((SuccessorValues&&) values...);
