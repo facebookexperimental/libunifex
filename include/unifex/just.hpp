@@ -45,14 +45,11 @@ struct _op<Receiver, Values...>::type {
 
   void start() & noexcept {
     UNIFEX_TRY {
-      // Move into a local in case the call to set_value causes the op
-      // state to be destroyed before set_value returns.
-      auto values = std::move(values_);
       std::apply(
           [&](Values&&... values) {
             unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
           },
-          std::move(values));
+          std::move(values_));
     } UNIFEX_CATCH (...) {
       unifex::set_error((Receiver &&) receiver_, std::current_exception());
     }
