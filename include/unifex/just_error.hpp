@@ -44,10 +44,7 @@ struct _op<Receiver, Error>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
   void start() & noexcept {
-    // Move into a local in case the op state is destroyed before
-    // set_error returns:
-    auto error = (Error &&) error_;
-    unifex::set_error((Receiver &&) receiver_, (Error &&) error);
+    unifex::set_error((Receiver &&) receiver_, (Error &&) error_);
   }
 };
 
