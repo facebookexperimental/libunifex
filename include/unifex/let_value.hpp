@@ -56,10 +56,15 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
-    cleanup();
     UNIFEX_TRY {
-      unifex::set_value(
-          std::move(op_.receiver_), (SuccessorValues &&) values...);
+      // Taking by value here to force a copy on the offchance the value
+      // objects lives in the operation state (e.g., just), in which
+      // case the call to cleanup() would invalidate them.
+      [this](auto... copies) {
+        cleanup();
+        unifex::set_value(
+            std::move(op_.receiver_), (decltype(copies) &&) copies...);
+      } ((SuccessorValues&&) values...);
     } UNIFEX_CATCH (...) {
       unifex::set_error(std::move(op_.receiver_), std::current_exception());
     }
@@ -70,8 +75,11 @@ struct _successor_receiver<Operation, Values...>::type {
     unifex::set_done(std::move(op_.receiver_));
   }
 
+  // Taking by value here to force a copy on the offchance the error
+  // object lives in the operation state (e.g., just_error), in which
+  // case the call to cleanup() would invalidate it.
   template <typename Error>
-  void set_error(Error&& error) && noexcept {
+  void set_error(Error error) && noexcept {
     cleanup();
     unifex::set_error(std::move(op_.receiver_), (Error &&) error);
   }
@@ -156,8 +164,11 @@ struct _predecessor_receiver<Operation>::type {
     unifex::set_done(std::move(op.receiver_));
   }
 
+  // Taking by value here to force a copy on the offchange the error
+  // object lives in the operation state, in which case destroying the
+  // predecessor operation state would invalidate it.
   template <typename Error>
-  void set_error(Error&& error) && noexcept {
+  void set_error(Error error) && noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.predOp_);
     unifex::set_error(std::move(op.receiver_), (Error &&) error);
