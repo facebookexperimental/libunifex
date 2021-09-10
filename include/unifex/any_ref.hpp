@@ -45,7 +45,7 @@ class _any_ref<CPOs...>::type
  public:
   template (typename Concrete)
     (requires (!same_as<Concrete const, type const>))
-  /*implicit*/ type(Concrete& impl)
+  /*implicit*/ type(Concrete& impl) noexcept
     : vtable_(vtable_holder_t::template create<Concrete>())
     , impl_((void*) std::addressof(impl)) {}
 
