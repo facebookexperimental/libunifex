@@ -210,6 +210,19 @@ namespace unifex
       DefaultAllocator,
       CPOs...>::type;
 
+  template <
+      std::size_t InlineSize,
+      std::size_t InlineAlignment,
+      bool RequireNoexceptMove,
+      typename DefaultAllocator,
+      auto&... CPOs>
+  using basic_any_object_t = basic_any_object<
+    InlineSize,
+    InlineAlignment,
+    RequireNoexceptMove,
+    DefaultAllocator,
+    unifex::tag_t<CPOs>...>;
+
   // Simpler version that chooses some appropriate defaults for you.
   template <typename... CPOs>
   using any_object = basic_any_object<
@@ -218,6 +231,9 @@ namespace unifex
       true,
       std::allocator<std::byte>,
       CPOs...>;
+
+  template<auto&... CPOs>
+  using any_object_t = any_object<unifex::tag_t<CPOs>...>;
 
 }  // namespace unifex
 
