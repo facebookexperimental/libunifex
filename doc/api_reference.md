@@ -22,6 +22,7 @@
   * `let_done()`
   * `let_value_with()`
   * `let_value_with_stop_source()`
+  * `let_value_with_stop_token()`
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
@@ -348,6 +349,28 @@ Calling `.request_stop()` on the stop-source passed to the function requests
 cancellation of the operation returned by the function. Note that cancellation
 may also be requested through the stop-token of the receiver that is connected
 to the sender returned by `let_value_with_stop_source()`.
+
+### `let_value_with_stop_token(Invocable func) -> Sender`
+
+The `let_value_with_stop_token()` algorithm creates an
+`inplace_stop_token_adapter` that remains alive for the duration of an
+operation.
+
+`func` is invoked with an lvalue reference to an `inplace_stop_token`
+created by subscribing the `inplace_stop_token_adapter` to the stop token
+returned by the invocation of `get_stop_token` on the provided receiver.
+This invocation must return a Sender.
+
+The reference passed to `func` will remain valid until the returned sender
+completes, at which point the `inplace_stop_token_adapter` goes out of scope.
+
+For example:
+```c++
+let_value_with_stop_token(
+    [](unifex::inplace_stop_token& stop_token) {
+      return other_operation(stop_token);
+    });
+```
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
