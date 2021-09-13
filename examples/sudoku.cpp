@@ -1,21 +1,20 @@
+/*
+    Copyright (c) 2005-2021 Intel Corporation
+    Copyright (c) Facebook, Inc. and its affiliates.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+        http://www.apache.org/licenses/LICENSE-2.0
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+*/
+
 #include <cstdio>
 #include <cstdlib>
 
-/*
- * Copyright (c) Facebook, Inc. and its affiliates.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/any_scheduler.hpp>
@@ -29,7 +28,7 @@
 #include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
-#include <unifex/on.hpp>
+#include <unifex/create.hpp>
 
 #include <chrono>
 #include <charconv>
@@ -59,19 +58,43 @@ auto fork(F&& f) {
 
 //
 // this sudoku example was taken from TBB examples/thread_group/sudoku
+// the TBB example leaks https://github.com/oneapi-src/oneTBB/issues/568
+// this example does not leak - because, structured-concurrency.
 //
 
 const unsigned BOARD_SIZE = 81;
 const unsigned BOARD_DIM = 9;
 std::atomic<unsigned> nSols;
+std::atomic<unsigned> nTasks;
+std::atomic<unsigned> nRaces;
 bool find_one = false;
 bool verbose = false;
+#if 1
+unsigned short init_values[BOARD_SIZE] = { 1, 0, 0, 9, 0, 0, 0, 8, 0, 0, 8, 0, 2, 0, 0, 0, 0,
+                                           0, 0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 5, 2, 1, 0, 0, 4,
+                                           0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 7, 4, 0, 0, 7, 0, 0,
+                                           0, 3, 0, 0, 3, 0, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 0,
+                                           0, 1, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 0 };
+#elif 0
 unsigned short init_values[BOARD_SIZE] = { 2, 0, 1, 0, 0, 0, 0, 8, 0, 0, 8, 0, 2, 1, 
                                            9, 6, 0, 0, 0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 
                                            5, 2, 1, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 5, 
                                            0, 0, 7, 4, 0, 0, 7, 0, 0, 0, 3, 0, 0, 3, 
                                            0, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 3, 0, 1, 
                                            0, 0, 5, 0, 0, 0, 8, 0, 0, 0, 6, };
+#elif 0
+unsigned short init_values[BOARD_SIZE] = { 1, 0, 0, 9, 0, 0, 0, 8, 0, 0, 0, 0, 2, 0, 0, 0, 0, 
+                                           0, 0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 5, 2, 6, 0, 0, 4, 
+                                           0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 7, 4, 0, 0, 7, 0, 0, 
+                                           0, 3, 0, 0, 3, 0, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 0, 
+                                           0, 1, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 0 };
+#else
+unsigned short init_values[BOARD_SIZE] = { 1, 0, 0, 9, 0, 0, 0, 8, 0, 0, 0, 0, 2, 0, 0, 0, 0, 
+                                           0, 0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 0, 2, 6, 0, 0, 0, 
+                                           0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 7, 4, 0, 0, 0, 0, 0, 
+                                           0, 3, 0, 0, 3, 0, 0, 0, 2, 0, 0, 5, 0, 0, 0, 0, 0, 
+                                           0, 1, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 0 };
+#endif
 
 typedef struct {
     unsigned short solved_element;
@@ -274,15 +297,16 @@ using Queries =
 
 using any_solve = Queries::any_sender_of<>;
 
-any_solve partial_solve(std::unique_ptr<board_element[]> board, unsigned first_potential_set) {
-    return fork([=, b = board.release()]() mutable -> any_solve {
-        std::unique_ptr<board_element[]> board{std::exchange(b, nullptr)};
+any_solve partial_solve(inplace_stop_source& stop, std::unique_ptr<board_element[]> board, unsigned first_potential_set) {
+    return fork([=, &stop, board = std::move(board)]() mutable -> any_solve {
+        ++nTasks;
+        if (stop.stop_requested()) { ++nRaces; return {just_done()}; }
         if (fixed_board(board.get())) {
             if (++nSols == 1 && verbose) {
                 print_board(board.get());
             }
             if (find_one) {
-              return {just_done()};
+              stop.request_stop();
             }
             return {just()};
         }
@@ -290,17 +314,17 @@ any_solve partial_solve(std::unique_ptr<board_element[]> board, unsigned first_p
         bool progress = true;
         bool success = examine_potentials(board.get(), &progress);
         if (success && progress) {
-            return {partial_solve(std::move(board), first_potential_set)};
+            return {partial_solve(stop, std::move(board), first_potential_set)};
         }
         else if (success && !progress) {
             while (board.get()[first_potential_set].solved_element != 0)
                 ++first_potential_set;
-            auto potential_board = [=, board = std::move(board)](unsigned short potential) -> any_solve {
+            auto potential_board = [=, &stop, board = std::move(board)](unsigned short potential) -> any_solve {
                 if (1 << (potential - 1) & board.get()[first_potential_set].potential_set) {
                     std::unique_ptr<board_element[]> new_board{new board_element[BOARD_SIZE]};
                     copy_board(board.get(), new_board.get());
                     new_board.get()[first_potential_set].solved_element = potential;
-                    return {partial_solve(std::move(new_board), first_potential_set)};
+                    return {partial_solve(stop, std::move(new_board), first_potential_set)};
                 }
                 return {just()};
             };
@@ -322,8 +346,10 @@ any_solve partial_solve(std::unique_ptr<board_element[]> board, unsigned first_p
     });
 }
 
-std::tuple<unsigned, steady_clock::duration> solve(static_thread_pool::scheduler pool) {
+std::tuple<unsigned, unsigned, unsigned, steady_clock::duration> solve(static_thread_pool::scheduler pool) {
     nSols = 0;
+    nTasks = 0;
+    nRaces = 0;
     std::unique_ptr<board_element[]> start_board{new board_element[BOARD_SIZE]};
     init_board(start_board.get(), init_values);
     auto start = steady_clock::now();
@@ -334,11 +360,10 @@ std::tuple<unsigned, steady_clock::duration> solve(static_thread_pool::scheduler
       }
     };
     inplace_stop_token::template callback_type<decltype(canceled)> callback(stop.get_token(), canceled);
-    sync_wait(
-        partial_solve(std::move(start_board), 0) 
-        | with_query_value(get_scheduler, pool) 
-        | with_query_value(get_stop_token, stop.get_token()));
-    return std::make_tuple((unsigned)nSols, steady_clock::now() - start);
+    sync_wait(partial_solve(stop, std::move(start_board), 0) 
+      | with_query_value(get_scheduler, pool) 
+      | with_query_value(get_stop_token, stop.get_token()));
+    return std::make_tuple((unsigned)nSols, (unsigned)nTasks, (unsigned)nRaces, steady_clock::now() - start);
 }
 
 using double_sec = std::chrono::duration<double>;
@@ -379,26 +404,38 @@ int main(int argc, char* argv[]) {
 
   if (!filename.empty())
     read_board(filename.c_str());
-
+  
+  double_sec referenceSolveTime;
   for (std::uint32_t p = 1; p <= threadCount; ++p) {
     static_thread_pool poolContext(p);
     auto pool = poolContext.get_scheduler();
 
-    auto [number, solve_time] = solve(pool);
-
+    auto [number, tasks, races, solve_time] = solve(pool);
+    double_sec time = std::chrono::duration_cast<double_sec>(solve_time);
+    if (p == 1) {
+      referenceSolveTime = time;
+    }
+    double percent = 100.0 * (time / referenceSolveTime);
     if (!silent) {
       if (find_one) {
-          printf("Sudoku: Time to find first solution on %d threads: %6.6f seconds.\n",
-                 p,
-                 std::chrono::duration_cast<double_sec>(solve_time).count());
-      }
-      else {
-        printf("Sudoku: Time to find all %u solutions on %d threads: %6.6f seconds.\n",
+        printf("Sudoku: Time to find first solution (actual %6u) on %d threads using %6u tasks with %6u races: %6.6f seconds. This is %3.1f%%\n",
                number,
                p,
-               std::chrono::duration_cast<double_sec>(solve_time).count());
+               tasks,
+               races,
+               std::chrono::duration_cast<double_sec>(solve_time).count(),
+               percent);
+      }
+      else {
+        printf("Sudoku: Time to find all %6u solutions on %d threads using %6u tasks: %6.6f seconds. This is %3.1f%%\n",
+               number,
+               p,
+               tasks,
+               std::chrono::duration_cast<double_sec>(solve_time).count(),
+               percent);
       }
     }
+    fflush(stdout);
   }
   return 0;
 }
