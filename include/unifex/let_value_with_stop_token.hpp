@@ -151,6 +151,49 @@ struct _stop_token_operation<SuccessorFactory, Receiver>::type {
       operation<SuccessorFactory, unifex::remove_cvref_t<Receiver>>,
       unifex::remove_cvref_t<Receiver>>;
 
+  static constexpr bool successor_is_nothrow =
+      unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token&>;
+  template <typename Receiver2>
+  static constexpr bool inner_receiver_nothrow_constructible = unifex::
+      is_nothrow_constructible_v<receiver_t, inplace_stop_token, Receiver2&&>;
+  static constexpr bool nothrow_connectable =
+      unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>;
+
+private:
+  template <typename Receiver2>
+  auto connect_inner_op(
+      SuccessorFactory&& func,
+      inplace_stop_token st,
+      Receiver2&&
+          r) noexcept(successor_is_nothrow&&
+                          inner_receiver_nothrow_constructible<Receiver2>&&
+                              unifex::is_nothrow_connectable_v<
+                                  inner_sender_t,
+                                  receiver_t>) {
+    if constexpr (
+        successor_is_nothrow &&
+        inner_receiver_nothrow_constructible<Receiver2> &&
+        unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>) {
+      return unifex::connect(
+          ((SuccessorFactory &&) func)(st), receiver_t(st, (Receiver2 &&) r));
+    } else {
+      // Need to manually unsubscribe stop_token_adapter_ in case call to
+      // connect throws
+      UNIFEX_TRY {
+        return unifex::connect(
+            ((SuccessorFactory &&) func)(st), receiver_t(st, (Receiver2 &&) r));
+      }
+      UNIFEX_CATCH(...) {
+        stop_token_adapter_.unsubscribe();
+        throw;
+      }
+    }
+  }
+
+  inplace_stop_token_adapter<stop_token_type_t<Receiver>> stop_token_adapter_;
+  connect_result_t<inner_sender_t, receiver_t> innerOp_;
+
+public:
   template <typename SuccessorFactory2, typename Receiver2>
   type(SuccessorFactory2&& func, Receiver2&& r) noexcept(
       is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>&&
@@ -167,54 +210,6 @@ struct _stop_token_operation<SuccessorFactory, Receiver>::type {
   ~type() { stop_token_adapter_.unsubscribe(); }
 
   void start() noexcept { unifex::start(innerOp_); }
-
-private:
-  template <typename Receiver2>
-  auto connect_inner_op_wrapped(
-      SuccessorFactory&& func,
-      inplace_stop_token st,
-      Receiver2&&
-          r) noexcept(noexcept(connect_inner_op(func, st, (Receiver2 &&) r))) {
-    if constexpr (noexcept(connect_inner_op(func, st, (Receiver2 &&) r))) {
-      return connect_inner_op((SuccessorFactory &&) func, st, (Receiver2 &&) r);
-    } else {
-      // Need to manually unsubscribe stop_token_adapter_ in case call to
-      // connect throws
-      UNIFEX_TRY {
-        return connect_inner_op(
-            (SuccessorFactory &&) func, st, (Receiver2 &&) r);
-      }
-      UNIFEX_CATCH(...) {
-        stop_token_adapter_.unsubscribe();
-        throw;
-      }
-    }
-  }
-
-  static constexpr bool successor_is_nothrow =
-      unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token&>;
-  template <typename Receiver2>
-  static constexpr bool inner_receiver_nothrow_constructible = unifex::
-      is_nothrow_constructible_v<receiver_t, inplace_stop_token, Receiver2&&>;
-  static constexpr bool nothrow_connectable =
-      unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>;
-
-  template <typename Receiver2>
-  static auto connect_inner_op(
-      SuccessorFactory&& func,
-      inplace_stop_token st,
-      Receiver2&&
-          r) noexcept(successor_is_nothrow&&
-                          inner_receiver_nothrow_constructible<Receiver2>&&
-                              unifex::is_nothrow_connectable_v<
-                                  inner_sender_t,
-                                  receiver_t>) {
-    return unifex::connect(
-        ((SuccessorFactory &&) func)(st), receiver_t(st, (Receiver2 &&) r));
-  }
-
-  inplace_stop_token_adapter<stop_token_type_t<Receiver>> stop_token_adapter_;
-  connect_result_t<inner_sender_t, receiver_t> innerOp_;
 };
 
 namespace _cpo {
