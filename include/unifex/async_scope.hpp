@@ -106,7 +106,7 @@ private:
     decltype(on(UNIFEX_DECLVAL(Scheduler&&), UNIFEX_DECLVAL(Sender&&)));
 
 public:
-  async_scope() noexcept = default;
+  async_scope() noexcept : stopCallback_(stopSource_.get_token(), stop_callback{*this}) {};
 
   ~async_scope() {
     [[maybe_unused]] auto state = opState_.load(std::memory_order_relaxed);
@@ -167,20 +167,44 @@ public:
       just_from((Fun&&) fun));
   }
 
+  [[nodiscard]] auto complete() noexcept {
+    return sequence(
+        just_from([this] () noexcept {
+          end_of_scope();
+        }),
+        then(evt_.async_wait(), [this]() noexcept {
+            // make sure to synchronize with all the fetch_subs being done while
+            // operations complete
+            (void)opState_.load(std::memory_order_acquire);
+        }));
+  }
+
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
         just_from([this]() noexcept {
           request_stop();
         }),
-        then(evt_.async_wait(), [this]() noexcept {
-          // make sure to synchronize with all the fetch_subs being done while
-          // operations complete
-          (void)opState_.load(std::memory_order_acquire);
-        }));
+        complete());
+  }
+
+  inplace_stop_token get_stop_token() noexcept {
+    return stopSource_.get_token();
+  }
+
+  void request_stop() noexcept {
+    stopSource_.request_stop();
   }
 
  private:
+  struct stop_callback {
+    async_scope& self_;
+    void operator()() noexcept {
+      self_.end_of_scope();
+    }
+  };
+
   inplace_stop_source stopSource_;
+  inplace_stop_token::template callback_type<stop_callback> stopCallback_;
   // (opState_ & 1) is 1 until we've been stopped
   // (opState_ >> 1) is the number of outstanding operations
   std::atomic<std::size_t> opState_{1};
@@ -222,12 +246,9 @@ public:
     }
   }
 
-  void request_stop() noexcept {
+  void end_of_scope() noexcept {
     // stop adding work
     auto oldState = opState_.fetch_and(~stoppedBit, std::memory_order_release);
-
-    // request that existing work end soon
-    stopSource_.request_stop();
 
     if (op_count(oldState) == 0) {
       // there are no outstanding operations to wait for
