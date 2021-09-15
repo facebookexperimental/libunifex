@@ -167,16 +167,33 @@ public:
       just_from((Fun&&) fun));
   }
 
+  [[nodiscard]] auto complete() noexcept {
+    return sequence(
+        just_from([this] () noexcept {
+          end_of_scope();
+        }),
+        then(evt_.async_wait(), [this]() noexcept {
+            // make sure to synchronize with all the fetch_subs being done while
+            // operations complete
+            (void)opState_.load(std::memory_order_acquire);
+        }));
+  }
+
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
         just_from([this]() noexcept {
-          request_stop();
+          stopSource_.request_stop();
         }),
-        then(evt_.async_wait(), [this]() noexcept {
-          // make sure to synchronize with all the fetch_subs being done while
-          // operations complete
-          (void)opState_.load(std::memory_order_acquire);
-        }));
+        complete());
+  }
+
+  inplace_stop_token get_stop_token() noexcept {
+    return stopSource_.get_token();
+  }
+
+  void request_stop() noexcept {
+    end_of_scope();
+    stopSource_.request_stop();
   }
 
  private:
@@ -222,12 +239,9 @@ public:
     }
   }
 
-  void request_stop() noexcept {
+  void end_of_scope() noexcept {
     // stop adding work
     auto oldState = opState_.fetch_and(~stoppedBit, std::memory_order_release);
-
-    // request that existing work end soon
-    stopSource_.request_stop();
 
     if (op_count(oldState) == 0) {
       // there are no outstanding operations to wait for
