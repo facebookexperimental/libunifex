@@ -108,5 +108,4 @@ TEST(IntoVariant, OneOfPossibleValues){
   EXPECT_TRUE(x.has_value());
   const auto& [val] = std::get<0>(x.value());
   EXPECT_EQ(val, 42);
-  EXPECT_ANY_THROW(std::get<1>(x.value()));
 }
