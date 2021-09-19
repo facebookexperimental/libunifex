@@ -1,3 +1,4 @@
+#include <unifex/let_done.hpp>
 #include <unifex/then.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/when_all.hpp>
@@ -51,6 +52,13 @@ TEST(IntoVariant, StaticTypeCheck){
   static_assert(is_same_v<decltype(snd4)::error_types<variant>,
       variant<std::exception_ptr, int>>);
   static_assert(decltype(snd4)::sends_done == true);
+
+  auto snd5 = just(42) | let_done([]{return just("hello");}) | into_variant();
+  static_assert(is_same_v<decltype(snd5)::value_types<variant, tuple>,
+      vt_t<variant<tuple<int>, tuple<const char*>>>>);
+  static_assert(is_same_v<decltype(snd5)::error_types<variant>,
+      variant<std::exception_ptr>>);
+  static_assert(decltype(snd5)::sends_done == false);
 }
 
 TEST(IntoVariant, Working){
@@ -61,7 +69,7 @@ TEST(IntoVariant, Working){
             called = true;
             return d + 1;
           }))));
-  EXPECT_EQ(called, true);
+  EXPECT_TRUE(called);
   EXPECT_TRUE(x.has_value());
   const auto& [vt_first_val, vt_second_val] = std::get<0>(x.value());
   const auto& [first_val] = std::get<0>(vt_first_val);
@@ -81,11 +89,24 @@ TEST(IntoVariant, Pipeable){
         }))
       | into_variant()
       | sync_wait();
-  EXPECT_EQ(called, true);
+  EXPECT_TRUE(called);
   EXPECT_TRUE(x.has_value());
   const auto& [vt_first_val, vt_second_val] = std::get<0>(x.value());
   const auto& [first_val] = std::get<0>(vt_first_val);
   const auto [second_val] = std::get<0>(vt_second_val);
   EXPECT_EQ(first_val, 42);
   EXPECT_EQ(second_val, 43.5);
+}
+
+TEST(IntoVariant, OneOfPossibleValues){
+  bool called = false;
+  auto x = just(42)
+    | let_done([&]{ called = true; return just(42.5); }) 
+    | into_variant()
+    | sync_wait();
+  EXPECT_FALSE(called);
+  EXPECT_TRUE(x.has_value());
+  const auto& [val] = std::get<0>(x.value());
+  EXPECT_EQ(val, 42);
+  EXPECT_ANY_THROW(std::get<1>(x.value()));
 }
