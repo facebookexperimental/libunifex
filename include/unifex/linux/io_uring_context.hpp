@@ -33,9 +33,11 @@
 #include <unifex/linux/monotonic_clock.hpp>
 #include <unifex/linux/safe_file_descriptor.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <optional>
 #include <system_error>
 #include <utility>
@@ -439,7 +441,7 @@ class io_uring_context::read_sender {
         sqe.rw_flags = 0;
         sqe.user_data = reinterpret_cast<std::uintptr_t>(
             static_cast<completion_base*>(this));
-        sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
+        std::fill(std::begin(sqe.__pad2), std::end(sqe.__pad2), 0);
 
         this->execute_ = &operation::on_read_complete;
       };
@@ -557,7 +559,7 @@ class io_uring_context::write_sender {
         sqe.rw_flags = 0;
         sqe.user_data = reinterpret_cast<std::uintptr_t>(
             static_cast<completion_base*>(this));
-        sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
+        std::fill(std::begin(sqe.__pad2), std::end(sqe.__pad2), 0);
 
         this->execute_ = &operation::on_write_complete;
       };

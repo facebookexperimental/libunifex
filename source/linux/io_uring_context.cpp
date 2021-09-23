@@ -630,7 +630,7 @@ bool io_uring_context::try_register_remote_queue_notification() noexcept {
     sqe.len = 0;
     sqe.poll_events = POLL_IN;
     sqe.user_data = remote_queue_event_user_data;
-    sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
+    std::fill(std::begin(sqe.__pad2), std::end(sqe.__pad2), 0);
 
     return true;
   };
@@ -756,7 +756,7 @@ bool io_uring_context::try_submit_timer_io(const time_point& dueTime) noexcept {
     sqe.rw_flags =
         1; // HACK: Should be 'sqe.timeout_flags = IORING_TIMEOUT_ABS'
     sqe.user_data = timer_user_data();
-    sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
+    std::fill(std::begin(sqe.__pad2), std::end(sqe.__pad2), 0);
 
     time_.tv_sec = dueTime.seconds_part();
     time_.tv_nsec = dueTime.nanoseconds_part();
@@ -781,7 +781,7 @@ bool io_uring_context::try_submit_timer_io_cancel() noexcept {
     sqe.len = 0;
     sqe.rw_flags = 0;
     sqe.user_data = remove_timer_user_data();
-    sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
+    std::fill(std::begin(sqe.__pad2), std::end(sqe.__pad2), 0);
   };
 
   return try_submit_io(populateSqe);
