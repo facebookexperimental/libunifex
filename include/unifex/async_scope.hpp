@@ -105,6 +105,20 @@ private:
   using _on_result_t =
     decltype(on(UNIFEX_DECLVAL(Scheduler&&), UNIFEX_DECLVAL(Sender&&)));
 
+  inplace_stop_source stopSource_;
+  // (opState_ & 1) is 1 until we've been stopped
+  // (opState_ >> 1) is the number of outstanding operations
+  std::atomic<std::size_t> opState_{1};
+  async_manual_reset_event evt_;
+
+  [[nodiscard]] auto await_and_sync() noexcept {
+    return then(evt_.async_wait(), [this]() noexcept {
+      // make sure to synchronize with all the fetch_subs being done while
+      // operations complete
+      (void)opState_.load(std::memory_order_acquire);
+    });
+  }
+
 public:
   async_scope() noexcept = default;
 
@@ -172,19 +186,15 @@ public:
         just_from([this] () noexcept {
           end_of_scope();
         }),
-        then(evt_.async_wait(), [this]() noexcept {
-            // make sure to synchronize with all the fetch_subs being done while
-            // operations complete
-            (void)opState_.load(std::memory_order_acquire);
-        }));
+        await_and_sync());
   }
 
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
         just_from([this]() noexcept {
-          stopSource_.request_stop();
+          request_stop();
         }),
-        complete());
+        await_and_sync());
   }
 
   inplace_stop_token get_stop_token() noexcept {
@@ -197,11 +207,6 @@ public:
   }
 
  private:
-  inplace_stop_source stopSource_;
-  // (opState_ & 1) is 1 until we've been stopped
-  // (opState_ >> 1) is the number of outstanding operations
-  std::atomic<std::size_t> opState_{1};
-  async_manual_reset_event evt_;
 
   static constexpr std::size_t stoppedBit{1};
 
