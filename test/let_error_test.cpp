@@ -49,7 +49,7 @@ TEST(TransformError, Smoke) {
           let_done(
             schedule_after(scheduler, 200ms), 
             []{ return just_error(-1); }),
-          []{ return just(); }),
+          [](auto&&){ return just(); }),
         just_from([&]{ ++count; })),
       schedule_after(scheduler, 100ms)));
 
@@ -64,7 +64,7 @@ TEST(TransformError, StayError) {
   int count = 0;
 
   auto op = sequence(
-    on(scheduler, just_error(42) | let_error([]{ return just(); })),
+    on(scheduler, just_error(42) | let_error([](auto&&){ return just(); })),
     just_from([&]{ ++count; }));
   sync_wait(std::move(op));
 
@@ -81,7 +81,7 @@ TEST(TransformError, Pipeable) {
   sequence(
     schedule_after(scheduler, 200ms)
       | let_done([]{ return just_error(-1); })
-      | let_error([]{ return just(); }), 
+      | let_error([](auto&&){ return just(); }), 
     just_from([&]{ ++count; }))
     | stop_when(schedule_after(scheduler, 100ms))
     | sync_wait();
@@ -92,7 +92,7 @@ TEST(TransformError, Pipeable) {
 TEST(TransformError, WithValue) {
   auto one = 
     just_error(-1)
-    | let_error([]{ return just(42); })
+    | let_error([](auto&&){ return just(42); })
     | sync_wait();
 
   EXPECT_TRUE(one.has_value());
@@ -100,7 +100,7 @@ TEST(TransformError, WithValue) {
 
   auto multiple = 
     just_error(-1)
-    | let_error([]{ return just(42, 1, 2); })
+    | let_error([](auto&&){ return just(42, 1, 2); })
     | sync_wait();
 
   EXPECT_TRUE(multiple.has_value());

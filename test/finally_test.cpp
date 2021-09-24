@@ -62,7 +62,7 @@ TEST(Finally, Error) {
 
   auto res = just_error(-1)
     | finally(schedule(context.get_scheduler()))
-    | let_error([]{ return just(std::this_thread::get_id()); })
+    | let_error([](auto&&){ return just(std::this_thread::get_id()); })
     | sync_wait();
 
   ASSERT_TRUE(res.has_value());
