@@ -352,17 +352,17 @@ to the sender returned by `let_value_with_stop_source()`.
 
 ### `let_value_with_stop_token(Invocable func) -> Sender`
 
-The `let_value_with_stop_token()` algorithm creates an
-`inplace_stop_token_adapter` that remains alive for the duration of an
-operation.
+The `let_value_with_stop_token()` algorithm takes a function object that is
+invoked at `unifex::connect()` time with an `inplace_stop_token` object that
+can be used to receive a stop-request sent by the parent operation through the
+receiver it passes to connect().
 
-`func` is invoked with an lvalue reference to an `inplace_stop_token`
-created by subscribing the `inplace_stop_token_adapter` to the stop token
-returned by the invocation of `get_stop_token` on the provided receiver.
-This invocation must return a Sender.
+The function invocation must return a Sender which is immediately connected.
+The result of the sender returned from the function becomes the result of the
+`let_value_with_stop_token()` sender.
 
-The reference passed to `func` will remain valid until the returned sender
-completes, at which point the `inplace_stop_token_adapter` goes out of scope.
+The stop-token passed to the function is only guaranteed to be valid until
+the sender returned by the function completes.
 
 For example:
 ```c++
