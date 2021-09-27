@@ -31,7 +31,6 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/async_manual_reset_event.hpp>
-#include <unifex/static_thread_pool.hpp>
 #include <unifex/linux/io_uring_context.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/async_scope.hpp>
@@ -157,7 +156,6 @@ int main(int argc, char* argv[]) {
 
 task<void> copy_files(
   io_uring_context::scheduler s, 
-  static_thread_pool::scheduler pool, 
   const fs::path& from, 
   const fs::path& to) 
 {
@@ -188,7 +186,7 @@ task<void> copy_files(
       const auto targetParentPath = to / relativeSrc.parent_path();
       const auto targetParentFile = targetParentPath / p.filename();
 
-      scope.spawn_on(pool, [](
+      scope.spawn([](
         // use parameters instead of captures because async_scope
         // will run this after this scope has unwound 
         io_uring_context::scheduler s, 
@@ -253,10 +251,23 @@ auto copy_files(const fs::path& from, const fs::path& to) noexcept
     }
 }
 
+struct stop_running {
+  inplace_stop_source& stopSource_;
+  friend void tag_invoke(unifex::tag_t<unifex::set_value>, stop_running&& self, auto&&...) {
+    self.stopSource_.request_stop();
+  }
+  template<typename Error>
+  friend void tag_invoke(unifex::tag_t<unifex::set_error>, stop_running&& self, Error&&) noexcept {
+    self.stopSource_.request_stop();
+  }
+  friend void tag_invoke(unifex::tag_t<unifex::set_done>, stop_running&& self) noexcept {
+    self.stopSource_.request_stop();
+  }
+};
+
 int main(int argc, char* argv[]) {
   fs::path from;
   fs::path to;
-  auto threadCount = std::thread::hardware_concurrency() - 1;
   bool use_std_copy = false;
 
   int position = 0;
@@ -264,18 +275,6 @@ int main(int argc, char* argv[]) {
   for (auto arg : args) {
     if (arg.find("usestd"sv) == 0) {
       use_std_copy = true;
-    } else if (arg.find("n-of-threads="sv) == 0) {
-      arg.remove_prefix(13);
-
-      auto [ptr, ec] { std::from_chars(arg.data(), arg.data() + arg.size(), threadCount) };
- 
-      if (ec == std::errc::invalid_argument) {
-        printf("That isn't a number.\n");
-        return -1;
-      } else if (ec == std::errc::result_out_of_range) {
-        printf("This number is larger than an int.\n");
-        return -1;
-      }
     } else {
       if (position == 0) {
         printf("from: -> %s\n", arg.data());
@@ -292,15 +291,7 @@ int main(int argc, char* argv[]) {
   }
 
   io_uring_context ctx;
-  static_thread_pool poolContext(threadCount);
-  auto pool = poolContext.get_scheduler();
-
   inplace_stop_source stopSource;
-  std::thread t{[&] { ctx.run(stopSource.get_token()); }};
-  scope_guard stopOnExit = [&]() noexcept {
-    stopSource.request_stop();
-    t.join();
-  };
 
   auto scheduler = ctx.get_scheduler();
 
@@ -316,18 +307,25 @@ int main(int argc, char* argv[]) {
               duration_cast<double_sec>(finish-start).count());
       fflush(stdout); 
     } else {
-      sync_wait(sequence(
+      auto op = unifex::connect(
+        sequence(
+          scheduler.schedule(),
           just_from([&] { 
             std::printf("copy file\n"); 
             fflush(stdout); 
             start = steady_clock::now();
           }),
-          copy_files(scheduler, pool, from, to),
+          copy_files(scheduler, from, to),
           just_from([&] { 
             finish = steady_clock::now();
             std::printf("copy completed\n");
             fflush(stdout); 
-          })));
+          })), stop_running{stopSource});
+      unifex::start(op);
+
+      printf("running...\n");
+      ctx.run(stopSource.get_token());
+
       printf("uring: Copied all the files in %6.6f seconds\n",
               duration_cast<double_sec>(finish-start).count());
       fflush(stdout); 
