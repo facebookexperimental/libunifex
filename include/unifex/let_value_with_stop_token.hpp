@@ -84,6 +84,16 @@ public:
     return cpo(self.receiver_);
   }
 
+  template <typename VisitFunc>
+  friend void tag_invoke(
+      tag_t<visit_continuations>,
+      const type& r,
+      VisitFunc&& func) noexcept(is_nothrow_callable_v<
+                                VisitFunc&,
+                                const Receiver&>) {
+    func(r.receiver_);
+  }
+
 private:
   inplace_stop_token stop_token_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
