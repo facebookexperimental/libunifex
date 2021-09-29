@@ -35,13 +35,13 @@ struct _stop_token_receiver {
   class type;
 };
 
-template <typename InnerOp, typename Receiver, typename = void>
+template <typename SuccessorFactory, typename Receiver, typename = void>
 struct _stop_token_operation {
   struct type;
 };
 
-template <typename InnerOp, typename Receiver>
-using operation = typename _stop_token_operation<InnerOp, Receiver, void>::type;
+template <typename SuccessorFactory, typename Receiver>
+using operation = typename _stop_token_operation<SuccessorFactory, Receiver, void>::type;
 
 template <typename Receiver>
 using stop_token_receiver = typename _stop_token_receiver<Receiver>::type;
@@ -110,20 +110,20 @@ using stop_token_sender = typename _stop_token_sender<SuccessorFactory>::type;
 template <typename SuccessorFactory>
 class _stop_token_sender<SuccessorFactory>::type {
 public:
-  using InnerOp =
-      unifex::invoke_result_t<SuccessorFactory, inplace_stop_token&>;
+  using inner_sender_t =
+      unifex::invoke_result_t<SuccessorFactory, inplace_stop_token>;
 
   template <
       template <typename...>
       class Variant,
       template <typename...>
       class Tuple>
-  using value_types = sender_value_types_t<InnerOp, Variant, Tuple>;
+  using value_types = sender_value_types_t<inner_sender_t, Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types = sender_error_types_t<InnerOp, Variant>;
+  using error_types = sender_error_types_t<inner_sender_t, Variant>;
 
-  static constexpr bool sends_done = sender_traits<InnerOp>::sends_done;
+  static constexpr bool sends_done = sender_traits<inner_sender_t>::sends_done;
 
   template <typename SuccessorFactory2>
   explicit type(SuccessorFactory2&& func) noexcept(
@@ -134,7 +134,7 @@ public:
     (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver>) friend
   auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
     noexcept(
-      is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_token&>
+      is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_token>
       && is_nothrow_move_constructible_v<Receiver>
       && is_nothrow_constructible_v<
         operation<member_t<Self, SuccessorFactory>, unifex::remove_cvref_t<Receiver>>,
@@ -162,11 +162,11 @@ struct _stop_token_operation<
         is_stop_never_possible_v<stop_token_type_t<Receiver>>>> {
   struct type {
     using inner_sender_t =
-        unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token&>;
+        unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
     using receiver_t = stop_token_receiver<unifex::remove_cvref_t<Receiver>>;
 
     static constexpr bool successor_is_nothrow =
-        unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token&>;
+        unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
     static constexpr bool inner_receiver_nothrow_constructible = unifex::
         is_nothrow_constructible_v<receiver_t, inplace_stop_token, Receiver&&>;
     static constexpr bool nothrow_connectable =
@@ -220,11 +220,11 @@ struct _stop_token_operation<
 template <typename SuccessorFactory, typename Receiver, typename AlwaysVoid>
 struct _stop_token_operation<SuccessorFactory, Receiver, AlwaysVoid>::type {
   using inner_sender_t =
-      unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token&>;
+      unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
   using receiver_t = stop_token_receiver<unifex::remove_cvref_t<Receiver>>;
 
   static constexpr bool successor_is_nothrow =
-      unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token&>;
+      unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
   static constexpr bool inner_receiver_nothrow_constructible = unifex::
       is_nothrow_constructible_v<receiver_t, inplace_stop_token, Receiver&&>;
   static constexpr bool nothrow_connectable =

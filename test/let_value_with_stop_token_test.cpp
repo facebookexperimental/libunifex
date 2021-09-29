@@ -80,46 +80,14 @@ TEST(LetWithStopToken, Simple) {
   int external_context = 0;
   optional<int> result =
       sync_wait(let_value_with_stop_source([&](auto& stopSource) {
-        return let_value_with_stop_token([&](auto& stopToken) {
+        return let_value_with_stop_token([&](inplace_stop_token stopToken) {
           return let_value_with(
               [&]() noexcept {
                 auto stopCallback = [&]() noexcept {
                   external_context = 42;
                 };
-                using stop_token_t =
-                    unifex::remove_cvref_t<decltype(stopToken)>;
                 using stop_callback_t =
-                    typename stop_token_t::template callback_type<
-                        decltype(stopCallback)>;
-                return stop_callback_t{stopToken, stopCallback};
-              },
-              [&](auto&) -> unifex::any_sender_of<int> {
-                stopSource.request_stop();
-                return just_done();
-              });
-        });
-      }));
-
-  EXPECT_TRUE(!result);
-  EXPECT_EQ(external_context, 42);
-}
-
-TEST(LetWithStopToken, SimpleNoExceptSuccessor) {
-  // Simple usage of 'let_value_with_stop_token()'
-  // - Sets up some work to execute when receiver is cancelled
-  int external_context = 0;
-  optional<int> result =
-      sync_wait(let_value_with_stop_source([&](auto& stopSource) noexcept {
-        return let_value_with_stop_token([&](auto& stopToken) noexcept {
-          return let_value_with(
-              [&]() noexcept {
-                auto stopCallback = [&]() noexcept {
-                  external_context = 42;
-                };
-                using stop_token_t =
-                    unifex::remove_cvref_t<decltype(stopToken)>;
-                using stop_callback_t =
-                    typename stop_token_t::template callback_type<
+                    typename inplace_stop_token::template callback_type<
                         decltype(stopCallback)>;
                 return stop_callback_t{stopToken, stopCallback};
               },
@@ -144,15 +112,15 @@ TEST(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
   // - Sets up some work to execute when receiver is cancelled
   int external_context = 0;
   inplace_stop_source stopSource;
-  auto stop_token_functor = [&](auto stopToken) noexcept {
+  auto stop_token_functor = [&](inplace_stop_token stopToken) noexcept {
     return let_value_with(
         [stopToken, &external_context]() noexcept {
           auto stopCallback = [&]() noexcept {
             external_context = 42;
           };
-          using stop_token_t = unifex::remove_cvref_t<decltype(stopToken)>;
-          using stop_callback_t = typename stop_token_t::template callback_type<
-              decltype(stopCallback)>;
+          using stop_callback_t =
+                    typename inplace_stop_token::template callback_type<
+                        decltype(stopCallback)>;
           return stop_callback_t{stopToken, stopCallback};
         },
         [&](auto&) noexcept {
@@ -184,15 +152,14 @@ TEST(LetWithStopToken, SimpleUnstoppable) {
   int external_context = 0;
   inplace_stop_source stopSource;
   auto op = unifex::connect(
-      let_value_with_stop_token([&](auto stopToken) noexcept {
+      let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
             [stopToken, &external_context]() noexcept {
               auto stopCallback = [&]() noexcept {
                 external_context = 42;
               };
-              using stop_token_t = unifex::remove_cvref_t<decltype(stopToken)>;
               using stop_callback_t =
-                  typename stop_token_t::template callback_type<
+                  typename inplace_stop_token::template callback_type<
                       decltype(stopCallback)>;
               return stop_callback_t{stopToken, stopCallback};
             },
@@ -215,15 +182,14 @@ TEST(LetWithStopToken, SimpleInplaceStoppable) {
   int external_context = 0;
   inplace_stop_source stopSource;
   auto op = unifex::connect(
-      let_value_with_stop_token([&](auto stopToken) noexcept {
+      let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
             [stopToken, &external_context]() noexcept {
               auto stopCallback = [&]() noexcept {
                 external_context = 42;
               };
-              using stop_token_t = unifex::remove_cvref_t<decltype(stopToken)>;
               using stop_callback_t =
-                  typename stop_token_t::template callback_type<
+                  typename inplace_stop_token::template callback_type<
                       decltype(stopCallback)>;
               return stop_callback_t{stopToken, stopCallback};
             },
@@ -249,15 +215,14 @@ TEST(LetWithStopToken, SimpleNonInplaceStoppable) {
   int external_context = 0;
   inplace_stop_source stopSource;
   auto op = unifex::connect(
-      let_value_with_stop_token([&](auto stopToken) noexcept {
+      let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
             [stopToken, &external_context]() noexcept {
               auto stopCallback = [&]() noexcept {
                 external_context = 42;
               };
-              using stop_token_t = unifex::remove_cvref_t<decltype(stopToken)>;
               using stop_callback_t =
-                  typename stop_token_t::template callback_type<
+                  typename inplace_stop_token::template callback_type<
                       decltype(stopCallback)>;
               return stop_callback_t{stopToken, stopCallback};
             },

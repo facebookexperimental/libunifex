@@ -367,7 +367,7 @@ the sender returned by the function completes.
 For example:
 ```c++
 let_value_with_stop_token(
-    [](unifex::inplace_stop_token& stop_token) {
+    [](unifex::inplace_stop_token stop_token) {
       return other_operation(stop_token);
     });
 ```
