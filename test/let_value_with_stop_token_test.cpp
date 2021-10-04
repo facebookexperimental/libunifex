@@ -81,9 +81,12 @@ TEST(LetWithStopToken, Simple) {
   optional<int> result =
       sync_wait(let_value_with_stop_source([&](auto& stopSource) {
         return let_value_with_stop_token([&](inplace_stop_token stopToken) {
+          // Needs to pass the stop token by value into the capture list
+          // to prevent accessing stopToken reference after function has
+          // returned.
           return let_value_with(
-              [&]() noexcept {
-                auto stopCallback = [&]() noexcept {
+              [stopToken, &external_context]() noexcept {
+                auto stopCallback = [&]() mutable noexcept {
                   external_context = 42;
                 };
                 using stop_callback_t =
@@ -91,7 +94,7 @@ TEST(LetWithStopToken, Simple) {
                         decltype(stopCallback)>;
                 return stop_callback_t{stopToken, stopCallback};
               },
-              [&](auto&) -> unifex::any_sender_of<int> {
+              [&stopSource](auto&) -> unifex::any_sender_of<int> {
                 stopSource.request_stop();
                 return just_done();
               });
