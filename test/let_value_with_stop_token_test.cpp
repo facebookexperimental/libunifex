@@ -145,8 +145,9 @@ TEST(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
 }
 
 TEST(LetWithStopToken, SimpleUnstoppable) {
-  static_assert(is_stop_never_possible_v<
-                stop_token_type_t<UnstoppableSimpleIntReceiver>>);
+  static_assert(unifex::same_as<
+                stop_token_type_t<UnstoppableSimpleIntReceiver>,
+                unifex::unstoppable_token>);
 
   // Simple usage of 'let_value_with_stop_token()' with receiver with
   // unstoppable stop token
