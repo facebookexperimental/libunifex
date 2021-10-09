@@ -21,10 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 
-#include <exception>
-#include <tuple>
 #include <type_traits>
-#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -40,11 +37,11 @@ using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
 template <typename Receiver>
 struct _op<Receiver>::type {
-  bool is_void_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  bool isVoid_;
 
   void start() & noexcept {
-    if (is_void_) {
+    if (isVoid_) {
       unifex::set_value((Receiver &&) receiver_);
     } else {
       unifex::set_done((Receiver &&) receiver_);
@@ -53,7 +50,7 @@ struct _op<Receiver>::type {
 };
 
 struct _sender {
-  bool is_void_;
+  bool isVoid_;
 
   template <
       template <typename...>
@@ -71,8 +68,9 @@ struct _sender {
   UNIFEX_TEMPLATE(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, _sender> UNIFEX_AND
           receiver<Receiver>)
-  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r) noexcept {
-    return operation<Receiver>{that.is_void_, static_cast<Receiver&&>(r)};
+  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
+      noexcept(std::is_nothrow_move_constructible_v<Receiver>) {
+    return operation<Receiver>{static_cast<Receiver&&>(r), that.isVoid_};
   }
   // clang-format on
 
@@ -84,8 +82,8 @@ struct _sender {
 
 namespace _just_void_or_done_cpo {
 inline const struct just_void_or_done_fn {
-  constexpr auto operator()(bool is_void) const noexcept {
-    return _just_void_or_done::_sender{is_void};
+  constexpr auto operator()(bool isVoid) const noexcept {
+    return _just_void_or_done::_sender{isVoid};
   }
 } just_void_or_done{};
 }  // namespace _just_void_or_done_cpo
