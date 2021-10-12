@@ -65,12 +65,11 @@ struct _sender {
   static constexpr bool sends_done = true;
 
   // clang-format off
-  UNIFEX_TEMPLATE(typename This, typename Receiver)
-      (requires same_as<remove_cvref_t<This>, _sender> UNIFEX_AND
-          receiver<Receiver>)
-  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
+  UNIFEX_TEMPLATE(typename Receiver)
+      (requires receiver<Receiver>)
+  friend auto tag_invoke(tag_t<connect>, _sender s, Receiver&& r)
       noexcept(std::is_nothrow_move_constructible_v<Receiver>) {
-    return operation<Receiver>{static_cast<Receiver&&>(r), that.isVoid_};
+    return operation<Receiver>{static_cast<Receiver&&>(r), s.isVoid_};
   }
   // clang-format on
 
