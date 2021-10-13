@@ -80,7 +80,7 @@ struct _sender {
 }  // namespace _just_void_or_done
 
 namespace _just_void_or_done_cpo {
-constexpr struct just_void_or_done_fn {
+inline constexpr struct just_void_or_done_fn {
   constexpr auto operator()(bool isVoid) const noexcept {
     return _just_void_or_done::_sender{isVoid};
   }
