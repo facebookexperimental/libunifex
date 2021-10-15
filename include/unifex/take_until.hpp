@@ -244,6 +244,14 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.source_cleanup_error(std::move(error));
           }
 
+          template(typename CPO)
+              (requires is_receiver_query_cpo_v<CPO>)
+          friend auto tag_invoke(CPO cpo, const source_receiver& r) noexcept(
+              is_nothrow_callable_v<CPO, const Receiver&>)
+              -> callable_result_t<CPO, const Receiver&> {
+            return std::move(cpo)(std::as_const(r.op_.receiver_));
+          }
+
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -271,6 +279,14 @@ struct _stream<SourceStream, TriggerStream>::type {
             auto& op = op_;
             op.triggerOp_.destruct();
             op.trigger_cleanup_error(std::move(error));
+          }
+
+          template(typename CPO)
+              (requires is_receiver_query_cpo_v<CPO>)
+          friend auto tag_invoke(CPO cpo, const trigger_receiver& r) noexcept(
+              is_nothrow_callable_v<CPO, const Receiver&>)
+              -> callable_result_t<CPO, const Receiver&> {
+            return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
           template <typename Func>
