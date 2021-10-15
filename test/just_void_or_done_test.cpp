@@ -15,7 +15,7 @@
  */
 #include <unifex/just_void_or_done.hpp>
 
-#include <optional>
+#include <unifex/optional.hpp>
 
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
@@ -26,14 +26,14 @@ namespace unifex {
 namespace {
 
 TEST(just_void_or_done, just_void) {
-  std::optional<int> i =
+  optional<int> i =
       sync_wait(then(just_void_or_done(true), [] { return 42; }));
   ASSERT_TRUE(i.has_value());
   EXPECT_EQ(*i, 42);
 }
 
 TEST(just_void_or_done, just_done) {
-  std::optional<int> i =
+  optional<int> i =
       sync_wait(then(just_void_or_done(false), [] { return 42; }));
   ASSERT_FALSE(i.has_value());
 }

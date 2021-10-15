@@ -22,15 +22,14 @@
 #include <unifex/into_variant.hpp>
 #include <unifex/just_done.hpp>
 #include <exception>
-#include <variant>
+#include <unifex/variant.hpp>
 #include <gtest/gtest.h>
 
 using namespace unifex;
 
 template <typename... T>
-using vt_t = std::variant<std::tuple<T...>>;
+using vt_t = variant<std::tuple<T...>>;
 
-using std::variant;
 using std::tuple;
 using std::is_same_v;
 
@@ -86,9 +85,9 @@ TEST(IntoVariant, Working){
           }))));
   EXPECT_TRUE(called);
   EXPECT_TRUE(x.has_value());
-  const auto& [vt_first_val, vt_second_val] = std::get<0>(x.value());
-  const auto& [first_val] = std::get<0>(vt_first_val);
-  const auto [second_val] = std::get<0>(vt_second_val);
+  const auto& [vt_first_val, vt_second_val] = absl::get<0>(x.value());
+  const auto& [first_val] = absl::get<0>(vt_first_val);
+  const auto [second_val] = absl::get<0>(vt_second_val);
   EXPECT_EQ(first_val, 42);
   EXPECT_EQ(second_val, 43.0);
 }
@@ -106,9 +105,9 @@ TEST(IntoVariant, Pipeable){
       | sync_wait();
   EXPECT_TRUE(called);
   EXPECT_TRUE(x.has_value());
-  const auto& [vt_first_val, vt_second_val] = std::get<0>(x.value());
-  const auto& [first_val] = std::get<0>(vt_first_val);
-  const auto [second_val] = std::get<0>(vt_second_val);
+  const auto& [vt_first_val, vt_second_val] = absl::get<0>(x.value());
+  const auto& [first_val] = absl::get<0>(vt_first_val);
+  const auto [second_val] = absl::get<0>(vt_second_val);
   EXPECT_EQ(first_val, 42);
   EXPECT_EQ(second_val, 43.5);
 }
@@ -116,11 +115,11 @@ TEST(IntoVariant, Pipeable){
 TEST(IntoVariant, OneOfPossibleValues){
   bool called = false;
   auto x = just(42)
-    | let_done([&]{ called = true; return just(42.5); }) 
+    | let_done([&]{ called = true; return just(42.5); })
     | into_variant()
     | sync_wait();
   EXPECT_FALSE(called);
   EXPECT_TRUE(x.has_value());
-  const auto& [val] = std::get<0>(x.value());
+  const auto& [val] = absl::get<0>(x.value());
   EXPECT_EQ(val, 42);
 }
