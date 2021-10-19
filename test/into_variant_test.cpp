@@ -85,9 +85,9 @@ TEST(IntoVariant, Working){
           }))));
   EXPECT_TRUE(called);
   EXPECT_TRUE(x.has_value());
-  const auto& [vt_first_val, vt_second_val] = absl::get<0>(x.value());
-  const auto& [first_val] = absl::get<0>(vt_first_val);
-  const auto [second_val] = absl::get<0>(vt_second_val);
+  const auto& [vt_first_val, vt_second_val] = var::get<0>(x.value());
+  const auto& [first_val] = var::get<0>(vt_first_val);
+  const auto [second_val] = var::get<0>(vt_second_val);
   EXPECT_EQ(first_val, 42);
   EXPECT_EQ(second_val, 43.0);
 }
@@ -105,9 +105,9 @@ TEST(IntoVariant, Pipeable){
       | sync_wait();
   EXPECT_TRUE(called);
   EXPECT_TRUE(x.has_value());
-  const auto& [vt_first_val, vt_second_val] = absl::get<0>(x.value());
-  const auto& [first_val] = absl::get<0>(vt_first_val);
-  const auto [second_val] = absl::get<0>(vt_second_val);
+  const auto& [vt_first_val, vt_second_val] = var::get<0>(x.value());
+  const auto& [first_val] = var::get<0>(vt_first_val);
+  const auto [second_val] = var::get<0>(vt_second_val);
   EXPECT_EQ(first_val, 42);
   EXPECT_EQ(second_val, 43.5);
 }
@@ -120,6 +120,6 @@ TEST(IntoVariant, OneOfPossibleValues){
     | sync_wait();
   EXPECT_FALSE(called);
   EXPECT_TRUE(x.has_value());
-  const auto& [val] = absl::get<0>(x.value());
+  const auto& [val] = var::get<0>(x.value());
   EXPECT_EQ(val, 42);
 }
