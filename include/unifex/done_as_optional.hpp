@@ -21,6 +21,8 @@
 #include <unifex/then.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/just.hpp>
+#include <unifex/type_traits.hpp>
+#include <unifex/bind_back.hpp>
 #include <unifex/sender_concepts.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -37,14 +39,14 @@ inline const struct _fn {
     return let_done(
         then(
             (Sender&&) predecessor,
-            [](auto&&... ts) {
-              return optional_t{std::in_place, static_cast<decltype(ts)>(ts)...};
+            [](auto&&... ts) noexcept(
+                noexcept(optional_t{std::in_place, (decltype(ts)) ts...})) {
+              return optional_t{std::in_place, (decltype(ts)) ts...};
             }),
         []() noexcept { return just(optional_t{}); });
   }
-  constexpr auto operator()() const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
-          -> bind_back_result_t<_fn> {
+  constexpr auto operator()() const noexcept
+      -> bind_back_result_t<_fn> {
     return bind_back(*this);
   }
 } done_as_optional{};
