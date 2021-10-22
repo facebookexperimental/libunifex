@@ -356,6 +356,30 @@ template <typename Sender>
 constexpr bool is_sender_nofail_v =
     sender_error_types_t<Sender, is_empty_list>::value;
 
-} // namespace unifex
+/// \cond
+namespace _single_sender {
+template <typename... Types>
+using _is_single_valued_tuple = std::bool_constant<1 >= sizeof...(Types)>;
+
+template <typename... Types>
+using _is_single_valued_variant =
+    std::bool_constant<sizeof...(Types) == 1 && (Types::value && ...)>;
+}  // namespace _single_sender
+/// \endcond
+
+template <typename Sender>
+UNIFEX_CONCEPT_FRAGMENT(        //
+    _single_typed_sender_impl,  //
+    requires()(0) &&            //
+        sender_traits<remove_cvref_t<Sender>>::template value_types<
+            _single_sender::_is_single_valued_variant,
+            _single_sender::_is_single_valued_tuple>::value);
+
+template <typename Sender>
+UNIFEX_CONCEPT _single_typed_sender = //
+    typed_sender<Sender> &&
+    UNIFEX_FRAGMENT(unifex::_single_typed_sender_impl, Sender);
+
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
