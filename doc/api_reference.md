@@ -34,6 +34,7 @@
   * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
+  * `done_as_optional()`
 * Sender Types
   * `async_trace_sender`
 * Sender Queries
@@ -633,6 +634,30 @@ Wraps `sender` in a new sender that will injects `allocator` as the
 result of `get_allocator()` query on receivers passed to child operations.
 
 Child operations should use this allocator to perform heap allocations.
+
+### `done_as_optional(Sender sender) -> Sender`
+
+`done_as_optional` is used to handle a done signal by mapping it into the
+value channel as an empty `std::optional`. The value channel is also converted
+into an optional. The result is a sender that never completes with done,
+reporting cancellation by completing with an empty optional.
+
+This function only accepts `typed_sender`s that complete with either
+`void` or a single type.
+
+For example:
+```c++
+task<int> f();
+
+task<void> g() {
+  std::optional<int> i = co_await done_as_optional(f());
+  if (i) {
+    // OK, f() completed successfully and wasn't cancelled
+  } else {
+    // f() was cancelled before it finished.
+  }
+}
+```
 
 ## Sender Types
 
