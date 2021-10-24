@@ -141,7 +141,7 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -153,7 +153,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -201,7 +201,7 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -213,7 +213,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -227,11 +227,11 @@ class _op<Source, Func, Receiver>::type {
 
 public:
   template <typename Func2, typename Receiver2>
-  explicit type(Source&& source, Func2&& error, Receiver2&& dest)
+  explicit type(Source&& source, Func2&& func, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
                std::is_nothrow_move_constructible_v<Func> &&
                is_nothrow_connectable_v<Source, source_receiver>)
-  : error_((Func2&&)error)
+  : func_((Func2&&)func)
   , receiver_((Receiver2&&)dest)
   , deactivate_(nullptr)
   {
@@ -336,17 +336,17 @@ public:
           sender_error_types_t<Source, make_error_type_list>,
           type_list<std::exception_ptr>>::template apply<Variant>;
 
-  static constexpr bool sends_done = 
+  static constexpr bool sends_done =
     sender_traits<Source>::sends_done |
     sender_error_types_t<Source, sends_done_impl>::value;
 
   template <typename Source2, typename Func2>
-  explicit type(Source2&& source, Func2&& error)
+  explicit type(Source2&& source, Func2&& func)
     noexcept(
       std::is_nothrow_constructible_v<Source, Source2> &&
       std::is_nothrow_constructible_v<Func, Func2>)
     : source_((Source2&&)source)
-    , error_((Func2&&)error)
+    , func_((Func2&&)func)
   {}
 
   template(
@@ -368,53 +368,53 @@ public:
       -> operation_type<member_t<Sender, Source>, Func, Receiver> {
     return operation_type<member_t<Sender, Source>, Func, Receiver>{
       static_cast<Sender&&>(s).source_,
-      static_cast<Sender&&>(s).error_,
+      static_cast<Sender&&>(s).func_,
       static_cast<Receiver&&>(r)
     };
   }
 
 private:
   Source source_;
-  Func error_;
+  Func func_;
 };
 
 namespace _cpo
 {
 struct _fn {
-  template(typename Source, typename Error)
-    (requires tag_invocable<_fn, Source, Error> AND
+  template(typename Source, typename Func)
+    (requires tag_invocable<_fn, Source, Func> AND
         sender<Source>)
         // callable<remove_cvref_t<Error>> AND
         // sender<callable_result_t<remove_cvref_t<Error>>>)
-  auto operator()(Source&& source, Error&& error) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Error>)
-      -> tag_invoke_result_t<_fn, Source, Error> {
-    return tag_invoke(*this, (Source&&)source, (Error&&)error);
+  auto operator()(Source&& source, Func&& func) const
+      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>)
+      -> tag_invoke_result_t<_fn, Source, Func> {
+    return tag_invoke(*this, (Source&&)source, (Func&&)func);
   }
 
-  template(typename Source, typename Error)
-    (requires (!tag_invocable<_fn, Source, Error>) AND
+  template(typename Source, typename Func)
+    (requires (!tag_invocable<_fn, Source, Func>) AND
         constructible_from<remove_cvref_t<Source>, Source> AND
-        constructible_from<remove_cvref_t<Error>, Error>)
+        constructible_from<remove_cvref_t<Func>, Func>)
         // callable<remove_cvref_t<Error>> AND
         // sender<callable_result_t<remove_cvref_t<Error>>>)
-  auto operator()(Source&& source, Error&& error) const
+  auto operator()(Source&& source, Func&& func) const
       noexcept(std::is_nothrow_constructible_v<
-                   _sender<remove_cvref_t<Source>, remove_cvref_t<Error>>,
-                   Source, 
-                   Error>)
-      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Error>> {
-    return _sender<remove_cvref_t<Source>, remove_cvref_t<Error>>{
-        (Source&&)source, (Error&&)error};
+                   _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>,
+                   Source,
+                   Func>)
+      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Func>> {
+    return _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>{
+        (Source&&)source, (Func&&)func};
   }
-  template<typename Error>
+  template<typename Func>
       // (requires callable<remove_cvref_t<Error>> AND
       //   sender<callable_result_t<remove_cvref_t<Error>>>)
-  constexpr auto operator()(Error&& error) const
+  constexpr auto operator()(Func&& func) const
       noexcept(is_nothrow_callable_v<
-        tag_t<bind_back>, _fn, Error>)
-      -> bind_back_result_t<_fn, Error> {
-    return bind_back(*this, (Error&&)error);
+        tag_t<bind_back>, _fn, Func>)
+      -> bind_back_result_t<_fn, Func> {
+    return bind_back(*this, (Func&&)func);
   }
 };
 } // namespace _cpo
