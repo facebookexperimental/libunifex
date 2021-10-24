@@ -77,16 +77,14 @@ struct _sender {
     return blocking_kind::always_inline;
   }
 };
-}  // namespace _just_void_or_done
 
-namespace _just_void_or_done_cpo {
 inline constexpr struct just_void_or_done_fn {
   constexpr auto operator()(bool isVoid) const noexcept {
-    return _just_void_or_done::_sender{isVoid};
+    return _sender{isVoid};
   }
 } just_void_or_done{};
-}  // namespace _just_void_or_done_cpo
-using _just_void_or_done_cpo::just_void_or_done;
+}  // namespace _just_void_or_done
+using _just_void_or_done::just_void_or_done;
 
 }  // namespace unifex
 
