@@ -118,7 +118,7 @@ public:
         op->startedOp_ = state::neither;
         unifex::deactivate_union_member(op->sourceOp_);
         auto& finalOp = unifex::activate_union_member_with<final_op_t>(op->finalOp_, [&] {
-          return unifex::connect(std::move(op->error_)(e), final_receiver{op});
+          return unifex::connect(std::move(op->func_)(e), final_receiver{op});
         });
         op->deactivate_ = [](auto& op) noexcept {
           unifex::deactivate_union_member<final_op_t>(op);
@@ -280,7 +280,7 @@ private:
 
   using final_op_union_t = typename remove_cvref_t<Source>::template error_types<final_op_union>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS Func error_;
+  UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   state startedOp_ = state::neither;
   union {
