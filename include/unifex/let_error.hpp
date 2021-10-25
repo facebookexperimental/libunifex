@@ -34,41 +34,41 @@
 namespace unifex {
 
 namespace _let_e {
-template <typename Source, typename Error, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _op {
   class type;
 };
-template <typename Source, typename Error, typename Receiver>
-using operation_type = typename _op<Source, Error, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Func, typename Receiver>
+using operation_type = typename _op<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Error, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _rcvr {
   class type;
 };
-template <typename Source, typename Error, typename Receiver>
-using receiver_type = typename _rcvr<Source, Error, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Func, typename Receiver>
+using receiver_type = typename _rcvr<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Error, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _frcvr {
   class type;
 };
-template <typename Source, typename Error, typename Receiver>
-using final_receiver_type = typename _frcvr<Source, Error, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Func, typename Receiver>
+using final_receiver_type = typename _frcvr<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Error>
+template <typename Source, typename Func>
 struct _sndr {
   class type;
 };
 
-template <typename Source, typename Error>
-using _sender = typename _sndr<Source, Error>::type;
+template <typename Source, typename Func>
+using _sender = typename _sndr<Source, Func>::type;
 
 enum class state { neither, source, final };
 
-template <typename Source, typename Error, typename Receiver>
-class _rcvr<Source, Error, Receiver>::type final {
-  using operation = operation_type<Source, Error, Receiver>;
-  using final_receiver = final_receiver_type<Source, Error, Receiver>;
+template <typename Source, typename Func, typename Receiver>
+class _rcvr<Source, Func, Receiver>::type final {
+  using operation = operation_type<Source, Func, Receiver>;
+  using final_receiver = final_receiver_type<Source, Func, Receiver>;
 
 
 public:
@@ -78,7 +78,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values) noexcept(
@@ -97,12 +97,12 @@ public:
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_; // preserve pointer value.
 
-    using final_sender_t = callable_result_t<Error&, ErrorValue>;
+    using final_sender_t = callable_result_t<Func&, ErrorValue>;
     using final_op_t = unifex::connect_result_t<final_sender_t, final_receiver>;
 
     if constexpr (
-      is_nothrow_callable_v<Error, ErrorValue> &&
-      is_nothrow_connectable_v<callable_result_t<Error, ErrorValue>, final_receiver>) {
+      is_nothrow_callable_v<Func, ErrorValue> &&
+      is_nothrow_connectable_v<callable_result_t<Func, ErrorValue>, final_receiver>) {
       op->startedOp_ = state::neither;
       unifex::deactivate_union_member(op->sourceOp_);
       auto& finalOp = unifex::activate_union_member_with<final_op_t>(op->finalOp_, [&] {
@@ -160,9 +160,9 @@ private:
   operation* op_;
 };
 
-template <typename Source, typename Error, typename Receiver>
-class _frcvr<Source, Error, Receiver>::type {
-  using operation = operation_type<Source, Error, Receiver>;
+template <typename Source, typename Func, typename Receiver>
+class _frcvr<Source, Func, Receiver>::type {
+  using operation = operation_type<Source, Func, Receiver>;
 
 public:
   explicit type(operation* op) noexcept
@@ -171,7 +171,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values) noexcept(
@@ -185,11 +185,11 @@ public:
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  template(typename Error2)
-    (requires receiver<Receiver, Error2>)
-  void set_error(Error2&& error2) noexcept {
+  template(typename ErrorValue)
+    (requires receiver<Receiver, ErrorValue>)
+  void set_error(ErrorValue&& error) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error2&&)error2);
+    unifex::set_error(std::move(op_->receiver_), (ErrorValue&&)error);
   }
 
 private:
