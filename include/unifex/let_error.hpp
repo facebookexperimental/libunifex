@@ -97,7 +97,7 @@ public:
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_; // preserve pointer value.
 
-    using final_sender_t = callable_result_t<Func&, ErrorValue>;
+    using final_sender_t = callable_result_t<Func, ErrorValue>;
     using final_op_t = unifex::connect_result_t<final_sender_t, final_receiver>;
 
     if constexpr (
@@ -266,7 +266,7 @@ private:
   using source_op_t = connect_result_t<Source, source_receiver>;
 
   template <typename Error>
-  using final_sender_t = callable_result_t<Func&, remove_cvref_t<Error>>;
+  using final_sender_t = callable_result_t<Func, remove_cvref_t<Error>>;
 
   using final_receiver_t = final_receiver_type<Source, Func, Receiver>;
 
@@ -301,7 +301,7 @@ template <typename Source, typename Func>
 class _sndr<Source, Func>::type {
 
   template <typename Error>
-  using final_sender = callable_result_t<Func&, remove_cvref_t<Error>>;
+  using final_sender = callable_result_t<Func, remove_cvref_t<Error>>;
 
   template <template <typename...> class Tuple>
   struct make_value_type_list {
