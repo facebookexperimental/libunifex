@@ -337,7 +337,7 @@ public:
           type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done =
-    sender_traits<Source>::sends_done |
+    sender_traits<Source>::sends_done ||
     sender_error_types_t<Source, sends_done_impl>::value;
 
   template <typename Source2, typename Func2>
