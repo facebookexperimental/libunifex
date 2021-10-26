@@ -41,7 +41,7 @@ struct operation_state {
       if (state_ != nullptr) {
         state_->stopSource_.request_stop();
       }
-      auto* op = state_->parentOp_.exchange(nullptr, std::memory_order_acq_rel);
+      auto* op = state_->parentOp_.exchange(nullptr);
       if (op != nullptr) {
         // We won the race for cancellation
         // ownership is transferred to the detached state
