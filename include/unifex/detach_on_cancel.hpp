@@ -38,7 +38,9 @@ struct operation_state {
     detached_state* state_;
 
     void operator()() noexcept {
-      state_->stopSource_.request_stop();
+      if (state_ != nullptr) {
+        state_->stopSource_.request_stop();
+      }
       auto* op = state_->parentOp_.exchange(nullptr, std::memory_order_acq_rel);
       if (op != nullptr) {
         // We won the race for cancellation
@@ -146,7 +148,7 @@ using sender = typename _sender<Sender>::type;
 
 template <typename Sender>
 struct _sender<Sender>::type {
-  UNIFEX_NO_UNIQUE_ADDRESS Sender upstreamSender_;
+  UNIFEX_NO_UNIQUE_ADDRESS Sender upstream_sender_;
 
   template <
       template <typename...>
@@ -167,28 +169,18 @@ struct _sender<Sender>::type {
 
   friend constexpr auto
   tag_invoke(tag_t<blocking>, const type& sender) noexcept {
-    if constexpr (same_as<blocking_kind, decltype(blocking(sender.upstreamSender_))>) {
-      // the sender returns a runtime-determined blocking_kind
-      blocking_kind blockValue = blocking(sender.upstreamSender_);
-      if (blockValue == blocking_kind::never) {
-        blockValue = blocking_kind::maybe;
-      }
-      return blockValue;
+    auto block_value = blocking(sender.upstream_sender_);
+    if (block_value == _block::_enum::never) {
+      return _block::_enum::maybe;
     }
-    else if constexpr (blocking_kind::never == cblocking<Sender>()) {
-      // the sender always returns never
-      return blocking_kind::maybe;
-    }
-    else {
-      return cblocking<Sender>();
-    }
+    return block_value;
   }
 
   template(typename This, typename Receiver)(
       requires same_as<remove_cvref_t<This>, type> AND receiver<
           Receiver>) friend auto tag_invoke(tag_t<unifex::connect>, This&& s, Receiver&& r) noexcept(false) {
     return typename operation_state<Sender, Receiver>::type{
-        ((This &&) s).upstreamSender_, (Receiver &&) r};
+        ((This &&) s).upstream_sender_, (Receiver &&) r};
   }
 };
 }  // namespace _detach_on_cancel
