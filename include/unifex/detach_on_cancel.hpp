@@ -53,9 +53,12 @@ struct operation_state {
   struct type final {
     type(UpstreamSender&& s, DownstreamReceiver&& r)
       : receiver_(std::move(r))
-      , state_(std::make_unique<detached_state>(this, (UpstreamSender &&) s)) {}
+      , state_(std::make_unique<detached_state>(this, (UpstreamSender &&) s)){};
 
-    friend void tag_invoke(tag_t<unifex::start>, type& op) noexcept {
+    friend void tag_invoke(
+        tag_t<unifex::start>,
+        typename operation_state<UpstreamSender, DownstreamReceiver>::type&
+            op) noexcept {
       auto& childOp = op.state_->childOp_;
       op.callback_.construct(
           get_stop_token(op.receiver_), cancel_callback{op.state_.get()});
@@ -72,7 +75,6 @@ struct operation_state {
 
 template <typename UpstreamSender, typename DownstreamReceiver>
 struct operation_state<UpstreamSender, DownstreamReceiver>::_receiver final {
-private:
   auto tryGetOp() noexcept {
     // if cancellation won, parentOp_ would be null at this point
     // see operation_state::cancel_callback()
@@ -85,7 +87,6 @@ private:
     return op;
   }
 
-public:
   template <typename... Values>
   void set_value(Values&&... values) noexcept {
     if (auto op = tryGetOp()) {
@@ -119,13 +120,14 @@ public:
 };
 
 template <typename UpstreamSender, typename DownstreamReceiver>
-struct operation_state<UpstreamSender, DownstreamReceiver>::detached_state final {
+struct operation_state<UpstreamSender, DownstreamReceiver>::detached_state
+    final {
   detached_state(
       typename operation_state<UpstreamSender, DownstreamReceiver>::type* op,
-      UpstreamSender&& s) //
-      noexcept(is_nothrow_connectable_v<UpstreamSender, _receiver>)
+      UpstreamSender&&
+          s) noexcept(is_nothrow_connectable_v<UpstreamSender, _receiver>)
     : parentOp_(op)
-    , childOp_(connect(std::move(s), _receiver{this})) {}
+    , childOp_(connect(std::move(s), _receiver{this})){};
 
   std::atomic<
       typename operation_state<UpstreamSender, DownstreamReceiver>::type*>
@@ -163,8 +165,10 @@ struct _sender<Sender>::type {
 
   static constexpr bool sends_done = true;
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) noexcept {
-    if constexpr (same_as<blocking_kind,
+  friend constexpr auto
+  tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+    if constexpr (same_as<
+                      blocking_kind,
                       decltype(blocking(sender.upstreamSender_))>) {
       // the sender returns a runtime-determined blocking_kind
       blocking_kind blockValue = blocking(sender.upstreamSender_);
@@ -180,19 +184,11 @@ struct _sender<Sender>::type {
     }
   }
 
-  template <typename This, typename Receiver>
-  using operation_state_t =
-      operation_state<member_t<This, Sender>, remove_cvref_t<Receiver>>;
-
-  template(typename This, typename Receiver)  //
-      (requires same_as<remove_cvref_t<This>, type> AND
-           receiver<Receiver> AND  //
-               sender_to<member_t<This, Sender>, //
-                   typename operation_state_t<This, Receiver>::_receiver>)  //
-  friend typename operation_state_t<This, Receiver>::type tag_invoke(
-          tag_t<unifex::connect>, This&& s, Receiver&& r) noexcept(false) {
-    return typename operation_state_t<This, Receiver>::type{
-        static_cast<This&&>(s).upstreamSender_, static_cast<Receiver&&>(r)};
+  template(typename This, typename Receiver)(
+      requires same_as<remove_cvref_t<This>, type> AND receiver<
+          Receiver>) friend auto tag_invoke(tag_t<unifex::connect>, This&& s, Receiver&& r) noexcept(false) {
+    return typename operation_state<Sender, Receiver>::type{
+        ((This &&) s).upstreamSender_, (Receiver &&) r};
   }
 };
 }  // namespace _detach_on_cancel
@@ -201,7 +197,8 @@ namespace detach_on_cancel_impl {
 inline constexpr struct detach_on_cancel_fn {
   template(typename Sender)(requires sender<Sender>) constexpr auto
   operator()(Sender&& sender) const
-      noexcept(is_nothrow_constructible_v<_detach_on_cancel::sender<remove_cvref_t<Sender>>,
+      noexcept(is_nothrow_constructible_v<
+               _detach_on_cancel::sender<remove_cvref_t<Sender>>,
                Sender>) -> _detach_on_cancel::sender<remove_cvref_t<Sender>> {
     return _detach_on_cancel::sender<remove_cvref_t<Sender>>{(Sender &&)
                                                                  sender};
