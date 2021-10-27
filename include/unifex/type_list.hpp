@@ -33,6 +33,17 @@ namespace unifex
     using apply = F<Ts...>;
   };
 
+  template <typename List, template <typename> class F>
+  struct map_type_list;
+
+  template <typename... Ts, template <typename> class F>
+  struct map_type_list<type_list<Ts...>, F> {
+    using type = type_list<F<Ts>...>;
+  };
+
+  template <typename List, template <typename> class F>
+  using map_type_list_t = typename map_type_list<List, F>::type;
+
   // concat_type_lists<Lists...>
   //
   // Concatenates a variadic pack of type_list<Ts...> into a single
@@ -114,6 +125,7 @@ namespace unifex
     template <typename...> class Inner>
   using type_list_nested_apply_t = typename ListOfLists::template apply<
     detail::type_list_nested_apply_impl<Outer, Inner>::template apply>;
+
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

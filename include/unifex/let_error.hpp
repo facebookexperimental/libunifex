@@ -303,38 +303,37 @@ class _sndr<Source, Func>::type {
   template <typename Error>
   using final_sender = callable_result_t<Func, remove_cvref_t<Error>>;
 
-  template <template <typename...> class Tuple>
-  struct make_value_type_list {
-    template<typename... Errors>
-    using make = typename concat_type_lists_unique<
-      sender_value_types_t<final_sender<Errors>, type_list, Tuple>...>::type;
-    using type = sender_error_types_t<Source, make>;
-  };
-  template <template <typename...> class Tuple>
-  using make_value_type_list_t = typename make_value_type_list<Tuple>::type;
+  using final_senders_list =
+      map_type_list_t<sender_error_types_t<Source, type_list>, final_sender>;
 
-  template <typename... Errors>
-  using make_error_type_list =
-      typename concat_type_lists_unique<
-          sender_error_types_t<final_sender<Errors>, type_list>...>::type;
+  template <typename Sender>
+  using svt_t = sender_value_types_t<Sender, type_list, type_list>;
+  template <typename Sender>
+  using set_t = sender_error_types_t<Sender, type_list>;
 
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
 
 public:
-  template <template <typename...> class Variant,
-            template <typename...> class Tuple>
-  using value_types =
-      typename concat_type_lists_unique_t<
-          sender_value_types_t<Source, type_list, Tuple>,
-          make_value_type_list_t<Tuple>>::template
-              apply<Variant>;
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = type_list_nested_apply_t<
+      concat_type_lists_unique_t<
+          sender_value_types_t<Source, type_list, type_list>,
+          typename map_type_list_t<final_senders_list, svt_t>::template apply<
+              concat_type_lists_unique_t>>,
+      Variant,
+      Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types =
-      typename concat_type_lists_unique_t<
-          sender_error_types_t<Source, make_error_type_list>,
-          type_list<std::exception_ptr>>::template apply<Variant>;
+  using error_types = typename concat_type_lists_unique_t<
+      sender_error_types_t<Source, type_list>,
+      typename map_type_list_t<final_senders_list, set_t>::template apply<
+          concat_type_lists_unique_t>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done =
     sender_traits<Source>::sends_done ||
