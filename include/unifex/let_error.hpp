@@ -34,41 +34,41 @@
 namespace unifex {
 
 namespace _let_e {
-template <typename Source, typename Error, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _op {
   class type;
 };
-template <typename Source, typename Error, typename Receiver>
-using operation_type = typename _op<Source, Error, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Func, typename Receiver>
+using operation_type = typename _op<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Error, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _rcvr {
   class type;
 };
-template <typename Source, typename Error, typename Receiver>
-using receiver_type = typename _rcvr<Source, Error, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Func, typename Receiver>
+using receiver_type = typename _rcvr<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Error, typename Receiver>
+template <typename Source, typename Func, typename Receiver>
 struct _frcvr {
   class type;
 };
-template <typename Source, typename Error, typename Receiver>
-using final_receiver_type = typename _frcvr<Source, Error, remove_cvref_t<Receiver>>::type;
+template <typename Source, typename Func, typename Receiver>
+using final_receiver_type = typename _frcvr<Source, Func, remove_cvref_t<Receiver>>::type;
 
-template <typename Source, typename Error>
+template <typename Source, typename Func>
 struct _sndr {
   class type;
 };
 
-template <typename Source, typename Error>
-using _sender = typename _sndr<Source, Error>::type;
+template <typename Source, typename Func>
+using _sender = typename _sndr<Source, Func>::type;
 
 enum class state { neither, source, final };
 
-template <typename Source, typename Error, typename Receiver>
-class _rcvr<Source, Error, Receiver>::type final {
-  using operation = operation_type<Source, Error, Receiver>;
-  using final_receiver = final_receiver_type<Source, Error, Receiver>;
+template <typename Source, typename Func, typename Receiver>
+class _rcvr<Source, Func, Receiver>::type final {
+  using operation = operation_type<Source, Func, Receiver>;
+  using final_receiver = final_receiver_type<Source, Func, Receiver>;
 
 
 public:
@@ -78,7 +78,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values) noexcept(
@@ -97,12 +97,12 @@ public:
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_; // preserve pointer value.
 
-    using final_sender_t = callable_result_t<Error&, ErrorValue>;
+    using final_sender_t = callable_result_t<Func, ErrorValue>;
     using final_op_t = unifex::connect_result_t<final_sender_t, final_receiver>;
 
     if constexpr (
-      is_nothrow_callable_v<Error, ErrorValue> &&
-      is_nothrow_connectable_v<callable_result_t<Error, ErrorValue>, final_receiver>) {
+      is_nothrow_callable_v<Func, ErrorValue> &&
+      is_nothrow_connectable_v<callable_result_t<Func, ErrorValue>, final_receiver>) {
       op->startedOp_ = state::neither;
       unifex::deactivate_union_member(op->sourceOp_);
       auto& finalOp = unifex::activate_union_member_with<final_op_t>(op->finalOp_, [&] {
@@ -118,7 +118,7 @@ public:
         op->startedOp_ = state::neither;
         unifex::deactivate_union_member(op->sourceOp_);
         auto& finalOp = unifex::activate_union_member_with<final_op_t>(op->finalOp_, [&] {
-          return unifex::connect(std::move(op->error_)(e), final_receiver{op});
+          return unifex::connect(std::move(op->func_)(e), final_receiver{op});
         });
         op->deactivate_ = [](auto& op) noexcept {
           unifex::deactivate_union_member<final_op_t>(op);
@@ -141,7 +141,7 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -153,16 +153,16 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
   operation* op_;
 };
 
-template <typename Source, typename Error, typename Receiver>
-class _frcvr<Source, Error, Receiver>::type {
-  using operation = operation_type<Source, Error, Receiver>;
+template <typename Source, typename Func, typename Receiver>
+class _frcvr<Source, Func, Receiver>::type {
+  using operation = operation_type<Source, Func, Receiver>;
 
 public:
   explicit type(operation* op) noexcept
@@ -171,7 +171,7 @@ public:
   type(type&& other) noexcept
   : op_(std::exchange(other.op_, {}))
   {}
- 
+
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values) noexcept(
@@ -185,11 +185,11 @@ public:
     unifex::set_done(std::move(op_->receiver_));
   }
 
-  template(typename Error2)
-    (requires receiver<Receiver, Error2>)
-  void set_error(Error2&& error2) noexcept {
+  template(typename ErrorValue)
+    (requires receiver<Receiver, ErrorValue>)
+  void set_error(ErrorValue&& error) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error2&&)error2);
+    unifex::set_error(std::move(op_->receiver_), (ErrorValue&&)error);
   }
 
 private:
@@ -201,7 +201,7 @@ private:
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
-  
+
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -213,7 +213,7 @@ private:
   }
 
   const Receiver& get_receiver() const noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);   
+    UNIFEX_ASSERT(op_ != nullptr);
     return op_->receiver_;
   }
 
@@ -227,11 +227,11 @@ class _op<Source, Func, Receiver>::type {
 
 public:
   template <typename Func2, typename Receiver2>
-  explicit type(Source&& source, Func2&& error, Receiver2&& dest)
+  explicit type(Source&& source, Func2&& func, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
                std::is_nothrow_move_constructible_v<Func> &&
                is_nothrow_connectable_v<Source, source_receiver>)
-  : error_((Func2&&)error)
+  : func_((Func2&&)func)
   , receiver_((Receiver2&&)dest)
   , deactivate_(nullptr)
   {
@@ -266,7 +266,7 @@ private:
   using source_op_t = connect_result_t<Source, source_receiver>;
 
   template <typename Error>
-  using final_sender_t = callable_result_t<Func&, remove_cvref_t<Error>>;
+  using final_sender_t = callable_result_t<Func, remove_cvref_t<Error>>;
 
   using final_receiver_t = final_receiver_type<Source, Func, Receiver>;
 
@@ -280,7 +280,7 @@ private:
 
   using final_op_union_t = typename remove_cvref_t<Source>::template error_types<final_op_union>;
 
-  UNIFEX_NO_UNIQUE_ADDRESS Func error_;
+  UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   state startedOp_ = state::neither;
   union {
@@ -301,52 +301,48 @@ template <typename Source, typename Func>
 class _sndr<Source, Func>::type {
 
   template <typename Error>
-  using final_sender = callable_result_t<Func&, remove_cvref_t<Error>>;
+  using final_sender = callable_result_t<Func, remove_cvref_t<Error>>;
 
-  template <template <typename...> class Tuple>
-  struct make_value_type_list {
-    template<typename... Errors>
-    using make = typename concat_type_lists_unique<
-      sender_value_types_t<final_sender<Errors>, type_list, Tuple>...>::type;
-    using type = sender_error_types_t<Source, make>;
-  };
-  template <template <typename...> class Tuple>
-  using make_value_type_list_t = typename make_value_type_list<Tuple>::type;
-
-  template <typename... Errors>
-  using make_error_type_list =
-      typename concat_type_lists_unique<
-          sender_error_types_t<final_sender<Errors>, type_list>...>::type;
+  using final_senders_list =
+      map_type_list_t<sender_error_type_list_t<Source>, final_sender>;
 
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
 
 public:
-  template <template <typename...> class Variant,
-            template <typename...> class Tuple>
-  using value_types =
-      typename concat_type_lists_unique_t<
-          sender_value_types_t<Source, type_list, Tuple>,
-          make_value_type_list_t<Tuple>>::template
-              apply<Variant>;
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = type_list_nested_apply_t<
+      concat_type_lists_unique_t<
+          sender_value_types_t<Source, type_list, type_list>,
+          apply_to_type_list_t<
+              concat_type_lists_unique_t,
+              map_type_list_t<final_senders_list, sender_value_type_list_t>>>,
+      Variant,
+      Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types =
-      typename concat_type_lists_unique_t<
-          sender_error_types_t<Source, make_error_type_list>,
-          type_list<std::exception_ptr>>::template apply<Variant>;
+  using error_types = typename concat_type_lists_unique_t<
+      sender_error_types_t<Source, type_list>,
+      apply_to_type_list_t<
+          concat_type_lists_unique_t,
+          map_type_list_t<final_senders_list, sender_error_type_list_t>>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
-  static constexpr bool sends_done = 
-    sender_traits<Source>::sends_done |
+  static constexpr bool sends_done =
+    sender_traits<Source>::sends_done ||
     sender_error_types_t<Source, sends_done_impl>::value;
 
   template <typename Source2, typename Func2>
-  explicit type(Source2&& source, Func2&& error)
+  explicit type(Source2&& source, Func2&& func)
     noexcept(
       std::is_nothrow_constructible_v<Source, Source2> &&
       std::is_nothrow_constructible_v<Func, Func2>)
     : source_((Source2&&)source)
-    , error_((Func2&&)error)
+    , func_((Func2&&)func)
   {}
 
   template(
@@ -368,53 +364,53 @@ public:
       -> operation_type<member_t<Sender, Source>, Func, Receiver> {
     return operation_type<member_t<Sender, Source>, Func, Receiver>{
       static_cast<Sender&&>(s).source_,
-      static_cast<Sender&&>(s).error_,
+      static_cast<Sender&&>(s).func_,
       static_cast<Receiver&&>(r)
     };
   }
 
 private:
   Source source_;
-  Func error_;
+  Func func_;
 };
 
 namespace _cpo
 {
 struct _fn {
-  template(typename Source, typename Error)
-    (requires tag_invocable<_fn, Source, Error> AND
+  template(typename Source, typename Func)
+    (requires tag_invocable<_fn, Source, Func> AND
         sender<Source>)
         // callable<remove_cvref_t<Error>> AND
         // sender<callable_result_t<remove_cvref_t<Error>>>)
-  auto operator()(Source&& source, Error&& error) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Error>)
-      -> tag_invoke_result_t<_fn, Source, Error> {
-    return tag_invoke(*this, (Source&&)source, (Error&&)error);
+  auto operator()(Source&& source, Func&& func) const
+      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>)
+      -> tag_invoke_result_t<_fn, Source, Func> {
+    return tag_invoke(*this, (Source&&)source, (Func&&)func);
   }
 
-  template(typename Source, typename Error)
-    (requires (!tag_invocable<_fn, Source, Error>) AND
+  template(typename Source, typename Func)
+    (requires (!tag_invocable<_fn, Source, Func>) AND
         constructible_from<remove_cvref_t<Source>, Source> AND
-        constructible_from<remove_cvref_t<Error>, Error>)
+        constructible_from<remove_cvref_t<Func>, Func>)
         // callable<remove_cvref_t<Error>> AND
         // sender<callable_result_t<remove_cvref_t<Error>>>)
-  auto operator()(Source&& source, Error&& error) const
+  auto operator()(Source&& source, Func&& func) const
       noexcept(std::is_nothrow_constructible_v<
-                   _sender<remove_cvref_t<Source>, remove_cvref_t<Error>>,
-                   Source, 
-                   Error>)
-      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Error>> {
-    return _sender<remove_cvref_t<Source>, remove_cvref_t<Error>>{
-        (Source&&)source, (Error&&)error};
+                   _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>,
+                   Source,
+                   Func>)
+      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Func>> {
+    return _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>{
+        (Source&&)source, (Func&&)func};
   }
-  template<typename Error>
+  template<typename Func>
       // (requires callable<remove_cvref_t<Error>> AND
       //   sender<callable_result_t<remove_cvref_t<Error>>>)
-  constexpr auto operator()(Error&& error) const
+  constexpr auto operator()(Func&& func) const
       noexcept(is_nothrow_callable_v<
-        tag_t<bind_back>, _fn, Error>)
-      -> bind_back_result_t<_fn, Error> {
-    return bind_back(*this, (Error&&)error);
+        tag_t<bind_back>, _fn, Func>)
+      -> bind_back_result_t<_fn, Func> {
+    return bind_back(*this, (Func&&)func);
   }
 };
 } // namespace _cpo
