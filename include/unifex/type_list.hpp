@@ -33,6 +33,25 @@ namespace unifex
     using apply = F<Ts...>;
   };
 
+  // apply_to_type_list<F, type_list<Ts...>>
+  //
+  // Shortcut to `typename type_list<Ts...>::template apply<F>`.
+  template <template <typename...> class F, typename List>
+  struct apply_to_type_list;
+
+  template <template <typename...> class F, typename... Ts>
+  struct apply_to_type_list<F, type_list<Ts...>> {
+    using type = typename type_list<Ts...>::template apply<F>;
+  };
+
+  template <template <typename...> class F, typename List>
+  using apply_to_type_list_t = typename apply_to_type_list<F, List>::type;
+
+  // map_type_list<type_list<Ts...>, F>
+  //
+  // Builds type_list<F<Ts>...>.
+  //
+  // Result is produced via nested ::type.
   template <typename List, template <typename> class F>
   struct map_type_list;
 
