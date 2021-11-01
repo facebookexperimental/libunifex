@@ -183,7 +183,7 @@ public:
 template <typename Promise, typename Sender>
 using _as_awaitable = typename _awaitable<Promise, Sender>::type;
 
-inline constexpr struct _fn {
+inline const struct _fn {
   // Call custom implementation if present.
   template(typename Promise, typename Value)
     (requires tag_invocable<_fn, Promise&, Value>)
