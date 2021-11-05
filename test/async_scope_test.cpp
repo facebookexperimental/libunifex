@@ -16,6 +16,7 @@
 
 #include <unifex/async_scope.hpp>
 
+#include <unifex/just.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/scope_guard.hpp>
@@ -34,7 +35,9 @@ using unifex::async_scope;
 using unifex::connect;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
+using unifex::just;
 using unifex::just_from;
+using unifex::lazy;
 using unifex::let_value_with;
 using unifex::schedule;
 using unifex::scope_guard;
@@ -88,16 +91,15 @@ struct async_scope_test : testing::Test {
   }
 
   void expect_work_to_run() {
-    async_manual_reset_event evt;
-
-    scope.spawn_on(
+    lazy<int, int> lazyInt = scope.spawn_on(
       thread.get_scheduler(),
-      just_from([&]() noexcept {
-        evt.set();
-      }));
+      just(42, 42));
 
     // we'll hang here if the above work doesn't start
-    sync_wait(evt.async_wait());
+    auto result = sync_wait(std::move(lazyInt));
+
+    ASSERT_TRUE(result);
+    EXPECT_EQ(std::tuple(42, 42), *result);
   }
 
   void expect_work_to_run_call_on() {
