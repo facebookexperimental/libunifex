@@ -41,9 +41,9 @@ namespace _async_scope {
 
 struct async_scope;
 
-struct _receiver_base {
+struct _spawn_receiver_base {
   friend inplace_stop_token
-  tag_invoke(tag_t<get_stop_token>, const _receiver_base& r) noexcept {
+  tag_invoke(tag_t<get_stop_token>, const _spawn_receiver_base& r) noexcept {
     return r.stopToken_;
   }
 
@@ -54,15 +54,15 @@ struct _receiver_base {
 };
 
 template <typename Result>
-struct _receiver final {
+struct _spawn_receiver final {
   struct type;
 };
 
 template <typename Sender>
-using result_t = typename sender_value_types_t<Sender, single_overload, std::tuple>::type;
+using sender_result_t = typename sender_value_types_t<Sender, single_overload, std::tuple>::type;
 
 template <typename Sender>
-using receiver_t = typename _receiver<result_t<Sender>>::type;
+using spawn_receiver_t = typename _spawn_receiver<sender_result_t<Sender>>::type;
 
 void record_done(async_scope*) noexcept;
 
@@ -161,14 +161,14 @@ struct promise {
 };
 
 template <typename Result>
-struct _receiver<Result>::type final : _receiver_base {
+struct _spawn_receiver<Result>::type final : _spawn_receiver_base {
   template <typename Op>
   explicit type(
       inplace_stop_token stoken,
       Op* op,
       async_scope* scope,
       std::unique_ptr<promise<Result>> p) noexcept
-    : _receiver_base{stoken, op, scope, [](void* p) noexcept {
+    : _spawn_receiver_base{stoken, op, scope, [](void* p) noexcept {
         auto* op = static_cast<Op*>(p);
         op->destruct();
         delete op;
@@ -176,7 +176,7 @@ struct _receiver<Result>::type final : _receiver_base {
       promise_{p.release()} {}
 
   type(type&& other) noexcept
-    : _receiver_base(std::move(other)),
+    : _spawn_receiver_base(std::move(other)),
       promise_(std::exchange(other.promise_, nullptr)) {
   }
 
@@ -217,7 +217,7 @@ struct _receiver<Result>::type final : _receiver_base {
 };
 
 template <typename Sender>
-using _operation_t = connect_result_t<Sender, receiver_t<Sender>>;
+using _operation_t = connect_result_t<Sender, spawn_receiver_t<Sender>>;
 
 template <typename... Ts>
 struct lazy final {
@@ -244,40 +244,42 @@ struct lazy final {
   };
 
   template <typename Receiver>
-  struct _receiver final : promise_holder {
-    explicit _receiver(promise_holder&& p, Receiver&& r)
-        noexcept(is_nothrow_move_constructible_v<Receiver>)
-      : promise_holder(std::move(p)),
-        receiver_(std::move(r)) {
-    }
+  struct _receiver final {
+    struct type final : promise_holder {
+      explicit type(promise_holder&& p, Receiver&& r)
+          noexcept(is_nothrow_move_constructible_v<Receiver>)
+        : promise_holder(std::move(p)),
+          receiver_(std::move(r)) {
+      }
 
-    explicit _receiver(promise_holder&& p, const Receiver& r)
-        noexcept(is_nothrow_move_constructible_v<Receiver>)
-      : promise_holder(std::move(p)),
-        receiver_(r) {
-    }
+      explicit type(promise_holder&& p, const Receiver& r)
+          noexcept(is_nothrow_move_constructible_v<Receiver>)
+        : promise_holder(std::move(p)),
+          receiver_(r) {
+      }
 
-    void set_value() noexcept {
-      auto p = std::exchange(this->promise_, nullptr);
-      p->consume(std::move(receiver_));
-      p->decref();
-    }
+      void set_value() noexcept {
+        auto p = std::exchange(this->promise_, nullptr);
+        p->consume(std::move(receiver_));
+        p->decref();
+      }
 
-    void set_error(std::exception_ptr e) noexcept {
-      unifex::set_error(std::move(receiver_), std::move(e));
-    }
+      void set_error(std::exception_ptr e) noexcept {
+        unifex::set_error(std::move(receiver_), std::move(e));
+      }
 
-    void set_done() noexcept {
-      unifex::set_done(std::move(receiver_));
-    }
+      void set_done() noexcept {
+        unifex::set_done(std::move(receiver_));
+      }
 
-    template(typename CPO)
-      (requires is_receiver_query_cpo_v<CPO>)
-    friend auto tag_invoke(CPO&& cpo, const _receiver& r) noexcept {
-      return static_cast<CPO&&>(cpo)(r.receiver_);
-    }
+      template(typename CPO)
+        (requires is_receiver_query_cpo_v<CPO>)
+      friend auto tag_invoke(CPO&& cpo, const type& r) noexcept {
+        return static_cast<CPO&&>(cpo)(r.receiver_);
+      }
 
-    Receiver receiver_;
+      Receiver receiver_;
+    };
   };
 
   struct type final : promise_holder {
@@ -291,11 +293,11 @@ struct lazy final {
 
     template <typename Receiver>
     auto connect(Receiver&& receiver) && noexcept {
-      using receiver_t = _receiver<remove_cvref_t<Receiver>>;
+      using lazy_receiver_t = typename _receiver<remove_cvref_t<Receiver>>::type;
 
       auto& evt = this->promise_->evt_;
       return unifex::connect(
-          evt.async_wait(), receiver_t{std::move(*this), (Receiver&&)receiver});
+          evt.async_wait(), lazy_receiver_t{std::move(*this), (Receiver&&)receiver});
     }
 
    private:
@@ -340,16 +342,16 @@ public:
   }
 
   template (typename Sender)
-    (requires sender_to<Sender, receiver_t<Sender>>)
+    (requires sender_to<Sender, spawn_receiver_t<Sender>>)
   lazy_t<Sender> spawn(Sender&& sender) {
     // these allocations could throw; if either does, there's nothing to clean up
     auto opToStart = std::make_unique<manual_lifetime<_operation_t<Sender>>>();
 
-    auto p = std::make_unique<promise<result_t<Sender>>>();
+    auto p = std::make_unique<promise<sender_result_t<Sender>>>();
 
     // the construction of these locals is noexcept
     lazy_t<Sender> ret{p.get()};
-    receiver_t<Sender> rcvr{
+    spawn_receiver_t<Sender> rcvr{
         stopSource_.get_token(),
         opToStart.get(),
         this,
@@ -385,7 +387,7 @@ public:
     (requires scheduler<Scheduler> AND
      sender_to<
         _on_result_t<Scheduler, Sender>,
-        receiver_t<_on_result_t<Scheduler, Sender>>>)
+        spawn_receiver_t<_on_result_t<Scheduler, Sender>>>)
   lazy_t<_on_result_t<Scheduler, Sender>> spawn_on(Scheduler&& scheduler, Sender&& sender) {
     return spawn(on((Scheduler&&) scheduler, (Sender&&) sender));
   }
