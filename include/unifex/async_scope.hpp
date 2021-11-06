@@ -260,6 +260,7 @@ struct lazy final {
     void set_value() noexcept {
       auto p = std::exchange(this->promise_, nullptr);
       p->consume(std::move(receiver_));
+      p->decref();
     }
 
     void set_error(std::exception_ptr e) noexcept {
