@@ -10,6 +10,7 @@
   * `just()`
   * `just_done()` / `stop()`
   * `just_error()`
+  * `just_void_or_done()`
   * `stop_if_requested()`
 * Sender Algorithms
   * `then()`
@@ -204,6 +205,11 @@ Returns a sender that completes synchronously by calling `set_done()`.
 ### `just_error(e)`
 
 Returns a sender that completes synchronously by calling `set_error()` with `e`.
+
+### `just_void_or_done(isVoid)`
+
+Returns a sender that completes synchronously by calling `set_value(void)` if
+`isVoid == true` or calling `set_done()` otherwise.
 
 ### `just_from(callable)`
 
