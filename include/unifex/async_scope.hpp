@@ -96,21 +96,8 @@ struct _spawn_op_base {
   }
 
   void request_stop() noexcept {
-    // first try to complete the receiver; we might be racing with the operation
-    // so we need to use the atomic try_set_state to maintain consistency
-    bool needsStop = try_set_state(op_state::done);
-
-    // schedule the associated future to be woken up
-    evt_.set();
-
-    // don't bother requesting stop on the stop source unless try_set_state
-    // succeeded; this should save some work if the operation was already
-    // complete
-    if (needsStop) {
-      // do this after setting the event, above, so the future can potentially
-      // complete while we run stop callbacks, etc.
-      stopSource_.request_stop();
-    }
+    stopSource_.request_stop();
+    set_done();
   }
 
   void set_done() noexcept {
