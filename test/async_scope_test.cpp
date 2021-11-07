@@ -37,7 +37,7 @@ using unifex::get_scheduler;
 using unifex::get_stop_token;
 using unifex::just;
 using unifex::just_from;
-using unifex::lazy;
+using unifex::future;
 using unifex::let_value_with;
 using unifex::schedule;
 using unifex::scope_guard;
@@ -91,12 +91,12 @@ struct async_scope_test : testing::Test {
   }
 
   void expect_work_to_run() {
-    lazy<int, int> lazyInt = scope.spawn_on(
+    future<int, int> futureInt = scope.spawn_on(
       thread.get_scheduler(),
       just(42, 42));
 
     // we'll hang here if the above work doesn't start
-    auto result = sync_wait(std::move(lazyInt));
+    auto result = sync_wait(std::move(futureInt));
 
     ASSERT_TRUE(result);
     EXPECT_EQ(std::tuple(42, 42), *result);
@@ -105,7 +105,7 @@ struct async_scope_test : testing::Test {
   void expect_work_to_run_call_on() {
     async_manual_reset_event evt;
 
-    lazy<> lzy = scope.spawn_call_on(
+    future<> lzy = scope.spawn_call_on(
       thread.get_scheduler(),
       [&]() noexcept { evt.set(); });
 
@@ -146,12 +146,12 @@ TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
 }
 
 TEST_F(async_scope_test, work_spawned_in_correct_context) {
-  auto lazyId = scope.spawn_on(
+  auto futureId = scope.spawn_on(
       thread.get_scheduler(),
       just_from([] {
         return std::this_thread::get_id();
       }));
-  auto id = sync_wait(std::move(lazyId));
+  auto id = sync_wait(std::move(futureId));
   sync_wait(scope.cleanup());
   ASSERT_TRUE(id);
   EXPECT_EQ(*id, thread.get_thread_id());

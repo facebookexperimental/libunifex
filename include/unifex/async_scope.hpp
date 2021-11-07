@@ -361,7 +361,7 @@ struct future final {
       }
 
       explicit type(promise_holder&& p, const Receiver& r)
-          noexcept(is_nothrow_move_constructible_v<Receiver>)
+          noexcept(is_nothrow_copy_constructible_v<Receiver>)
         : promise_holder(std::move(p)),
           receiver_(r) {
       }
