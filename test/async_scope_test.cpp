@@ -105,12 +105,13 @@ struct async_scope_test : testing::Test {
   void expect_work_to_run_call_on() {
     async_manual_reset_event evt;
 
-    scope.spawn_call_on(
+    lazy<> lzy = scope.spawn_call_on(
       thread.get_scheduler(),
       [&]() noexcept { evt.set(); });
 
     // we'll hang here if the above work doesn't start
     sync_wait(evt.async_wait());
+    sync_wait(std::move(lzy));
   }
 };
 
@@ -145,18 +146,16 @@ TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
 }
 
 TEST_F(async_scope_test, work_spawned_in_correct_context) {
-  async_manual_reset_event evt;
-  std::thread::id id;
-  scope.spawn_on(
+  auto lazyId = scope.spawn_on(
       thread.get_scheduler(),
-      just_from([&]{
-        id = std::this_thread::get_id();
-        evt.set();
+      just_from([] {
+        return std::this_thread::get_id();
       }));
-  sync_wait(evt.async_wait());
+  auto id = sync_wait(std::move(lazyId));
   sync_wait(scope.cleanup());
-  EXPECT_EQ(id, thread.get_thread_id());
-  EXPECT_NE(id, std::this_thread::get_id());
+  ASSERT_TRUE(id);
+  EXPECT_EQ(*id, thread.get_thread_id());
+  EXPECT_NE(*id, std::this_thread::get_id());
 }
 
 TEST_F(async_scope_test, lots_of_threads_works) {
@@ -196,12 +195,12 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     // expected to be zero once everything's done.
     //
     // This should stress-test job submission and cancellation.
-    scope.spawn_on(
+    scope.detached_spawn_on(
       thread.get_scheduler(),
       then(
         evt1.async_wait(),
         [&]() noexcept {
-          scope.spawn_on(
+          scope.detached_spawn_on(
               thread.get_scheduler(),
               let_value_with(
                 [&] { return decr{count, evt3}; },
