@@ -20,14 +20,16 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just_from.hpp>
+#include <unifex/let_value_with.hpp>
+#include <unifex/let_value_with_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/on.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/on.hpp>
 
 #include <atomic>
 #include <memory>
@@ -50,11 +52,7 @@ struct _spawn_op_base {
     _spawn_op_base* self;
 
     void operator()() noexcept {
-      if (self->try_set_state(op_state::done)) {
-        self->evt_.set();
-      }
-
-      self->stopSource_.request_stop();
+      self->request_stop();
     }
   };
 
@@ -97,6 +95,24 @@ struct _spawn_op_base {
     return stopSource_.get_token();
   }
 
+  void request_stop() noexcept {
+    // first try to complete the receiver; we might be racing with the operation
+    // so we need to use the atomic try_set_state to maintain consistency
+    bool needsStop = try_set_state(op_state::done);
+
+    // schedule the associated future to be woken up
+    evt_.set();
+
+    // don't bother requesting stop on the stop source unless try_set_state
+    // succeeded; this should save some work if the operation was already
+    // complete
+    if (needsStop) {
+      // do this after setting the event, above, so the future can potentially
+      // complete while we run stop callbacks, etc.
+      stopSource_.request_stop();
+    }
+  }
+
   void set_done() noexcept {
     if (try_set_state(op_state::done)) {
       evt_.set();
@@ -107,7 +123,7 @@ struct _spawn_op_base {
 
   void start_failed() noexcept {
     scope_ = nullptr;
-    decref();
+    set_done();
   }
 
  protected:
@@ -274,12 +290,23 @@ using ref_receiver_t = typename sender_value_types_t<Sender, single_overload, _r
 template <typename Sender>
 struct _spawn_op final {
   struct type final : spawn_op_promise_t<Sender> {
-    explicit type(Sender&& sender, async_scope* scope, inplace_stop_token stoken, bool detached) noexcept // TODO
-      : spawn_op_promise_t<Sender>(scope, &cleanup, std::move(stoken), detached),
+    explicit type(
+        Sender&& sender,
+        async_scope* scope,
+        inplace_stop_token stoken,
+        bool detached)
+        noexcept(is_nothrow_connectable_v<Sender, ref_receiver_t<Sender>>)
+      : spawn_op_promise_t<Sender>(
+            scope, &cleanup, std::move(stoken), detached),
         op_(unifex::connect(
             std::move(sender), ref_receiver_t<Sender>{this})) {}
 
-    explicit type(const Sender& sender, async_scope* scope, inplace_stop_token stoken, bool detached) noexcept // TODO
+    explicit type(
+        const Sender& sender,
+        async_scope* scope,
+        inplace_stop_token stoken,
+        bool detached)
+        noexcept(is_nothrow_connectable_v<const Sender&, ref_receiver_t<Sender>>)
       : spawn_op_promise_t<Sender>(scope, &cleanup, std::move(stoken), detached),
         op_(unifex::connect(
             sender, ref_receiver_t<Sender>{this})) {}
@@ -289,6 +316,7 @@ struct _spawn_op final {
       unifex::start(op_);
     }
 
+   private:
     static void cleanup(void* self) noexcept {
       delete static_cast<type*>(self);
     }
@@ -299,7 +327,7 @@ struct _spawn_op final {
 };
 
 template <typename... Ts>
-struct lazy final {
+struct future final {
   using promise_t = typename _spawn_op_promise<Ts...>::type;
 
   struct promise_holder {
@@ -372,12 +400,25 @@ struct lazy final {
 
     template <typename Receiver>
     auto connect(Receiver&& receiver) && noexcept {
-      using lazy_receiver_t = typename _receiver<remove_cvref_t<Receiver>>::type;
+      using future_receiver_t = typename _receiver<remove_cvref_t<Receiver>>::type;
 
       auto promise = this->promise_;
       return unifex::connect(
-          promise->async_wait(),
-          lazy_receiver_t{std::move(*this), (Receiver&&)receiver});
+          let_value_with_stop_token([promise](auto stoken) noexcept {
+            return let_value_with([promise, &stoken]() noexcept {
+              auto stopCallback = [promise]() noexcept {
+                promise->request_stop();
+              };
+
+              using stop_callback_t = typename inplace_stop_token::template callback_type<decltype(stopCallback)>;
+
+              return stop_callback_t{std::move(stoken), std::move(stopCallback)};
+            },
+            [promise](auto&) noexcept {
+              return promise->async_wait();
+            });
+          }),
+          future_receiver_t{std::move(*this), (Receiver&&)receiver});
     }
 
    private:
@@ -389,7 +430,7 @@ struct lazy final {
 };
 
 template <typename Sender>
-using lazy_t = typename sender_value_types_t<Sender, single_overload, lazy>::type::type;
+using future_t = typename sender_value_types_t<Sender, single_overload, future>::type::type;
 
 struct async_scope {
 private:
@@ -416,19 +457,13 @@ private:
   auto do_spawn(Sender&& sender, bool detached = false) {
     using spawn_op_t = typename _spawn_op<remove_cvref_t<Sender>>::type;
 
-    // these allocations could throw; if either does, there's nothing to clean up
+    // this could throw; if it does, there's nothing to clean up
     auto opToStart = std::make_unique<spawn_op_t>(
         (Sender&&)sender, this, stopSource_.get_token(), detached);
 
-    // At this point, the rest of the function is noexcept, but opToStart's
-    // destructor is no longer enough to properly clean up because it won't
-    // invoke destruct().  We need to ensure that we either call destruct()
-    // ourselves or complete the operation so *it* can call destruct().
+    // At this point, the rest of the function is noexcept.
 
     if (try_record_start()) {
-      // start is noexcept so we can assume that the operation will complete
-      // after this, which means we can rely on its self-ownership to ensure
-      // that it is eventually deleted
       unifex::start(*opToStart);
     }
     else {
@@ -450,8 +485,8 @@ public:
 
   template (typename Sender)
     (requires sender_to<Sender, ref_receiver_t<Sender>>)
-  lazy_t<Sender> spawn(Sender&& sender) {
-    return lazy_t<Sender>{do_spawn((Sender&&)sender).release()};
+  future_t<Sender> spawn(Sender&& sender) {
+    return future_t<Sender>{do_spawn((Sender&&)sender).release()};
   }
 
   template (typename Sender, typename Scheduler)
@@ -459,7 +494,7 @@ public:
      sender_to<
         _on_result_t<Scheduler, Sender>,
         ref_receiver_t<_on_result_t<Scheduler, Sender>>>)
-  lazy_t<_on_result_t<Scheduler, Sender>> spawn_on(Scheduler&& scheduler, Sender&& sender) {
+  future_t<_on_result_t<Scheduler, Sender>> spawn_on(Scheduler&& scheduler, Sender&& sender) {
     return spawn(on((Scheduler&&) scheduler, (Sender&&) sender));
   }
 
@@ -573,7 +608,7 @@ public:
 using _async_scope::async_scope;
 
 template <typename... Ts>
-using lazy = typename _async_scope::lazy<Ts...>::type;
+using future = typename _async_scope::future<Ts...>::type;
 
 } // namespace unifex
 
