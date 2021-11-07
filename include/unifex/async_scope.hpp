@@ -50,11 +50,10 @@ struct _spawn_op_base {
     _spawn_op_base* self;
 
     void operator()() noexcept {
-#if 0
       if (self->try_set_state(op_state::done)) {
         self->evt_.set();
       }
-#endif
+
       self->stopSource_.request_stop();
     }
   };
@@ -175,14 +174,13 @@ struct _spawn_op_promise final {
       : _spawn_op_base{scope, cleanup, std::move(stoken), detached} {}
 
     ~type() {
-      switch (state_.load(std::memory_order_relaxed)) {
-        case op_state::value:
-          unifex::deactivate_union_member(value_);
-          break;
+      auto state = state_.load(std::memory_order_relaxed);
 
-        case op_state::error:
-          unifex::deactivate_union_member(exception_);
-          break;
+      if (state == op_state::value) {
+        unifex::deactivate_union_member(value_);
+      }
+      else if (state == op_state::error) {
+        unifex::deactivate_union_member(exception_);
       }
     }
 
