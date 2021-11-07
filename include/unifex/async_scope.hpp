@@ -97,7 +97,9 @@ struct _spawn_op_base {
 
   void request_stop() noexcept {
     stopSource_.request_stop();
-    set_done();
+    if (try_set_state(op_state::done)) {
+      evt_.set();
+    }
   }
 
   void set_done() noexcept {
