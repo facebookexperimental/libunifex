@@ -33,12 +33,13 @@
 using unifex::async_manual_reset_event;
 using unifex::async_scope;
 using unifex::connect;
+using unifex::future;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
 using unifex::just;
 using unifex::just_from;
-using unifex::future;
 using unifex::let_value_with;
+using unifex::same_as;
 using unifex::schedule;
 using unifex::scope_guard;
 using unifex::sequence;
@@ -48,23 +49,33 @@ using unifex::sync_wait;
 using unifex::tag_t;
 using unifex::then;
 
+namespace {
+
 struct signal_on_destruction {
   async_manual_reset_event* destroyed_;
+
   signal_on_destruction(async_manual_reset_event* destroyed) noexcept
-    : destroyed_(destroyed)
-  {}
+    : destroyed_(destroyed) {}
+
   signal_on_destruction(signal_on_destruction&& other) noexcept
-    : destroyed_(std::exchange(other.destroyed_, nullptr))
-  {}
+    : destroyed_(std::exchange(other.destroyed_, nullptr)) {}
+
   ~signal_on_destruction() {
-    if (destroyed_)
+    if (destroyed_) {
       destroyed_->set();
+    }
   }
 };
+
+}  // namespace
 
 struct async_scope_test : testing::Test {
   async_scope scope;
   single_thread_context thread;
+
+  async_scope_test() = default;
+
+  ~async_scope_test() { sync_wait(scope.cleanup()); }
 
   void spawn_work_after_cleanup() {
     sync_wait(scope.cleanup());
@@ -72,18 +83,16 @@ struct async_scope_test : testing::Test {
     async_manual_reset_event destroyed;
     bool executed = false;
 
-    scope.spawn_on(
+    scope.detached_spawn_on(
         thread.get_scheduler(),
         let_value_with(
-          [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
-            executed = true;
-            return 42;
-          },
-          [&](auto&) noexcept {
-            return just_from([&]() noexcept {
+            [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
               executed = true;
-            });
-          }));
+              return 42;
+            },
+            [&](auto&) noexcept {
+              return just_from([&]() noexcept { executed = true; });
+            }));
 
     sync_wait(destroyed.async_wait());
 
@@ -91,9 +100,8 @@ struct async_scope_test : testing::Test {
   }
 
   void expect_work_to_run() {
-    future<int, int> futureInt = scope.spawn_on(
-      thread.get_scheduler(),
-      just(42, 42));
+    future<int, int> futureInt =
+        scope.spawn_on(thread.get_scheduler(), just(42, 42));
 
     // we'll hang here if the above work doesn't start
     auto result = sync_wait(std::move(futureInt));
@@ -106,14 +114,153 @@ struct async_scope_test : testing::Test {
     async_manual_reset_event evt;
 
     future<> lzy = scope.spawn_call_on(
-      thread.get_scheduler(),
-      [&]() noexcept { evt.set(); });
+        thread.get_scheduler(), [&]() noexcept { evt.set(); });
 
     // we'll hang here if the above work doesn't start
     sync_wait(evt.async_wait());
     sync_wait(std::move(lzy));
   }
 };
+
+TEST_F(async_scope_test, spawning_nullary_just_signals_future) {
+  auto fut = scope.spawn(just());
+
+  static_assert(same_as<decltype(fut), future<>>);
+
+  auto result = sync_wait(std::move(fut));
+
+  EXPECT_TRUE(result);
+}
+
+TEST_F(async_scope_test, spawning_just_with_an_int_signals_future) {
+  auto fut = scope.spawn(just(42));
+
+  static_assert(same_as<decltype(fut), future<int>>);
+
+  auto result = sync_wait(std::move(fut));
+
+  ASSERT_TRUE(result);
+  EXPECT_EQ(*result, 42);
+}
+
+TEST_F(async_scope_test, spawning_just_with_a_triple_of_ints_signals_future) {
+  auto fut = scope.spawn(just(42, 43, 44));
+
+  static_assert(same_as<decltype(fut), future<int, int, int>>);
+
+  auto result = sync_wait(std::move(fut));
+
+  ASSERT_TRUE(result);
+  EXPECT_EQ(*result, std::tuple(42, 43, 44));
+}
+
+TEST_F(async_scope_test, spawning_a_task_returning_an_lvalue_reference_works) {
+  int i = 42;
+  auto fut = scope.spawn(just_from([&]() noexcept -> int& { return i; }));
+
+  static_assert(same_as<decltype(fut), future<int&>>);
+
+  auto result = sync_wait(
+      then(std::move(fut), [&i](int& j) noexcept { return &i == &j; }));
+
+  ASSERT_TRUE(result);
+  EXPECT_TRUE(*result);
+}
+
+TEST_F(
+    async_scope_test,
+    spawning_a_task_returning_a_const_lvalue_reference_works) {
+  int i = 42;
+  auto fut = scope.spawn(just_from([&]() noexcept -> const int& { return i; }));
+
+  static_assert(same_as<decltype(fut), future<const int&>>);
+
+  auto result = sync_wait(
+      then(std::move(fut), [&i](const int& j) noexcept { return &i == &j; }));
+
+  ASSERT_TRUE(result);
+  EXPECT_TRUE(*result);
+}
+
+TEST_F(async_scope_test, spawning_a_task_returning_an_rvalue_reference_works) {
+  std::unique_ptr<int> i = std::make_unique<int>(42);
+  auto fut = scope.spawn(just_from(
+      [&]() noexcept -> std::unique_ptr<int>&& { return std::move(i); }));
+
+  static_assert(same_as<decltype(fut), future<std::unique_ptr<int>&&>>);
+
+  auto result =
+      sync_wait(then(std::move(fut), [&i](std::unique_ptr<int>&& j) noexcept {
+        return &i == &j;
+      }));
+
+  ASSERT_TRUE(result);
+  EXPECT_TRUE(*result);
+
+  // we shouldn't have materialized the unique_ptr anywhere
+  EXPECT_NE(nullptr, i.get());
+}
+
+TEST_F(
+    async_scope_test,
+    spawning_a_task_returning_a_const_rvalue_reference_works) {
+  std::unique_ptr<int> i = std::make_unique<int>(42);
+  auto fut = scope.spawn(just_from(
+      [&]() noexcept -> const std::unique_ptr<int>&& { return std::move(i); }));
+
+  static_assert(same_as<decltype(fut), future<const std::unique_ptr<int>&&>>);
+
+  auto result = sync_wait(
+      then(std::move(fut), [&i](const std::unique_ptr<int>&& j) noexcept {
+        return &i == &j;
+      }));
+
+  ASSERT_TRUE(result);
+  EXPECT_TRUE(*result);
+
+  // we shouldn't have materialized the unique_ptr anywhere
+  EXPECT_NE(nullptr, i.get());
+}
+
+namespace {
+
+/**
+ * A Sender whose value_types is const int.
+ */
+struct const_int_sender {
+  template <template <class...> class Variant, template <class...> class Tuple>
+  using value_types = Variant<Tuple<const int>>;
+
+  template <template <class...> class Variant>
+  using error_types = Variant<>;
+
+  static constexpr bool sends_done = true;
+
+  template <typename Receiver>
+  auto connect(Receiver&& receiver) noexcept {
+    using receiver_t = unifex::remove_cvref_t<Receiver>;
+
+    struct operation {
+      receiver_t receiver;
+
+      void start() & noexcept { unifex::set_value(std::move(receiver), 42); }
+    };
+
+    return operation{(Receiver &&) receiver};
+  }
+};
+}  // namespace
+
+TEST_F(async_scope_test, spawning_a_sender_producing_const_int_works) {
+  auto fut = scope.spawn(const_int_sender{});
+
+  static_assert(same_as<decltype(fut), future<const int>>);
+
+  auto result = sync_wait(std::move(fut));
+
+  ASSERT_TRUE(result);
+  EXPECT_EQ(*result, 42);
+}
 
 TEST_F(async_scope_test, spawning_after_cleaning_up_destroys_the_sender) {
   spawn_work_after_cleanup();
@@ -146,11 +293,9 @@ TEST_F(async_scope_test, scope_not_stopped_until_cleanup_is_started) {
 }
 
 TEST_F(async_scope_test, work_spawned_in_correct_context) {
-  auto futureId = scope.spawn_on(
-      thread.get_scheduler(),
-      just_from([] {
-        return std::this_thread::get_id();
-      }));
+  auto futureId = scope.spawn_on(thread.get_scheduler(), just_from([] {
+                                   return std::this_thread::get_id();
+                                 }));
   auto id = sync_wait(std::move(futureId));
   sync_wait(scope.cleanup());
   ASSERT_TRUE(id);
@@ -172,9 +317,8 @@ TEST_F(async_scope_test, lots_of_threads_works) {
 
   struct decr {
     decr(std::atomic<int>& count, async_manual_reset_event& evt) noexcept
-        : count_(&count),
-          evt_(&evt) {
-    }
+      : count_(&count)
+      , evt_(&evt) {}
 
     decr(decr&& other) = delete;
 
@@ -196,26 +340,25 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     //
     // This should stress-test job submission and cancellation.
     scope.detached_spawn_on(
-      thread.get_scheduler(),
-      then(
-        evt1.async_wait(),
-        [&]() noexcept {
+        thread.get_scheduler(), then(evt1.async_wait(), [&]() noexcept {
           scope.detached_spawn_on(
               thread.get_scheduler(),
               let_value_with(
-                [&] { return decr{count, evt3}; },
-                [&](decr&) noexcept {
-                  return sequence(
-                      just_from(
-                        [&]() noexcept {
-                          auto prev = count.fetch_add(1, std::memory_order_relaxed);
+                  [&] {
+                    return decr{count, evt3};
+                  },
+                  [&](decr&) noexcept {
+                    return sequence(
+                        just_from([&]() noexcept {
+                          auto prev =
+                              count.fetch_add(1, std::memory_order_relaxed);
                           if (prev + 1 == maxCount) {
                             evt2.set();
                           }
                         }),
-                      evt3.async_wait());
-                }));
-            }));
+                        evt3.async_wait());
+                  }));
+        }));
   }
 
   // launch the race to spawn work

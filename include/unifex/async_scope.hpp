@@ -305,7 +305,8 @@ struct _spawn_op_promise final {
             std::apply(
                 [&](auto&&... values) {
                   unifex::set_value(
-                      (Receiver &&) receiver, std::move(values)...);
+                      (Receiver &&) receiver,
+                      static_cast<decltype(values)>(values)...);
                 },
                 std::move(value_).get());
           }
@@ -471,6 +472,18 @@ struct future final {
     };
   };
 
+  /**
+   * A future<T...>::type is a handle to an eagerly-started operation; it is
+   * also a Sender so you retrieve the result by connecting it to an appropriate
+   * Receiver and starting the resulting Operation.
+   *
+   * Discarding a future without connecting or starting it requests cancellation
+   * of the associated operation and discards the operation's result when it
+   * ultimately completes.
+   *
+   * Requesting cancellation of a connected-and-started future will also request
+   * cancellation of the associated operation.
+   */
   struct type final : promise_handle {
     template <
         template <class...>
@@ -566,12 +579,19 @@ public:
     UNIFEX_ASSERT(op_count(state) == 0);
   }
 
+  /**
+   * Connects and starts the given Sender, returning a future<> with which you
+   * can observe the result.
+   */
   template(typename Sender)                                      //
       (requires sender_to<Sender, delegate_receiver_t<Sender>>)  //
       future_t<Sender> spawn(Sender&& sender) {
     return future_t<Sender>{do_spawn((Sender &&) sender).release()};
   }
 
+  /**
+   * Equivalent to spawn(on((Scheduler&&) scheduler, (Sender&&)sender)).
+   */
   template(typename Sender, typename Scheduler)  //
       (requires scheduler<Scheduler> AND         //
            sender_to<
@@ -582,18 +602,31 @@ public:
     return spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
   }
 
+  /**
+   * Equivalent to spawn_on((Scheduler&&)scheduler, just_from((Fun&&)fun)).
+   */
   template(typename Scheduler, typename Fun)             //
       (requires scheduler<Scheduler> AND callable<Fun>)  //
       auto spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     return spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
 
+  /**
+   * Connects and starts the given Sender with no way to observe the result.
+   *
+   * Invokes std::terminate() if the resulting operation completes with an
+   * error.
+   */
   template(typename Sender)                                      //
       (requires sender_to<Sender, delegate_receiver_t<Sender>>)  //
       void detached_spawn(Sender&& sender) {
     (void)do_spawn((Sender &&) sender, true /* detach */).release();
   }
 
+  /**
+   * Equivalent to detached_spawn(on((Scheduler&&) scheduler,
+   * (Sender&&)sender)).
+   */
   template(typename Sender, typename Scheduler)  //
       (requires scheduler<Scheduler> AND         //
            sender_to<
@@ -603,26 +636,51 @@ public:
     detached_spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
   }
 
+  /**
+   * Equivalent to detached_spawn_on((Scheduler&&)scheduler,
+   * just_from((Fun&&)fun)).
+   */
   template(typename Scheduler, typename Fun)             //
       (requires scheduler<Scheduler> AND callable<Fun>)  //
       void detached_spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     detached_spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
 
+  /**
+   * Returns a Sender that, when connected and started, marks the scope so that
+   * no more work can be spawned within it.  The returned Sender completes when
+   * the last outstanding operation spawned within the scope completes.
+   */
   [[nodiscard]] auto complete() noexcept {
     return sequence(
         just_from([this]() noexcept { end_of_scope(); }), await_and_sync());
   }
 
+  /**
+   * Returns a Sender that, when connected and started, marks the scope so that
+   * no more work can be spawned within it and requests cancellation of all
+   * outstanding work.  The returned Sender completes when the last outstanding
+   * operation spawned within the scope completes.
+   *
+   * Equivalent to, but more efficient than, invoking request_stop() and then
+   * connecting and starting the result of complete().
+   */
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
         just_from([this]() noexcept { request_stop(); }), await_and_sync());
   }
 
+  /**
+   * Returns a stop token from the scope's internal stop source.
+   */
   inplace_stop_token get_stop_token() noexcept {
     return stopSource_.get_token();
   }
 
+  /**
+   * Marks the scope so that no more work can be spawned within it and requests
+   * cancellation of all outstanding work.
+   */
   void request_stop() noexcept {
     end_of_scope();
     stopSource_.request_stop();
@@ -631,12 +689,24 @@ public:
 private:
   static constexpr std::size_t stoppedBit{1};
 
+  /**
+   * Returns true if the given state is marked with "stopping", indicating that
+   * no more work may be spawned within the scope.
+   */
   static bool is_stopping(std::size_t state) noexcept {
     return (state & stoppedBit) == 0;
   }
 
+  /**
+   * Returns the number of outstanding operations in the scope.
+   */
   static std::size_t op_count(std::size_t state) noexcept { return state >> 1; }
 
+  /**
+   * Tries to record the start of a new operation, returning true on success.
+   *
+   * Returns false if the scope has been marked as not accepting new work.
+   */
   [[nodiscard]] bool try_record_start() noexcept {
     auto opState = opState_.load(std::memory_order_relaxed);
 
@@ -652,6 +722,9 @@ private:
     return true;
   }
 
+  /**
+   * Records the completion of one operation.
+   */
   friend void record_done(async_scope* scope) noexcept {
     auto oldState = scope->opState_.fetch_sub(2, std::memory_order_release);
 
@@ -666,6 +739,9 @@ private:
     return scope->get_stop_token();
   }
 
+  /**
+   * Marks the scope to prevent spawn from starting any new work.
+   */
   void end_of_scope() noexcept {
     // stop adding work
     auto oldState = opState_.fetch_and(~stoppedBit, std::memory_order_release);
