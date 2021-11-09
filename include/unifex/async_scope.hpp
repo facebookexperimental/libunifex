@@ -643,6 +643,10 @@ public:
   template(typename Scheduler, typename Fun)             //
       (requires scheduler<Scheduler> AND callable<Fun>)  //
       void detached_spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
+    static_assert(
+        is_nothrow_callable_v<Fun>,
+        "Please annotate your callable with noexcept.");
+
     detached_spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
 
