@@ -41,6 +41,7 @@ using stream = typename _stream<Values...>::type;
 template <typename... Values>
 struct _stream<Values...>::type {
   struct next_receiver_base {
+    virtual ~next_receiver_base() = default;
     virtual void set_value(Values&&... values) noexcept = 0;
     virtual void set_done() noexcept = 0;
     virtual void set_error(std::exception_ptr ex) noexcept = 0;
@@ -60,6 +61,7 @@ struct _stream<Values...>::type {
   };
 
   struct cleanup_receiver_base {
+    virtual ~cleanup_receiver_base() = default;
     virtual void set_done() noexcept = 0;
     virtual void set_error(std::exception_ptr ex) noexcept = 0;
 
@@ -76,7 +78,7 @@ struct _stream<Values...>::type {
   };
 
   struct stream_base {
-    virtual ~stream_base() {}
+    virtual ~stream_base() = default;
     virtual void start_next(
         next_receiver_base& receiver,
         inplace_stop_token stopToken) noexcept = 0;

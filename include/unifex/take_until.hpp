@@ -79,6 +79,7 @@ struct _stream<SourceStream, TriggerStream>::type {
   };
 
   struct cleanup_operation_base {
+    virtual ~cleanup_operation_base() = default;
     virtual void start_trigger_cleanup() noexcept = 0;
   };
 

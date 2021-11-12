@@ -58,10 +58,12 @@ struct _stream<SourceStream, Values...>::type {
   };
 
   struct cleanup_operation_base {
+    virtual ~cleanup_operation_base() = default;
     virtual void start_cleanup() noexcept = 0;
   };
 
   struct next_receiver_base {
+    virtual ~next_receiver_base() = default;
     virtual void set_value(Values&&... values) && noexcept = 0;
     virtual void set_done() && noexcept = 0;
     virtual void set_error(std::exception_ptr ex) && noexcept = 0;
