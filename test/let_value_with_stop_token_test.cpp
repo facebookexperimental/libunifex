@@ -29,48 +29,14 @@
 #include <chrono>
 #include <iostream>
 
+#include "stoppable_receiver.hpp"
+
 #include <gtest/gtest.h>
 
 using namespace unifex;
+using namespace unifex_test;
 using namespace std::chrono;
 using namespace std::chrono_literals;
-
-struct UnstoppableSimpleIntReceiver {
-  void set_value(int) noexcept {}
-
-  void set_error(std::exception_ptr) noexcept {}
-
-  void set_done() noexcept {}
-};
-
-struct InplaceStoppableIntReceiver : public UnstoppableSimpleIntReceiver {
-  InplaceStoppableIntReceiver(inplace_stop_source& source) noexcept
-    : source_(source) {}
-
-  friend inplace_stop_token tag_invoke(
-      tag_t<get_stop_token>, const InplaceStoppableIntReceiver& r) noexcept {
-    return r.source_.get_token();
-  }
-
-  inplace_stop_source& source_;
-};
-
-struct inplace_stop_token_redux : public inplace_stop_token {
-  inplace_stop_token_redux(inplace_stop_token token)
-    : inplace_stop_token(token) {}
-};
-
-struct NonInplaceStoppableIntReceiver : public UnstoppableSimpleIntReceiver {
-  NonInplaceStoppableIntReceiver(inplace_stop_source& source) noexcept
-    : source_(source) {}
-
-  friend inplace_stop_token_redux tag_invoke(
-      tag_t<get_stop_token>, const NonInplaceStoppableIntReceiver& r) noexcept {
-    return inplace_stop_token_redux{r.source_.get_token()};
-  }
-
-  inplace_stop_source& source_;
-};
 
 struct LetWithStopToken : testing::Test {
   struct DestructionCounter {

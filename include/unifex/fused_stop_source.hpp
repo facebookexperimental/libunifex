@@ -18,6 +18,7 @@
 #include <optional>
 
 #include <unifex/inplace_stop_token.hpp>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {

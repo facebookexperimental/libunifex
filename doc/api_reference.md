@@ -38,6 +38,7 @@
   * `with_query_value()`
   * `with_allocator()`
   * `done_as_optional()`
+  * `nest()`
 * Sender Types
   * `async_trace_sender`
 * Sender Queries
@@ -711,6 +712,13 @@ task<void> g() {
 }
 ```
 
+### `nest(Sender sender, Scope& scope) -> Sender`
+
+`nest` registers the given *Sender* with the given "scope", which should be of a
+type that works like `v1::async_scope` or `v2::async_scope`. A *Sender* that has
+been registered with a scope will prevent that scope from being joined until the
+*Sender* has either been discarded or executed.
+
 ## Sender Types
 
 ### `async_trace_sender`
@@ -1201,8 +1209,10 @@ namespace unifex
     // Asserts if the sender returned from cleanup has not yet completed.
     ~async_scope();
 
-    // Returns a sender that, when started, marks this scope as cleaned up,
-    // requests stop on the internal stop source, and then waits for all
+    // Returns a sender that, when started, marks this scope so that no more
+    // work can be spawned within it,
+    // requests stop on the internal stop source,
+    // i.e. cancellation of all outstanding work, and then waits for all
     // outstanding work to complete.
     //
     // The sender returned from cleanup must complete before this scope is
@@ -1212,7 +1222,35 @@ namespace unifex
     // times in series or in parallel).
     [[nodiscard]] sender auto cleanup() noexcept;
 
-    // Connects sender to an internal receiver and starts the operation.  Once
+    // Returns a sender that, when started, marks this scope so that no more
+    // work can be spawned within it and then waits for all outstanding work
+    // to complete.
+    //
+    // The sender returned from complete must complete before this scope is
+    // destroyed.
+    //
+    // complete is thread-safe and idempotent (i.e. it can be invoked multiple
+    // times in series or in parallel).
+    [[nodiscard]] sender auto complete() noexcept;
+
+    // Returns a stop token from the scope's internal stop source.
+    inplace_stop_token get_stop_token() noexcept;
+
+    // Marks the scope so that no more work can be spawned within it,
+    // requests stop on the internal stop source,
+    // i.e. cancellation of all outstanding work
+    void request_stop() noexcept;
+
+    // Implemented as (void)spawn(sender).
+    void detached_spawn(sender);
+
+    // Implemented as detached_spawn(on(scheduler, sender)).
+    void detached_spawn_on(scheduler, sender);
+
+    // Implemented as detached_spawn_on(scheduler, just_from(invocable)).
+    void detached_spawn_call_on(scheduler, invocable);
+
+    // Connects sender to an internal receiver and starts the operation. Once
     // started, the given sender must complete with void or done; completing
     // with an error will result in a call to std::terminate.
     //
@@ -1220,20 +1258,51 @@ namespace unifex
     // with a stoppable token that becomes stopped when clean-up begins.
     //
     // Space for the operation state is allocated with std::make_unique and
-    // so this operation may throw if the allocation fails.  This operation may
+    // so this operation may throw if the allocation fails. This operation may
     // also throw if connect throws.
     //
     // Once connect has succeeded, start will only be called if this scope has
     // not yet been cleaned up; if a call to spawn loses a race with a call to
     // cleanup, the operation state created by connect will be destroyed and
     // deallocated without being started.
-    void spawn(sender);
+    //
+    // future is a handle to an eagerly-started operation; it is also a Sender,
+    // the result is retreived by connecting it to an appropriate Receiver
+    // and starting the resulting Operation.
+    //
+    // Discarding a future without connecting or starting it requests cancellation
+    // of the associated operation and discards the operation's result when it
+    // ultimately completes.
+    //
+    // Requesting cancellation of a connected-and-started future will also request
+    // cancellation of the associated operation.
+    future spawn(sender);
 
-    // Implemented as spawn(on(scheduler, sender)).
-    void spawn_on(scheduler, sender);
+    // Implemented as detached_spawn(on(scheduler, sender)).
+    future spawn_on(scheduler, sender);
 
     // Implemented as spawn_on(scheduler, just_from(invocable)).
-    void spawn_call_on(scheduler, invocable);
+    future spawn_call_on(scheduler, invocable);
+
+    // Returns a new sender that, when connected and started, connects and starts
+    // the given sender.
+    //
+    // Returned sender owns a reference to this async_scope. Discarding the sender
+    // prior to connecting it or discarding the operation prior to starting it
+    // discards the reference to this async_scope.
+    //
+    // The receiver to which the sender is connected responds to get_stop_token
+    // with a stoppable token that becomes stopped when clean-up begins.
+    [[nodiscard]] sender auto attach(sender);
+
+    // Implemented as attach(just_from(fun))
+    [[nodiscard]] sender auto attach_call(fun);
+
+    // Implemented as attach(on(scheduler, sender))
+    [[nodiscard]] sender auto attach_on(scheduler, sender);
+
+    // Implemented as attach_on(scheduler, just_from(fun))
+    [[nodiscard]] sender auto attach_call_on(scheduler, fun);
   };
 }
 ```

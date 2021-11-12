@@ -13,13 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #include <unifex/stop_when.hpp>
+
+#include <unifex/just_from.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/never.hpp>
+#include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/on.hpp>
+#include <unifex/when_all.hpp>
+
+#if !UNIFEX_NO_COROUTINES
+#include <unifex/task.hpp>
+#endif
 
 #include <chrono>
 #include <optional>
@@ -27,114 +35,117 @@
 #include <gtest/gtest.h>
 
 TEST(StopWhen, SourceCompletesFirst) {
-    using namespace std::chrono_literals;
+  using namespace std::chrono_literals;
 
-    unifex::timed_single_thread_context ctx;
+  unifex::timed_single_thread_context ctx;
 
-    bool sourceExecuted = false;
-    bool triggerExecuted = false;
-    
-    std::optional<int> result = unifex::sync_wait(
-        unifex::on(
-            ctx.get_scheduler(),
-            unifex::stop_when(
-                unifex::then(
-                    unifex::schedule_after(10ms),
-                    [&] {
-                        sourceExecuted = true;
-                        return 42;
-                    }),
-                unifex::then(
-                    unifex::schedule_after(1s),
-                    [&] { triggerExecuted = true; }))));
+  bool sourceExecuted = false;
+  bool triggerExecuted = false;
 
-    EXPECT_TRUE(result.has_value());
-    EXPECT_EQ(42, result.value());
+  std::optional<int> result = unifex::sync_wait(unifex::on(
+      ctx.get_scheduler(),
+      unifex::stop_when(
+          unifex::then(
+              unifex::schedule_after(10ms),
+              [&] {
+                sourceExecuted = true;
+                return 42;
+              }),
+          unifex::then(
+              unifex::schedule_after(1s), [&] { triggerExecuted = true; }))));
 
-    EXPECT_TRUE(sourceExecuted);
-    EXPECT_FALSE(triggerExecuted);
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(42, result.value());
+
+  EXPECT_TRUE(sourceExecuted);
+  EXPECT_FALSE(triggerExecuted);
 }
 
 TEST(StopWhen, TriggerCompletesFirst) {
-    using namespace std::chrono_literals;
+  using namespace std::chrono_literals;
 
-    unifex::timed_single_thread_context ctx;
+  unifex::timed_single_thread_context ctx;
 
-    bool sourceExecuted = false;
-    bool triggerExecuted = false;
-    
-    std::optional<int> result = unifex::sync_wait(
-        unifex::on(
-            ctx.get_scheduler(),
-            unifex::stop_when(
-                unifex::then(
-                    unifex::schedule_after(1s),
-                    [&] {
-                        sourceExecuted = true;
-                        return 42;
-                    }),
-                unifex::then(
-                    unifex::schedule_after(10ms),
-                    [&] { triggerExecuted = true; }))));
+  bool sourceExecuted = false;
+  bool triggerExecuted = false;
 
-    EXPECT_FALSE(result.has_value());
-    EXPECT_FALSE(sourceExecuted);
-    EXPECT_TRUE(triggerExecuted);
+  std::optional<int> result = unifex::sync_wait(unifex::on(
+      ctx.get_scheduler(),
+      unifex::stop_when(
+          unifex::then(
+              unifex::schedule_after(1s),
+              [&] {
+                sourceExecuted = true;
+                return 42;
+              }),
+          unifex::then(
+              unifex::schedule_after(10ms), [&] { triggerExecuted = true; }))));
+
+  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(sourceExecuted);
+  EXPECT_TRUE(triggerExecuted);
 }
 
 TEST(StopWhen, CancelledFromParent) {
-    using namespace std::chrono_literals;
+  using namespace std::chrono_literals;
 
-    unifex::timed_single_thread_context ctx;
+  unifex::timed_single_thread_context ctx;
 
-    bool sourceExecuted = false;
-    bool triggerExecuted = false;
-    
-    std::optional<int> result = unifex::sync_wait(
-        unifex::on(
-            ctx.get_scheduler(),
-            unifex::stop_when(
-                unifex::stop_when(
-                    unifex::then(
-                        unifex::schedule_after(1s),
-                        [&] {
-                            sourceExecuted = true;
-                            return 42;
-                        }),
-                    unifex::then(
-                        unifex::schedule_after(2s),
-                        [&] {
-                            triggerExecuted = true;
-                        })),
-                unifex::schedule_after(10ms))));
+  bool sourceExecuted = false;
+  bool triggerExecuted = false;
 
-    EXPECT_FALSE(result.has_value());
-    EXPECT_FALSE(sourceExecuted);
-    EXPECT_FALSE(triggerExecuted);
+  std::optional<int> result = unifex::sync_wait(unifex::on(
+      ctx.get_scheduler(),
+      unifex::stop_when(
+          unifex::stop_when(
+              unifex::then(
+                  unifex::schedule_after(1s),
+                  [&] {
+                    sourceExecuted = true;
+                    return 42;
+                  }),
+              unifex::then(
+                  unifex::schedule_after(2s), [&] { triggerExecuted = true; })),
+          unifex::schedule_after(10ms))));
+
+  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(sourceExecuted);
+  EXPECT_FALSE(triggerExecuted);
 }
 
 TEST(StopWhen, Pipeable) {
-    using namespace std::chrono_literals;
+  using namespace std::chrono_literals;
 
-    unifex::timed_single_thread_context ctx;
+  unifex::timed_single_thread_context ctx;
 
-    bool sourceExecuted = false;
-    bool triggerExecuted = false;
-    
-    auto op = unifex::schedule_after(1s)
-      | unifex::then(
-        [&] {
-            sourceExecuted = true;
-            return 42;
-        })
-      | unifex::stop_when(
-          unifex::schedule_after(10ms)
-            | unifex::then(
-              [&] { triggerExecuted = true; }));
-    std::optional<int> result =
-        unifex::sync_wait(unifex::on(ctx.get_scheduler(), std::move(op)));
+  bool sourceExecuted = false;
+  bool triggerExecuted = false;
 
-    EXPECT_FALSE(result.has_value());
-    EXPECT_FALSE(sourceExecuted);
-    EXPECT_TRUE(triggerExecuted);
+  auto op = unifex::schedule_after(1s) | unifex::then([&] {
+              sourceExecuted = true;
+              return 42;
+            }) |
+      unifex::stop_when(unifex::schedule_after(10ms) | unifex::then([&] {
+                          triggerExecuted = true;
+                        }));
+  std::optional<int> result =
+      unifex::sync_wait(unifex::on(ctx.get_scheduler(), std::move(op)));
+
+  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(sourceExecuted);
+  EXPECT_TRUE(triggerExecuted);
 }
+
+#if !UNIFEX_NO_COROUTINES
+TEST(StopWhen, SynchronousCompletionFromReceiverStopRequestIsASANSafe) {
+  unifex::sync_wait(
+      unifex::let_value_with_stop_source([](auto& stopSource) noexcept {
+        return unifex::when_all(
+            []() -> unifex::task<void> {
+              co_await unifex::stop_when(
+                  unifex::never_sender{}, unifex::never_sender{});
+            }(),
+            unifex::just_from([&]() noexcept { stopSource.request_stop(); }));
+      }));
+}
+#endif
