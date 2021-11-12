@@ -158,11 +158,7 @@ TEST_F(async_scope_test, work_spawned_in_correct_context) {
 }
 
 TEST_F(async_scope_test, lots_of_threads_works) {
-#if !defined(UNIFEX_TEST_LIMIT_ASYNC_SCOPE_THREADS)
   constexpr int maxCount = 1'000;
-#else
-  constexpr int maxCount = UNIFEX_TEST_LIMIT_ASYNC_SCOPE_THREADS;
-#endif
 
   std::array<single_thread_context, maxCount> threads;
 
