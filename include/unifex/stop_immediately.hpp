@@ -179,6 +179,11 @@ struct _stream<SourceStream, Values...>::type {
         }
       }
 
+      if (oldState == state::cleanup_completed) {
+          // Cleanup was already completed elsewhere.
+          return;
+      }
+
       // Otherwise, cleanup() was requested before this operation completed.
       // We are responsible for starting cleanup now that next() has finished.
 
@@ -367,6 +372,19 @@ struct _stream<SourceStream, Values...>::type {
           : stream_(strm)
           , receiver_((Receiver2&&)receiver)
         {}
+
+        ~type() {
+            auto oldState = stream_.state_.load(std::memory_order_acquire);
+            if (oldState == state::source_next_active_cleanup_requested) {
+                UNIFEX_ASSERT(stream_.cleanupOp_ == this);
+                if (stream_.state_.compare_exchange_strong(
+                      oldState, state::cleanup_completed,
+                      std::memory_order_release,
+                      std::memory_order_acquire)) {
+                    start_cleanup();
+                }
+            }
+        }
 
         void start() noexcept {
           auto oldState = stream_.state_.load(std::memory_order_acquire);
