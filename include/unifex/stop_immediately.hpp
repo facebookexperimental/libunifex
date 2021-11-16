@@ -27,6 +27,7 @@
 #include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/vtable.hpp>
 
 #include <atomic>
 #include <exception>
@@ -57,14 +58,16 @@ struct _stream<SourceStream, Values...>::type {
     cleanup_completed
   };
 
-  struct cleanup_operation_base {
-    virtual void start_cleanup() noexcept = 0;
+  struct cleanup_fn_t {
+    UNIFEX_VTABLE_DECLARE;
+    UNIFEX_VTABLE_ENTRY_VOID(cleanup, void);
   };
 
-  struct next_receiver_base {
-    virtual void set_value(Values&&... values) && noexcept = 0;
-    virtual void set_done() && noexcept = 0;
-    virtual void set_error(std::exception_ptr ex) && noexcept = 0;
+  struct next_receiver_vtable {
+    UNIFEX_VTABLE_DECLARE;
+    UNIFEX_VTABLE_ENTRY_RVALUE(set_value, void, Values&&...);
+    UNIFEX_VTABLE_ENTRY_VOID_RVALUE(set_done, void);
+    UNIFEX_VTABLE_ENTRY_RVALUE(set_error, void, std::exception_ptr);
   };
 
   struct cancel_next_callback {
@@ -96,9 +99,10 @@ struct _stream<SourceStream, Values...>::type {
           // sequence and also send the stop signal to the still-running
           // next() operation.
           stream_.stopSource_.request_stop();
-          auto receiver = std::exchange(stream_.nextReceiver_, nullptr);
-          UNIFEX_ASSERT(receiver != nullptr);
-          std::move(*receiver).set_done();
+          auto receiver =
+              std::exchange(stream_.nextReceiver_, next_receiver_vtable{});
+          UNIFEX_ASSERT(!!receiver);
+          std::move(receiver).set_done();
         } else {
           UNIFEX_ASSERT(oldState == state::source_next_completed);
         }
@@ -119,18 +123,18 @@ struct _stream<SourceStream, Values...>::type {
     // references to values owned by the operation object that we will be
     // destroying before passing the values along to the next receiver.
     void set_value(Values... values) && noexcept {
-      handle_signal([&](next_receiver_base* receiver) noexcept {
+      handle_signal([&](next_receiver_vtable&& receiver) noexcept {
         UNIFEX_TRY {
-          std::move(*receiver).set_value((Values&&)values...);
+          std::move(receiver).set_value((Values&&)values...);
         } UNIFEX_CATCH (...) {
-          std::move(*receiver).set_error(std::current_exception());
+          std::move(receiver).set_error(std::current_exception());
         }
       });
     }
 
     void set_done() && noexcept {
-      handle_signal([](next_receiver_base* receiver) noexcept {
-        std::move(*receiver).set_done();
+      handle_signal([](next_receiver_vtable&& receiver) noexcept {
+        std::move(receiver).set_done();
       });
     }
 
@@ -142,8 +146,8 @@ struct _stream<SourceStream, Values...>::type {
     void set_error(std::exception_ptr ex) && noexcept {
       auto& nextError = stream_.nextError_;
       nextError = std::move(ex);
-      handle_signal([&](next_receiver_base* receiver) noexcept {
-        std::move(*receiver).set_error(std::exchange(nextError, {}));
+      handle_signal([&](next_receiver_vtable&& receiver) noexcept {
+        std::move(receiver).set_error(std::exchange(nextError, {}));
       });
     }
 
@@ -159,9 +163,10 @@ struct _stream<SourceStream, Values...>::type {
               oldState, state::source_next_completed,
               std::memory_order_relaxed)) {
           // We acquired ownership of the receiver before it was cancelled.
-          auto* receiver = std::exchange(strm.nextReceiver_, nullptr);
-          UNIFEX_ASSERT(receiver != nullptr);
-          deliverSignalTo(receiver);
+          auto receiver =
+              std::exchange(strm.nextReceiver_, next_receiver_vtable{});
+          UNIFEX_ASSERT(!!receiver);
+          deliverSignalTo(std::move(receiver));
           return;
         }
       }
@@ -181,8 +186,8 @@ struct _stream<SourceStream, Values...>::type {
       // We are responsible for starting cleanup now that next() has finished.
 
       UNIFEX_ASSERT(oldState == state::source_next_active_cleanup_requested);
-      UNIFEX_ASSERT(stream_.cleanupOp_ != nullptr);
-      stream_.cleanupOp_->start_cleanup();
+      UNIFEX_ASSERT(!!stream_.cleanupOp_);
+      stream_.cleanupOp_.cleanup();
     }
 
     friend inplace_stop_token tag_invoke(
@@ -216,27 +221,32 @@ struct _stream<SourceStream, Values...>::type {
     template <typename Receiver>
     struct _op {
       struct type {
-        struct concrete_receiver final : next_receiver_base {
+        struct concrete_receiver {
           type& op_;
 
           explicit concrete_receiver(type& op)
             : op_(op)
           {}
 
-          void set_value(Values&&... values) && noexcept final {
+          void set_value(Values&&... values) && noexcept {
             op_.stopCallback_.destruct();
             unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
           }
 
-          void set_done() && noexcept final {
+          void set_done() && noexcept {
             op_.stopCallback_.destruct();
             unifex::set_done(std::move(op_.receiver_));
           }
 
-          void set_error(std::exception_ptr ex) && noexcept final {
+          void set_error(std::exception_ptr ex) && noexcept {
             op_.stopCallback_.destruct();
             unifex::set_error(std::move(op_.receiver_), std::move(ex));
           }
+
+          next_receiver_vtable table_ =
+            UNIFEX_VTABLE_CONSTRUCT(&concrete_receiver::set_value,
+                                    &concrete_receiver::set_done,
+                                    &concrete_receiver::set_error);
         };
 
         using ST = stop_token_type_t<Receiver&>;
@@ -271,7 +281,7 @@ struct _stream<SourceStream, Values...>::type {
                 next(stream_.source_),
                 next_receiver{stream_});
             });
-            stream_.nextReceiver_ = &concreteReceiver_;
+            stream_.nextReceiver_ = concreteReceiver_.table_;
             stream_.state_.store(
               state::source_next_active, std::memory_order_relaxed);
             UNIFEX_TRY {
@@ -280,7 +290,7 @@ struct _stream<SourceStream, Values...>::type {
                 cancel_next_callback{stream_});
               unifex::start(stream_.nextOp_.get());
             } UNIFEX_CATCH (...) {
-              stream_.nextReceiver_ = nullptr;
+              stream_.nextReceiver_ = next_receiver_vtable{};
               stream_.nextOp_.destruct();
               stream_.state_.store(
                 state::source_next_completed, std::memory_order_relaxed);
@@ -322,7 +332,7 @@ struct _stream<SourceStream, Values...>::type {
 
     template <typename Receiver>
     struct _op {
-      struct type final : cleanup_operation_base {
+      struct type {
         struct receiver_wrapper {
           type& op_;
 
@@ -366,10 +376,12 @@ struct _stream<SourceStream, Values...>::type {
           , receiver_((Receiver2&&)receiver)
         {}
 
+        cleanup_fn_t cleanup_fn = UNIFEX_VTABLE_CONSTRUCT(&type::start_cleanup);
+
         void start() noexcept {
           auto oldState = stream_.state_.load(std::memory_order_acquire);
           if (oldState == state::source_next_active_stream_stopped) {
-            stream_.cleanupOp_ = this;
+            stream_.cleanupOp_ = cleanup_fn;
             if (stream_.state_.compare_exchange_strong(
                   oldState, state::source_next_active_cleanup_requested,
                   std::memory_order_release,
@@ -396,7 +408,7 @@ struct _stream<SourceStream, Values...>::type {
           unifex::set_done(std::move(receiver_));
         }
 
-        void start_cleanup() noexcept final {
+        void start_cleanup() noexcept {
           UNIFEX_TRY {
             cleanupOp_.construct_with([&] {
               return unifex::connect(
@@ -429,8 +441,8 @@ struct _stream<SourceStream, Values...>::type {
 
   UNIFEX_NO_UNIQUE_ADDRESS SourceStream source_;
   std::atomic<state> state_{state::not_started};
-  cleanup_operation_base* cleanupOp_ = nullptr;
-  next_receiver_base* nextReceiver_ = nullptr;
+  cleanup_fn_t cleanupOp_;
+  next_receiver_vtable nextReceiver_;
   inplace_stop_source stopSource_;
   std::exception_ptr nextError_;
   manual_lifetime<next_operation_t<SourceStream, next_receiver>> nextOp_;
