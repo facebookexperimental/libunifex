@@ -32,9 +32,22 @@
   }                                                     \
   entry##_t entry##_ = nullptr
 
+#define UNIFEX_VTABLE_ENTRY_RVALUE(entry, ret, /*types*/...) \
+  using entry##_t = ret (*)(void*, __VA_ARGS__);             \
+  template <typename... Args>                                \
+  ret entry(Args&&... args)&& {                              \
+    return entry##_(ctx_, std::forward<Args>(args)...);      \
+  }                                                          \
+  entry##_t entry##_ = nullptr
+
 #define UNIFEX_VTABLE_ENTRY_VOID(entry, ret) \
   using entry##_t = ret (*)(void*);          \
   ret entry() { return entry##_(ctx_); };    \
+  entry##_t entry##_ = nullptr
+
+#define UNIFEX_VTABLE_ENTRY_VOID_RVALUE(entry, ret) \
+  using entry##_t = ret (*)(void*);                 \
+  ret entry()&& { return entry##_(ctx_); };         \
   entry##_t entry##_ = nullptr
 
 #define UNIFEX_VTABLE_CONSTRUCT_FN(fn) \
@@ -55,10 +68,29 @@ static constexpr auto _construct_indirect(Ret (T::*)(Args...)) noexcept {
   return f;
 }
 
+template <typename T, auto Key, typename Ret, typename... Args>
+static constexpr auto _construct_indirect(Ret (T::*)(Args...) &&) noexcept {
+  constexpr auto f = [](void* ctx, Args... args) {
+    return std::invoke(
+        Key,
+        static_cast<T&&>(*static_cast<T*>(ctx)),
+        std::forward<Args>(args)...);
+  };
+  return f;
+}
+
 template <typename T, auto Key, typename Ret>
 static constexpr auto _construct_indirect(Ret (T::*)()) noexcept {
   constexpr auto f = [](void* ctx) {
     return std::invoke(Key, static_cast<T*>(ctx));
+  };
+  return f;
+}
+
+template <typename T, auto Key, typename Ret>
+static constexpr auto _construct_indirect(Ret (T::*)() &&) noexcept {
+  constexpr auto f = [](void* ctx) {
+    return std::invoke(Key, static_cast<T&&>(*static_cast<T*>(ctx)));
   };
   return f;
 }

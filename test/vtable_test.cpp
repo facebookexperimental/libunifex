@@ -108,3 +108,22 @@ TEST(vtable, perfect_forwarding) {
   EXPECT_EQ(b, br);
   EXPECT_EQ("", bo);
 }
+
+struct class_four {
+  struct vtable {
+    UNIFEX_VTABLE_DECLARE;
+    UNIFEX_VTABLE_ENTRY_VOID_RVALUE(foo, void);
+    UNIFEX_VTABLE_ENTRY_RVALUE(bar, void, int);
+  };
+
+  void foo() && {};
+  void bar(int) && {};
+
+  vtable table_ = UNIFEX_VTABLE_CONSTRUCT(&class_four::foo, &class_four::bar);
+};
+
+TEST(vtable, ref_qualifier) {
+  auto instance = std::make_unique<class_four>();
+  std::move(instance->table_).foo();
+  std::move(instance->table_).bar(1);
+}
