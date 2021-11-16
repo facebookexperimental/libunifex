@@ -25,6 +25,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/vtable.hpp>
 
 #include <exception>
 #include <atomic>
@@ -78,8 +79,9 @@ struct _stream<SourceStream, TriggerStream>::type {
     }
   };
 
-  struct cleanup_operation_base {
-    virtual void start_trigger_cleanup() noexcept = 0;
+  struct cleanup_fn_t {
+    UNIFEX_VTABLE_DECLARE;
+    UNIFEX_VTABLE_ENTRY_VOID(cleanup, void);
   };
 
   struct cancel_callback {
@@ -215,7 +217,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
     template <typename Receiver>
     struct _op {
-      struct type final : cleanup_operation_base {
+      struct type {
         struct source_receiver {
           type& op_;
 
@@ -285,6 +287,9 @@ struct _stream<SourceStream, TriggerStream>::type {
         manual_lifetime<cleanup_operation_t<TriggerStream, trigger_receiver>>
           triggerOp_;
 
+        cleanup_fn_t cleanup_fn =
+            UNIFEX_VTABLE_CONSTRUCT(&type::start_trigger_cleanup);
+
         template <typename Receiver2>
         explicit type(take_until_stream& stream, Receiver2&& receiver)
           : stream_(stream)
@@ -304,7 +309,7 @@ struct _stream<SourceStream, TriggerStream>::type {
           }
 
           if (!stream_.cleanupReady_.load(std::memory_order_acquire)) {
-            stream_.cleanupOperation_ = this;
+            stream_.cleanupOperation_ = cleanup_fn;
             stream_.stopSource_.request_stop();
             if (!stream_.cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
               // The trigger cleanup is not yet ready to run.
@@ -317,7 +322,7 @@ struct _stream<SourceStream, TriggerStream>::type {
           start_trigger_cleanup();
         }
 
-        void start_trigger_cleanup() noexcept final {
+        void start_trigger_cleanup() noexcept {
           UNIFEX_TRY {
             triggerOp_.construct_with([&] {
               return unifex::connect(
@@ -416,7 +421,7 @@ struct _stream<SourceStream, TriggerStream>::type {
   UNIFEX_NO_UNIQUE_ADDRESS SourceStream source_;
   UNIFEX_NO_UNIQUE_ADDRESS TriggerStream trigger_;
   inplace_stop_source stopSource_;
-  cleanup_operation_base* cleanupOperation_ = nullptr;
+  cleanup_fn_t cleanupOperation_;
   std::atomic<bool> cleanupReady_ = false;
   bool triggerNextStarted_ = false;
 
@@ -438,8 +443,8 @@ struct _stream<SourceStream, TriggerStream>::type {
       // Otherwise, the cleanup(stream) operation has already been started
       // before the next(trigger) operation finished.
       // We have the responsibility for launching cleanup(trigger).
-      UNIFEX_ASSERT(cleanupOperation_ != nullptr);
-      cleanupOperation_->start_trigger_cleanup();
+      UNIFEX_ASSERT(!!cleanupOperation_);
+      cleanupOperation_.cleanup();
   }
 
 public:
