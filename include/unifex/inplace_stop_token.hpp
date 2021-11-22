@@ -173,7 +173,7 @@ inline inplace_stop_token inplace_stop_source::get_token() noexcept {
 template <typename F>
 class inplace_stop_callback final : private inplace_stop_callback_base {
  public:
-  template(typename T)
+  template(typename T = F)
     (requires convertible_to<T, F>)
   explicit inplace_stop_callback(inplace_stop_token token, T&& func) noexcept(
       std::is_nothrow_constructible_v<F, T>)

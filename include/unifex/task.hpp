@@ -42,27 +42,6 @@ namespace unifex {
 namespace _task {
 using namespace _util;
 
-template <typename... Types>
-using _is_single_valued_tuple =
-    std::bool_constant<1 >= sizeof...(Types)>;
-
-template <typename... Types>
-using _is_single_valued_variant =
-    std::bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
-
-template <typename Sender>
-UNIFEX_CONCEPT_FRAGMENT(     //
-  _single_typed_sender_impl, //
-    requires()(0) &&         //
-    sender_traits<remove_cvref_t<Sender>>
-      ::template value_types<
-        _is_single_valued_variant,
-        _is_single_valued_tuple>::value);
-
-template <typename Sender>
-UNIFEX_CONCEPT _single_typed_sender =
-  typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
-
 template <typename T>
 struct _task {
   struct [[nodiscard]] type;
