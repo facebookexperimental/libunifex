@@ -74,9 +74,16 @@ public:
   explicit type(operation* op) noexcept : op_(op) {}
   type(type&& other) noexcept : op_(std::exchange(other.op_, {})) {}
 
+  // Taking by value here to force a move/copy on the offchange the value
+  // objects live in the operation state, in which case destroying the
+  // predecessor operation state would invalidate it.
+  //
+  // Flipping the order of `deactivate_*` and `set_value` is UB since by the
+  // time `set_value()` returns `op_` might as well be already destroyed,
+  // without proper deactivation of `op_->sourceOp_`.
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
-  void set_value(Values&&... values) noexcept(
+  void set_value(Values... values) noexcept(
       is_nothrow_receiver_of_v<Receiver, Values...>) {
     UNIFEX_ASSERT(op_ != nullptr);
     unifex::deactivate_union_member(op_->sourceOp_);
@@ -383,8 +390,6 @@ struct _fn {
     (requires (!tag_invocable<_fn, Source, Func>) AND
         constructible_from<remove_cvref_t<Source>, Source> AND
         constructible_from<remove_cvref_t<Func>, Func>)
-        // callable<remove_cvref_t<Error>> AND
-        // sender<callable_result_t<remove_cvref_t<Error>>>)
   auto operator()(Source&& source, Func&& func) const
       noexcept(std::is_nothrow_constructible_v<
                    _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>,
@@ -394,9 +399,7 @@ struct _fn {
     return _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>{
         (Source&&)source, (Func&&)func};
   }
-  template<typename Func>
-      // (requires callable<remove_cvref_t<Error>> AND
-      //   sender<callable_result_t<remove_cvref_t<Error>>>)
+  template <typename Func>
   constexpr auto operator()(Func&& func) const
       noexcept(is_nothrow_callable_v<
         tag_t<bind_back>, _fn, Func>)
