@@ -41,7 +41,7 @@ namespace unifex
 
   template <template <typename...> class F, typename... Ts>
   struct apply_to_type_list<F, type_list<Ts...>> {
-    using type = typename type_list<Ts...>::template apply<F>;
+    using type = F<Ts...>;
   };
 
   template <template <typename...> class F, typename List>
