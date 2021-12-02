@@ -80,6 +80,8 @@ if(CXX_COROUTINES_HAVE_COROUTINES)
   target_link_libraries(unifex PUBLIC std::coroutines)
 endif()
 
+configure_file(unifex.pc.in unifex.pc @ONLY)
+
 # install unifex with its configure file into the default paths
 
 install(TARGETS unifex EXPORT unifexTargets)
@@ -92,3 +94,5 @@ install(EXPORT unifexTargets
         FILE unifexConfig.cmake
         NAMESPACE unifex::
         DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/unifex/)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unifex.pc
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/pkgconfig)
