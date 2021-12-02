@@ -86,13 +86,13 @@ configure_file(unifex.pc.in unifex.pc @ONLY)
 
 install(TARGETS unifex EXPORT unifexTargets)
 install(FILES ${PROJECT_BINARY_DIR}/include/unifex/config.hpp
-        DESTINATION ${CMAKE_INSTALL_FULL_INCLUDEDIR}/unifex/)
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/unifex/)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
         TYPE INCLUDE
         PATTERN "*.in" EXCLUDE)
 install(EXPORT unifexTargets
         FILE unifexConfig.cmake
         NAMESPACE unifex::
-        DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}/cmake/unifex/)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/unifex/)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/unifex.pc
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
