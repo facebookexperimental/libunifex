@@ -4,6 +4,9 @@
 # LICENSE.txt file in the root directory of this source tree.
 
 add_library(unifex "")
+set_target_properties(unifex PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    SOVERSION ${PROJECT_VERSION_MAJOR})
 
 target_sources(unifex
   PRIVATE
