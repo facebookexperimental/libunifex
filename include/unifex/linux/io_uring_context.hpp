@@ -37,6 +37,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <system_error>
 #include <utility>
 
@@ -303,6 +304,9 @@ bool io_uring_context::try_submit_io(PopulateFn populateSqe) noexcept {
 
       static_assert(noexcept(populateSqe(sqe)));
 
+      // nullify the struct
+      std::memset(&sqe, 0, sizeof(sqe));
+
       if constexpr (std::is_void_v<decltype(populateSqe(sqe))>) {
         populateSqe(sqe);
       } else {
@@ -430,16 +434,12 @@ class io_uring_context::read_sender {
 
       auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
         sqe.opcode = IORING_OP_READV;
-        sqe.flags = 0;
-        sqe.ioprio = 0;
         sqe.fd = fd_;
         sqe.off = offset_;
         sqe.addr = reinterpret_cast<std::uintptr_t>(&buffer_[0]);
         sqe.len = 1;
-        sqe.rw_flags = 0;
         sqe.user_data = reinterpret_cast<std::uintptr_t>(
             static_cast<completion_base*>(this));
-        sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
 
         this->execute_ = &operation::on_read_complete;
       };
@@ -548,16 +548,12 @@ class io_uring_context::write_sender {
 
       auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
         sqe.opcode = IORING_OP_WRITEV;
-        sqe.flags = 0;
-        sqe.ioprio = 0;
         sqe.fd = fd_;
         sqe.off = offset_;
         sqe.addr = reinterpret_cast<std::uintptr_t>(&buffer_[0]);
         sqe.len = 1;
-        sqe.rw_flags = 0;
         sqe.user_data = reinterpret_cast<std::uintptr_t>(
             static_cast<completion_base*>(this));
-        sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
 
         this->execute_ = &operation::on_write_complete;
       };
