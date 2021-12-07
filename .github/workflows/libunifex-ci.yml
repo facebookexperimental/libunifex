@@ -83,6 +83,22 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
           }
         - {
+            name: "Linux GCC 10 Debug (C++20) w/coroutines w/liburing", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: Debug,
+            io_sys: io_uring,            
+            cc: "gcc-10", cxx: "g++-10",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
+          }
+        - {
+            name: "Linux GCC 10 Optimised (C++20) w/coroutines w/liburing", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: RelWithDebInfo,
+            io_sys: io_uring,
+            cc: "gcc-10", cxx: "g++-10",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
+          }          
+        - {
             name: "Linux Clang 10 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
@@ -329,6 +345,16 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh 12
+
+    - name: Install liburing 
+      id: install_liburing
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.io_sys == 'io_uring' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        curl -L https://github.com/axboe/liburing/archive/refs/tags/liburing-2.1.tar.gz | tar zxvf -
+        cd liburing-liburing-2.1 && ./configure && make -j
+        sudo make install
 
     - name: Configure
       shell: cmake -P {0}
