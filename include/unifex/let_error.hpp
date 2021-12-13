@@ -229,8 +229,8 @@ class _op<Source, Func, Receiver>::type {
 public:
   template <typename Func2, typename Receiver2>
   explicit type(Source&& source, Func2&& func, Receiver2&& dest) noexcept(
-      std::is_nothrow_move_constructible_v<Receiver>&&
-          std::is_nothrow_move_constructible_v<Func>&&
+      std::is_nothrow_constructible_v<Receiver, Receiver2&&>&&
+          std::is_nothrow_constructible_v<Func, Func2&&>&&
               is_nothrow_connectable_v<Source, source_receiver>)
     : func_((Func2 &&) func)
     , receiver_((Receiver2 &&) dest) {
@@ -352,15 +352,14 @@ public:
       (requires same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Func, member_t<Sender, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          sender_to<member_t<Sender, Source>, SourceReceiver>)// AND
-          // sender_to<final_sender_t, FinalReceiver>)
+          sender_to<Source, SourceReceiver>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
         is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
         std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-      -> operation_type<member_t<Sender, Source>, Func, Receiver> {
-    return operation_type<member_t<Sender, Source>, Func, Receiver>{
+      -> operation_type<Source, Func, Receiver> {
+    return operation_type<Source, Func, Receiver>{
       static_cast<Sender&&>(s).source_,
       static_cast<Sender&&>(s).func_,
       static_cast<Receiver&&>(r)
@@ -378,8 +377,6 @@ struct _fn {
   template(typename Source, typename Func)
     (requires tag_invocable<_fn, Source, Func> AND
         sender<Source>)
-        // callable<remove_cvref_t<Error>> AND
-        // sender<callable_result_t<remove_cvref_t<Error>>>)
   auto operator()(Source&& source, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>)
       -> tag_invoke_result_t<_fn, Source, Func> {
