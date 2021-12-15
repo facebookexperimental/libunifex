@@ -66,10 +66,10 @@ struct _cleanup_promise_base {
     template <typename CleanupPromise>
     // Apple-clang and clang-10 and prior need for await_suspend to be noinline.
     // MSVC and clang-11 can tolerate await_suspend to be inlined, so force it.
-#if defined(_MSC_VER) || !(defined(__apple_build_version__) || __clang_major__ < 11)
-    UNIFEX_ALWAYS_INLINE
-#else
+#if defined(__apple_build_version__) || (defined(__clang__) && __clang_major__ <= 10)
     UNIFEX_NO_INLINE
+#else
+    UNIFEX_ALWAYS_INLINE
 #endif
     void await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
       auto continuation = h.promise().next();
