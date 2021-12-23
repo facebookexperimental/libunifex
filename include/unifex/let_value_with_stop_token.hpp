@@ -141,10 +141,10 @@ public:
         SuccessorFactory&&,
         Receiver&&>)
   -> operation<
-      member_t<Self, SuccessorFactory>,
+      SuccessorFactory,
       unifex::remove_cvref_t<Receiver>> {
     return operation<
-        member_t<Self, SuccessorFactory>,
+        SuccessorFactory,
         unifex::remove_cvref_t<Receiver>>(
         static_cast<Self&&>(self).func_, static_cast<Receiver&&>(r));
   }
@@ -174,7 +174,7 @@ struct _stop_token_operation<
 
   private:
     auto connect_inner_op(
-        SuccessorFactory&& func,
+        SuccessorFactory& func,
         inplace_stop_token st,
         Receiver&& r)
     noexcept(
@@ -182,9 +182,10 @@ struct _stop_token_operation<
       && inner_receiver_nothrow_constructible
       && nothrow_connectable) {
       return unifex::connect(
-          ((SuccessorFactory &&) func)(st), receiver_t(st, (Receiver &&) r));
+          func(st), receiver_t(st, (Receiver &&) r));
     }
 
+    SuccessorFactory func_;
     connect_result_t<inner_sender_t, receiver_t> innerOp_;
 
   public:
@@ -205,11 +206,12 @@ struct _stop_token_operation<
         && is_nothrow_constructible_v<Receiver, Receiver2&&>
         && noexcept(
             connect_inner_op(
-              (SuccessorFactory2&&)(func),
+              func_,
               std::declval<inplace_stop_token>(),
               (Receiver2&&)r)))
-      : innerOp_(connect_inner_op(
-            (SuccessorFactory &&) func, get_token(r), (Receiver2 &&) r)) {}
+      : func_((SuccessorFactory2 &&) func)
+      , innerOp_(connect_inner_op(
+            func_, get_token(r), (Receiver2 &&) r)) {}
 
     void start() noexcept {
       unifex::start(innerOp_);
@@ -232,7 +234,7 @@ struct _stop_token_operation<SuccessorFactory, Receiver, AlwaysVoid>::type {
 
 private:
   auto connect_inner_op(
-      SuccessorFactory&& func,
+      SuccessorFactory& func,
       inplace_stop_token st,
       Receiver&& r)
     noexcept(
@@ -240,9 +242,10 @@ private:
       && inner_receiver_nothrow_constructible
       && nothrow_connectable) {
     return unifex::connect(
-        ((SuccessorFactory &&) func)(st), receiver_t(st, (Receiver &&) r));
+        func(st), receiver_t(st, (Receiver &&) r));
   }
 
+  SuccessorFactory func_;
   stop_token_type_t<Receiver> receiver_token_;
   inplace_stop_source stop_source_;
   connect_result_t<inner_sender_t, receiver_t> innerOp_;
@@ -259,12 +262,13 @@ public:
       && is_nothrow_constructible_v<Receiver, Receiver2>
       && noexcept(
           connect_inner_op(
-          (SuccessorFactory2&&)(func),
+          func_,
           std::declval<inplace_stop_token>(),
           (Receiver2&&)r)))
-    : receiver_token_(get_stop_token(r))
+    : func_((SuccessorFactory2 &&) func)
+    , receiver_token_(get_stop_token(r))
     , innerOp_(connect_inner_op(
-          (SuccessorFactory &&) func,
+          func_,
           stop_source_.get_token(),
           (Receiver2 &&) r)) {}
 

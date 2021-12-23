@@ -72,7 +72,33 @@ struct NonInplaceStoppableIntReceiver : public UnstoppableSimpleIntReceiver {
   inplace_stop_source& source_;
 };
 
-TEST(LetWithStopToken, Simple) {
+struct LetWithStopToken : testing::Test {
+  struct DestructionCounter {
+    int value;
+    bool wasMoved{false};
+
+    DestructionCounter(DestructionCounter&& c) : value(c.value) {
+      c.wasMoved = true;
+    }
+
+    DestructionCounter(int value) : value(value) {}
+
+    static int& destroyCount() {
+      static int destroyCount = 0;
+      return destroyCount;
+    }
+
+    ~DestructionCounter() {
+      if (!wasMoved) {
+        destroyCount()++;
+      }
+    }
+  };
+
+  void SetUp() override { DestructionCounter::destroyCount() = 0; }
+};
+
+TEST_F(LetWithStopToken, Simple) {
   timed_single_thread_context context;
 
   // Simple usage of 'let_value_with_stop_token()'
@@ -105,7 +131,7 @@ TEST(LetWithStopToken, Simple) {
   EXPECT_EQ(external_context, 42);
 }
 
-TEST(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
+TEST_F(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
   static_assert(std::is_same_v<
                 stop_token_type_t<InplaceStoppableIntReceiver>,
                 inplace_stop_token>);
@@ -144,7 +170,7 @@ TEST(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
   EXPECT_EQ(external_context, 42);
 }
 
-TEST(LetWithStopToken, SimpleUnstoppable) {
+TEST_F(LetWithStopToken, SimpleUnstoppable) {
   static_assert(unifex::same_as<
                 stop_token_type_t<UnstoppableSimpleIntReceiver>,
                 unifex::unstoppable_token>);
@@ -154,7 +180,6 @@ TEST(LetWithStopToken, SimpleUnstoppable) {
   // - Sets up some work to execute when receiver is cancelled
   // - Work is never completed since token is unstoppable
   int external_context = 0;
-  inplace_stop_source stopSource;
   auto op = unifex::connect(
       let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
@@ -175,7 +200,7 @@ TEST(LetWithStopToken, SimpleUnstoppable) {
   EXPECT_EQ(external_context, 0);
 }
 
-TEST(LetWithStopToken, SimpleInplaceStoppable) {
+TEST_F(LetWithStopToken, SimpleInplaceStoppable) {
   static_assert(std::is_same_v<
                 stop_token_type_t<InplaceStoppableIntReceiver>,
                 inplace_stop_token>);
@@ -208,7 +233,7 @@ TEST(LetWithStopToken, SimpleInplaceStoppable) {
   EXPECT_EQ(external_context, 42);
 }
 
-TEST(LetWithStopToken, SimpleNonInplaceStoppable) {
+TEST_F(LetWithStopToken, SimpleNonInplaceStoppable) {
   static_assert(!std::is_same_v<
                 stop_token_type_t<NonInplaceStoppableIntReceiver>,
                 inplace_stop_token>);
@@ -239,4 +264,61 @@ TEST(LetWithStopToken, SimpleNonInplaceStoppable) {
   unifex::start(op);
 
   EXPECT_EQ(external_context, 42);
+}
+
+using counter = LetWithStopToken::DestructionCounter;
+
+template <typename ConnectOperation>
+void testPreserveOperationState(ConnectOperation connect) {
+  {
+    auto op = connect();
+    EXPECT_EQ(counter::destroyCount(), 0);
+    unifex::start(op);
+    EXPECT_EQ(counter::destroyCount(), 0);
+  }
+  EXPECT_EQ(counter::destroyCount(), 1);
+}
+
+template <typename StopSource>
+auto destructionCountingLetValueWithStopToken(StopSource& stopSource) {
+  return let_value_with_stop_token(
+      [&, external_context = counter{42}](
+          inplace_stop_token stopToken) {
+        // Needs to pass the stop token by value into the capture list
+        // to prevent accessing stopToken reference after function has
+        // returned.
+        return let_value_with(
+            [stopToken, &external_context]() noexcept {
+              auto stopCallback = [&]() noexcept {
+                EXPECT_EQ(external_context.value, 42);
+              };
+              using stop_callback_t =
+                  typename inplace_stop_token::template callback_type<
+                      decltype(stopCallback)>;
+              return stop_callback_t{stopToken, stopCallback};
+            },
+            [&stopSource](auto&) -> unifex::any_sender_of<int> {
+              stopSource.request_stop();
+              return just_done();
+            });
+      });
+}
+
+TEST_F(LetWithStopToken, PreserveOperationStateUnstoppable) {
+  testPreserveOperationState([]() {
+    return unifex::connect(
+        let_value_with_stop_source([&](auto& stopSource) {
+          return destructionCountingLetValueWithStopToken(stopSource);
+        }),
+        UnstoppableSimpleIntReceiver{});
+  });
+}
+
+TEST_F(LetWithStopToken, PreserveOperationStateNonInPlaceStoppable) {
+  inplace_stop_source stopSource;
+  testPreserveOperationState([&]() {
+    return unifex::connect(
+        destructionCountingLetValueWithStopToken(stopSource),
+        NonInplaceStoppableIntReceiver{stopSource});
+  });
 }
