@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/execution_policy.hpp>
+#include <unifex/fused_stop_source.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
@@ -30,7 +31,7 @@ namespace unifex {
 
 namespace _let_v_w_stop_tok {
 
-template <typename Receiver>
+template <typename Operation, typename Receiver>
 struct _stop_token_receiver {
   class type;
 };
@@ -43,31 +44,37 @@ struct _stop_token_operation {
 template <typename SuccessorFactory, typename Receiver>
 using operation = typename _stop_token_operation<SuccessorFactory, Receiver, void>::type;
 
-template <typename Receiver>
-using stop_token_receiver = typename _stop_token_receiver<Receiver>::type;
+template <typename Operation, typename Receiver>
+using stop_token_receiver = typename _stop_token_receiver<Operation, Receiver>::type;
 
-template <typename Receiver>
-class _stop_token_receiver<Receiver>::type {
+template <typename Operation, typename Receiver>
+class _stop_token_receiver<Operation, Receiver>::type {
 public:
-  explicit type(inplace_stop_token stop_token, Receiver&& r)
-    noexcept(unifex::is_nothrow_move_constructible_v<Receiver>)
-    : stop_token_(stop_token)
+  explicit type(
+      Operation* op,
+      inplace_stop_token stop_token,
+      Receiver&& r) noexcept(unifex::is_nothrow_move_constructible_v<Receiver>)
+    : op_(op)
+    , stop_token_(stop_token)
     , receiver_{(Receiver &&) r} {}
 
   template(typename... Values)
       (requires receiver_of<Receiver, Values...>)
   void set_value(Values&&... values)
     noexcept(is_nothrow_receiver_of_v<Receiver, Values...>) {
+    cleanup();
     unifex::set_value(std::move(receiver_), (Values &&) values...);
   }
 
   template(typename Error)
       (requires receiver<Receiver, Error>)
   void set_error(Error&& error) noexcept {
+    cleanup();
     unifex::set_error(std::move(receiver_), (Error &&) error);
   }
 
   void set_done() noexcept {
+    cleanup();
     unifex::set_done(std::move(receiver_));
   }
 
@@ -95,8 +102,13 @@ public:
   }
 
 private:
+  Operation* op_;
   inplace_stop_token stop_token_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+
+  void cleanup() noexcept {
+    op_->cleanup();
+  }
 };
 
 template <typename SuccessorFactory>
@@ -163,12 +175,18 @@ struct _stop_token_operation<
   struct type {
     using inner_sender_t =
         unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
-    using receiver_t = stop_token_receiver<unifex::remove_cvref_t<Receiver>>;
+    using receiver_t = stop_token_receiver<
+        operation<SuccessorFactory, Receiver>,
+        unifex::remove_cvref_t<Receiver>>;
 
     static constexpr bool successor_is_nothrow =
         unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
-    static constexpr bool inner_receiver_nothrow_constructible = unifex::
-        is_nothrow_constructible_v<receiver_t, inplace_stop_token, Receiver&&>;
+    static constexpr bool inner_receiver_nothrow_constructible =
+        unifex::is_nothrow_constructible_v<
+            receiver_t,
+            type*,
+            inplace_stop_token,
+            Receiver&&>;
     static constexpr bool nothrow_connectable =
         unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>;
 
@@ -182,7 +200,7 @@ struct _stop_token_operation<
       && inner_receiver_nothrow_constructible
       && nothrow_connectable) {
       return unifex::connect(
-          func(st), receiver_t(st, (Receiver &&) r));
+          func(st), receiver_t{this, st, (Receiver &&) r});
     }
 
     SuccessorFactory func_;
@@ -213,9 +231,9 @@ struct _stop_token_operation<
       , innerOp_(connect_inner_op(
             func_, get_token(r), (Receiver2 &&) r)) {}
 
-    void start() noexcept {
-      unifex::start(innerOp_);
-    }
+    void start() noexcept { unifex::start(innerOp_); }
+
+    void cleanup() noexcept {}
   };
 };
 
@@ -223,12 +241,18 @@ template <typename SuccessorFactory, typename Receiver, typename AlwaysVoid>
 struct _stop_token_operation<SuccessorFactory, Receiver, AlwaysVoid>::type {
   using inner_sender_t =
       unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
-  using receiver_t = stop_token_receiver<unifex::remove_cvref_t<Receiver>>;
+  using receiver_t = stop_token_receiver<
+      operation<SuccessorFactory, Receiver>,
+      unifex::remove_cvref_t<Receiver>>;
 
   static constexpr bool successor_is_nothrow =
       unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
-  static constexpr bool inner_receiver_nothrow_constructible = unifex::
-      is_nothrow_constructible_v<receiver_t, inplace_stop_token, Receiver&&>;
+  static constexpr bool inner_receiver_nothrow_constructible =
+      unifex::is_nothrow_constructible_v<
+          receiver_t,
+          type*,
+          inplace_stop_token,
+          Receiver&&>;
   static constexpr bool nothrow_connectable =
       unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>;
 
@@ -242,18 +266,14 @@ private:
       && inner_receiver_nothrow_constructible
       && nothrow_connectable) {
     return unifex::connect(
-        func(st), receiver_t(st, (Receiver &&) r));
+        func(st), receiver_t{this, st, (Receiver &&) r});
   }
 
   SuccessorFactory func_;
-  stop_token_type_t<Receiver> receiver_token_;
-  inplace_stop_source stop_source_;
+  using stop_token_type = stop_token_type_t<Receiver>;
+  stop_token_type receiverToken_;
+  fused_stop_source<stop_token_type> stopSource_;
   connect_result_t<inner_sender_t, receiver_t> innerOp_;
-  bool stop_callback_needs_destruction_{false};
-  using stop_callback =
-      typename stop_token_type_t<Receiver>::template callback_type<
-          detail::forward_stop_request_to_inplace_stop_source>;
-  unifex::manual_lifetime<stop_callback> callback;
 
 public:
   template <typename SuccessorFactory2, typename Receiver2>
@@ -266,25 +286,19 @@ public:
           std::declval<inplace_stop_token>(),
           (Receiver2&&)r)))
     : func_((SuccessorFactory2 &&) func)
-    , receiver_token_(get_stop_token(r))
+    , receiverToken_(get_stop_token(r))
     , innerOp_(connect_inner_op(
           func_,
-          stop_source_.get_token(),
+          stopSource_.get_token(),
           (Receiver2 &&) r)) {}
 
-  ~type() {
-    if (stop_callback_needs_destruction_) {
-      callback.destruct();
-    }
-  }
 
   void start() noexcept {
-    callback.construct_with([this]() {
-      return stop_callback{std::move(receiver_token_), stop_source_};
-    });
-    stop_callback_needs_destruction_ = true;
+    stopSource_.register_callbacks(receiverToken_);
     unifex::start(innerOp_);
   }
+
+  void cleanup() noexcept { stopSource_.deregister_callbacks(); }
 };
 
 namespace _cpo {
