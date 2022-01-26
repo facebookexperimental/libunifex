@@ -16,9 +16,9 @@
 #pragma once
 
 #include <unifex/inplace_stop_token.hpp>
-#include <unifex/detail/prologue.hpp>
-
 #include <unifex/optional.hpp>
+
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 
