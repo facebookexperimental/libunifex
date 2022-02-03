@@ -32,7 +32,7 @@
 #  define _In_
 #  define _In_opt_
 #  define _Out_
-#  define _Out_writes_to(A, B)
+#  define _Out_writes_to_(A, B)
 #endif
 
 namespace unifex::win32::ntapi
