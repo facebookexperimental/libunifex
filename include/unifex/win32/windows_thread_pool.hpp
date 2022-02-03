@@ -438,7 +438,8 @@ public:
     static constexpr bool sends_done = true;
 
     template(typename Receiver)
-        (requires receiver_of<Receiver> AND is_stop_never_possible_v<Receiver>)
+        (requires receiver_of<Receiver> AND
+            is_stop_never_possible_v<stop_token_type_t<Receiver>>)
     schedule_op<unifex::remove_cvref_t<Receiver>> connect(Receiver&& r) const {
         return schedule_op<unifex::remove_cvref_t<Receiver>>{
             *pool_, (Receiver&&)r};
