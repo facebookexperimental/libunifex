@@ -18,7 +18,7 @@
 #include <cstdint>
 
 // Mirror definition of NTAPI without depending on windows headers.
-#if (_MSC_VER >= 800) || defined(_STDCALL_SUPPORTED)
+#if (_MSC_VER >= 800) || defined(__MINGW32__) || defined(_STDCALL_SUPPORTED)
 #  define UNIFEX_NTAPI __stdcall
 #else
 #  define _cdecl
