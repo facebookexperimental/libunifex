@@ -673,7 +673,7 @@ private:
         }
     }
 
-    void set_done_impl() noexcept {
+    void set_done_impl() noexcept override {
         unifex::set_done(std::move(receiver_));
     }
 
@@ -751,7 +751,7 @@ private:
         }
     }
 
-    void set_done_impl() noexcept {
+    void set_done_impl() noexcept override {
         unifex::set_done(std::move(receiver_));
     }
 
