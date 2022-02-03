@@ -66,7 +66,7 @@ private:
 
 template <typename Scheduler, typename Allocator>
 void test(Scheduler scheduler, Allocator allocator) {
-  int value = 0;
+  [[maybe_unused]] int value = 0;
 
   auto addToValue = [&](int x) {
     // The via() is expected to allocate when it calls submit().
