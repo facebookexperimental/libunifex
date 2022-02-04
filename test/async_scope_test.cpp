@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+#include <unifex/any_sender_of.hpp>
 #include <unifex/async_scope.hpp>
-
 #include <unifex/just.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/just_void_or_done.hpp>
 #include <unifex/let_value_with.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
 #include <unifex/let_value_with_stop_token.hpp>
 #include <unifex/on.hpp>
 #include <unifex/optional.hpp>
@@ -29,33 +31,16 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 
+#include "mock_receiver.hpp"
+#include "stoppable_receiver.hpp"
+
 #include <gtest/gtest.h>
 
 #include <array>
 #include <atomic>
 
-using unifex::async_manual_reset_event;
-using unifex::async_scope;
-using unifex::connect;
-using unifex::future;
-using unifex::get_scheduler;
-using unifex::get_stop_token;
-using unifex::just;
-using unifex::just_from;
-using unifex::just_void_or_done;
-using unifex::let_value_with;
-using unifex::let_value_with_stop_token;
-using unifex::on;
-using unifex::optional;
-using unifex::same_as;
-using unifex::schedule;
-using unifex::scope_guard;
-using unifex::sequence;
-using unifex::single_thread_context;
-using unifex::start;
-using unifex::sync_wait;
-using unifex::tag_t;
-using unifex::then;
+using namespace unifex;
+using namespace unifex_test;
 
 namespace {
 
@@ -303,7 +288,7 @@ template <typename StopToken, typename Callback>
 auto make_stop_callback(StopToken stoken, Callback callback) {
   using stop_callback_t = typename StopToken::template callback_type<Callback>;
 
-  return stop_callback_t{std::move(stoken), std::move(callback)};
+  return stop_callback_t{stoken, std::move(callback)};
 }
 
 }  // namespace
@@ -317,10 +302,9 @@ TEST_F(async_scope_test, discarding_a_future_requests_cancellation) {
       thread.get_scheduler(),
       let_value_with_stop_token([&](auto stoken) noexcept {
         return let_value_with(
-            [&wasStopped, stoken = std::move(stoken)]() mutable noexcept {
+            [&wasStopped, stoken]() mutable noexcept {
               return make_stop_callback(
-                  std::move(stoken),
-                  [&wasStopped]() noexcept { wasStopped = true; });
+                  stoken, [&wasStopped]() noexcept { wasStopped = true; });
             },
             [&scheduled, &finished](auto&) noexcept {
               return sequence(
@@ -484,4 +468,203 @@ TEST_F(async_scope_test, lots_of_threads_works) {
   sync_wait(scope.cleanup());
 
   EXPECT_EQ(count.load(std::memory_order_relaxed), 0);
+}
+
+TEST_F(async_scope_test, attach) {
+  {
+    auto sender = scope.attach(just());
+    // attached_sender records done on async_scope
+  }
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_move_only) {
+  mock_receiver<void()> receiver;
+  auto sender = scope.attach(just());
+  static_assert(!std::is_copy_constructible_v<decltype(sender)>);
+  // connect(sender, receiver); is not permitted
+  {
+    // the outstanding operation is "transferred" from sender to operation
+    auto operation = connect(std::move(sender), receiver);
+    static_assert(!std::is_copy_constructible_v<decltype(operation)>);
+    static_assert(!std::is_move_constructible_v<decltype(operation)>);
+    // auto copy = operation; is not permitted
+    // auto moved = std::move(operation); is not permitted
+  }
+  // this will hang if the transfer doesn't happen
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_move_connect_start_just_void) {
+  mock_receiver<void()> receiver;
+  EXPECT_CALL(*receiver, set_value()).Times(1);
+  auto sender = scope.attach(just());
+  // attached_op internally uses LSB flag on async_scope*
+  static_assert(alignof(async_scope) > 1);
+  auto operation = connect(std::move(sender), receiver);
+
+  start(operation);
+
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_move_connect_start_just_value) {
+  mock_receiver<void(int)> receiver;
+  EXPECT_CALL(*receiver, set_value(42)).Times(1);
+  auto sender = scope.attach(just(42));
+  auto operation = connect(std::move(sender), receiver);
+
+  start(operation);
+
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_move_connect_start_just_done) {
+  mock_receiver<void()> receiver;
+  EXPECT_CALL(*receiver, set_done()).Times(1);
+  auto sender = scope.attach(just_void_or_done(false));
+  auto operation = connect(std::move(sender), receiver);
+
+  start(operation);
+
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_request_stop_before_spawn) {
+  mock_receiver<void(int)> receiver;
+  EXPECT_CALL(*receiver, set_done()).Times(1);
+  scope.request_stop();
+  auto sender = scope.attach(just(42));
+  auto operation = connect(std::move(sender), receiver);
+
+  start(operation);
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_request_stop_before_connect) {
+  mock_receiver<void(int)> receiver;
+  EXPECT_CALL(*receiver, set_value(42)).Times(1);
+  auto sender = scope.attach(just(42));
+  scope.request_stop();
+  auto operation = connect(std::move(sender), receiver);
+
+  start(operation);
+
+  sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_sync) {
+  int external_context = 0;
+
+  auto sender = scope.attach(let_value_with_stop_source([&](auto&) {
+    return let_value_with_stop_token([&](auto stoken) noexcept {
+      return let_value_with(
+          [&external_context, stoken]() noexcept {
+            return make_stop_callback(stoken, [&external_context]() noexcept {
+              external_context = 42;
+            });
+          },
+          [](auto&) noexcept -> unifex::any_sender_of<int> {
+            return just_done();
+          });
+    });
+  }));
+
+  sync_wait(std::move(sender));
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(external_context, 0);
+}
+
+TEST_F(async_scope_test, attach_stop_source_sync) {
+  int external_context = 0;
+
+  auto sender = scope.attach(let_value_with_stop_source([&](auto& stopSource) {
+    return let_value_with_stop_token([&](auto stoken) noexcept {
+      return let_value_with(
+          [&external_context, stoken]() noexcept {
+            return make_stop_callback(stoken, [&external_context]() noexcept {
+              external_context = 42;
+            });
+          },
+          [&](auto&) noexcept -> unifex::any_sender_of<int> {
+            stopSource.request_stop();
+            return just_done();
+          });
+    });
+  }));
+
+  sync_wait(std::move(sender));
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(async_scope_test, attach_unstoppable_stop_token) {
+  int external_context = 0;
+
+  auto sender =
+      scope.attach(let_value_with_stop_token([&](auto stoken) noexcept {
+        return let_value_with(
+            [&external_context, stoken]() noexcept {
+              return make_stop_callback(stoken, [&external_context]() noexcept {
+                external_context = 42;
+              });
+            },
+            [](auto&) noexcept -> unifex::any_sender_of<int> {
+              return just_done();
+            });
+      }));
+  auto operation = connect(std::move(sender), UnstoppableSimpleIntReceiver{});
+
+  start(operation);
+
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(external_context, 0);
+}
+
+TEST_F(async_scope_test, attach_inplace_stoppable_stop_token) {
+  int external_context = 0;
+  inplace_stop_source stopSource;
+  auto sender =
+      scope.attach(let_value_with_stop_token([&](auto stoken) noexcept {
+        return let_value_with(
+            [&external_context, stoken]() noexcept {
+              return make_stop_callback(stoken, [&external_context]() noexcept {
+                external_context = 42;
+              });
+            },
+            [&](auto&) noexcept -> unifex::any_sender_of<int> {
+              stopSource.request_stop();
+              return just_done();
+            });
+      }));
+  auto operation =
+      connect(std::move(sender), InplaceStoppableIntReceiver{stopSource});
+  start(operation);
+
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(async_scope_test, attach_non_inplace_stoppable_stop_token) {
+  int external_context = 0;
+  inplace_stop_source stopSource;
+  auto sender =
+      scope.attach(let_value_with_stop_token([&](auto stoken) noexcept {
+        return let_value_with(
+            [&external_context, stoken]() noexcept {
+              return make_stop_callback(stoken, [&external_context]() noexcept {
+                external_context = 42;
+              });
+            },
+            [&](auto&) noexcept -> unifex::any_sender_of<int> {
+              stopSource.request_stop();
+              return just_done();
+            });
+      }));
+  auto operation =
+      connect(std::move(sender), NonInplaceStoppableIntReceiver{stopSource});
+  start(operation);
+
+  sync_wait(scope.cleanup());
+  EXPECT_EQ(external_context, 42);
 }

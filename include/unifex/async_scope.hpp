@@ -17,6 +17,7 @@
 
 #include <unifex/config.hpp>
 #include <unifex/async_manual_reset_event.hpp>
+#include <unifex/fused_stop_source.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just_from.hpp>
@@ -44,6 +45,8 @@ namespace _async_scope {
 struct async_scope;
 
 void record_done(async_scope*) noexcept;
+
+[[nodiscard]] bool try_record_start(async_scope* scope) noexcept;
 
 inplace_stop_token get_stop_token_from_scope(async_scope*) noexcept;
 
@@ -561,6 +564,204 @@ struct future final {
   };
 };
 
+template <typename Operation, typename Receiver>
+struct _cleaning_receiver final {
+  struct type;
+};
+
+template <typename Operation, typename Receiver>
+using cleaning_receiver =
+    typename _cleaning_receiver<Operation, Receiver>::type;
+
+template <typename Operation, typename Receiver>
+struct _cleaning_receiver<Operation, Receiver>::type final {
+  template <typename... Values>
+  void set_value(Values&&... values) noexcept {
+    op_->cleanup();
+    unifex::set_value(std::move(receiver_), (Values &&) values...);
+  }
+
+  template <typename E>
+  void set_error(E&& e) noexcept {
+    op_->cleanup();
+    unifex::set_error(std::move(receiver_), (E &&) e);
+  }
+
+  void set_done() noexcept {
+    op_->cleanup();
+    unifex::set_done(std::move(receiver_));
+  }
+
+  template(typename CPO)                       //
+      (requires is_receiver_query_cpo_v<CPO>)  //
+      friend auto tag_invoke(CPO cpo, const type& r) noexcept(
+          is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+    return static_cast<CPO&&>(cpo)(r.receiver_);
+  }
+
+  friend inplace_stop_token
+  tag_invoke(tag_t<get_stop_token>, const type& r) noexcept {
+    return r.op_->get_token();
+  }
+
+  Operation* op_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+};
+
+template <typename Sender, typename Receiver>
+struct _attached_op final {
+  class type;
+};
+
+template <typename Sender, typename Receiver>
+using attached_operation =
+    typename _attached_op<Sender, remove_cvref_t<Receiver>>::type;
+
+template <typename Sender, typename Receiver>
+class _attached_op<Sender, Receiver>::type final {
+  using cleaning_receiver_t = cleaning_receiver<type, Receiver>;
+  using nested_operation_t = connect_result_t<Sender, cleaning_receiver_t>;
+
+public:
+  template <typename Receiver2>
+  explicit type(Sender&& s, Receiver2&& r, async_scope* scope) noexcept(
+      is_nothrow_connectable_v<Sender, cleaning_receiver_t>&& std::
+          is_nothrow_constructible_v<cleaning_receiver_t, type*, Receiver2>&&
+              std::is_nothrow_constructible_v<Receiver, Receiver2>)
+    : scope_(reinterpret_cast<std::uintptr_t>(scope) & started_mask)
+    , receiverToken_(get_stop_token(r)) {
+    if (scope_ref()) {
+      unifex::activate_union_member_with(op_, [&] {
+        return unifex::connect(
+            (Sender &&) s, cleaning_receiver_t{this, (Receiver2 &&) r});
+      });
+    } else {
+      unifex::activate_union_member(receiver_, (Receiver2 &&) r);
+    }
+  }
+
+  type(type&& op) = delete;
+
+  ~type() {
+    if (scope_ref()) {
+      unifex::deactivate_union_member(op_);
+      // started => receiver responsible for cleanup
+      if (!has_started()) {
+        cleanup();
+      }
+    } else {
+      unifex::deactivate_union_member(receiver_);
+    }
+  }
+
+  auto get_token() { return stopSource_.get_token(); }
+
+  void cleanup() noexcept {
+    UNIFEX_ASSERT(scope_ref() != nullptr);
+    stopSource_.deregister_callbacks();
+    record_done(scope_ref());
+  }
+
+  friend void tag_invoke(tag_t<start>, type& op) noexcept {
+    if (op.scope_ref()) {
+      op.set_started();
+      op.stopSource_.register_callbacks(
+          op.receiverToken_, op.scope_ref()->get_stop_token());
+      unifex::start(op.op_.get());
+    } else {
+      unifex::set_done(std::move(op).receiver_.get());
+    }
+  }
+
+private:
+  static constexpr std::uintptr_t started_bit{1};
+  static constexpr std::uintptr_t started_mask = ~started_bit;
+  // async_scope* stored as integer, so LSB can be used to signal start
+  std::uintptr_t scope_;
+  using receiver_stop_token_t = stop_token_type_t<Receiver>;
+  using scope_stop_token_t = inplace_stop_token;
+  fused_stop_source<receiver_stop_token_t, scope_stop_token_t> stopSource_;
+  receiver_stop_token_t receiverToken_;
+  union {
+    manual_lifetime<nested_operation_t> op_;
+    manual_lifetime<Receiver> receiver_;
+  };
+
+  async_scope* scope_ref() const noexcept {
+    return reinterpret_cast<async_scope*>(scope_ & started_mask);
+  }
+  bool has_started() const noexcept { return scope_ & started_bit; }
+  void set_started() noexcept { scope_ |= started_bit; }
+};
+
+template <typename Sender>
+struct _attached_sender final {
+  class type;
+};
+template <typename Sender>
+using attached_sender = typename _attached_sender<remove_cvref_t<Sender>>::type;
+
+template <typename Sender>
+class _attached_sender<Sender>::type final {
+public:
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = sender_value_types_t<Sender, Variant, Tuple>;
+
+  template <template <typename...> class Variant>
+  using error_types = sender_error_types_t<Sender, Variant>;
+
+  static constexpr bool sends_done = sender_traits<Sender>::sends_done;
+
+  template <typename Sender2>
+  explicit type(Sender2&& sender, async_scope* scope) noexcept(
+      std::is_nothrow_constructible_v<Sender, Sender2>)
+    : scope_(scope)
+    , sender_(static_cast<Sender2&&>(sender)) {
+    if (scope_) {
+      if (!try_record_start(scope_)) {
+        scope_ = nullptr;
+      }
+    }
+  }
+
+  type(type&& t) noexcept(std::is_nothrow_move_constructible_v<Sender>)
+    : scope_(std::exchange(t.scope_, nullptr))
+    , sender_(std::move(t.sender_)) {}
+
+  ~type() {
+    if (scope_) {
+      record_done(scope_);
+    }
+  }
+
+  template(typename Receiver)        //
+      (requires receiver<Receiver>)  //
+      friend auto tag_invoke(tag_t<connect>, type&& s, Receiver&& r) noexcept(
+          std::is_nothrow_constructible_v<
+              attached_operation<Sender, Receiver>,
+              Sender,
+              Receiver,
+              async_scope*>) -> attached_operation<Sender, Receiver> {
+    const auto scope = std::exchange(s.scope_, nullptr);
+    return attached_operation<Sender, Receiver>{
+        static_cast<type&&>(s).sender_, static_cast<Receiver&&>(r), scope};
+  }
+
+  friend constexpr auto
+  tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+    return blocking(self.sender_);
+  }
+
+private:
+  async_scope* scope_;
+  UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
+};
+
 template <typename Sender>
 using future_t =
     typename sender_value_types_t<Sender, single_overload, future>::type::type;
@@ -596,7 +797,7 @@ private:
 
     // At this point, the rest of the function is noexcept.
 
-    if (try_record_start()) {
+    if (try_record_start(this)) {
       unifex::start(*opToStart);
     } else {
       opToStart->start_failed();
@@ -687,6 +888,52 @@ public:
   }
 
   /**
+   * Returns a _Sender_ that, when connected and started,
+   * connects and starts the given Sender.
+   *
+   * Returned _Sender_ owns a reference to this async_scope.
+   */
+  template <typename Sender>
+  [[nodiscard]] auto
+  attach(Sender&& sender) noexcept(std::is_nothrow_constructible_v<
+                                   attached_sender<Sender>,
+                                   Sender,
+                                   async_scope*>) {
+    return attached_sender<Sender>{static_cast<Sender&&>(sender), this};
+  }
+
+  /**
+   * Equivalent to attach(just_from((Fun&&)fun)).
+   */
+  template(typename Scheduler, typename Fun)  //
+      (requires callable<Fun>)                //
+      [[nodiscard]] auto attach_call(Fun&& fun) noexcept(
+          noexcept(attach(just_from((Fun &&) fun)))) {
+    return attach(just_from((Fun &&) fun));
+  }
+
+  /**
+   * Equivalent to attach(on((Scheduler&&) scheduler, (Sender&&)sender)).
+   */
+  template(typename Sender, typename Scheduler)           //
+      (requires scheduler<Scheduler> AND sender<Sender>)  //
+      [[nodiscard]] auto attach_on(Scheduler&& scheduler, Sender&& sender) noexcept(
+          noexcept(attach(on((Scheduler &&) scheduler, (Sender &&) sender)))) {
+    return attach(on((Scheduler &&) scheduler, (Sender &&) sender));
+  }
+
+  /**
+   * Equivalent to attach_on((Scheduler&&)scheduler, just_from((Fun&&)fun)).
+   */
+  template(typename Scheduler, typename Fun)             //
+      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      [[nodiscard]] auto attach_call_on(Scheduler&& scheduler, Fun&& fun) noexcept(
+          noexcept(
+              attach_on((Scheduler &&) scheduler, just_from((Fun &&) fun)))) {
+    return attach_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
+  }
+
+  /**
    * Returns a Sender that, when connected and started, marks the scope so that
    * no more work can be spawned within it.  The returned Sender completes when
    * the last outstanding operation spawned within the scope completes.
@@ -747,8 +994,8 @@ private:
    *
    * Returns false if the scope has been marked as not accepting new work.
    */
-  [[nodiscard]] bool try_record_start() noexcept {
-    auto opState = opState_.load(std::memory_order_relaxed);
+  [[nodiscard]] friend bool try_record_start(async_scope* scope) noexcept {
+    auto opState = scope->opState_.load(std::memory_order_relaxed);
 
     do {
       if (is_stopping(opState)) {
@@ -756,7 +1003,7 @@ private:
       }
 
       UNIFEX_ASSERT(opState + 2 > opState);
-    } while (!opState_.compare_exchange_weak(
+    } while (!scope->opState_.compare_exchange_weak(
         opState, opState + 2, std::memory_order_relaxed));
 
     return true;
