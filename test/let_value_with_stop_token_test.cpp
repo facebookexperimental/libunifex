@@ -63,10 +63,16 @@ struct LetWithStopToken : testing::Test {
 
   void SetUp() override { DestructionCounter::destroyCount() = 0; }
 };
+namespace {
+template <typename StopToken, typename Callback>
+auto make_stop_callback(StopToken stoken, Callback callback) {
+  using stop_callback_t = typename StopToken::template callback_type<Callback>;
+
+  return stop_callback_t{stoken, std::move(callback)};
+}
+}  // namespace
 
 TEST_F(LetWithStopToken, Simple) {
-  timed_single_thread_context context;
-
   // Simple usage of 'let_value_with_stop_token()'
   // - Sets up some work to execute when receiver is cancelled
   int external_context = 0;
@@ -78,13 +84,8 @@ TEST_F(LetWithStopToken, Simple) {
           // returned.
           return let_value_with(
               [stopToken, &external_context]() noexcept {
-                auto stopCallback = [&]() mutable noexcept {
-                  external_context = 42;
-                };
-                using stop_callback_t =
-                    typename inplace_stop_token::template callback_type<
-                        decltype(stopCallback)>;
-                return stop_callback_t{stopToken, stopCallback};
+                return make_stop_callback(
+                    stopToken, [&]() noexcept { external_context = 42; });
               },
               [&stopSource](auto&) -> unifex::any_sender_of<int> {
                 stopSource.request_stop();
@@ -97,7 +98,109 @@ TEST_F(LetWithStopToken, Simple) {
   EXPECT_EQ(external_context, 42);
 }
 
-TEST_F(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
+TEST_F(LetWithStopToken, InplaceStoppableStopSourceMayThrow) {
+  static_assert(std::is_same_v<
+                stop_token_type_t<InplaceStoppableIntReceiver>,
+                inplace_stop_token>);
+
+  // - Sets up some work to execute when receiver is cancelled
+  int external_context = 0;
+  auto stopSourceFunctor = [&](auto& stopSource) {
+    return let_value_with_stop_token([&](inplace_stop_token stopToken) {
+      return let_value_with(
+          [stopToken, &external_context]() noexcept {
+            return make_stop_callback(
+                stopToken, [&]() noexcept { external_context = 42; });
+          },
+          [&stopSource](auto&) -> unifex::any_sender_of<int> {
+            stopSource.request_stop();
+            return just_done();
+          });
+    });
+  };
+  static_assert(!is_nothrow_connectable_v<
+                callable_result_t<
+                    decltype(let_value_with_stop_source),
+                    decltype(stopSourceFunctor)>,
+                InplaceStoppableIntReceiver>);
+  inplace_stop_source stopSource;
+  auto op = unifex::connect(
+      let_value_with_stop_source(std::move(stopSourceFunctor)),
+      InplaceStoppableIntReceiver{stopSource});
+  unifex::start(op);
+
+  EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(LetWithStopToken, InplaceStoppableStopSourceNoexcept) {
+  static_assert(std::is_same_v<
+                stop_token_type_t<InplaceStoppableIntReceiver>,
+                inplace_stop_token>);
+
+  // - Sets up some work to execute when receiver is cancelled
+  int external_context = 0;
+  auto stopSourceFunctor = [&](auto& stopSource) noexcept {
+    return let_value_with_stop_token([&](inplace_stop_token stopToken) {
+      return let_value_with(
+          [stopToken, &external_context]() noexcept {
+            return make_stop_callback(
+                stopToken, [&]() noexcept { external_context = 42; });
+          },
+          [&stopSource](auto&) -> unifex::any_sender_of<int> {
+            stopSource.request_stop();
+            return just_done();
+          });
+    });
+  };
+  static_assert(is_nothrow_connectable_v<
+                callable_result_t<
+                    decltype(let_value_with_stop_source),
+                    decltype(stopSourceFunctor)>,
+                InplaceStoppableIntReceiver>);
+  inplace_stop_source stopSource;
+  auto op = unifex::connect(
+      let_value_with_stop_source(std::move(stopSourceFunctor)),
+      InplaceStoppableIntReceiver{stopSource});
+  unifex::start(op);
+
+  EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(LetWithStopToken, InplaceStoppableMayThrow) {
+  static_assert(std::is_same_v<
+                stop_token_type_t<InplaceStoppableIntReceiver>,
+                inplace_stop_token>);
+
+  // Simple usage of 'let_value_with_stop_token()' with receiver with inplace
+  // stop token
+  // - Sets up some work to execute when receiver is cancelled
+  int external_context = 0;
+  inplace_stop_source stopSource;
+  auto stop_token_functor = [&](inplace_stop_token stopToken) {
+    return let_value_with(
+        [stopToken, &external_context]() noexcept {
+          return make_stop_callback(
+              stopToken, [&]() noexcept { external_context = 42; });
+        },
+        [&](auto&) noexcept {
+          stopSource.request_stop();
+          return just_done();
+        });
+  };
+  static_assert(!is_nothrow_connectable_v<
+                callable_result_t<
+                    decltype(let_value_with_stop_token),
+                    decltype(stop_token_functor)>,
+                InplaceStoppableIntReceiver>);
+  auto op = unifex::connect(
+      let_value_with_stop_token(std::move(stop_token_functor)),
+      InplaceStoppableIntReceiver{stopSource});
+  unifex::start(op);
+
+  EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(LetWithStopToken, InplaceStoppableNoexcept) {
   static_assert(std::is_same_v<
                 stop_token_type_t<InplaceStoppableIntReceiver>,
                 inplace_stop_token>);
@@ -110,13 +213,8 @@ TEST_F(LetWithStopToken, SimpleInplaceStoppableNoexcept) {
   auto stop_token_functor = [&](inplace_stop_token stopToken) noexcept {
     return let_value_with(
         [stopToken, &external_context]() noexcept {
-          auto stopCallback = [&]() noexcept {
-            external_context = 42;
-          };
-          using stop_callback_t =
-                    typename inplace_stop_token::template callback_type<
-                        decltype(stopCallback)>;
-          return stop_callback_t{stopToken, stopCallback};
+          return make_stop_callback(
+              stopToken, [&]() noexcept { external_context = 42; });
         },
         [&](auto&) noexcept {
           stopSource.request_stop();
@@ -150,13 +248,8 @@ TEST_F(LetWithStopToken, SimpleUnstoppable) {
       let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
             [stopToken, &external_context]() noexcept {
-              auto stopCallback = [&]() noexcept {
-                external_context = 42;
-              };
-              using stop_callback_t =
-                  typename inplace_stop_token::template callback_type<
-                      decltype(stopCallback)>;
-              return stop_callback_t{stopToken, stopCallback};
+              return make_stop_callback(
+                  stopToken, [&]() noexcept { external_context = 42; });
             },
             [&](auto&) -> unifex::any_sender_of<int> { return just_done(); });
       }),
@@ -166,7 +259,7 @@ TEST_F(LetWithStopToken, SimpleUnstoppable) {
   EXPECT_EQ(external_context, 0);
 }
 
-TEST_F(LetWithStopToken, SimpleInplaceStoppable) {
+TEST_F(LetWithStopToken, InplaceStoppable) {
   static_assert(std::is_same_v<
                 stop_token_type_t<InplaceStoppableIntReceiver>,
                 inplace_stop_token>);
@@ -180,13 +273,8 @@ TEST_F(LetWithStopToken, SimpleInplaceStoppable) {
       let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
             [stopToken, &external_context]() noexcept {
-              auto stopCallback = [&]() noexcept {
-                external_context = 42;
-              };
-              using stop_callback_t =
-                  typename inplace_stop_token::template callback_type<
-                      decltype(stopCallback)>;
-              return stop_callback_t{stopToken, stopCallback};
+              return make_stop_callback(
+                  stopToken, [&]() noexcept { external_context = 42; });
             },
             [&](auto&) -> unifex::any_sender_of<int> {
               stopSource.request_stop();
@@ -199,7 +287,7 @@ TEST_F(LetWithStopToken, SimpleInplaceStoppable) {
   EXPECT_EQ(external_context, 42);
 }
 
-TEST_F(LetWithStopToken, SimpleNonInplaceStoppable) {
+TEST_F(LetWithStopToken, NonInplaceStoppable) {
   static_assert(!std::is_same_v<
                 stop_token_type_t<NonInplaceStoppableIntReceiver>,
                 inplace_stop_token>);
@@ -213,13 +301,8 @@ TEST_F(LetWithStopToken, SimpleNonInplaceStoppable) {
       let_value_with_stop_token([&](inplace_stop_token stopToken) noexcept {
         return let_value_with(
             [stopToken, &external_context]() noexcept {
-              auto stopCallback = [&]() noexcept {
-                external_context = 42;
-              };
-              using stop_callback_t =
-                  typename inplace_stop_token::template callback_type<
-                      decltype(stopCallback)>;
-              return stop_callback_t{stopToken, stopCallback};
+              return make_stop_callback(
+                  stopToken, [&]() noexcept { external_context = 42; });
             },
             [&](auto&) -> unifex::any_sender_of<int> {
               stopSource.request_stop();
@@ -248,20 +331,15 @@ void testPreserveOperationState(ConnectOperation connect) {
 template <typename StopSource>
 auto destructionCountingLetValueWithStopToken(StopSource& stopSource) {
   return let_value_with_stop_token(
-      [&, external_context = counter{42}](
-          inplace_stop_token stopToken) {
+      [&, external_context = counter{42}](inplace_stop_token stopToken) {
         // Needs to pass the stop token by value into the capture list
         // to prevent accessing stopToken reference after function has
         // returned.
         return let_value_with(
             [stopToken, &external_context]() noexcept {
-              auto stopCallback = [&]() noexcept {
+              return make_stop_callback(stopToken, [&]() noexcept {
                 EXPECT_EQ(external_context.value, 42);
-              };
-              using stop_callback_t =
-                  typename inplace_stop_token::template callback_type<
-                      decltype(stopCallback)>;
-              return stop_callback_t{stopToken, stopCallback};
+              });
             },
             [&stopSource](auto&) -> unifex::any_sender_of<int> {
               stopSource.request_stop();
@@ -271,18 +349,24 @@ auto destructionCountingLetValueWithStopToken(StopSource& stopSource) {
 }
 
 TEST_F(LetWithStopToken, PreserveOperationStateUnstoppable) {
-  testPreserveOperationState([]() {
+  testPreserveOperationState([] {
+    auto stopSourceFunctor = [&](auto& stopSource) noexcept {
+      return destructionCountingLetValueWithStopToken(stopSource);
+    };
+    static_assert(is_nothrow_connectable_v<
+                  callable_result_t<
+                      decltype(let_value_with_stop_source),
+                      decltype(stopSourceFunctor)>,
+                  UnstoppableSimpleIntReceiver>);
     return unifex::connect(
-        let_value_with_stop_source([&](auto& stopSource) {
-          return destructionCountingLetValueWithStopToken(stopSource);
-        }),
+        let_value_with_stop_source(std::move(stopSourceFunctor)),
         UnstoppableSimpleIntReceiver{});
   });
 }
 
 TEST_F(LetWithStopToken, PreserveOperationStateNonInPlaceStoppable) {
   inplace_stop_source stopSource;
-  testPreserveOperationState([&]() {
+  testPreserveOperationState([&] {
     return unifex::connect(
         destructionCountingLetValueWithStopToken(stopSource),
         NonInplaceStoppableIntReceiver{stopSource});
