@@ -37,6 +37,7 @@
 #include <unifex/cstddef.hpp>
 
 #include <chrono>
+#include <cstring>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -125,8 +126,8 @@ TEST(low_latency_iocp_context, read_write_pipe) {
 
     UNIFEX_ASSERT(results.has_value());
 
-    auto [bytesRead] = std::get<0>(unifex::var::get<0>(results.value()));
-    auto [bytesWritten] = std::get<0>(unifex::var::get<1>(results.value()));
+    [[maybe_unused]] auto [bytesRead] = std::get<0>(unifex::var::get<0>(results.value()));
+    [[maybe_unused]] auto [bytesWritten] = std::get<0>(unifex::var::get<1>(results.value()));
 
     UNIFEX_ASSERT(bytesRead == 10);
     UNIFEX_ASSERT(bytesWritten == 10);

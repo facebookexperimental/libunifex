@@ -151,7 +151,7 @@ public:
     {}
 
 private:
-    static void CALLBACK work_callback(PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
+    static void CALLBACK work_callback(PTP_CALLBACK_INSTANCE, void* workContext, PTP_WORK) noexcept {
         auto& op = *static_cast<type*>(workContext);
         if constexpr (is_nothrow_callable_v<decltype(unifex::set_value), Receiver>) {
             unifex::set_value(std::move(op.receiver_));
@@ -257,13 +257,13 @@ protected:
 
 private:
     static void CALLBACK unstoppable_work_callback(
-        PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
+            PTP_CALLBACK_INSTANCE, void* workContext, PTP_WORK) noexcept {
         auto& op = *static_cast<type*>(workContext);
         op.set_value_impl();
     }
 
     static void CALLBACK stoppable_work_callback(
-            PTP_CALLBACK_INSTANCE instance, void* workContext, PTP_WORK work) noexcept {
+            PTP_CALLBACK_INSTANCE, void* workContext, PTP_WORK) noexcept {
         auto& op = *static_cast<type*>(workContext);
 
         // Signal that the work callback has started executing.
@@ -438,7 +438,8 @@ public:
     static constexpr bool sends_done = true;
 
     template(typename Receiver)
-        (requires receiver_of<Receiver> AND is_stop_never_possible_v<Receiver>)
+        (requires receiver_of<Receiver> AND
+            is_stop_never_possible_v<stop_token_type_t<Receiver>>)
     schedule_op<unifex::remove_cvref_t<Receiver>> connect(Receiver&& r) const {
         return schedule_op<unifex::remove_cvref_t<Receiver>>{
             *pool_, (Receiver&&)r};
@@ -673,7 +674,7 @@ private:
         }
     }
 
-    void set_done_impl() noexcept {
+    void set_done_impl() noexcept override {
         unifex::set_done(std::move(receiver_));
     }
 
@@ -751,7 +752,7 @@ private:
         }
     }
 
-    void set_done_impl() noexcept {
+    void set_done_impl() noexcept override {
         unifex::set_done(std::move(receiver_));
     }
 
