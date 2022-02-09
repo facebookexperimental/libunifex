@@ -21,6 +21,7 @@
 #include <unifex/cstddef.hpp>
 
 #include <atomic>
+#include <cstring>
 #include <random>
 #include <system_error>
 

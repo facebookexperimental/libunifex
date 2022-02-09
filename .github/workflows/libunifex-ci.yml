@@ -222,7 +222,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Debug (C++17)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: Debug,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -231,7 +231,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Optimised (C++17)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: RelWithDebInfo,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -240,7 +240,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Debug (C++20)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: Debug,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -248,7 +248,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Optimised (C++20)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: RelWithDebInfo,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",

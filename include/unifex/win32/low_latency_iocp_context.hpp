@@ -411,6 +411,8 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Receiver>
+    using schedule_op = schedule_op<Receiver>;
     low_latency_iocp_context& context_;
   };
 
@@ -579,6 +581,8 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buf, typename Receiver>
+    using read_file_op = read_file_op<Buf, Receiver>;
     low_latency_iocp_context& context_;
     handle_t fileHandle_;
     bool skipNotificationsOnSuccess_;
@@ -752,6 +756,8 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buf, typename Receiver>
+    using write_file_op = write_file_op<Buf, Receiver>;
     low_latency_iocp_context& context_;
     handle_t fileHandle_;
     bool skipNotificationsOnSuccess_;
@@ -773,6 +779,9 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buffer>
+    using read_file_sender = read_file_sender<Buffer>;
+
     low_latency_iocp_context& context_;
     safe_handle fileHandle_;
   };
@@ -792,6 +801,9 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buffer>
+    using write_file_sender = write_file_sender<Buffer>;
+
     low_latency_iocp_context& context_;
     safe_handle fileHandle_;
   };
