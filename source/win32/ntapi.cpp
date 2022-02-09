@@ -43,7 +43,8 @@ namespace unifex::win32::ntapi
       if (p == NULL) {
         std::terminate();
       }
-      fnPtr = reinterpret_cast<std::remove_reference_t<decltype(fnPtr)>>(p);
+      fnPtr = reinterpret_cast<std::remove_reference_t<decltype(fnPtr)>>(
+        reinterpret_cast<void(*)()>(p));
     };
 
     init(NtCreateFile, "NtCreateFile");
