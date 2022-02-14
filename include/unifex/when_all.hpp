@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -309,7 +309,7 @@ class _sender<Senders...>::type {
       (requires same_as<CPO, tag_t<unifex::connect>> AND
         same_as<remove_cvref_t<Sender>, type> AND
         when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
-  friend auto tag_invoke(CPO cpo, Sender&& sender, Receiver&& receiver)
+  friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
     -> operation<Receiver, member_t<Sender, Senders>...> {
     return std::apply([&](Senders&&... senders) {
       return operation<Receiver, member_t<Sender, Senders>...>{
@@ -360,19 +360,26 @@ class _sender<Senders...>::type {
 
   std::tuple<Senders...> senders_;
 };
-} // namespace _when_all
 
-namespace _when_all_cpo {
-  inline const struct _fn {
-    template <typename... Senders>
+namespace _cpo {
+  struct _fn {
+    template (typename... Senders)
+      (requires (unifex::sender<Senders> &&...) AND tag_invocable<_fn, Senders...>)
+    auto operator()(Senders&&... senders) const
+        -> tag_invoke_result_t<_fn, Senders...> {
+      return tag_invoke(*this, (Senders &&) senders...);
+    }
+    template (typename... Senders)
+      (requires (typed_sender<Senders> &&...) AND (!tag_invocable<_fn, Senders...>))
     auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {
       return _when_all::sender<Senders...>{(Senders &&) senders...};
     }
-  } when_all{};
-} // namespace _when_all_cpo
+  };
+} // namespace _cpo
+} // namespace _when_all
 
-using _when_all_cpo::when_all;
+inline constexpr _when_all::_cpo::_fn when_all{};
 
 } // namespace unifex
 

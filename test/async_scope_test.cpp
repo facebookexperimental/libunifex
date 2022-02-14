@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,12 +17,12 @@
 #include <unifex/async_scope.hpp>
 
 #include <unifex/just_from.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 
 #include <gtest/gtest.h>
 
@@ -35,7 +35,7 @@ using unifex::connect;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
 using unifex::just_from;
-using unifex::let_with;
+using unifex::let_value_with;
 using unifex::schedule;
 using unifex::scope_guard;
 using unifex::sequence;
@@ -43,7 +43,7 @@ using unifex::single_thread_context;
 using unifex::start;
 using unifex::sync_wait;
 using unifex::tag_t;
-using unifex::transform;
+using unifex::then;
 
 struct signal_on_destruction {
   async_manual_reset_event* destroyed_;
@@ -71,7 +71,7 @@ struct async_scope_test : testing::Test {
 
     scope.spawn_on(
         thread.get_scheduler(),
-        let_with(
+        let_value_with(
           [&, tmp = signal_on_destruction{&destroyed}]() noexcept {
             executed = true;
             return 42;
@@ -158,7 +158,11 @@ TEST_F(async_scope_test, work_spawned_in_correct_context) {
 }
 
 TEST_F(async_scope_test, lots_of_threads_works) {
+#if !defined(UNIFEX_TEST_LIMIT_ASYNC_SCOPE_THREADS)
   constexpr int maxCount = 1'000;
+#else
+  constexpr int maxCount = UNIFEX_TEST_LIMIT_ASYNC_SCOPE_THREADS;
+#endif
 
   std::array<single_thread_context, maxCount> threads;
 
@@ -192,12 +196,12 @@ TEST_F(async_scope_test, lots_of_threads_works) {
     // This should stress-test job submission and cancellation.
     scope.spawn_on(
       thread.get_scheduler(),
-      transform(
+      then(
         evt1.async_wait(),
         [&]() noexcept {
           scope.spawn_on(
               thread.get_scheduler(),
-              let_with(
+              let_value_with(
                 [&] { return decr{count, evt3}; },
                 [&](decr&) noexcept {
                   return sequence(

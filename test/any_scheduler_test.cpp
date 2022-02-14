@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,7 @@
 
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/sync_wait.hpp>
 
 #include <gtest/gtest.h>
@@ -49,7 +49,7 @@ TEST(AnySchedulerTest, EqualityComparable) {
 TEST(AnySchedulerTest, Schedule) {
   any_scheduler sched = inline_scheduler{};
   int i = 0;
-  sync_wait(transform(schedule(sched), [&]{ ++i; }));
+  sync_wait(then(schedule(sched), [&]{ ++i; }));
   EXPECT_EQ(i, 1);
 }
 
@@ -58,6 +58,6 @@ TEST(AnySchedulerRefTest, Schedule) {
   inline_scheduler sched{};
   any_scheduler_ref schedRef = sched;
   int i = 0;
-  sync_wait(transform(schedule(schedRef), [&]{ ++i; }));
+  sync_wait(then(schedule(schedRef), [&]{ ++i; }));
   EXPECT_EQ(i, 1);
 }

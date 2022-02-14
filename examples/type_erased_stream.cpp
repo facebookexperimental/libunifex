@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/type_erased_stream.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/typed_via_stream.hpp>
 
@@ -31,7 +31,7 @@ int main() {
   single_thread_context context1;
   single_thread_context context2;
 
-  sync_wait(transform(
+  sync_wait(then(
       for_each(
             type_erase<int>(
                 typed_via_stream(

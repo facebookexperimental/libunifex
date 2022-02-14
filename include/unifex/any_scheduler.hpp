@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -217,7 +217,7 @@ template <typename... CPOs>
 struct _with<CPOs...>::any_scheduler_ref {
   template (typename Scheduler)
     (requires (!same_as<const Scheduler, const any_scheduler_ref>) AND scheduler<Scheduler>)
-  /* implicit */ any_scheduler_ref(Scheduler& sched)
+  /* implicit */ any_scheduler_ref(Scheduler& sched) noexcept
     : impl_(sched) {}
 
   struct _sender {
@@ -247,13 +247,13 @@ struct _with<CPOs...>::any_scheduler_ref {
 
   private:
     friend any_scheduler_ref;
-    _sender(const any_scheduler_ref* sched)
+    _sender(const any_scheduler_ref* sched) noexcept
       : sched_(*sched)
     {}
     any_scheduler_ref sched_;
   };
 
-  _sender schedule() const {
+  _sender schedule() const noexcept {
     return _sender{this};
   }
 

@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <unifex/single_thread_context.hpp>
-#include <unifex/executor_concepts.hpp>
+#include <unifex/execute.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
 #include <cstdio>
@@ -25,7 +25,7 @@ int main() {
     single_thread_context ctx;
 
     for (int i = 0; i < 5; ++i) {
-        execute(schedule(ctx.get_scheduler()), [i]() {
+        execute(ctx.get_scheduler(), [i]() {
             printf("hello execute() %i\n", i);
         });
     }

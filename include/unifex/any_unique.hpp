@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -139,7 +139,7 @@ class _byval<CPOs...>::type
           (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
-  explicit type(std::in_place_type_t<Concrete> tag, Args&&... args)
+  explicit type([[maybe_unused]] std::in_place_type_t<Concrete> tag, Args&&... args)
     : impl_(new Concrete((Args&&) args...))
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
@@ -199,8 +199,6 @@ class _byval<CPOs...>::type
   void* impl_;
   vtable_holder_t vtable_;
 };
-
-
 
 } // namespace _any_unique
 

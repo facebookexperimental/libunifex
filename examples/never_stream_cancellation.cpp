@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@
 #include <unifex/never.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 
@@ -42,7 +42,7 @@ int main() {
             std::printf("got value");
             std::fflush(stdout);
           }),
-      transform(
+      then(
         schedule_after(context.get_scheduler(), 100ms),
         [] { std::printf("trigger completing, about to request stop\n"); })));
 

@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,7 @@
 #include <unifex/stop_when.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/on.hpp>
 
@@ -38,13 +38,13 @@ TEST(StopWhen, SourceCompletesFirst) {
         unifex::on(
             ctx.get_scheduler(),
             unifex::stop_when(
-                unifex::transform(
+                unifex::then(
                     unifex::schedule_after(10ms),
                     [&] {
                         sourceExecuted = true;
                         return 42;
                     }),
-                unifex::transform(
+                unifex::then(
                     unifex::schedule_after(1s),
                     [&] { triggerExecuted = true; }))));
 
@@ -67,13 +67,13 @@ TEST(StopWhen, TriggerCompletesFirst) {
         unifex::on(
             ctx.get_scheduler(),
             unifex::stop_when(
-                unifex::transform(
+                unifex::then(
                     unifex::schedule_after(1s),
                     [&] {
                         sourceExecuted = true;
                         return 42;
                     }),
-                unifex::transform(
+                unifex::then(
                     unifex::schedule_after(10ms),
                     [&] { triggerExecuted = true; }))));
 
@@ -95,13 +95,13 @@ TEST(StopWhen, CancelledFromParent) {
             ctx.get_scheduler(),
             unifex::stop_when(
                 unifex::stop_when(
-                    unifex::transform(
+                    unifex::then(
                         unifex::schedule_after(1s),
                         [&] {
                             sourceExecuted = true;
                             return 42;
                         }),
-                    unifex::transform(
+                    unifex::then(
                         unifex::schedule_after(2s),
                         [&] {
                             triggerExecuted = true;
@@ -122,14 +122,14 @@ TEST(StopWhen, Pipeable) {
     bool triggerExecuted = false;
     
     auto op = unifex::schedule_after(1s)
-      | unifex::transform(
+      | unifex::then(
         [&] {
             sourceExecuted = true;
             return 42;
         })
       | unifex::stop_when(
           unifex::schedule_after(10ms)
-            | unifex::transform(
+            | unifex::then(
               [&] { triggerExecuted = true; }));
     std::optional<int> result =
         unifex::sync_wait(unifex::on(ctx.get_scheduler(), std::move(op)));

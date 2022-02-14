@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,10 +20,10 @@
 
 #include <unifex/retry_when.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/let.hpp>
+#include <unifex/let_value.hpp>
 
 #include <exception>
 #include <cstdio>
@@ -57,7 +57,7 @@ TEST(retry_when, WorksAsExpected) {
   EXPECT_THROW(
     unifex::sync_wait(
       unifex::retry_when(
-        unifex::transform(unifex::schedule_after(scheduler, 10ms), [&] {
+        unifex::then(unifex::schedule_after(scheduler, 10ms), [&] {
             ++operationCount;
             std::printf("[%d] %d: operation about to fail\n", (int)timeSinceStartInMs(), operationCount);
             throw some_error{};
@@ -103,7 +103,7 @@ TEST(retry_when, Pipeable) {
 
   EXPECT_THROW(
     unifex::schedule_after(scheduler, 10ms)
-      | unifex::transform([&] {
+      | unifex::then([&] {
           ++operationCount;
           std::printf("[%d] %d: operation about to fail\n", (int)timeSinceStartInMs(), operationCount);
           throw some_error{};

@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -30,7 +30,7 @@ inline constexpr struct get_typeid_cpo {
       unifex::type_index(const unifex::this_&) noexcept;
 
   template <typename T>
-  friend unifex::type_index tag_invoke(get_typeid_cpo, const T& x) {
+  friend unifex::type_index tag_invoke(get_typeid_cpo, const T&) {
     return unifex::type_id<T>();
   }
 
@@ -91,12 +91,12 @@ int main() {
   using B = unifex::any_unique_t<>;
   {
     const A a = std::string{"hello"};
-    auto id = get_typeid(a);
+    [[maybe_unused]] auto id = get_typeid(a);
     UNIFEX_ASSERT(id == unifex::type_id<std::string>());
   }
   {
     const B b = std::string{"hello"};
-    auto id = get_typeid(b);
+    [[maybe_unused]] auto id = get_typeid(b);
     UNIFEX_ASSERT(id == unifex::type_id<B>());
   }
   {

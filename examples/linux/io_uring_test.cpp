@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,13 +20,13 @@
 
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/linux/io_uring_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_query_value.hpp>
 #include <unifex/just_from.hpp>
@@ -43,7 +43,7 @@ using namespace std::chrono_literals;
 
 template<typename S>
 auto discard_value(S&& s) {
-  return transform((S&&)s, [](auto&&...) noexcept {});
+  return then((S&&)s, [](auto&&...) noexcept {});
 }
 
 static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
@@ -51,7 +51,7 @@ static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
 // This could be made generic across any scheduler that supports the
 // async_write_only_file() CPO.
 auto write_new_file(io_uring_context::scheduler s, const char* path) {
-  return let_with(
+  return let_value_with(
       [s, path]() {
         // Call the 'open_file_write_only' CPO with the scheduler.
         // This will return a file object that satisfies an
@@ -76,11 +76,11 @@ auto write_new_file(io_uring_context::scheduler s, const char* path) {
 }
 
 auto read_file(io_uring_context::scheduler s, const char* path) {
-  return let_with(
+  return let_value_with(
       [s, path]() { return open_file_read_only(s, path); },
       [buffer = std::vector<char>{}](auto& file) mutable {
         buffer.resize(100);
-        return transform(
+        return then(
             async_read_some_at(
                 file,
                 0,
@@ -112,13 +112,13 @@ int main() {
       sync_wait(
         with_query_value(
           when_all(
-              transform(
+              then(
                   schedule_at(scheduler, now(scheduler) + 1s),
                   []() { std::printf("timer 1 completed (1s)\n"); }),
-              transform(
+              then(
                   schedule_at(scheduler, now(scheduler) + 2s),
                   []() { std::printf("timer 2 completed (2s)\n"); }),
-              transform(
+              then(
                   schedule_at(scheduler, now(scheduler) + 1500ms),
                   [&]() {
                     std::printf("timer 3 completed (1.5s) cancelling\n");
@@ -139,7 +139,7 @@ int main() {
         just_from([] { std::printf("writing file\n"); }),
         write_new_file(scheduler, "test.txt"),
         just_from([] { std::printf("write completed, waiting 1s\n"); }),
-        transform(
+        then(
             schedule_at(scheduler, now(scheduler) + 1s),
             []() { std::printf("timer 1 completed (1s)\n"); }),
         just_from([] { std::printf("reading file concurrently\n"); }),

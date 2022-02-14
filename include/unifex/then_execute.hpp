@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
  #pragma once
 
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/typed_via.hpp>
 
 #include <unifex/detail/prologue.hpp>
@@ -27,7 +27,7 @@ namespace _then_execute_cpo {
   struct _fn {
     template <typename Scheduler, typename Predecessor, typename Func>
     auto operator()(Scheduler&& s, Predecessor&& p, Func&& f) const {
-      return transform(
+      return then(
           typed_via((Predecessor &&) p, (Scheduler&&)s),
           (Func &&) f);
     }

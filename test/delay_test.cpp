@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/typed_via_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/stop_when.hpp>
 
 #include <chrono>
@@ -46,7 +46,7 @@ TEST(Delay, Smoke) {
                 auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
                 std::printf("[%i ms] %i\n", (int)ms.count(), value);
               }),
-          transform(
+          then(
             schedule_at(context.get_scheduler(), startTime + 500ms),
             [] { std::printf("cancelling\n"); })));
 }
@@ -65,6 +65,6 @@ TEST(Delay, Pipeable) {
         })
     | stop_when(
         schedule_at(context.get_scheduler(), startTime + 500ms)
-          | transform([] { std::printf("cancelling\n"); }))
+          | then([] { std::printf("cancelling\n"); }))
     | sync_wait();
 }

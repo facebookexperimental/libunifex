@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -32,16 +32,20 @@
 #cmakedefine UNIFEX_MEMORY_RESOURCE_HEADER <@UNIFEX_MEMORY_RESOURCE_HEADER@>
 #cmakedefine UNIFEX_MEMORY_RESOURCE_NAMESPACE @UNIFEX_MEMORY_RESOURCE_NAMESPACE@
 
-#if defined(__has_cpp_attribute)
+#if !defined(__has_cpp_attribute)
+#define UNIFEX_NO_UNIQUE_ADDRESS
+#elif !__has_cpp_attribute(no_unique_address)
+#define UNIFEX_NO_UNIQUE_ADDRESS
 // prior to clang-10, [[no_unique_address]] leads to bad codegen
-#if __has_cpp_attribute(no_unique_address) && \
-  (!defined(__clang__) || __clang_major__ > 9)
+#elif defined(__clang__) && __clang_major__ < 10
+#define UNIFEX_NO_UNIQUE_ADDRESS
+// GCC 10.3/11 introduced bug 98995, which fails to compile with no_uniq_addr.
+// See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98995
+// For simplicity, assume anything above 9 is broken.
+#elif !defined(__clang__) && defined(__GNUC__) && (__GNUC__ > 9)
+#define UNIFEX_NO_UNIQUE_ADDRESS
+#else
 #define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
-#else
-#define UNIFEX_NO_UNIQUE_ADDRESS
-#endif
-#else
-#define UNIFEX_NO_UNIQUE_ADDRESS
 #endif
 
 #if !defined(UNIFEX_NO_COROUTINES)
@@ -234,4 +238,18 @@
   #endif
 #else
   #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
+#endif
+
+#if !defined(UNIFEX_DEPRECATED_HEADER)
+  #ifdef __GNUC__
+    #define UNIFEX_PRAGMA(X) _Pragma(#X)
+    #define UNIFEX_DEPRECATED_HEADER(MSG) UNIFEX_PRAGMA(GCC warning MSG)
+  #elif defined(_MSC_VER)
+    #define UNIFEX_STRINGIZE_(MSG) #MSG
+    #define UNIFEX_STRINGIZE(MSG) UNIFEX_STRINGIZE_(MSG)
+    #define UNIFEX_DEPRECATED_HEADER(MSG) \
+        __pragma(message(__FILE__ "(" UNIFEX_STRINGIZE(__LINE__) ") : Warning: " MSG))
+  #endif
+#else
+  #define UNIFEX_DEPRECATED_HEADER(MSG) /**/
 #endif
