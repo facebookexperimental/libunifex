@@ -187,7 +187,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const value_receiver& r,
           Func&& func) {
-        unifex::invoke(func, r.get_receiver());
+        std::invoke(func, r.get_receiver());
       }
 
     private:
@@ -293,7 +293,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const error_receiver& r,
           Func&& func) {
-        unifex::invoke(func, r.get_receiver());
+        std::invoke(func, r.get_receiver());
       }
 
     private:
@@ -363,7 +363,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const done_receiver& r,
           Func&& func) {
-        unifex::invoke(func, r.get_receiver());
+        std::invoke(func, r.get_receiver());
       }
 
     private:
@@ -502,7 +502,7 @@ namespace unifex
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>, const type& r, Func&& func) {
-        unifex::invoke(func, r.get_receiver());
+        std::invoke(func, r.get_receiver());
       }
 
     private:

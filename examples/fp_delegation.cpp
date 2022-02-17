@@ -25,10 +25,10 @@
 #include <unifex/with_query_value.hpp>
 #include <unifex/utility.hpp>
 #include <unifex/variant.hpp>
-#include <unifex/functional.hpp>
 
 #include <atomic>
 #include <chrono>
+#include <functional>
 
 using namespace unifex;
 using namespace std::chrono_literals;

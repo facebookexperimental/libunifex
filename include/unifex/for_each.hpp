@@ -19,7 +19,8 @@
 #include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/functional.hpp>
+
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -33,7 +34,7 @@ namespace _for_each {
         (requires invocable<Func&, Ts...>)
       unit operator()(unit s, Ts&&... values)
           noexcept(is_nothrow_invocable_v<Func&, Ts...>) {
-        unifex::invoke(func_, (Ts&&) values...);
+        std::invoke(func_, (Ts&&) values...);
         return s;
       }
     };

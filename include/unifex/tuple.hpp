@@ -17,9 +17,8 @@
 
 #include <unifex/config.hpp>
 
+#include <functional>
 #include <tuple>
-
-#include <unifex/functional.hpp>
 
 #include <unifex/detail/prologue.hpp>
 

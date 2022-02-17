@@ -17,9 +17,8 @@
 
 #include <unifex/config.hpp>
 
+#include <functional>
 #include <type_traits>
-
-#include <unifex/functional.hpp>
 
 #if defined(UNIFEX_USE_ABSEIL)
 #include <absl/meta/type_traits.h>

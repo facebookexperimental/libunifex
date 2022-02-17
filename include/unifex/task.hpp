@@ -27,7 +27,6 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
-#include <unifex/functional.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/invoke.hpp>
 #include <unifex/continuations.hpp>
@@ -40,6 +39,7 @@
 #endif
 
 #include <exception>
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 

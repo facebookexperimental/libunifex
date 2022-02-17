@@ -18,8 +18,8 @@
 #include <unifex/detail/concept_macros.hpp>
 #include <unifex/swap.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/functional.hpp>
 
+#include <functional>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
