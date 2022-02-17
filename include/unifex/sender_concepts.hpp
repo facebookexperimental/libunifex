@@ -18,6 +18,7 @@
 #include <unifex/config.hpp>
 #include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/receiver_concepts.hpp>
 
@@ -365,6 +366,13 @@ using sender_single_value_result_t =
 template <typename Sender>
 constexpr bool is_sender_nofail_v =
     sender_error_types_t<Sender, is_empty_list>::value;
+
+template <typename Sender>
+using sender_value_type_list_t =
+    sender_value_types_t<Sender, type_list, type_list>;
+
+template <typename Sender>
+using sender_error_type_list_t = sender_error_types_t<Sender, type_list>;
 
 /// \cond
 namespace _single_sender {

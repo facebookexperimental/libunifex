@@ -46,10 +46,6 @@ namespace unifex {
 namespace _task {
 using namespace _util;
 
-template <typename Sender>
-UNIFEX_CONCEPT _single_typed_sender =
-  typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
-
 struct coro_holder {
   explicit coro_holder(coro::coroutine_handle<> h) noexcept
       : coro_(std::move(h)) {}

@@ -83,6 +83,22 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
           }
         - {
+            name: "Linux GCC 10 Debug (C++20) w/coroutines w/liburing", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: Debug,
+            io_sys: io_uring,            
+            cc: "gcc-10", cxx: "g++-10",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
+          }
+        - {
+            name: "Linux GCC 10 Optimised (C++20) w/coroutines w/liburing", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            build_type: RelWithDebInfo,
+            io_sys: io_uring,
+            cc: "gcc-10", cxx: "g++-10",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
+          }          
+        - {
             name: "Linux Clang 10 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-latest,
             build_type: Debug,
@@ -222,7 +238,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Debug (C++17)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: Debug,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -231,7 +247,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Optimised (C++17)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: RelWithDebInfo,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -240,7 +256,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Debug (C++20)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: Debug,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -248,7 +264,7 @@ jobs:
           }
         - {
             name: "Windows MSVC 2019 Optimised (C++20)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-latest,
+            os: windows-2019,
             build_type: RelWithDebInfo,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
@@ -329,6 +345,16 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh 12
+
+    - name: Install liburing 
+      id: install_liburing
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.io_sys == 'io_uring' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        curl -L https://github.com/axboe/liburing/archive/refs/tags/liburing-2.1.tar.gz | tar zxvf -
+        cd liburing-liburing-2.1 && ./configure && make -j
+        sudo make install
 
     - name: Configure
       shell: cmake -P {0}
@@ -416,4 +442,36 @@ jobs:
         )
         if (NOT result EQUAL 0)
           message(FATAL_ERROR "Running tests failed!")
+        endif()
+
+    - name: Install
+      shell: cmake -P {0}
+      continue-on-error: ${{ matrix.config.experimental || false }}
+      run: |
+        set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
+
+        if ("${{ runner.os }}" STREQUAL "Windows" AND NOT "x${{ matrix.config.environment_script }}" STREQUAL "x")
+          file(STRINGS environment_script_output.txt output_lines)
+          foreach(line IN LISTS output_lines)
+            if (line MATCHES "^([a-zA-Z0-9_-]+)=(.*)$")
+              set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
+            endif()
+          endforeach()
+        endif()
+
+        set(path_separator ":")
+        if ("${{ runner.os }}" STREQUAL "Windows")
+          set(path_separator ";")
+        endif()
+        set(ENV{PATH} "$ENV{GITHUB_WORKSPACE}${path_separator}$ENV{PATH}")
+
+        set(install_directory "$ENV{GITHUB_WORKSPACE}/install-target-dir")
+        message(STATUS "Install to: ${install_directory}")
+
+        execute_process(
+          COMMAND ${{ steps.cmake_and_ninja.outputs.cmake_dir}}/cmake --install build --prefix "${install_directory}"
+          RESULT_VARIABLE result
+        )
+        if (NOT result EQUAL 0)
+          message(FATAL_ERROR "Bad exit status")
         endif()
