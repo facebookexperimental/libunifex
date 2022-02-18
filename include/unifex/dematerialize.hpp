@@ -138,8 +138,8 @@ namespace _demat {
 
     public:
       template <typename... Errors>
-      using apply = typename Source::template error_types<
-          impl<Errors...>::template apply>;
+      using apply =
+          sender_error_types_t<Source, impl<Errors...>::template apply>;
     };
 
   public:

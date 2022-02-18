@@ -31,10 +31,15 @@ namespace unifex::win32
 #  pragma warning(push)
 #  pragma warning(disable : 4201)  // non-standard anonymous struct/union
 #endif
+#if defined(__GNUC__)
+#  define UNIFEX_NAMELESS_UNION __extension__
+#else
+#  define UNIFEX_NAMELESS_UNION
+#endif
   struct overlapped {
     ulong_ptr_t Internal;
     ulong_ptr_t InternalHigh;
-    union {
+    UNIFEX_NAMELESS_UNION union {
       struct {
         dword_t Offset;
         dword_t OffsetHigh;
@@ -43,7 +48,7 @@ namespace unifex::win32
     };
     handle_t hEvent;
   };
-
+#undef UNIFEX_NAMELESS_UNION
 #if defined(_MSC_VER)
 #  pragma warning(pop)
 #endif
