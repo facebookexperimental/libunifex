@@ -17,7 +17,8 @@
 
 #include <unifex/config.hpp>
 #include <unifex/tag_invoke.hpp>
-#include <unifex/functional.hpp>
+
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 

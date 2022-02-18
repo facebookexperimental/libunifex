@@ -40,8 +40,8 @@ namespace _next_adapt {
     AdaptFunc adapter_;
 
     friend auto tag_invoke(tag_t<next>, type& s)
-      -> unifex::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
-      return unifex::invoke(s.adapter_, next(s.innerStream_));
+      -> std::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
+      return std::invoke(s.adapter_, next(s.innerStream_));
     }
 
     friend auto tag_invoke(tag_t<cleanup>, type& s)

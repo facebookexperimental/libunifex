@@ -41,13 +41,13 @@ struct _adapted<Stream, NextAdaptFunc, CleanupAdaptFunc>::type {
   CleanupAdaptFunc cleanupAdapter_;
 
   friend auto tag_invoke(tag_t<next>, type& s)
-      -> unifex::invoke_result_t<NextAdaptFunc&, next_sender_t<Stream>> {
-    return unifex::invoke(s.nextAdapter_, next(s.innerStream_));
+      -> std::invoke_result_t<NextAdaptFunc&, next_sender_t<Stream>> {
+    return std::invoke(s.nextAdapter_, next(s.innerStream_));
   }
 
   friend auto tag_invoke(tag_t<cleanup>, type& s)
-      -> unifex::invoke_result_t<CleanupAdaptFunc&, cleanup_sender_t<Stream>> {
-    return unifex::invoke(s.cleanupAdapter_, cleanup(s.innerStream_));
+      -> std::invoke_result_t<CleanupAdaptFunc&, cleanup_sender_t<Stream>> {
+    return std::invoke(s.cleanupAdapter_, cleanup(s.innerStream_));
   }
 };
 
@@ -61,13 +61,13 @@ struct _adapted<Stream, AdaptFunc, void>::type {
   AdaptFunc adapter_;
 
   friend auto tag_invoke(tag_t<next>, type& s)
-      -> unifex::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
-    return unifex::invoke(s.adapter_, next(s.innerStream_));
+      -> std::invoke_result_t<AdaptFunc&, next_sender_t<Stream>> {
+    return std::invoke(s.adapter_, next(s.innerStream_));
   }
 
   friend auto tag_invoke(tag_t<cleanup>, type& s)
-      -> unifex::invoke_result_t<AdaptFunc&, cleanup_sender_t<Stream>> {
-    return unifex::invoke(s.adapter_, cleanup(s.innerStream_));
+      -> std::invoke_result_t<AdaptFunc&, cleanup_sender_t<Stream>> {
+    return std::invoke(s.adapter_, cleanup(s.innerStream_));
   }
 };
 } // namespace _adapt_stream

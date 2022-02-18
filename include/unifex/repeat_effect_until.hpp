@@ -24,10 +24,10 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/functional.hpp>
 
 #include <utility>
 #include <exception>
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -131,7 +131,7 @@ private:
       VisitFunc&& func) noexcept(is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
-    unifex::invoke(func, r.get_rcvr());
+    std::invoke(func, r.get_rcvr());
   }
 
   const Receiver& get_rcvr() const noexcept {

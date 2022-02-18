@@ -100,7 +100,7 @@ class _op<Sender, Receiver>::type {
         tag_t<visit_continuations>,
         const wrapped_receiver& r,
         Func&& func) {
-      unifex::invoke(func, unifex::as_const(r.get_receiver()));
+      std::invoke(func, unifex::as_const(r.get_receiver()));
     }
   };
 

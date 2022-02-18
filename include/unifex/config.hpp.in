@@ -137,13 +137,6 @@
 # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
 #endif
 
-#if defined(__cpp_lib_invoke) && __cpp_lib_invoke >= 201411 && \
-  defined(__cpp_lib_is_invocable) && __cpp_lib_is_invocable >= 201703
-#define UNIFEX_CXX_INVOKE 1
-#else
-#define UNIFEX_CXX_INVOKE 0
-#endif
-
 #if defined(__cpp_lib_apply) && __cpp_lib_apply > 0
 #define UNIFEX_CXX_APPLY 1
 #else
@@ -176,13 +169,6 @@
 #  define UNIFEX_TRY
 #  define UNIFEX_CATCH(...) if constexpr (true) {} else
 #  define UNIFEX_RETHROW() ((void)0)
-#endif
-
-#if (defined(__cpp_lib_type_trait_variable_templates) && \
-  __cpp_lib_type_trait_variable_templates > 0)
-#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
-#else
-#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 0
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)

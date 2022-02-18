@@ -20,7 +20,8 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_index.hpp>
-#include <unifex/functional.hpp>
+
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -91,7 +92,7 @@ inline void _default_visit(const void*, _continuation_info_vtable::callback_t*, 
 
 template <typename F>
 void _invoke_visitor(const continuation_info& info, void* data) {
-  invoke(*static_cast<std::add_pointer_t<F>>(data), info);
+  std::invoke(*static_cast<std::add_pointer_t<F>>(data), info);
 }
 
 class continuation_info {

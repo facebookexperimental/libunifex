@@ -127,7 +127,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
           unifex::just(std::forward<Values>(values)...),
           [this, begin_it, end_it](auto... values) {
             for(auto it = begin_it; it != end_it; ++it) {
-              if(unifex::invoke((Func &&) func_, *it, values...)) {
+              if(std::invoke((Func &&) func_, *it, values...)) {
                 return std::tuple<Iterator, Values...>(it, std::move(values)...);
               }
             }
@@ -198,7 +198,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
                       }
 
                       for(auto it = chunk_begin_it; it != chunk_end_it; ++it) {
-                        if(unifex::invoke(func, *it, values...)) {
+                        if(std::invoke(func, *it, values...)) {
                           // On success, store the value in the output array
                           // and cancel future work.
                           // This works on the assumption that bulk_schedule will launch
@@ -270,7 +270,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
 
   template <typename Visit>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Visit&& visit) {
-    unifex::invoke(visit, r.receiver_);
+    std::invoke(visit, r.receiver_);
   }
 };
 

@@ -125,7 +125,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const successor_receiver& r,
           Func&& func) {
-        unifex::invoke(func, r.get_const_receiver());
+        std::invoke(func, r.get_const_receiver());
       }
 
       Receiver&& get_receiver_rvalue() noexcept {
@@ -225,7 +225,7 @@ namespace unifex
           tag_t<visit_continuations>,
           const predecessor_receiver& r,
           Func&& func) {
-        unifex::invoke(func, r.get_const_receiver());
+        std::invoke(func, r.get_const_receiver());
       }
 
       const Receiver& get_const_receiver() const noexcept {

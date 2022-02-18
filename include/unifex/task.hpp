@@ -27,7 +27,6 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
-#include <unifex/functional.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/invoke.hpp>
 #include <unifex/continuations.hpp>
@@ -40,6 +39,7 @@
 #endif
 
 #include <exception>
+#include <functional>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -414,7 +414,7 @@ struct _task<T>::type : _task_base, coro_holder {
   template <typename Fn, typename... Args>
   friend type tag_invoke(
       tag_t<co_invoke>, type_identity<type>, Fn fn, Args... args) {
-    co_return co_await invoke((Fn&&) fn, (Args&&) args...);
+    co_return co_await std::invoke((Fn&&) fn, (Args&&) args...);
   }
 
 private:

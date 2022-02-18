@@ -17,9 +17,8 @@
 
 #include <unifex/config.hpp>
 
+#include <functional>
 #include <tuple>
-
-#include <unifex/functional.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -33,9 +32,9 @@ using std::apply;
 namespace _apply {
 template <typename F, typename Tuple, std::size_t... I>
 constexpr auto _impl(F&& f, Tuple&& t, std::integer_sequence<std::size_t, I...>)
-  noexcept(noexcept(unifex::invoke((F&&) f, std::get<I>((Tuple&&) t)...))) ->
-  decltype(unifex::invoke((F&&) f, std::get<I>((Tuple&&) t)...)) {
-  return unifex::invoke((F&&) f, std::get<I>((Tuple&&) t)...);
+  noexcept(noexcept(std::invoke((F&&) f, std::get<I>((Tuple&&) t)...))) ->
+  decltype(std::invoke((F&&) f, std::get<I>((Tuple&&) t)...)) {
+  return std::invoke((F&&) f, std::get<I>((Tuple&&) t)...);
 }
 template <typename Tuple>
 using _indices_for =

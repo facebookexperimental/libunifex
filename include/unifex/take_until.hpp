@@ -152,7 +152,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               tag_t<visit_continuations>,
               const receiver_wrapper& r,
               Func&& func) {
-            unifex::invoke(func, r.op_.receiver_);
+            std::invoke(func, r.op_.receiver_);
           }
         };
 
@@ -257,7 +257,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               tag_t<visit_continuations>,
               const source_receiver& r,
               Func&& func) {
-            unifex::invoke(func, r.op_.receiver_);
+            std::invoke(func, r.op_.receiver_);
           }
         };
 
@@ -294,7 +294,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               tag_t<visit_continuations>,
               const trigger_receiver& r,
               Func&& func) {
-            unifex::invoke(func, r.op_.receiver_);
+            std::invoke(func, r.op_.receiver_);
           }
         };
 

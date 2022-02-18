@@ -24,7 +24,6 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/functional.hpp>
 #include <unifex/utility.hpp>
 
 #include <functional>
@@ -58,7 +57,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
   static void apply_func_with_policy(const execution::sequenced_policy&, Range&& range, Func&& func, Values&... values)
       noexcept(is_nothrow_invocable_v<Func, typename std::iterator_traits<typename Range::iterator>::reference, Values...>) {
     for(auto idx : range) {
-      unifex::invoke(func, idx, values...);
+      std::invoke(func, idx, values...);
     }
   }
 
@@ -69,7 +68,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
     auto first = range.begin();
     using size_type = decltype(range.size());
     for (size_type idx = 0; idx < range.size(); ++idx) {
-      unifex::invoke(func, first[idx], values...);
+      std::invoke(func, first[idx], values...);
     }
   }
 
@@ -110,7 +109,7 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
       tag_t<visit_continuations>,
       const type& r,
       Visit&& visit) {
-    unifex::invoke(visit, r.receiver_);
+    std::invoke(visit, r.receiver_);
   }
 };
 

@@ -23,9 +23,9 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/functional.hpp>
 #include <unifex/utility.hpp>
 
+#include <functional>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
@@ -124,7 +124,7 @@ namespace unifex
           Func&& func) noexcept(is_nothrow_invocable_v<
                                         Func&,
                                         const Receiver&>) {
-        unifex::invoke(func, unifex::as_const(r.receiver_));
+        std::invoke(func, unifex::as_const(r.receiver_));
       }
 
     private:
