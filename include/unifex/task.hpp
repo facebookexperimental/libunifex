@@ -414,7 +414,7 @@ struct _task<T>::type : _task_base, coro_holder {
   template <typename Fn, typename... Args>
   friend type tag_invoke(
       tag_t<co_invoke>, type_identity<type>, Fn fn, Args... args) {
-    co_return co_await invoke((Fn&&) fn, (Args&&) args...);
+    co_return co_await std::invoke((Fn&&) fn, (Args&&) args...);
   }
 
 private:

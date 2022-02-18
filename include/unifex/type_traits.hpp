@@ -28,8 +28,6 @@
 
 namespace unifex {
 
-#if UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-
 using std::is_same_v;
 using std::is_void_v;
 using std::is_const_v;
@@ -43,38 +41,6 @@ using std::is_nothrow_destructible_v;
 using std::is_nothrow_constructible_v;
 using std::is_nothrow_copy_constructible_v;
 using std::is_nothrow_move_constructible_v;
-
-#else
-
-template <typename A, typename B>
-inline constexpr bool is_same_v = false;
-template <typename A>
-inline constexpr bool is_same_v<A, A> = true;
-template <typename A>
-inline constexpr bool is_void_v = std::is_void<A>::value;
-template <typename A>
-inline constexpr bool is_const_v = std::is_const<A>::value;
-template <typename A>
-inline constexpr bool is_empty_v = std::is_empty<A>::value;
-template <typename A>
-inline constexpr bool is_object_v = std::is_object<A>::value;
-template <typename A, typename B>
-inline constexpr bool is_base_of_v = std::is_base_of<A, B>::value;
-template <typename A>
-inline constexpr bool is_reference_v = std::is_reference<A>::value;
-template <typename A, typename B>
-inline constexpr bool is_convertible_v = std::is_convertible<A, B>::value;
-template <typename A>
-inline constexpr bool is_lvalue_reference_v = std::is_lvalue_reference<A>::value;
-template <typename A>
-inline constexpr bool is_nothrow_destructible_v = std::is_nothrow_destructible<A>::value;
-template <typename A, typename... Args>
-inline constexpr bool is_nothrow_constructible_v = std::is_nothrow_constructible<A, Args...>::value;
-template <typename A>
-inline constexpr bool is_nothrow_copy_constructible_v = std::is_nothrow_copy_constructible<A>::value;
-template <typename A>
-inline constexpr bool is_nothrow_move_constructible_v = std::is_nothrow_move_constructible<A>::value;
-#endif
 
 #if defined(__cpp_lib_bool_constant) && \
   __cpp_lib_bool_constant > 0
@@ -91,52 +57,12 @@ template <typename...>
 using void_t = void;
 #endif
 
-#if UNIFEX_CXX_INVOKE
 using std::invoke_result;
 using std::invoke_result_t;
 using std::is_invocable;
 using std::is_nothrow_invocable;
-#if UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
 using std::is_invocable_v;
 using std::is_nothrow_invocable_v;
-#else // UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-template <typename Fn, typename... Args>
-inline constexpr bool is_invocable_v = is_invocable<Fn, Args...>::value;
-template <typename Fn, typename... Args>
-inline constexpr bool is_nothrow_invocable_v = is_nothrow_invocable<Fn, Args...>::value;
-#endif // UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#else // UNIFEX_CXX_INVOKE
-namespace _invoke {
-template <typename Fn, typename... Args>
-constexpr bool _test(long) noexcept(false) {
-  return false;
-}
-template <typename Fn, typename... Args>
-constexpr auto _test(int)
-  noexcept(noexcept(unifex::invoke(UNIFEX_DECLVAL(Fn&&), UNIFEX_DECLVAL(Args&&)...)))
-  -> decltype(((void)unifex::invoke(UNIFEX_DECLVAL(Fn&&), UNIFEX_DECLVAL(Args&&)...)), true){
-  return true;
-}
-} // _invoke
-template <typename Fn, typename... Args>
-using invoke_result_t = decltype(unifex::invoke(UNIFEX_DECLVAL(Fn&&), UNIFEX_DECLVAL(Args&&)...));
-template <typename Fn, typename... Args>
-struct invoke_result {
-  using type = invoke_result_t<Fn, Args...>;
-};
-template <typename Fn, typename... Args>
-inline constexpr bool is_invocable_v = _invoke::_test<Fn, Args...>(0);
-template <typename Fn, typename... Args>
-inline constexpr bool is_nothrow_invocable_v = noexcept(_invoke::_test<Fn, Args...>(0));
-template <class Fn, class... Args>
-struct is_invocable
-  : bool_constant<is_invocable_v<Fn, Args...>>
-{};
-template <class Fn, class... Args>
-struct is_nothrow_invocable
-  : bool_constant<is_nothrow_invocable_v<Fn, Args...>>
-{};
-#endif
 
 #if defined(UNIFEX_USE_ABSEIL)
 using absl::disjunction;
