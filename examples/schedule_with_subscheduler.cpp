@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,17 +16,17 @@
 #include <unifex/schedule_with_subscheduler.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 
 using namespace unifex;
 
 int main() {
   timed_single_thread_context context;
-  auto scheduler = context.get_scheduler();
+  auto schedr = context.get_scheduler();
 
-  std::optional<bool> result = sync_wait(transform(
-      schedule_with_subscheduler(scheduler),
-      [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
+  std::optional<bool> result = sync_wait(then(
+      schedule_with_subscheduler(schedr),
+      [&](auto subScheduler) noexcept { return subScheduler == schedr; }));
 
   if (result.has_value() && result.value()) {
     // Success

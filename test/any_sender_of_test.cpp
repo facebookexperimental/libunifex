@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,7 +18,7 @@
 #include <unifex/finally.hpp>
 #include <unifex/just.hpp>
 #include <unifex/ready_done_sender.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/any_scheduler.hpp>
 
@@ -115,7 +115,7 @@ using AnySenderOfTestTypes = Types<
     void(int, std::string),
     void(int, std::string) noexcept>;
 
-TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes);
+TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes, );
 
 template <typename SenderSig, typename ReceiverSig = SenderSig, typename... ExtraReceiverSigs>
 void testWrappingAJust() noexcept {
@@ -176,7 +176,7 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanError) {
   using any_sender = typename test_t::any_sender;
 
   any_sender sender = finally(test_t::default_just(),
-      transform(just(), [] {
+      then(just(), [] {
         throw std::runtime_error("uh oh");
       }));
 

@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,6 +23,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/span.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/get_stop_token.hpp>
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_list.hpp>
@@ -409,6 +410,8 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Receiver>
+    using schedule_op = schedule_op<Receiver>;
     low_latency_iocp_context& context_;
   };
 
@@ -577,6 +580,8 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buf, typename Receiver>
+    using read_file_op = read_file_op<Buf, Receiver>;
     low_latency_iocp_context& context_;
     handle_t fileHandle_;
     bool skipNotificationsOnSuccess_;
@@ -750,6 +755,8 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buf, typename Receiver>
+    using write_file_op = write_file_op<Buf, Receiver>;
     low_latency_iocp_context& context_;
     handle_t fileHandle_;
     bool skipNotificationsOnSuccess_;
@@ -771,6 +778,9 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buffer>
+    using read_file_sender = read_file_sender<Buffer>;
+
     low_latency_iocp_context& context_;
     safe_handle fileHandle_;
   };
@@ -790,6 +800,9 @@ namespace unifex::win32
     }
 
   private:
+    template <typename Buffer>
+    using write_file_sender = write_file_sender<Buffer>;
+
     low_latency_iocp_context& context_;
     safe_handle fileHandle_;
   };

@@ -6,19 +6,23 @@
   * `get_allocator()`
   * `get_execution_policy()`
 * Sender Factories
+  * `create`
   * `just()`
   * `just_done()` / `stop()`
   * `just_error()`
+  * `just_void_or_done()`
   * `stop_if_requested()`
 * Sender Algorithms
-  * `transform()`
-  * `transform_done()`
+  * `then()`
   * `finally()`
   * `via()`
   * `typed_via()`
   * `on()`
-  * `let()`
-  * `let_with_stop_source()`
+  * `let_value()`
+  * `let_error()`
+  * `let_done()`
+  * `let_value_with()`
+  * `let_value_with_stop_source()`
   * `sequence()`
   * `sync_wait()`
   * `when_all()`
@@ -31,6 +35,7 @@
   * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
+  * `done_as_optional()`
 * Sender Types
   * `async_trace_sender`
 * Sender Queries
@@ -147,6 +152,47 @@ will default to returning the `sequenced_policy`.
 
 # Sender Factories
 
+### `create<ValueTypes...>(callable)`
+
+_Synopsis:_ A utility for building a sender-based async API out of a C-style async API
+that accepts a `void*` context and a callback.
+
+_Example:_
+```c++
+// A void-returning C-style async API that accepts a context and a continuation:
+using callback_t = void(void* /*context*/, int /*result*/);
+void old_c_style_api(int a, int b, void* context, callback_t* callback_fn);
+
+// A sender-based async API implemented in terms of the C-style API (using C++20):
+unifex::typed_sender auto new_sender_api(int a, int b) {
+  return unifex::create<int>([=](auto& rec) {
+    old_c_style_api(a, b, &rec, [](void* context, int result) {
+      unifex::void_cast<decltype(rec)>(context).set_value(result);
+    });
+  });
+}
+```
+
+`ValueTypes...` is a pack representing the value types of the resulting sender. It should
+be the list of value type(s) accepted by the callback (with the exception of the `void*`
+context). In the above example, since `callback_t` accepts an `int` as the result of the
+async computation, we pass `int` as the template argument to `create`.
+
+The first argument to `create` is a `void`-returning callable that accepts an lvalue
+reference to an object whose type satisfies the `unifex::receiver_of<ValueTypes...>`
+concept. This function should dispatch to the C-style callback (see example).
+
+The second argument is an optional extra bit of data to be bundled with the receiver
+passed to the callable. E.g., if the first argument to `create` is a lambda that accepts
+`(auto& rec)` and the second argument is `42`, then from within the body of the lambda,
+the value of the expression `rec.context()` is `42`.
+
+`create` returns a typed sender that, when connected and started, dispatches to the
+wrapped C-style API with the callback of your choosing. The receiver passed to the
+callable wraps the receiver passed to `connect`. The callback should "complete" the
+receiver passed to the callable, which will complete the receiver passed to `connect` in
+turn.
+
 ### `just(args...)`
 
 Returns a sender that completes synchronously by calling `set_value()`
@@ -160,6 +206,11 @@ Returns a sender that completes synchronously by calling `set_done()`.
 
 Returns a sender that completes synchronously by calling `set_error()` with `e`.
 
+### `just_void_or_done(isVoid)`
+
+Returns a sender that completes synchronously by calling `set_value(void)` if
+`isVoid == true` or calling `set_done()` otherwise.
+
 ### `just_from(callable)`
 
 Returns a sender that completes synchronously by calling `set_value()` with
@@ -170,7 +221,7 @@ and then calling `set_value()` with no arguments.
 If the invocation of the callable exits with an exception, the exception is
 caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
-`just_from(callable)` is synonymous with `transform(just(), callable)`.
+`just_from(callable)` is synonymous with `then(just(), callable)`.
 
 ### `stop_if_requested()`
 
@@ -187,20 +238,123 @@ is started, invokes the callable and connects and starts the returned sender.
 If the invocation of the callable exits with an exception, the exception is
 caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
-`defer(callable)` is synonymous with `let(just(), callable)`.
+`defer(callable)` is synonymous with `let_value(just(), callable)`.
 
 # Sender Algorithms
 
-### `transform(Sender predecessor, Func func) -> Sender`
+### `then(Sender predecessor, Func func) -> Sender`
 
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
 
-### `transform_done(Sender predecessor, Func func) -> Sender`
+### `let_value(Sender pred, Invocable func) -> Sender`
+
+The `let_value()` algorithm accepts a predecessor task that produces a value that
+you want remain alive for the duration of a successor operation.
+
+When the predecessor operation completes with a value, the function `func`
+is invoked with lvalue references to copies of the values produced by
+the predecessor. This invocation must return a Sender.
+
+The references passed to `func` remain valid until the returned sender
+completes, at which point the variables go out of scope.
+
+For example:
+```c++
+let_value(some_operation(),
+    [](auto& x) {
+      return other_operation(x);
+    });
+```
+is roughly equivalent to the following coroutine code:
+```c++
+{
+  auto x = co_await some_operation();
+  co_await other_operation(x);
+}
+```
+
+If the predecessor completes with value then the `let_value()` operation as a
+whole will complete with the result of the successor.
+
+If the predecessor completes with done/error then `func` is not invoked
+and the operation as a whole completes with that done/error signal.
+
+### `let_error(Sender predecessor, Func func) -> Sender`
+
+Returns a sender that calls `auto finalSender = func()` in `set_error()` and then
+starts the returned `finalSender`. This allows a call to `set_error` to be
+delayed, to be transformed into an done signal or a value, etc..
+
+### `let_done(Sender predecessor, Func func) -> Sender`
 
 Returns a sender that calls `auto finalSender = func()` in `set_done()` and then
 starts the returned `finalSender`. This allows a call to `set_done` to be
 delayed, to be transformed into an error or a value, etc..
+
+### `let_value_with(Invocable state_factory, Invocable func) -> Sender`
+
+The `let_value_with()` algorithm accepts an invocable that produces a value that
+you want remain alive for the duration of a successor operation.
+
+When the `let_value_with` sender is connected the invocable is called to construct
+the result in-place in the operation state.
+In-place construction of the result is where `let_value_with` differs from `let_value`
+in that the result of `state_factory` can be a non-moveable type, such as
+`std::atomic` that will be constructed in-place in the operation state.
+
+The references passed to `func` remain valid until the returned sender
+completes, at which point the variables go out of scope.
+
+For example:
+```c++
+let_value_with(
+    some_factory,
+    [](auto& x) {
+      return other_operation(x);
+    });
+```
+is roughly equivalent to the following coroutine code:
+```c++
+{
+  auto x = some_factory();
+  co_await other_operation(x);
+}
+```
+
+If `state_factory` returns successfully then the `let_value_with()` operation
+as a whole will complete with the result of the successor.
+
+If `state_factory()` completes with an exception then the exception will
+propagate out of the `connect` operation.
+
+### `let_value_with_stop_source(Invocable func) -> Sender`
+
+The `let_value_with_stop_source()` algorithm constructs an
+`inplace_stop_token` that remains alive for the duration of an operation.
+
+`func` is invoked with an lvalue reference to an `inplace_stop_source`
+derived from the `inplace_stop_token`. This invocation must return a
+Sender.
+
+The `inplace_stop_token` is provided to the `Sender` returned by `func`
+via a call to `get_stop_token` on the provided `Receiver`.
+
+The reference passed to `func` remain valid until the returned sender
+completes, at which point the `inplace_stop_token` goes out of scope.
+
+For example:
+```c++
+let_value_with_stop_source(
+    [](unifex::inplace_stop_source& stop_source) {
+      return other_operation(stop_source);
+    });
+```
+
+Calling `.request_stop()` on the stop-source passed to the function requests
+cancellation of the operation returned by the function. Note that cancellation
+may also be requested through the stop-token of the receiver that is connected
+to the sender returned by `let_value_with_stop_source()`.
 
 ### `finally(Sender source, Sender completion) -> Sender`
 
@@ -258,103 +412,6 @@ that signal and never starts executing `sender`.
 The `on()` algorithm may be customised by particular schedulers
 and/or scheduler+sender combinations to provide an alternative
 impllementation.
-
-### `let(Sender pred, Invocable func) -> Sender`
-
-The `let()` algorithm accepts a predecessor task that produces a value that
-you want remain alive for the duration of a successor operation.
-
-When the predecessor operation completes with a value, the function `func`
-is invoked with lvalue references to copies of the values produced by
-the predecessor. This invocation must return a Sender.
-
-The references passed to `func` remain valid until the returned sender
-completes, at which point the variables go out of scope.
-
-For example:
-```c++
-let(some_operation(),
-    [](auto& x) {
-      return other_operation(x);
-    });
-```
-is roughly equivalent to the following coroutine code:
-```c++
-{
-  auto x = co_await some_operation();
-  co_await other_operation(x);
-}
-```
-
-If the predecessor completes with value then the `let()` operation as a
-whole will complete with the result of the successor.
-
-If the predecessor completes with done/error then `func` is not invoked
-and the operation as a whole completes with that done/error signal.
-
-### `let_with(Invocable state_factory, Invocable func) -> Sender`
-
-The `let_with()` algorithm accepts an invocable that produces a value that
-you want remain alive for the duration of a successor operation.
-
-When the `let_with` sender is connected the invocable is called to construct
-the result in-place in the operation state.
-In-place construction of the result is where `let_with` differs from `let`
-in that the result of `state_factory` can be a non-moveable type, such as
-`std::atomic` that will be constructed in-place in the operation state.
-
-The references passed to `func` remain valid until the returned sender
-completes, at which point the variables go out of scope.
-
-For example:
-```c++
-let_with(
-    some_factory,
-    [](auto& x) {
-      return other_operation(x);
-    });
-```
-is roughly equivalent to the following coroutine code:
-```c++
-{
-  auto x = some_factory();
-  co_await other_operation(x);
-}
-```
-
-If `state_factory` returns successfully then the `let_with()` operation
-as a whole will complete with the result of the successor.
-
-If `state_factory()` completes with an exception then the exception will
-propagate out of the `connect` operation.
-
-### `let_with_stop_source(Invocable func) -> Sender`
-
-The `let_with_stop_source()` algorithm constructs an
-`inplace_stop_token` that remains alive for the duration of an operation.
-
-`func` is invoked with an lvalue reference to an `inplace_stop_source`
-derived from the `inplace_stop_token`. This invocation must return a
-Sender.
-
-The `inplace_stop_token` is provided to the `Sender` returned by `func`
-via a call to `get_stop_token` on the provided `Receiver`.
-
-The reference passed to `func` remain valid until the returned sender
-completes, at which point the `inplace_stop_token` goes out of scope.
-
-For example:
-```c++
-let_with_stop_source(
-    [](unifex::inplace_stop_source& stop_source) {
-      return other_operation(stop_source);
-    });
-```
-
-Calling `.request_stop()` on the stop-source passed to the function requests
-cancellation of the operation returned by the function. Note that cancellation
-may also be requested through the stop-token of the receiver that is connected
-to the sender returned by `let_with_stop_source()`.
 
 ### `sequence(Sender... predecessors, Sender last) -> Sender`
 
@@ -583,6 +640,30 @@ Wraps `sender` in a new sender that will injects `allocator` as the
 result of `get_allocator()` query on receivers passed to child operations.
 
 Child operations should use this allocator to perform heap allocations.
+
+### `done_as_optional(Sender sender) -> Sender`
+
+`done_as_optional` is used to handle a done signal by mapping it into the
+value channel as an empty `std::optional`. The value channel is also converted
+into an optional. The result is a sender that never completes with done,
+reporting cancellation by completing with an empty optional.
+
+This function only accepts `typed_sender`s that complete with either
+`void` or a single type.
+
+For example:
+```c++
+task<int> f();
+
+task<void> g() {
+  std::optional<int> i = co_await done_as_optional(f());
+  if (i) {
+    // OK, f() completed successfully and wasn't cancelled
+  } else {
+    // f() was cancelled before it finished.
+  }
+}
+```
 
 ## Sender Types
 

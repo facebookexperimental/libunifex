@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -168,10 +168,10 @@ class delegating_scheduler {
     return delegating_sender{context_};
   }
 
-  friend bool operator==(delegating_scheduler, delegating_scheduler) noexcept {
+  [[maybe_unused]] friend bool operator==(delegating_scheduler, delegating_scheduler) noexcept {
     return true;
   }
-  friend bool operator!=(delegating_scheduler, delegating_scheduler) noexcept {
+  [[maybe_unused]] friend bool operator!=(delegating_scheduler, delegating_scheduler) noexcept {
     return false;
   }
 
@@ -189,7 +189,7 @@ int main() {
 
   // Try inner context, then outer context, delegating to ctx if necessary
   sync_wait(
-      transform(
+      then(
           for_each(
               via_stream(
                   outer_delegating_ctx.get_scheduler(),

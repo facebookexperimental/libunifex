@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -43,8 +43,21 @@ namespace _get_stop_token {
           return (StopToken&&) stoken_;
         }
       };
+#if !defined(__GNUC__) || defined(__clang__)
+      // gcc bug 79501 - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79501
+      //
+      // GCC currently does not permit member deduction guides unless they
+      // are at a namespace scope and fails with error:
+      //    deduction guide '...' must be declared at namespace scope
+      // This deduction guide is probably not necessary, per P0091, and
+      // compiles on GCC without it, but clang-12 on macOS requires it.
+      //
+      // The above compile guard will ensure clang has the guide and GCC
+      // does not until 79501 is solved.
       template <typename StopToken>
       _awaiter(StopToken) -> _awaiter<StopToken>;
+
+#endif // !defined(__GNUC__) || defined(__clang__)
 
       template (typename Tag, typename Promise)
         (requires same_as<Tag, tag_t<await_transform>>)

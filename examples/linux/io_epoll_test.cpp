@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,12 +31,12 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/typed_via.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/transform_done.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/defer.hpp>
 #include <unifex/just_from.hpp>
@@ -54,7 +54,7 @@ using namespace std::chrono_literals;
 
 inline constexpr auto sink = [](auto&&...){};
 
-inline constexpr auto discard = transform(sink);
+inline constexpr auto discard = then(sink);
 
 //! Seconds to warmup the benchmark
 static constexpr int WARMUP_DURATION = 3;
@@ -81,12 +81,12 @@ int main() {
       inplace_stop_source timerStopSource;
       auto task = when_all(
           schedule_at(scheduler, now(scheduler) + 1s)
-            | transform([] { std::printf("timer 1 completed (1s)\n"); }),
+            | then([] { std::printf("timer 1 completed (1s)\n"); }),
           schedule_at(scheduler, now(scheduler) + 2s)
-            | transform([] { std::printf("timer 2 completed (2s)\n"); }))
+            | then([] { std::printf("timer 2 completed (2s)\n"); }))
         | stop_when(
           schedule_at(scheduler, now(scheduler) + 1500ms)
-            | transform([] { std::printf("timer 3 completed (1.5s) cancelling\n"); }));
+            | then([] { std::printf("timer 3 completed (1.5s) cancelling\n"); }));
       sync_wait(std::move(task));
       auto endTime = std::chrono::steady_clock::now();
 
@@ -101,14 +101,14 @@ int main() {
   }
 
   auto pipe_bench = [](auto& rPipeRef, auto& buffer, auto scheduler, int seconds,
-                       auto& data, auto& reps, auto& offset) {
+                       [[maybe_unused]] auto& data, auto& reps, [[maybe_unused]] auto& offset) {
     return defer([&, scheduler, seconds] {
       return defer([&] {
         return
           // do read:
           async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))
           | discard
-          | transform([&] {
+          | then([&] {
               UNIFEX_ASSERT(data[(reps + offset) % sizeof(data)] == buffer[0]);
               ++reps;
             });
@@ -119,7 +119,7 @@ int main() {
           // stop reads after requested time
         | stop_when(schedule_at(scheduler, now(scheduler) + std::chrono::seconds(seconds)))
           // complete with void when requested time expires
-        | transform_done([]{return just();});
+        | let_done([]{return just();});
     });
   };
 
@@ -131,7 +131,7 @@ int main() {
         defer([&, databuffer] { return discard(async_write_some(wPipeRef, databuffer)); })
           | typed_via(scheduler)
           | repeat_effect()
-          | transform_done([]{return just();})
+          | let_done([]{return just();})
           | with_query_value(get_stop_token, stopToken),
         just_from([&]{ printf("writes stopped!\n"); }));
   };

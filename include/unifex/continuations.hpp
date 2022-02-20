@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -236,8 +236,10 @@ private:
   friend continuation_info;
 
   inline static constexpr _continuation_handle_vtable default_vtable_ {
-    &_ci::_default_type_index_getter,
-    &_ci::_default_visit,
+    {
+        &_ci::_default_type_index_getter,
+        &_ci::_default_visit,
+    },
     &_default_done_callback
   };
 
@@ -266,8 +268,10 @@ coro::coroutine_handle<> _done_callback_for(void* address) noexcept {
 
 template <typename Promise>
 inline constexpr _continuation_handle_vtable _vtable_for {
-  &_ci::_type_index_getter_for<Promise>,
-  &_visit_for<Promise>,
+  {
+        &_ci::_type_index_getter_for<Promise>,
+        &_visit_for<Promise>,
+  },
   &_done_callback_for<Promise>
 };
 

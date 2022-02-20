@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,8 @@
 #include <unifex/await_transform.hpp>
 #include <unifex/continuations.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/unstoppable_token.hpp>
+#include <unifex/get_stop_token.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -59,10 +61,10 @@ struct _cleanup_promise_base {
     template <typename CleanupPromise>
     // Apple-clang and clang-10 and prior need for await_suspend to be noinline.
     // MSVC and clang-11 can tolerate await_suspend to be inlined, so force it.
-#if defined(_MSC_VER) || !(defined(__apple_build_version__) || __clang_major__ < 11)
-    UNIFEX_ALWAYS_INLINE
-#else
+#if defined(__apple_build_version__) || (defined(__clang__) && __clang_major__ <= 10)
     UNIFEX_NO_INLINE
+#else
+    UNIFEX_ALWAYS_INLINE
 #endif
     void await_suspend(coro::coroutine_handle<CleanupPromise> h) const noexcept {
       auto continuation = h.promise().next();
@@ -119,7 +121,7 @@ struct _cleanup_promise_base {
 };
 
 // The die_on_done algorithm implemented here could be implemented in terms of
-// transform_done, but this implementation is simpler since it doesn't instantiate
+// let_done, but this implementation is simpler since it doesn't instantiate
 // a bunch of templates that will never be needed (no need to connect or start a
 // sender returned from the done transform function).
 template <typename Receiver>

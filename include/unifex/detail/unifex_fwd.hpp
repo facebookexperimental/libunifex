@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,30 +20,31 @@
 
 namespace unifex {
   namespace detail {
-    template <typename, typename = void>
-    extern const bool _is_executor;
+    struct _ignore {
+      template <typename T>
+      /*implicit*/ _ignore(T&&) noexcept {}
+    };
 
-    template <typename E, typename R, typename = void>
-    extern const bool _can_execute;
+    template <int=0>
+    struct _empty {};
+  } // namespace detail
 
-    template <typename S, typename F, typename = void>
-    extern const bool _can_submit;
-  } // detail
+  using detail::_ignore;
 
-  namespace _execute_cpo {
-    extern const struct _fn execute;
-  } // namespace _execute_cpo
-  using _execute_cpo::execute;
+  namespace _execute::_cpo {
+    struct _fn;
+  } // namespace _execute::_cpo
+  extern const _execute::_cpo::_fn execute;
 
   namespace _submit_cpo {
     extern const struct _fn submit;
   } // namespace _submit_cpo
   using _submit_cpo::submit;
 
-  namespace _connect_cpo {
-    extern const struct _fn connect;
-  } // namespace _connect_cpo
-  using _connect_cpo::connect;
+  namespace _connect::_cpo {
+    struct _fn;
+  } // namespace _connect::_cpo
+  extern const _connect::_cpo::_fn connect;
 
 #if !UNIFEX_NO_COROUTINES
   namespace _await_tfx {

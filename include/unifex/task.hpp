@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -41,27 +41,6 @@
 namespace unifex {
 namespace _task {
 using namespace _util;
-
-template <typename... Types>
-using _is_single_valued_tuple =
-    std::bool_constant<1 >= sizeof...(Types)>;
-
-template <typename... Types>
-using _is_single_valued_variant =
-    std::bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
-
-template <typename Sender>
-UNIFEX_CONCEPT_FRAGMENT(     //
-  _single_typed_sender_impl, //
-    requires()(0) &&         //
-    sender_traits<remove_cvref_t<Sender>>
-      ::template value_types<
-        _is_single_valued_variant,
-        _is_single_valued_tuple>::value);
-
-template <typename Sender>
-UNIFEX_CONCEPT _single_typed_sender =
-  typed_sender<Sender> && UNIFEX_FRAGMENT(_single_typed_sender_impl, Sender);
 
 template <typename T>
 struct _task {
@@ -142,9 +121,16 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
+#if defined(_MSC_VER) && !defined(__clang__)
+        // MSVC doesn't seem to like symmetric transfer in this final awaiter
+        void await_suspend(coro::coroutine_handle<type> h) noexcept {
+          return h.promise().continuation_.handle().resume();
+        }
+#else
         auto await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_.handle();
         }
+#endif
       };
       return awaiter{};
     }

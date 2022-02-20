@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,7 +21,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/with_query_value.hpp>
 
 #include <gtest/gtest.h>
@@ -46,7 +46,7 @@ using unifex::single_thread_context;
 using unifex::start;
 using unifex::sync_wait;
 using unifex::tag_t;
-using unifex::transform;
+using unifex::then;
 using unifex::with_query_value;
 
 namespace {
@@ -164,7 +164,7 @@ TEST_F(async_manual_reset_event_test, exception_from_set_value_sent_to_set_error
 
 template <typename Scheduler>
 static std::thread::id getThreadId(Scheduler& scheduler) {
-  return sync_wait(transform(schedule(scheduler), [] {
+  return sync_wait(then(schedule(scheduler), [] {
     return std::this_thread::get_id();
   })).value();
 }
@@ -182,7 +182,7 @@ TEST_F(
 
   async_manual_reset_event evt{true};
 
-  auto actualThreadId = sync_wait(transform(
+  auto actualThreadId = sync_wait(then(
       with_query_value(evt.async_wait(), get_scheduler, scheduler),
       [] { return std::this_thread::get_id(); })).value();
 
@@ -240,7 +240,7 @@ TEST_F(
 
   async_manual_reset_event evt{true};
 
-  auto actualThreadId = sync_wait(transform(
+  auto actualThreadId = sync_wait(then(
       with_query_value(
           with_query_value(evt.async_wait(), get_scheduler, scheduler),
           get_stop_token,

@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
@@ -32,9 +32,9 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  sync_wait(transform(
+  sync_wait(then(
       when_all(
-          transform(
+          then(
               schedule_after(scheduler, 100ms),
               [=]() {
                 auto time = steady_clock::now() - startTime;
@@ -42,7 +42,7 @@ int main() {
                 std::cout << "part1 finished - [" << timeMs << "]\n";
                 return time;
               }),
-          transform(
+          then(
               schedule_after(scheduler, 200ms),
               [=]() {
                 auto time = steady_clock::now() - startTime;

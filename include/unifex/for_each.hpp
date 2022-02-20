@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 #pragma once
 
 #include <unifex/reduce_stream.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
 
@@ -37,7 +37,7 @@ namespace _for_each {
       }
     };
     struct _reduce {
-      void operator()(unit s) const noexcept {}
+      void operator()(unit) const noexcept {}
     };
   } // namespace _impl
 
@@ -45,7 +45,7 @@ namespace _for_each {
   private:
     template <typename Stream, typename Func>
     using _default_result_t =
-        decltype(transform(
+        decltype(then(
           reduce_stream(
             UNIFEX_DECLVAL(Stream),
             unit{},
@@ -69,7 +69,7 @@ namespace _for_each {
       (requires (!tag_invocable<_fn, Stream, Func>))
     auto operator()(Stream&& stream, Func&& func) const
         -> _result_t<Stream, Func> {
-      return transform(
+      return then(
           reduce_stream(
               (Stream &&) stream,
               unit{},

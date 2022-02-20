@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,7 @@
 #include <unifex/config.hpp>
 #include <unifex/just.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/defer.hpp>
@@ -42,7 +42,7 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 auto dump_async_trace(std::string tag = {}) {
-  return transform(
+  return then(
       async_trace_sender{},
       [tag = std::move(tag)](const std::vector<async_trace_entry> &entries) {
         std::cout << "Async Trace (" << tag << "):\n";
@@ -82,9 +82,9 @@ int main() {
   auto startTime = steady_clock::now();
 
   sync_wait(
-    transform(
+    then(
       when_all(
-        transform(
+        then(
           dump_async_trace_on_start(
             schedule_after(context.get_scheduler(), 100ms), "part1"),
           [=]() {
@@ -93,7 +93,7 @@ int main() {
             std::cout << "part1 finished - [" << timeMs << "]\n";
             return time;
           }),
-        transform(
+        then(
           dump_async_trace_on_completion(
             schedule_after(context.get_scheduler(), 200ms), "part2"),
           [=]() {

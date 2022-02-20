@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -62,7 +62,7 @@ class sender {
   template(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, sender> AND
         receiver<Receiver>)
-  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
+  friend auto tag_invoke(tag_t<connect>, This&&, Receiver&& r)
       noexcept
       -> operation<Receiver> {
     return {static_cast<Receiver&&>(r)};

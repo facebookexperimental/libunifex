@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -173,7 +173,7 @@ inline inplace_stop_token inplace_stop_source::get_token() noexcept {
 template <typename F>
 class inplace_stop_callback final : private inplace_stop_callback_base {
  public:
-  template(typename T)
+  template(typename T = F)
     (requires convertible_to<T, F>)
   explicit inplace_stop_callback(inplace_stop_token token, T&& func) noexcept(
       std::is_nothrow_constructible_v<F, T>)

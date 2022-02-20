@@ -164,24 +164,49 @@ algorithms to have default implementations that are defined in terms of some
 set of basis operations - typically the basis operations that comprise the concept,
 so that the algorithms are at least functional.
 
-# Differences between this prototype and P0443R13
+# Differences between this prototype and P2300R1
 
 This design has a number of key differences from the sender/receiver
-design described in the paper "A Unified Executors Proposal for C++"
-([P0443R13](https://wg21.link/P0443R13)).
+design described in the paper "`std::execution`"
+([P2300r1](https://wg21.link/P2300r1)).
 
-## Uses `tag_invoke` as the customisation-point mechanism
+## Namespace `unifex`
 
-Instead of customisation-points dispatching to ADL calls that use
-names that are the same as the customisation-point, the customisation-points
-are customised by defining an overload of `tag_invoke()` that takes the
-CPO object as the first argument.
+All the entities in libunifex are defined in the `::unifex` namespace
+or a subnamespace thereof. P2300 proposes to put its facilities in a
+new `::std::execution` namespace.
 
-This makes it easier to build adapters that generically forward through
-arbitrary sets of CPO operations. For example see `unifex::any_unique`.
+## No eager execution
 
-See the `tag_invoke` proposal paper [P1895R0](https://wg21.link/P1895R0)
-for more information.
+All of the algorithms in libunifex are strictly lazy with the exception
+of `unifex::submit` and `unifex::execute`. P2300 proposes eager flavors
+of all its algorithms.
+
+## No completion schedulers
+
+Senders in P2300 optionally report the schedulers the different signals
+(value, error, and done) complete on with the `execution::get_completion_scheduler`
+query. Libunifex does not implement that query yet, but the plan is to
+do so.
+
+## Different sets of algorithms
+
+P2300 proposes a few algorithms that aren't present yet in libunifex
+in addition to the eager flavors. These algorithms are yet to be
+implemented:
+
+| P2300 algorithm | Libunifex equivalent |
+|-----------------|----------------------|
+| `execution::transfer` | Not yet implemented |
+| `execution::transfer_just` | Not yet implemented |
+| `execution::upon_*` | Not yet implemented |
+| `execution::into_variant` | Not yet implemented |
+| `execution::bulk` | Not implemented (but see `unifex::bulk_schedule`) |
+| `execution::split` | Not yet implemented |
+| `execution::when_all` | Not yet implemented |
+| `execution::when_all_with_variant` | `unifex::when_all` |
+| `execution::transfer_when_all` | Not yet implemented |
+| `execution::start_detached` | Not yet implemented (but see `unifex::submit`) |
 
 # Outstanding Challenges
 
@@ -204,6 +229,11 @@ for more details on the need for async RAII in coroutines.
 The same use-cases are required for sender-based asynchronous operations
 and whatever solution we end up with for coroutines will need to integrate
 with whatever we come up with for sender/receiver.
+
+As a special case, `unifex:task<>` gives coroutines something akin to async
+cleanup. The `unifex::at_coroutine_exit` function permits a coroutine to
+schedule an asynchronous operation to run automatically when a coroutine
+finishes.
 
 ## Functionality parity between sender/receiver and coroutines/awaitables
 
@@ -232,6 +262,7 @@ support. If an operation completes synchronously and calls `set_value()`
 inline inside the `start()` call then this can potentially mean that
 the continuation is executing in a context where additional stack-frames
 have been allocated.
+
 If this happens recursively, eg. because we are processing a stream
 of synchronously-produced values, then this can result in exhaustion
 of available stack-space.
@@ -254,7 +285,7 @@ This will statically-dispatch the call to the overload of
 `set_value()` on the receiver that can handle that result type.
 
 This allows producing a result that could be one of several different
-types without needing encapsulate that result in a type-erasing container;
+types without needing to encapsulate that result in a type-erasing container;
 either a bounded type-erasing container like a `std::variant`, or
 an unbounded type-erasing container like a `std::unique_ptr<BaseClass>`.
 
@@ -331,10 +362,10 @@ auto [a, b, c] = co_await... foo();
 
 This can also potentially help unify the `void` and non-`void` cases.
 
-e.g. When implementing a `transform()` operation, instead of needing to write this:
+e.g. When implementing a `then()` operation, instead of needing to write this:
 ```c++
 template<typename AsyncOp, typename Func>
-task transform(AsyncOp op, Func f) {
+task then(AsyncOp op, Func f) {
     if constexpr (std::is_void_v<await_result_t<AsyncOp>>) {
         co_await std::move(op);
         f();
@@ -347,7 +378,7 @@ task transform(AsyncOp op, Func f) {
 We could just write:
 ```c++
 template<typename AsyncOp, typename Func>
-task transform(AsyncOp op, Func f) {
+task then(AsyncOp op, Func f) {
   f(co_await... std::move(op));
 }
 ```
@@ -355,12 +386,14 @@ task transform(AsyncOp op, Func f) {
 This could optionally be combined with the above `template co_await`
 syntax to provide the ability to handle both multiple arguments
 and heterogeneous types.
+
 ```c++
 auto [...results] = template co_await... foo();
 // use results...
 ```
 
 Which would be the equivalent of the following receiver being passed to `foo()`.
+
 ```c++
 class some_receiver {
   ...

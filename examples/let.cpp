@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 #include <unifex/just.hpp>
-#include <unifex/let.hpp>
-#include <unifex/let_with.hpp>
+#include <unifex/let_value.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/transform.hpp>
+#include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
@@ -33,16 +33,16 @@ int main() {
   timed_single_thread_context context;
 
   auto async = [&](auto&& func) {
-    return transform(
+    return then(
         schedule_after(context.get_scheduler(), 100ms),
         (decltype(func))func);
   };
 
-  // Simple usage of 'let()'
+  // Simple usage of 'let_value()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
   std::optional<int> result =
-      sync_wait(let(async([] { return 42; }), [&](int& x) {
+      sync_wait(let_value(async([] { return 42; }), [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
           printf("successor tranform\n");
@@ -58,12 +58,12 @@ int main() {
     });
   };
 
-  // More complicated 'let' example that shows recursive let-scopes,
+  // More complicated 'let_value' example that shows recursive let_value-scopes,
   // additional
 
-  sync_wait(transform(
+  sync_wait(then(
       when_all(
-          let(asyncVector(),
+          let_value(asyncVector(),
               [&](std::vector<int>& v) {
                 return async([&] {
                   std::cout << "printing vector" << std::endl;
@@ -73,9 +73,9 @@ int main() {
                   std::cout << std::endl;
                 });
               }),
-          let(just(42),
+          let_value(just(42),
               [&](int& x) {
-                return let(async([&] { return x / 2; }), [&](int& y) {
+                return let_value(async([&] { return x / 2; }), [&](int& y) {
                   return async([&] { return x + y; });
                 });
               })),
@@ -84,13 +84,13 @@ int main() {
                   << std::get<0>(std::get<0>(b)) << "]\n";
       }));
 
-  std::cout << "let done " << *result << "\n";
+  std::cout << "let_value done " << *result << "\n";
 
-  // Simple usage of 'let_with()'
+  // Simple usage of 'let_value_with()'
   // - defines an async scope in which the result of a passed invocable
   //   is in-scope for the duration of an operation.
   std::optional<int> let_with_result =
-      sync_wait(let_with([] { return 42; }, [&](int& x) {
+      sync_wait(let_value_with([] { return 42; }, [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
           printf("successor tranform\n");
@@ -99,12 +99,12 @@ int main() {
         });
       }));
 
-  std::cout << "let_with done " << *let_with_result << "\n";
+  std::cout << "let_value_with done " << *let_with_result << "\n";
 
-   // let_with example showing use with a non-moveable type and
+   // let_value_with example showing use with a non-moveable type and
    // in-place construction.
   std::optional<int> let_with_atomic_result =
-      sync_wait(let_with([] { return std::atomic<int>{42}; },
+      sync_wait(let_value_with([] { return std::atomic<int>{42}; },
         [&](std::atomic<int>& x) {
           ++x;
           printf("addressof x = %p, val = %i\n", (void*)&x, x.load());
@@ -117,7 +117,7 @@ int main() {
       }));
 
   std::cout <<
-    "let_with on atomic type " << *let_with_atomic_result << "\n";
+    "let_value_with on atomic type " << *let_with_atomic_result << "\n";
 
   return 0;
 }

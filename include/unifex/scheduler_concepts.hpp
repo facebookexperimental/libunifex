@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -53,36 +53,6 @@ namespace _schedule {
     _with_member_schedule = //
       UNIFEX_FRAGMENT(_schedule::_has_member_schedule_, Scheduler);
 
-  // For adapting an executor as a sender.
-  template <typename Executor>
-  struct _as_sender {
-    struct type {
-    private:
-      Executor ex_;
-    public:
-      template <template <class...> class Variant,
-                template <class...> class Tuple>
-      using value_types = Variant<Tuple<>>;
-
-      template <template <class...> class Variant>
-      using error_types = Variant<std::exception_ptr>;
-
-      static constexpr bool sends_done = true;
-
-      explicit type(Executor e) noexcept
-        : ex_((Executor&&) e) {}
-
-      template(typename Self, typename Receiver)
-        (requires same_as<remove_cvref_t<Self>, type> AND receiver_of<Receiver>)
-      friend connect_result_t<member_t<Self, Executor>, Receiver>
-      tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) {
-        return connect(((Self&&) self).ex_, (Receiver&&) r);
-      }
-    };
-  };
-  template <typename Executor>
-  using _as_sender_t = typename _as_sender<remove_cvref_t<Executor>>::type;
-
   struct sender;
   inline const struct _fn {
   private:
@@ -92,8 +62,6 @@ namespace _schedule {
         return meta_tag_invoke_result<_fn>{};
       } else if constexpr (_with_member_schedule<Scheduler>) {
         return meta_quote1<_member_schedule_result_t>{};
-      } else if constexpr (executor<Scheduler>) {
-        return meta_quote1<_as_sender_t>{};
       } else {
         return type_always<void>{};
       }
@@ -116,14 +84,6 @@ namespace _schedule {
         noexcept(static_cast<Scheduler&&>(s).schedule()))
         -> _result_t<Scheduler> {
       return static_cast<Scheduler&&>(s).schedule();
-    }
-    template(typename Executor)
-      (requires (!_with_tag_invoke<Executor>) AND
-        (!_with_member_schedule<Executor>) AND
-        executor<Executor>)
-    constexpr auto operator()(Executor&& e) const noexcept
-        -> _result_t<Executor> {
-      return _result_t<Executor>{(Executor&&) e};
     }
 
     constexpr sender operator()() const noexcept;

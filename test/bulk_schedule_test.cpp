@@ -1,11 +1,11 @@
 /*
  * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * Licensed under the Apache License Version 2.0 with LLVM Exceptions
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ *   https://llvm.org/LICENSE.txt
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,7 +19,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_join.hpp>
-#include <unifex/let_with_stop_source.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
 
 #include <gtest/gtest.h>
 
@@ -65,7 +65,7 @@ TEST(bulk, cancellation) {
     // Bulk, but sequential to test strict cancellation of later work
 
     unifex::sync_wait(
-        unifex::let_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
+        unifex::let_value_with_stop_source([&](unifex::inplace_stop_source& stopSource) {
             return unifex::bulk_join(
                 unifex::bulk_transform(
                     unifex::bulk_schedule(sched, count),
