@@ -81,10 +81,10 @@ namespace unifex
           deallocateOnExit.release();
         }
 
-        template(typename... Args)                   //
-            (requires                                //
-             constructible_from<T, Args...> AND      //
-             (!same_as<Allocator, allocator_type>))  //
+        template(typename... Args)                      //
+            (requires                                   //
+             (!same_as<Allocator, allocator_type>) AND  //
+                 constructible_from<T, Args...>)        //
             explicit base(
                 std::allocator_arg_t,
                 Allocator allocator,

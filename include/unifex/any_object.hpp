@@ -21,6 +21,7 @@
 #include <unifex/detail/any_heap_allocated_storage.hpp>
 #include <unifex/detail/type_erasure_builtins.hpp>
 #include <unifex/detail/vtable.hpp>
+#include <unifex/detail/with_abort_tag_invoke.hpp>
 #include <unifex/detail/with_forwarding_tag_invoke.hpp>
 #include <unifex/detail/with_type_erased_tag_invoke.hpp>
 
@@ -54,17 +55,24 @@ namespace unifex
     static constexpr std::size_t padded_size =
         InlineSize < sizeof(void*) ? sizeof(void*) : InlineSize;
 
+    // If it doesn't have a nothrow move-constructor and we need it to have a
+    // nothrow move-constructor then we fall back to heap-allocating the object
+    // and then we just move ownership of the pointer instead of moving the
+    // underlying object.
     template <typename T>
-    static constexpr bool can_be_stored_inplace_v =
-        (sizeof(T) <= padded_size && alignof(T) <= padded_alignment);
+    static constexpr bool can_be_stored_inplace_v = (sizeof(T) <= padded_size &&
+                                                     alignof(T) <=
+                                                         padded_alignment) &&
+        (!RequireNoexceptMove || std::is_nothrow_move_constructible_v<T>);
 
     template <typename T>
-    static constexpr bool can_be_type_erased_v =
-        unifex::detail::supports_type_erased_cpos_v<
-            T,
-            detail::_destroy_cpo,
-            detail::_move_construct_cpo<RequireNoexceptMove>,
-            CPOs...>;
+    static constexpr bool can_be_type_erased_v = unifex::detail::
+        supports_type_erased_cpos_v<T, detail::_destroy_cpo, CPOs...>;
+
+    struct invalid_obj
+      : private detail::with_abort_tag_invoke<invalid_obj, CPOs>... {};
+
+    static_assert(can_be_type_erased_v<invalid_obj>);
 
     class type;
   };
@@ -100,7 +108,9 @@ namespace unifex
         (requires(!same_as<remove_cvref_t<T>, type>) AND        //
          (!_is_any_object_tag_argument<remove_cvref_t<T>>) AND  //
              can_be_type_erased_v<remove_cvref_t<T>> AND        //
-                 constructible_from<remove_cvref_t<T>, T>)      //
+                 constructible_from<remove_cvref_t<T>, T> AND   //
+         (can_be_stored_inplace_v<remove_cvref_t<T>> ||         //
+          default_constructible<DefaultAllocator>))             //
         /*implicit*/ type(T&& object) noexcept(
             can_be_stored_inplace_v<remove_cvref_t<T>>&&
                 std::is_nothrow_constructible_v<remove_cvref_t<T>, T>)
@@ -130,10 +140,10 @@ namespace unifex
       ::new (static_cast<void*>(&storage_)) T(static_cast<Args&&>(args)...);
     }
 
-    template(typename T, typename... Args)                       //
-        (requires can_be_type_erased_v<T> AND                    //
-         (!can_be_stored_inplace_v<T>) AND                       //
-             std::is_default_constructible_v<DefaultAllocator>)  //
+    template(typename T, typename... Args)             //
+        (requires can_be_type_erased_v<T> AND          //
+         (!can_be_stored_inplace_v<T>) AND             //
+             default_constructible<DefaultAllocator>)  //
         explicit type(std::in_place_type_t<T>, Args&&... args)
       : type(
             std::allocator_arg,
@@ -184,6 +194,91 @@ namespace unifex
       destroy(detail::_destroy_cpo{}, &storage_);
     }
 
+    // Assign from another type-erased instance.
+    type& operator=(type&& other) noexcept(RequireNoexceptMove) {
+      if (std::addressof(other) != this) {
+        auto* destroy = vtable_->template get<detail::_destroy_cpo>();
+        destroy(detail::_destroy_cpo{}, &storage_);
+
+        // Assign the vtable for an empty, trivially constructible/destructible
+        // object. Just in case the move-construction below throws. So we at
+        // least leave the current object in a valid state.
+        if constexpr (!RequireNoexceptMove) {
+          vtable_ = vtable_holder_t::template create<invalid_obj>();
+        }
+
+        auto* moveConstruct = other.vtable_->template get<
+            detail::_move_construct_cpo<RequireNoexceptMove>>();
+        moveConstruct(
+            detail::_move_construct_cpo<RequireNoexceptMove>{},
+            &storage_,
+            &other.storage_);
+
+        // Now that we've successfully constructed a new object we can overwrite
+        // the 'invalid_obj' vtable with the one for the new object.
+        vtable_ = other.vtable_;
+
+        // Note that we are leaving the source object in a constructed state
+        // rather than unconditionally destroying it here as doing so would mean
+        // we'd need to assign the 'invalid_obj' vtable to the source object and
+        // then the source obj would incur an extra indirect call to the
+        // `invalid_obj` vtable destructor entry.
+      }
+
+      return *this;
+    }
+
+    template(typename T)                                      //
+        (requires can_be_type_erased_v<T> AND                 //
+             constructible_from<remove_cvref_t<T>, T> AND     //
+                 can_be_stored_inplace_v<remove_cvref_t<T>>)  //
+        type&
+        operator=(T&& value) noexcept(
+            std::is_nothrow_constructible_v<remove_cvref_t<T>, T>) {
+      auto* destroy = vtable_->template get<detail::_destroy_cpo>();
+      destroy(detail::_destroy_cpo{}, &storage_);
+
+      using value_type = remove_cvref_t<T>;
+
+      if (!std::is_nothrow_constructible_v<value_type, T>) {
+        vtable_ = vtable_holder_t::template create<invalid_obj>();
+      }
+
+      ::new (static_cast<void*>(&storage_)) value_type(static_cast<T&&>(value));
+
+      vtable_ = vtable_holder_t::template create<value_type>();
+
+      return *this;
+    }
+
+    template(typename T)                                      //
+        (requires can_be_type_erased_v<T> AND                 //
+             constructible_from<remove_cvref_t<T>, T> AND     //
+                 default_constructible<DefaultAllocator> AND  //
+         (!can_be_stored_inplace_v<remove_cvref_t<T>>))       //
+        type&
+        operator=(T&& value) {
+      auto* destroy = vtable_->template get<detail::_destroy_cpo>();
+      destroy(detail::_destroy_cpo{}, &storage_);
+
+      vtable_ = vtable_holder_t::template create<invalid_obj>();
+
+      using value_type = detail::any_heap_allocated_storage<
+          remove_cvref_t<T>,
+          DefaultAllocator,
+          CPOs...>;
+
+      ::new (static_cast<void*>(&storage_)) value_type(
+          std::allocator_arg,
+          DefaultAllocator{},
+          std::in_place_type<remove_cvref_t<T>>,
+          static_cast<T&&>(value));
+
+      vtable_ = vtable_holder_t::template create<value_type>();
+
+      return *this;
+    }
+
   private:
     friend const vtable_holder_t& get_vtable(const type& self) noexcept {
       return self.vtable_;
@@ -217,11 +312,11 @@ namespace unifex
       typename DefaultAllocator,
       auto&... CPOs>
   using basic_any_object_t = basic_any_object<
-    InlineSize,
-    InlineAlignment,
-    RequireNoexceptMove,
-    DefaultAllocator,
-    unifex::tag_t<CPOs>...>;
+      InlineSize,
+      InlineAlignment,
+      RequireNoexceptMove,
+      DefaultAllocator,
+      unifex::tag_t<CPOs>...>;
 
   // Simpler version that chooses some appropriate defaults for you.
   template <typename... CPOs>
@@ -232,7 +327,7 @@ namespace unifex
       std::allocator<std::byte>,
       CPOs...>;
 
-  template<auto&... CPOs>
+  template <auto&... CPOs>
   using any_object_t = any_object<unifex::tag_t<CPOs>...>;
 
 }  // namespace unifex
