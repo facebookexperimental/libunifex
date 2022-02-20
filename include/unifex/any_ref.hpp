@@ -83,8 +83,8 @@ class _any_ref<CPOs...>::type
     return self.impl_;
   }
 
-  void* impl_;
   vtable_holder_t vtable_;
+  void* impl_;
 };
 
 // any_ref is a type-erased wrapper that has reference-semantics.
