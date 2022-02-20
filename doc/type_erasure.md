@@ -1,7 +1,7 @@
 # Type Erasure in libunifex
 
 Type erasure is an important tool for managing compile-times by insulating different pieces of code from
-each other.  and also for implementing polymorphism
+each other, and also for implementing polymorphism.
 
 The libunifex library provides several generic type-erasing wrappers built on top of `tag_invoke`-based customisation point objects (CPOs).
 These generic wrappers can be parameterised on a variadic list of CPOs that define the operations that concrete types must
@@ -22,7 +22,8 @@ There are several different axes on which different type-erasing wrappers can ma
 * **VTable Storage** - How and where is the VTable for the type-erased object stored?
   * **Indirect VTable** - Wrapper stores a pointer to the statically allocated vtable. Pointer indirection to call the method.
   * **In-Place VTable** - Wrapper stores vtable entries in-line inside the wrapper.
-    Avoids pointer-indirection at cost of larger wrapper types. Also allows casting other type-erased types to wrapper types with narrower types.
+    Avoids pointer-indirection at cost of larger wrapper types.
+	Also allows casting other type-erased types to wrapper types with a narrower set of supported operations.
   * **Hybrid VTable** - Wrapper stores vtable inline for small vtables and stores it out-of-line for large vtables.
 * **Copyability** - Whether the wrapper is copyable, move-only or non-movable.
   * **Copyable** - Wrapper has a copy-constructor and move-constructor (may be either `noexcept(true)` or `noexcept(false)`)
@@ -52,7 +53,7 @@ Other type-erasing wrapper types may be added in future that choose different po
 
 The type-erasing wrappers are all based around type-erasing objects whose interfaces are defined in terms
 of a collection of CPOs, where each CPO is able to be customised by defining overloads of `tag_invoke`
-taking that the CPO as the first argument.
+taking the CPO as the first argument.
 
 A type-erasing wrapper has access to the concrete object (either a non-owning reference or owning the object)
 and then customises the CPOs on the wrapper by defining `tag_invoke()` overloads that take the wrapper type
@@ -79,7 +80,7 @@ It might have the following operations:
 #### Member-function based concepts
 
 A traditional approach to defining an interface for this would be to require that these operations
-are provided as member functions on the object. Thus a shape concept might look like this:
+are provided as member functions on the object. Thus a `shape` concept might look like this:
 
 ```c++
 namespace shapes
@@ -184,6 +185,10 @@ namespace shapes
 }
 ```
 
+Note that some of these CPOs define a `type_erased_signature_t` type-alias
+which allows them to be more easily used in type-erased wrappers. We'll cover
+more on this later.
+
 With these CPOs defined we can now define the `shape` concept in terms of them:
 ```c++
 namespace shapes
@@ -234,12 +239,20 @@ to the member-function approach.
 
 However, one benefit of doing this is that now we have some namespace-scoped
 identifiers that can be used to explicitly name these operations without
-for conflict with similarly named identifiers used by other libraries.
+conflicting with similarly named identifiers used by other libraries.
 
 Then, once we have done this, defining the type-erasing wrapper type is now
-a matter of choosing the wrapper with the desired semantic.
-e.g. say there is an `any_value` type-erasing wrapper that supports
-copyability and a small-object optimisation.
+a matter of choosing the wrapper with the desired semantics.
+
+For example, say there is an `any_value<CPOs...>` type-erasing wrapper that
+supports copyability and a small-object optimisation
+
+And for convenience below, assume there exists the following `any_value_t` alias
+so that we don't need to write `tag_t` so often.
+```c++
+template<auto&... CPOs>
+using any_value_t = any_value<unifex::tag_t<CPOs>...>;
+```
 
 ### Using type-erasing wrappers with CPO-based interfaces 
 
@@ -250,7 +263,9 @@ For example:
 ```c++
 namespace shapes
 {
-  using any_shape = unifex::any_value_t<shapes::width, shapes::height, shapes::area>;
+  using any_shape = unifex::any_value_t<shapes::width,
+                                        shapes::height,
+                                        shapes::area>;
 }
 ```
 
@@ -266,9 +281,73 @@ float area =  shapes::area(s);    // -> 4.0f
 However, this `any_shape` type wouldn't satisfy the `shape` concept we defined above
 as it doesn't support the `shapes::scale_by` operation.
 
-Note that we can't just define the `shapes::scale_by` in the same way, since its
+Since the `scale_by` doesn't define a default type-erased signature (it doesn't know
+what the return-type is in advance) we need some way to specify which overload of
+`scale_by` we should be type-erasing.
+
+There is a helper utility called `unifex::overload` that allows you to annotate
+a CPO with a particular function signature that you want to type-erase.
+
+Also, we can't just define the `shapes::scale_by` in the same way, since its
 type-erased signature needs to reference the type-erased wrapper type itself,
 which ends up making the type-definition depend on itself.
+
+Before we dive into trying to add the `shapes::scale_by` CPO to the `any_shape`
+type, lets take a little detour into how to define overloads.
+
+#### Specifying Overloads
+
+A generic type-erasing wrapper is typically parameterised by the set of overloads of CPOs
+that the type-erasing wrapper is intended to support and forward through to the
+concrete implementation.
+
+To customise a particular overload of a CPO it needs to know the signature of the CPO,
+including which parameter corresponds to the type-erased object.
+
+Type-erased wrappers will query this signature for a given CPO overload, identified by the type `CPO`,
+by looking at the `CPO::type_erased_signature_t` nested type-alias. This will be a function signature
+with exactly one parameter having the `unifex::this_` type as a placeholder representing the type-erased
+object.
+
+A CPO overload is described using one of two approaches:
+* For CPOs that take only one generic argument which is the type-erased wrapper can define
+  a default `type_erased_signature_t` type-alias on the CPO itself.
+* For CPOs that have additional generic parameters, we can use the `unifex::overload()`
+  helper to define a CPO that inherits from the original CPO and adds the
+  `type_erased_signature_t` type-alias for the particular overload being
+  customised.
+
+For example: A CPO that takes a single parameter and always returns a particular type.
+```c++
+struct blocking_t {
+  using type_erased_signature_t = unifex::blocking_kind(const unifex::this_&) noexcept;
+
+  template<typename T>
+    requires unifex::tag_invocable<blocking_t, const T&>
+  unifex::blocking_kind operator()(const T& value) const noexcept {
+    return unifex::tag_invoke(*this, value);
+  }
+};
+
+inline constexpr blocking_t blocking{};
+```
+
+Then the `blocking` CPO can be used directly as a parameter to the type-erased wrapper.
+```c++
+using any_blocking = unifex::any_unique_t<blocking>;
+```
+
+For example: A CPO that has other parameters that need to be specified can use the
+`unifex::overload()` helper.
+```c++
+
+using any_receiver_of_int = unifex::any_unique_t<
+  unifex::overload<void(unifex::this_&&, int) noexcept>(unifex::set_value),
+  >;
+```
+
+#### Using specified
+
 
 If we were to try we'd end up with a compile-error. e.g.
 ```c++
@@ -324,59 +403,6 @@ float area = shapes::area(s);         // -> 100.0f
 
 And so now we have a type-erased wrapper that should itself satisfy the `shape` concept.
 
-### Specifying Overloads
-
-A generic type-erasing wrapper is typically parameterised by the set of overloads of CPOs that the type-erasing
-wrapper is intended to support and forward through to the concrete implementation.
-
-To customise a particular overload of a CPO it needs to know the signature of the CPO, including which parameter
-corresponds to the type-erased object.
-
-Type-erased wrappers will query this signature for a given CPO overload, identified by the type `CPO`,
-by looking at the `CPO::type_erased_signature_t` nested type-alias. This will be a function signature
-with exactly one parameter having the `unifex::this_` type as a placeholder representing the type-erased
-object.
-
-A CPO overload is described using one of two approaches:
-* For CPOs that take only one generic argument which is the type-erased wrapper can define
-  a default `type_erased_signature_t` type-alias on the CPO itself.
-* For CPOs that have additional generic parameters, we can use the `unifex::overload()`
-  helper to define a CPO that inherits from the original CPO and adds the
-  `type_erased_signature_t` type-alias for the particular overload being
-  customised.
-
-For example: A CPO that takes a single parameter and always returns a particular type.
-```c++
-struct blocking_t {
-  using type_erased_signature_t = unifex::blocking_kind(const unifex::this_&) noexcept;
-
-  template<typename T>
-    requires unifex::tag_invocable<blocking_t, const T&>
-  unifex::blocking_kind operator()(const T& value) const noexcept {
-    return unifex::tag_invoke(*this, value);
-  }
-};
-
-inline constexpr blocking_t blocking{};
-```
-
-Then the `blocking` CPO can be used directly as a parameter to the type-erased wrapper.
-```c++
-using any_blocking = unifex::any_unique_t<blocking>;
-```
-
-For example: A CPO that has other parameters that need to be specified can use the
-`unifex::overload()` helper.
-```c++
-
-using any_receiver_of_int = unifex::any_unique_t<
-  // Use explicit template parameter to overload()
-  unifex::overload<void(unifex::this_&&, int) noexcept>(unifex::set_value),
-
-  // Use 'sig' helper in conjunction with overload()
-  unifex::overload(unifex::set_error, unifex::sig<void(unifex::this&&, std::exception_ptr) noexcept>)
-  >;
-```
 
 # Type-Erasing Wrapper Types
 
@@ -587,4 +613,272 @@ namespace unifex
   template <auto&... CPOs>
   using any_object_t = any_object<unifex::tag_t<CPOs>...>;
 }
+```
+# Implementation Details
+
+Note: This section describes some of the internal details of the type-erasing wrappers.
+
+## V-Tables
+
+A type-erased wrapper takes the set of CPOs it is parameterised by and defines a constructs a vtable
+of function-pointers with an entry for each CPO.
+
+This is implemented by two utility classes, defined in the `unifex::detail` namespace.
+* `unifex::detail::vtable_entry<CPO>` - An individual entry of a VTable. Holds a function pointer.
+* `unifex::detail::vtable<CPOs...>` - A VTable containing an ordered collection of vtable-entries.
+
+There are also a number of classes called "vtable holders" that implement different storage strategies
+for the vtable.
+
+### `vtable_entry`
+
+A `vtable_entry<CPO>` holds a function-pointer that type-erases the concrete implementation
+of the overload that `CPO` represents for a given type.
+
+The signature of the function-pointer is derived from the `CPO::type_erased_signature_t`
+typedef, which is required to be a function type that contains exactly one argument that
+is either a possibly cv-qualified `unifex::this_` type, or is an lvalue-reference or
+xvalue-reference to such a type.
+
+For example:
+```c++
+struct my_cpo {
+  using type_erased_signature_t = void(const unifex::this_&, float, bool);
+};
+```
+
+The parameter with the `unifex::this_` type identifies the parameter that is being
+type-erased and so when a `vtable_entry` constructs the function-pointer type, it
+prepends the CPO type as the first arg and replaces the `unifex::this_` parameter
+with `void*` and this parameter is passed a pointer to the type-erased object
+managed by the type-erased wrapper.
+
+When a `vtable_entry` is created for a specific concrete type, the function pointer
+will point to a function that casts this `void*` back to a correspondingly-qualified
+reference to the concrete object and then invoke the CPO with the `unifex::this_`
+parameter replaced with the reference to the concrete object.
+
+For example, a `vtable_entry<my_cpo>` holds a function pointer with the signature
+`void(my_cpo, void*, float bool)`, and when the entry is created for a given type, `foo`,
+will be the equivalent of:
+```c++
+void concrete_function_for_foo(my_cpo cpo, void* obj, float arg1, bool arg2) {
+  return cpo(*static_cast<const foo*>(obj), std::move(arg1), std::move(arg2));
+}
+```
+
+The static function `vtable_entry<CPO>::create<T>()` handles constructing a `vtable_entry`
+instance initialised with the appropriate function-pointer for a concrete type, `T`.
+
+Generally you don't need to deal with `vtable_entry` type directly, the `vtable<CPOs...>`
+class (or more commonly, the vtable-holder classes) handle constructing the vtable entries
+for a given type.
+
+### `vtable`
+
+The `vtable<CPOs...>` class is a collection of `vtable_entry` objects, indexed by the `CPO`
+type for that entry.
+
+To create an instance of a given `vtable<CPOs...>` for a concrete type, `T`, you call the
+`vtable<CPOs...>::create<T>()` static function.
+
+Once you have an instance of the `vtable` you can obtain the function-pointer for the
+corresponding CPO by calling `vtable.get<CPO>()`.
+
+### V-Table Holders
+
+When a type-erasing wrapper wants to hold a `vtable` there are different storage strategies
+for the storage of the vtable, each with varying tradeoffs:
+* `unifex::detail::indirect_vtable_holder<CPOs...>`
+  Stores a pointer to a static `vtable` object for each concrete type.
+  Reduces storage needed for each concrete vtable and storage in type-erasing wrapper is
+  just a single pointer (like most C++ class vtable implementations).
+  Cost is that there is an indirection required to lookup the vtable entries.
+
+* `unifex::detail::inline_vtable_holder<CPOs...>`
+  Stores the entries of the `vtable` inline within the holder instead of storing
+  a pointer to a statically allocated table.
+  This avoids the indirection through the vtable pointer but comes at the cost of
+  every type-erasing wrapper having to store its own copy of the vtable.
+  This can be worth it if the vtable is small, but for large vtables it might
+  be more expensive (both in extra storage cost and in code required to initialise
+  those members).
+
+One advantage of an `inline_vtable_holder` compared with the `indirect_vtable_holder`
+is that it supports the ability to cross-cast or upcast to a vtable with a subset of
+the vtable-entries of the source object. This can be used to allow building type-erasing
+wrappers that support casting from a wrapper with a wider interface to a wrapper with
+a narrower interface, or with the CPOs listed in different orders.
+
+The vtable-holder types all implement the same interface which allows code to work
+generically with different vtable storage strategies.
+
+This can be used by type-erasing wrapper types to use a hybrid storage strategy.
+e.g. to choose to store small vtables inline while larger vtables are stored using
+the indirect strategy.
+
+e.g. A type-erasing wrapper can make a compile-time choice of holder based on the
+size of the vtable that needs to be stored.
+```c++
+// when vtable is 2 or fewer entries, store it inline
+using vtable_holder_t = std::conditional_t<
+  (sizeof...(CPOs) <= 2),
+  unifex::detail::inline_vtable_holder<CPOs...>,
+  unifex::detail::indirect_vtable_holder<CPOs...>>;
+```
+
+### Using V-Tables
+
+A type-erasing wrapper will define the `vtable` type it is going to use.
+This will generally be some combination of user-provided CPOs and CPOs for some
+built-in operations (like destruction, or move-construction).
+
+For example:
+```c++
+template<typename... CPOs>
+struct my_type_erasing_wrapper {
+private:
+  struct destroy_t {
+    using type_erased_signature_t = void(unifex::this_&) noexcept;
+	template<typename T>
+	void operator()(T& obj) noexcept {
+	  delete std::addressof(obj);
+	}
+  };
+
+  using vtable_holder_t = unifex::detail::indirect_vtable_holder<destroy_t, CPOs...>;
+
+public:
+
+  ...
+  
+private:
+  vtable_holder_t vtable_;
+  void* data_;
+};
+```
+
+To create a vtable entry for a given type, we can call the static `create<T>()` method
+on the vtable-holder class.
+
+e.g. The constructor of `my_type_erasing_wrapper` might look like:
+```c++
+template<typename... CPOs>
+template<typename T>
+my_type_erasing_wrapper<CPOs...>::my_type_erasing_wrapper(T obj)
+: vtable_(vtable_holder_t::template create<T>())
+, data_(new T(std::move(obj)))
+{}
+```
+
+To call the type-erased functions from a builtin function (like the destructor)
+we can lookup a vtable entry by calling `.get<CPO>()` to the the function pointer
+and then invoke it with a `void*` pointer to the type-erased object.
+```c++
+template<typename... CPOs>
+my_type_erasing_wrapper<CPOs...>::~my_type_erasing_wrapper() {
+  if (data_ != nullptr) {
+    auto* destroyFn = vtable_->template get<destroy_t>();
+	destroyFn(data_);
+  }
+}
+```
+
+To be able to hook and customise the other `tag_invoke`-based CPOs, however,
+we need to introduce a new `tag_invoke()` overload for each CPO where the
+signature of the overload is the same as the `type_erased_signature_t` but
+with the use of `unifex::this_` replaced with the type-erasing wrapper type.
+
+There is a helper class `unifex::detail::with_type_erased_tag_invoke` that can
+be used as a CRTB base of the type-erasing wrapper type to add the necessary
+`tag_invoke` overload that forwards through to the corresponding vtable entry.
+
+To allow this helper class to work, the type-erasing wrapper needs to implement
+two hidden-friend functions that allow the helper class to access the vtable
+and get the pointer to the type-erased object: `get_vtable()` and `get_object_address()`.
+
+So to extend our hypothetical type-erasing wrapper class to customise the other
+CPOs, we can modify it like this:
+```c++
+template<typename... CPOs>
+struct my_type_erasing_wrapper
+  : private unifex::with_type_erased_tag_invoke<my_type_erasing_wrapper, CPOs>... {
+private:
+  struct destroy_t {
+    using type_erased_signature_t = void(unifex::this_&) noexcept;
+	template<typename T>
+	void operator()(T& obj) noexcept {
+	  delete std::addressof(obj);
+	}
+  };
+
+  using vtable_holder_t = unifex::detail::indirect_vtable_holder<destroy_t, CPOs...>;
+
+public:
+
+  ...
+
+private:
+  friend const vtable_holder_t& get_vtable(const my_type_erasing_wrapper& self) noexcept {
+    return vtable_;
+  }
+
+  friend void* get_object_address(const my_type_erasing_wrapper& self) noexcept {
+    return data_;
+  }
+
+   vtable_holder_t vtable_;
+  void* data_;
+};
+```
+
+Then add in the constructor, destructor and a move-constructor and we have a basic,
+functional type-erasing wrapper.
+
+```c++
+template<typename... CPOs>
+struct my_type_erasing_wrapper
+  : private unifex::with_type_erased_tag_invoke<my_type_erasing_wrapper, CPOs>... {
+private:
+  struct destroy_t {
+    using type_erased_signature_t = void(unifex::this_&) noexcept;
+	template<typename T>
+	void operator()(T& obj) noexcept {
+	  delete std::addressof(obj);
+	}
+  };
+
+  using vtable_holder_t = unifex::detail::indirect_vtable_holder<destroy_t, CPOs...>;
+
+public:
+
+  template<typename T>
+  my_type_erasing_wrapper(T obj)
+  : vtable_(vtable_holder_t::template create<T>())
+  , data_(new T(std::move(obj))
+  {}
+
+  my_type_erasing_wrapper(my_type_erasing_wrapper&& x) noexcept
+  : vtable_(x.vtable_)
+  , data_(std::exchange(x.data_, nullptr))
+  {}
+
+  ~my_type_erasing_wrapper() {
+    if (data_ != nullptr) {
+	  vtable_->template get<destroy_t>()(data_);
+	}
+  }
+
+private:
+  friend const vtable_holder_t& get_vtable(const my_type_erasing_wrapper& self) noexcept {
+    return vtable_;
+  }
+
+  friend void* get_object_address(const my_type_erasing_wrapper& self) noexcept {
+    return data_;
+  }
+
+  vtable_holder_t vtable_;
+  void* data_;
+};
 ```
