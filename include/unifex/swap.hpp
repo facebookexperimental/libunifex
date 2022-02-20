@@ -32,9 +32,6 @@ extern bool const is_nothrow_swappable_with_v;
 namespace _swap {
     void swap();
 
-    struct yes_type {};
-    struct no_type {};
-
     template <typename T, typename U>
     decltype(static_cast<void>(swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&))), std::true_type{}) _try_adl_swap(int);
 
