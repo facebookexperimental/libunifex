@@ -35,7 +35,7 @@ namespace
         unifex::type_index(const unifex::this_&) noexcept;
 
     template <typename T>
-    friend unifex::type_index tag_invoke(get_typeid_cpo, const T& x) {
+    friend unifex::type_index tag_invoke(get_typeid_cpo, const T&) {
       return unifex::type_id<T>();
     }
 
@@ -240,9 +240,9 @@ namespace
     template <typename OtherT>
     always_fails_allocator(always_fails_allocator<OtherT>) noexcept {}
 
-    T* allocate(size_t n) { throw std::bad_alloc{}; }
+    T* allocate(size_t) { throw std::bad_alloc{}; }
 
-    void deallocate(T*, size_t n) { std::terminate(); }
+    void deallocate(T*, size_t) { std::terminate(); }
   };
 
   template <size_t Size, size_t Alignment>
@@ -310,7 +310,7 @@ TEST(AnyObjectTest, UseDefaultAllocatorIfNotSpecified) {
 
 namespace
 {
-  inline constexpr struct get_foo_cpo {
+  [[maybe_unused]] inline constexpr struct get_foo_cpo {
     using type_erased_signature_t = int(const unifex::this_&);
 
     template(typename T)                                         //
@@ -346,6 +346,11 @@ static_assert(!std::is_convertible_v<int, any_foo>);
 static_assert(unifex::callable<get_foo_cpo, const any_foo&>);
 static_assert(std::is_nothrow_move_constructible_v<any_foo>);
 static_assert(!std::is_copy_constructible_v<any_foo>);
+
+TEST(AnyObjectTest, ConvertibleConstructor) {
+  any_foo foo = foo_supported{20};
+  EXPECT_EQ(get_foo(foo), 20);
+}
 
 TEST(AnyObjectTest, MoveAssignmentDoesntDestroyRhs) {
   instance_counter::reset_counts();
@@ -389,10 +394,12 @@ TEST(AnyObjectTest, SelfMoveAssignmentDoesNothing) {
   {
     any_t x{std::in_place_type<instance_counter>};
 
+    auto& xAlias = x;
+    
     EXPECT_EQ(instance_counter::get_constructor_count(), 1);
     EXPECT_EQ(instance_counter::get_destructor_count(), 0);
 
-    x = std::move(x);
+    xAlias = std::move(x);
 
     EXPECT_EQ(instance_counter::get_constructor_count(), 1);
     EXPECT_EQ(instance_counter::get_destructor_count(), 0);

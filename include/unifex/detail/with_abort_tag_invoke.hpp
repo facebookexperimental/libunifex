@@ -23,35 +23,33 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-  namespace detail
-  {
-    template <typename Derived, typename CPO, typename Sig>
-    struct _with_abort_tag_invoke;
+namespace unifex {
+namespace detail {
+template <typename Derived, typename CPO, typename Sig>
+struct _with_abort_tag_invoke;
 
-    template <typename Derived, typename CPO, typename Ret, typename... Args>
-    struct _with_abort_tag_invoke<Derived, CPO, Ret(Args...)> {
-      [[noreturn]] friend Ret
-      tag_invoke(CPO, replace_this_t<Args, Derived>... args) noexcept {
-        std::abort();
-      }
-    };
+template <typename Derived, typename CPO, typename Ret, typename... Args>
+struct _with_abort_tag_invoke<Derived, CPO, Ret(Args...)> {
+  [[noreturn]] friend Ret
+  tag_invoke(CPO, replace_this_t<Args, Derived>...) noexcept {
+    std::abort();
+  }
+};
 
-    template <typename Derived, typename CPO, typename Ret, typename... Args>
-    struct _with_abort_tag_invoke<Derived, CPO, Ret(Args...) noexcept> {
-      [[noreturn]] friend Ret
-      tag_invoke(CPO, replace_this_t<Args, Derived>... args) noexcept {
-        std::abort();
-      }
-    };
+template <typename Derived, typename CPO, typename Ret, typename... Args>
+struct _with_abort_tag_invoke<Derived, CPO, Ret(Args...) noexcept> {
+  [[noreturn]] friend Ret
+  tag_invoke(CPO, replace_this_t<Args, Derived>...) noexcept {
+    std::abort();
+  }
+};
 
-    template <typename Derived, typename CPO>
-    using with_abort_tag_invoke = _with_abort_tag_invoke<
-        Derived,
-        base_cpo_t<CPO>,
-        typename CPO::type_erased_signature_t>;
-  }  // namespace detail
+template <typename Derived, typename CPO>
+using with_abort_tag_invoke = _with_abort_tag_invoke<
+    Derived,
+    base_cpo_t<CPO>,
+    typename CPO::type_erased_signature_t>;
+}  // namespace detail
 }  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
