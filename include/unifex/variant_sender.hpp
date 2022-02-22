@@ -78,9 +78,6 @@ struct _sender {
 template <typename... Senders>
 using sender = typename _sender<Senders...>::type;
 
-template<typename Sender>
-struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {};
-
 template <typename... Senders>
 class _sender<Senders...>::type {
   std::variant<Senders...> sender_variant;
@@ -103,7 +100,7 @@ class _sender<Senders...>::type {
     : sender_variant(std::forward<ConcreteSender>(concrete_sender)) {}
 
   template(typename This, typename Receiver)
-    (requires same_as<remove_cvref_t<This>, type> AND receiver<Receiver> AND std::conjunction_v<unifex::is_connectable<Senders, Receiver>...>)
+    (requires same_as<remove_cvref_t<This>, type> AND std::conjunction_v<std::bool_constant<sender_to<member_t<This, Senders>, Receiver>>...>)
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
     noexcept(std::conjunction_v<unifex::is_nothrow_connectable<Senders, Receiver>...>)
   {
