@@ -1191,3 +1191,21 @@ namespace unifex
   };
 }
 ```
+
+### `variant_sender`
+
+Non-type erased sender that is parameterized on multiple sender types.
+Receivers must implement `set_value` for all value types produced by all
+senders.
+
+```
+defer(
+  [condition]()
+      -> variant_sender<decltype(just(42)), decltype(just(true))> {
+    if (condition) {
+      return just(42);
+    } else {
+      return just(true);
+    }
+  });
+```
