@@ -42,7 +42,7 @@ using operation = typename _op<Ops...>::type;
 template <typename... Ops>
 struct _op<Ops...>::type {
   void start() & noexcept {
-    std::visit([](auto& op) noexcept(noexcept(unifex::start(op))) { unifex::start(op); }, variant_op);
+    std::visit([](auto& op) noexcept { unifex::start(op); }, variant_op);
   }
 
   std::variant<Ops...> variant_op;
@@ -76,7 +76,7 @@ struct _sender {
   class type;
 };
 template <typename... Senders>
-using sender = typename _sender<Senders...>::type;
+using sender = typename _sender<remove_cvref_t<Senders>...>::type;
 
 template <typename... Senders>
 class _sender<Senders...>::type {
@@ -99,15 +99,18 @@ class _sender<Senders...>::type {
     noexcept(std::is_nothrow_constructible_v<std::variant<Senders...>, decltype(concrete_sender)>)
     : sender_variant(std::forward<ConcreteSender>(concrete_sender)) {}
 
+  template<typename Base, typename Matchee>
+  using match_reference_t = std::conditional_t<std::is_lvalue_reference_v<Base>, std::add_lvalue_reference_t<Matchee>, Matchee>;
+
   template(typename This, typename Receiver)
     (requires same_as<remove_cvref_t<This>, type> AND std::conjunction_v<std::bool_constant<sender_to<member_t<This, Senders>, Receiver>>...>)
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
-    noexcept(std::conjunction_v<unifex::is_nothrow_connectable<Senders, Receiver>...>)
+    noexcept(std::conjunction_v<unifex::is_nothrow_connectable<match_reference_t<This, Senders>, Receiver>...>)
   {
     return operation<connect_result_t<Senders, Receiver>...>{
-        std::visit([r = static_cast<Receiver&&>(r)](auto&& sender) mutable noexcept(unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
+        std::visit([&r](auto&& sender) noexcept(unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
             return std::variant<connect_result_t<Senders, Receiver>...>{unifex::connect(std::move(sender), static_cast<Receiver&&>(r))};
-        }, std::move(static_cast<This&&>(that).sender_variant))
+        }, std::move(static_cast<decltype(that)>(that).sender_variant))
     };
   }
 
@@ -118,7 +121,7 @@ class _sender<Senders...>::type {
 } // namespace _variant_sender
 
 template <typename... Senders>
-using variant_sender = typename _variant_sender::_sender<Senders...>::type;
+using variant_sender = typename _variant_sender::sender<Senders...>;
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

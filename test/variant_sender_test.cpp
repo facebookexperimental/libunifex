@@ -34,17 +34,38 @@ using namespace std::chrono;
 using namespace std::chrono_literals;
 
 struct IntAndStringReceiver {
-    void set_value(int) {
+    void set_value(int) noexcept {
 
     }
 
-    void set_value(std::string) {
+    void set_value(std::string) noexcept {
 
     }
 
-    void set_done() {}
+    void set_done() noexcept {}
 
     void set_error(std::exception_ptr) noexcept {}
+};
+
+template<bool lvalueConnectNoexcept = true, bool rvalueConnectNoexcept = true>
+struct TestSender {
+  template <
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
+  using value_types = Variant<std::string>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<>;
+
+  static constexpr bool sends_done = true;
+
+  struct op {};
+
+  template<typename Receiver>
+  op connect(Receiver&& r) & noexcept(lvalueConnectNoexcept);
+
+  template<typename Receiver>
+  op connect(Receiver&& r) && noexcept(rvalueConnectNoexcept);
 };
 
 TEST(Variant, CombineJustAndError) {
@@ -143,4 +164,41 @@ TEST(Variant, CombineJustAndJust_Invalid) {
   EXPECT_FALSE(just_variant_sender.sends_done);
   auto op2 = unifex::connect(just_string_sender, rec);
   unifex::start(op2);
+}
+
+template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept>
+using test_sender_t = variant_sender<TestSender<lvalueConnectNoexcept, rvalueConnectNoexcept>>;
+
+template<typename T, bool lvalue>
+using conditionally_lvalue_t = std::conditional_t<lvalue, std::add_lvalue_reference_t<T>, T>;
+
+template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept, bool isLvalueReference = true>
+using is_noexcept = unifex::is_nothrow_connectable<conditionally_lvalue_t<test_sender_t<lvalueConnectNoexcept, rvalueConnectNoexcept>, isLvalueReference>, IntAndStringReceiver>;
+
+TEST(Variant, TestNoexcept) {
+  auto both_no_except = is_noexcept<true, true>::value;
+  EXPECT_TRUE(both_no_except);
+
+  auto neither_no_except = is_noexcept<false, false>::value;
+  EXPECT_FALSE(neither_no_except);
+
+  auto lvalue_no_except = is_noexcept<true, false>::value;
+  EXPECT_TRUE(lvalue_no_except);
+
+  auto rvalue_no_except = is_noexcept<false, true>::value;
+  EXPECT_FALSE(rvalue_no_except);
+}
+
+TEST(Variant, TestNoexcept_RvalueRef) {
+  auto both_no_except = is_noexcept<true, true, false>::value;
+  EXPECT_TRUE(both_no_except);
+
+  auto neither_no_except = is_noexcept<false, false, false>::value;
+  EXPECT_FALSE(neither_no_except);
+
+  auto lvalue_no_except = is_noexcept<true, false, false>::value;
+  EXPECT_FALSE(lvalue_no_except);
+
+  auto rvalue_no_except = is_noexcept<false, true, false>::value;
+  EXPECT_TRUE(rvalue_no_except);
 }
