@@ -21,9 +21,9 @@
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/optional.hpp>
-#include <unifex/tuple.hpp>
 
 #include <exception>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -46,7 +46,7 @@ struct _op<Receiver, Values...>::type {
 
   void start() & noexcept {
     UNIFEX_TRY {
-      unifex::apply(
+      std::apply(
           [&](Values&&... values) {
             unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
           },
