@@ -26,12 +26,12 @@
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/optional.hpp>
-#include <unifex/tuple.hpp>
 #include <unifex/utility.hpp>
 #include <unifex/variant.hpp>
 
 #include <atomic>
 #include <cstddef>
+#include <tuple>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
@@ -312,7 +312,7 @@ class _sender<Senders...>::type {
         when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
   friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
     -> operation<Receiver, member_t<Sender, Senders>...> {
-    return unifex::apply([&](Senders&&... senders) {
+    return std::apply([&](Senders&&... senders) {
       return operation<Receiver, member_t<Sender, Senders>...>{
           (Receiver &&) receiver, (Senders &&) senders...};
     }, static_cast<Sender &&>(sender).senders_);
@@ -343,7 +343,7 @@ class _sender<Senders...>::type {
       }
     };
 
-    unifex::apply([&](const auto&... senders) {
+    std::apply([&](const auto&... senders) {
       (void)std::initializer_list<int>{
         (handleBlockingStatus(blocking(senders)), 0)... };
     }, s.senders_);

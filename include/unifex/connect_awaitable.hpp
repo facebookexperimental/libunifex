@@ -22,7 +22,6 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/tuple.hpp>
 #include <unifex/utility.hpp>
 
 #if UNIFEX_NO_COROUTINES
@@ -30,6 +29,7 @@
 #endif
 
 #include <cassert>
+#include <tuple>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
