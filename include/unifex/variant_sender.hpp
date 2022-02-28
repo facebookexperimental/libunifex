@@ -42,10 +42,10 @@ using operation = typename _op<Ops...>::type;
 template <typename... Ops>
 struct _op<Ops...>::type {
   void start() & noexcept {
-    std::visit([](auto& op) noexcept { unifex::start(op); }, variant_op);
+    std::visit([](auto& op) noexcept { unifex::start(op); }, variantOp_);
   }
 
-  std::variant<Ops...> variant_op;
+  std::variant<Ops...> variantOp_;
 };
 
 
@@ -64,7 +64,7 @@ struct max_blocking_kind<First, Second, Rest...> {
         Second == blocking_kind::always_inline) ||
         (Second == blocking_kind::always &&
         First == blocking_kind::always_inline)) {
-      return max_blocking_kind<blocking_kind::always_inline, Rest...>{}();
+      return max_blocking_kind<blocking_kind::always, Rest...>{}();
     } else {
       return blocking_kind::maybe;
     }
@@ -80,7 +80,7 @@ using sender = typename _sender<remove_cvref_t<Senders>...>::type;
 
 template <typename... Senders>
 class _sender<Senders...>::type {
-  std::variant<Senders...> sender_variant;
+  std::variant<Senders...> senderVariant_;
 
  public:
 
@@ -95,9 +95,9 @@ class _sender<Senders...>::type {
   static constexpr bool sends_done = std::disjunction_v<std::bool_constant<sender_traits<Senders>::sends_done>...>;
 
   template<typename ConcreteSender>
-  type(ConcreteSender&& concrete_sender)
-    noexcept(std::is_nothrow_constructible_v<std::variant<Senders...>, decltype(concrete_sender)>)
-    : sender_variant(std::forward<ConcreteSender>(concrete_sender)) {}
+  type(ConcreteSender&& concreteSender)
+    noexcept(std::is_nothrow_constructible_v<std::variant<Senders...>, decltype(concreteSender)>)
+    : senderVariant_(std::forward<ConcreteSender>(concreteSender)) {}
 
   template<typename Base, typename Matchee>
   using match_reference_t = std::conditional_t<std::is_lvalue_reference_v<Base>, std::add_lvalue_reference_t<Matchee>, Matchee>;
@@ -110,7 +110,7 @@ class _sender<Senders...>::type {
     return operation<connect_result_t<Senders, Receiver>...>{
         std::visit([&r](auto&& sender) noexcept(unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
             return std::variant<connect_result_t<Senders, Receiver>...>{unifex::connect(std::move(sender), static_cast<Receiver&&>(r))};
-        }, std::move(static_cast<decltype(that)>(that).sender_variant))
+        }, std::move(static_cast<decltype(that)>(that).senderVariant_))
     };
   }
 

@@ -33,14 +33,11 @@ using namespace unifex;
 using namespace std::chrono;
 using namespace std::chrono_literals;
 
+namespace {
 struct IntAndStringReceiver {
-    void set_value(int) noexcept {
+    void set_value(int) noexcept {}
 
-    }
-
-    void set_value(std::string) noexcept {
-
-    }
+    void set_value(std::string) noexcept {}
 
     void set_done() noexcept {}
 
@@ -52,7 +49,7 @@ struct TestSender {
   template <
     template <typename...> class Variant,
     template <typename...> class Tuple>
-  using value_types = Variant<std::string>;
+  using value_types = Variant<Tuple<std::string>>;
 
   template <template <typename...> class Variant>
   using error_types = Variant<>;
@@ -62,11 +59,16 @@ struct TestSender {
   struct op {};
 
   template<typename Receiver>
-  op connect(Receiver&& r) & noexcept(lvalueConnectNoexcept);
+  op connect([[maybe_unused]] Receiver&& r) & noexcept(lvalueConnectNoexcept) {
+    return op{};
+  }
 
   template<typename Receiver>
-  op connect(Receiver&& r) && noexcept(rvalueConnectNoexcept);
+  op connect([[maybe_unused]] Receiver&& r) && noexcept(rvalueConnectNoexcept) {
+    return op{};
+  }
 };
+} // namespace
 
 TEST(Variant, CombineJustAndError) {
   auto func = [](bool v) -> variant_sender<decltype(just(5)), decltype(just_error(5))> {
@@ -166,6 +168,7 @@ TEST(Variant, CombineJustAndJust_Invalid) {
   unifex::start(op2);
 }
 
+namespace {
 template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept>
 using test_sender_t = variant_sender<TestSender<lvalueConnectNoexcept, rvalueConnectNoexcept>>;
 
@@ -174,6 +177,7 @@ using conditionally_lvalue_t = std::conditional_t<lvalue, std::add_lvalue_refere
 
 template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept, bool isLvalueReference = true>
 using is_noexcept = unifex::is_nothrow_connectable<conditionally_lvalue_t<test_sender_t<lvalueConnectNoexcept, rvalueConnectNoexcept>, isLvalueReference>, IntAndStringReceiver>;
+} // namespace
 
 TEST(Variant, TestNoexcept) {
   auto both_no_except = is_noexcept<true, true>::value;
