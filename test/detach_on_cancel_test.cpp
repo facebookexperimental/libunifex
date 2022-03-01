@@ -19,6 +19,7 @@
 #include <unifex/sequence.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
+#include <unifex/variant.hpp>
 #include <unifex/with_query_value.hpp>
 #include <gtest/gtest.h>
 
@@ -161,4 +162,13 @@ TEST_F(detach_on_cancel_test, cancellation_and_completion_race) {
   }
 
   EXPECT_EQ(max_iterations, count.load());
+}
+
+TEST_F(detach_on_cancel_test, error_types_propagate) {
+  using namespace unifex;
+  using error_types =
+    sender_error_types_t<decltype(detach_on_cancel(just())), type_list>;
+  using v = typename error_types::template apply<unifex::variant>;
+
+  EXPECT_GE(unifex::variant_size<v>::value, 1);
 }

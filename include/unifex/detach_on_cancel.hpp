@@ -151,14 +151,11 @@ struct _sender<Sender>::type {
       class Variant,
       template <typename...>
       class Tuple>
-  using value_types =
-      typename sender_traits<Sender>::template value_types<Variant, Tuple>;
+  using value_types = sender_value_types_t<Sender, Variant, Tuple>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      sender_error_types_t<
-          typename sender_traits<Sender>::template error_types<Variant>,
-          type_list>,
+      sender_error_types_t<Sender, type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done = true;
