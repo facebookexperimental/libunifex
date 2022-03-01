@@ -6,6 +6,7 @@
 #include <atomic>
 #include <memory>
 #include <stdexcept>
+#include <variant>
 
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/inplace_stop_token.hpp>
@@ -161,4 +162,13 @@ TEST_F(detach_on_cancel_test, cancellation_and_completion_race) {
   }
 
   EXPECT_EQ(max_iterations, count.load());
+}
+
+TEST_F(detach_on_cancel_test, error_types_propagate) {
+  using namespace unifex;
+  using error_types =
+    sender_error_types_t<decltype(detach_on_cancel(just())), type_list>;
+  using v = typename error_types::template apply<std::variant>;
+
+  EXPECT_GE(std::variant_size_v<v>, 1);
 }
