@@ -34,9 +34,9 @@
 #include <unifex/on.hpp>
 #include <unifex/defer.hpp>
 #include <unifex/just_from.hpp>
-#include <unifex/cstddef.hpp>
 
 #include <chrono>
+#include <cstddef>
 #include <cstring>
 #include <thread>
 
@@ -192,8 +192,8 @@ TEST(low_latency_iocp_context, loop_read_write_pipe) {
 
     auto [readPipe, writePipe] = unifex::open_pipe(s);
 
-    unifex::byte readBuffer[10];
-    unifex::byte writeBuffer[100];
+    std::byte readBuffer[10];
+    std::byte writeBuffer[100];
     std::memset(writeBuffer, 77, sizeof(writeBuffer));
 
     // Perform 10k reads of 10 bytes.

@@ -18,9 +18,9 @@
 
 #include <unifex/scope_guard.hpp>
 #include <unifex/exception.hpp>
-#include <unifex/cstddef.hpp>
 
 #include <atomic>
+#include <cstddef>
 #include <cstring>
 #include <random>
 #include <system_error>
@@ -487,7 +487,7 @@ get_iocp_entries:
   }
 
   bool low_latency_iocp_context::io_operation::start_read(
-      span<unifex::byte> buffer) noexcept {
+      span<std::byte> buffer) noexcept {
     UNIFEX_ASSERT(context.is_running_on_io_thread());
     UNIFEX_ASSERT(ioState != nullptr);
     UNIFEX_ASSERT(ioState->operationCount < max_vectored_io_size);
@@ -552,7 +552,7 @@ get_iocp_entries:
   }
 
   bool low_latency_iocp_context::io_operation::start_write(
-      span<const unifex::byte> buffer) noexcept {
+      span<const std::byte> buffer) noexcept {
     UNIFEX_ASSERT(context.is_running_on_io_thread());
     UNIFEX_ASSERT(ioState != nullptr);
     UNIFEX_ASSERT(ioState->operationCount < max_vectored_io_size);
@@ -587,7 +587,7 @@ get_iocp_entries:
           NULL,                                            // ApcRoutine
           &iosb,                                           // ApcContext
           &iosb,                                           // IoStatusBlock
-          const_cast<unifex::byte*>(buffer.data()) + offset,  // Buffer
+          const_cast<std::byte*>(buffer.data()) + offset,  // Buffer
           static_cast<ntapi::ULONG>(chunkSize),            // Length
           nullptr,                                         // ByteOffset
           nullptr);                                        // Key

@@ -24,8 +24,8 @@
 #include <unifex/when_all.hpp>
 #include <unifex/with_allocator.hpp>
 #include <unifex/memory_resource.hpp>
-#include <unifex/cstddef.hpp>
 
+#include <cstddef>
 #include <memory>
 
 #include <gtest/gtest.h>
@@ -92,7 +92,7 @@ void test(Scheduler scheduler, Allocator allocator) {
 
 TEST(with_allocator, SubmitWithStdAllocator) {
   single_thread_context thread;
-  test(thread.get_scheduler(), std::allocator<unifex::byte>{});
+  test(thread.get_scheduler(), std::allocator<std::byte>{});
 }
 
 #if !UNIFEX_NO_MEMORY_RESOURCE

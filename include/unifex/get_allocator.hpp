@@ -16,7 +16,6 @@
 #pragma once
 
 #include <unifex/tag_invoke.hpp>
-#include <unifex/cstddef.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -30,8 +29,8 @@ namespace _get_alloc {
     template <typename T>
     constexpr auto operator()(const T&) const noexcept
         -> std::enable_if_t<!is_tag_invocable_v<_fn, const T&>,
-                            std::allocator<unifex::byte>> {
-      return std::allocator<unifex::byte>{};
+                            std::allocator<std::byte>> {
+      return std::allocator<std::byte>{};
     }
 
     template <typename T>
