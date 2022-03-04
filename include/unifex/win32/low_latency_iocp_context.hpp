@@ -24,7 +24,6 @@
 #include <unifex/span.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
-#include <unifex/cstddef.hpp>
 
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_list.hpp>
@@ -35,6 +34,7 @@
 #include <unifex/win32/detail/types.hpp>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <system_error>
 #include <thread>
@@ -167,10 +167,10 @@ namespace unifex::win32
       // schedule a 'poll' of this operation by setting this->callback
       // and calling context.schedule_poll(this). This will schedule the
       // callback to be run immediately (if it completed synchronously).
-      bool start_read(span<unifex::byte> buffer) noexcept;
+      bool start_read(span<std::byte> buffer) noexcept;
 
       // Start writing the context of 'buffer' to fileHandle.
-      bool start_write(span<const unifex::byte> buffer) noexcept;
+      bool start_write(span<const std::byte> buffer) noexcept;
 
       std::size_t get_result(std::error_code& ec) noexcept;
     };
@@ -469,7 +469,7 @@ namespace unifex::win32
       // TODO: Add support for a BufferSequence concept to allow
       // vectorised I/O here.
       // For now, just assume that 'Buffer' is convertible to a
-      // 'span<unifex::byte>'.
+      // 'span<std::byte>'.
 
       self.start_read(self.buffer_);
 
@@ -644,7 +644,7 @@ namespace unifex::win32
       // TODO: Add support for a BufferSequence concept to allow
       // vectorised I/O here.
       // For now, just assume that 'Buffer' is convertible to a
-      // 'span<unifex::byte>'.
+      // 'span<std::byte>'.
 
       self.start_write(self.buffer_);
 
@@ -771,7 +771,7 @@ namespace unifex::win32
       : context_(context)
       , fileHandle_(std::move(fileHandle)) {}
 
-    template(typename Buffer)(requires convertible_to<Buffer, span<unifex::byte>>) friend read_file_sender<
+    template(typename Buffer)(requires convertible_to<Buffer, span<std::byte>>) friend read_file_sender<
         remove_cvref_t<
             Buffer>> tag_invoke(tag_t<async_read_some>, readable_byte_stream& stream, Buffer&& buffer) {
       return read_file_sender<remove_cvref_t<Buffer>>{
@@ -793,7 +793,7 @@ namespace unifex::win32
       : context_(context)
       , fileHandle_(std::move(fileHandle)) {}
 
-    template(typename Buffer)(requires convertible_to<Buffer, span<const unifex::byte>>) friend write_file_sender<
+    template(typename Buffer)(requires convertible_to<Buffer, span<const std::byte>>) friend write_file_sender<
         remove_cvref_t<
             Buffer>> tag_invoke(tag_t<async_write_some>, writable_byte_stream& stream, Buffer&& buffer) {
       return write_file_sender<remove_cvref_t<Buffer>>{
