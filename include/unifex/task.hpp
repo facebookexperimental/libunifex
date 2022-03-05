@@ -185,8 +185,10 @@ struct _promise {
 
     auto final_suspend() noexcept {
       struct awaiter : _final_suspend_awaiter_base {
-#if defined(_MSC_VER) && !defined(__clang__)
-        // MSVC doesn't seem to like symmetric transfer in this final awaiter
+
+#if (defined(_MSC_VER) && !defined(__clang__)) || defined(__EMSCRIPTEN__)
+        // MSVC doesn't seem to like symmetric transfer in this final awaiter and
+        // the Emscripten (WebAssembly) compiler doesn't support tail-calls
         void await_suspend(coro::coroutine_handle<type> h) noexcept {
           return h.promise().continuation_.handle().resume();
         }
