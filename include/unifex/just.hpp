@@ -83,7 +83,7 @@ class _sender<Values...>::type {
     (requires (sizeof...(Values2) == sizeof...(Values)) AND
       constructible_from<std::tuple<Values...>, Values2...>)
   explicit type(in_place_t, Values2&&... values)
-    noexcept(is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
+    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
   template(typename This, typename Receiver)
@@ -91,7 +91,7 @@ class _sender<Values...>::type {
         receiver<Receiver> AND
         constructible_from<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
-      noexcept(is_nothrow_constructible_v<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
+      noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
       -> operation<Receiver, Values...> {
     return {static_cast<This&&>(that).values_, static_cast<Receiver&&>(r)};
   }
@@ -106,7 +106,7 @@ namespace _just_cpo {
   inline const struct just_fn {
     template <typename... Values>
     constexpr auto operator()(Values&&... values) const
-      noexcept(is_nothrow_constructible_v<_just::sender<Values...>, in_place_t, Values...>)
+      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, in_place_t, Values...>)
       -> _just::sender<Values...> {
       return _just::sender<Values...>{in_place, (Values&&)values...};
     }

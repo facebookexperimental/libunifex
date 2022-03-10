@@ -178,7 +178,7 @@ namespace _await_cpo {
         // for the receiver to destroy the coroutine.
         co_yield [&](result_type&& result) {
               return [&] {
-                if constexpr (is_void_v<await_result_t<awaitable_type>>) {
+                if constexpr (std::is_void_v<await_result_t<awaitable_type>>) {
                   unifex::set_value(std::move(receiver));
                 } else {
                   unifex::set_value(std::move(receiver), static_cast<result_type&&>(result));
@@ -257,7 +257,7 @@ namespace _as_sender {
       static constexpr bool sends_done = true;
 
       explicit type(Awaitable awaitable)
-          noexcept(is_nothrow_move_constructible_v<Awaitable>)
+          noexcept(std::is_nothrow_move_constructible_v<Awaitable>)
         : awaitable_((Awaitable&&) awaitable)
       {}
 

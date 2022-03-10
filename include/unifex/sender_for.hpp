@@ -46,8 +46,8 @@ namespace unifex
     struct sender_for {
       explicit sender_for(Sender snd, Context ctx)
           noexcept(
-              is_nothrow_move_constructible_v<Sender> &&
-              is_nothrow_move_constructible_v<Context>)
+              std::is_nothrow_move_constructible_v<Sender> &&
+              std::is_nothrow_move_constructible_v<Context>)
         : snd_((Sender&&) snd), ctx_{(Context&&) ctx} {}
 
       // Forward all tag_invokes:
@@ -88,8 +88,8 @@ namespace unifex
       sender_for<CPO, remove_cvref_t<Sender>, _context<remove_cvref_t<Queries>...>>
       operator()(Sender&& snd, Queries&&... queries) const
           noexcept(
-              is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
-              (is_nothrow_constructible_v<remove_cvref_t<Queries>, Queries> &&...)) {
+              std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
+              (std::is_nothrow_constructible_v<remove_cvref_t<Queries>, Queries> &&...)) {
         return sender_for<CPO, remove_cvref_t<Sender>, _context<remove_cvref_t<Queries>...>>{
             (Sender&&) snd, _context<remove_cvref_t<Queries>...>{{(Queries&&) queries}...}};
       }

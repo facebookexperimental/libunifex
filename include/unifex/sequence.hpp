@@ -333,8 +333,8 @@ namespace unifex
           (requires constructible_from<Predecessor, Predecessor2> AND
               constructible_from<Successor, Successor2>)
       explicit type(Predecessor2&& predecessor, Successor2&& successor)
-          noexcept(is_nothrow_constructible_v<Predecessor, Predecessor2> &&
-              is_nothrow_constructible_v<Successor, Successor2>)
+          noexcept(std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
+              std::is_nothrow_constructible_v<Successor, Successor2>)
         : predecessor_(static_cast<Predecessor&&>(predecessor))
         , successor_(static_cast<Successor&&>(successor)) {}
 
@@ -379,7 +379,7 @@ namespace unifex
         // itself.
         template <typename First>
         remove_cvref_t<First> operator()(First&& first) const
-            noexcept(is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
+            noexcept(std::is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
           return static_cast<First&&>(first);
         }
 
@@ -397,7 +397,7 @@ namespace unifex
           (requires sender<First> AND sender<Second> AND //
             (!tag_invocable<_fn, First, Second>))
         auto operator()(First&& first, Second&& second) const
-            noexcept(is_nothrow_constructible_v<
+            noexcept(std::is_nothrow_constructible_v<
                     _seq::_sender<First, Second>,
                     First,
                     Second>)

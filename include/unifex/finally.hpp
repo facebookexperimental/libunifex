@@ -434,7 +434,7 @@ namespace unifex
       template <typename Error>
       void set_error(Error&& error) && noexcept {
         static_assert(
-            is_nothrow_constructible_v<std::decay_t<Error>, Error>);
+            std::is_nothrow_constructible_v<std::decay_t<Error>, Error>);
 
         auto* const op = op_;
         unifex::activate_union_member<std::decay_t<Error>>(
@@ -679,8 +679,8 @@ namespace unifex
       template <typename SourceSender2, typename CompletionSender2>
       explicit type(
           SourceSender2&& source, CompletionSender2&& completion)
-          noexcept(is_nothrow_constructible_v<SourceSender, SourceSender2> &&
-              is_nothrow_constructible_v<CompletionSender, CompletionSender2>)
+          noexcept(std::is_nothrow_constructible_v<SourceSender, SourceSender2> &&
+              std::is_nothrow_constructible_v<CompletionSender, CompletionSender2>)
         : source_(static_cast<SourceSender2&&>(source))
         , completion_(static_cast<CompletionSender2&&>(completion)) {}
 
@@ -744,7 +744,7 @@ namespace unifex
       struct _fn {
         template <typename SourceSender, typename CompletionSender>
         auto operator()(SourceSender&& source, CompletionSender&& completion) const
-            noexcept(is_nothrow_constructible_v<
+            noexcept(std::is_nothrow_constructible_v<
                     _final::sender<SourceSender, CompletionSender>,
                     SourceSender,
                     CompletionSender>) -> _final::sender<SourceSender, CompletionSender> {

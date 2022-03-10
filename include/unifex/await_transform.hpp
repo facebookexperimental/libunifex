@@ -95,10 +95,10 @@ struct _awaitable_base<Promise, Value>::type {
 
     template(class... Us)
       (requires (constructible_from<Value, Us...> ||
-          (is_void_v<Value> && sizeof...(Us) == 0)))
+          (std::is_void_v<Value> && sizeof...(Us) == 0)))
     void set_value(Us&&... us) &&
-        noexcept(is_nothrow_constructible_v<Value, Us...> ||
-            is_void_v<Value>) {
+        noexcept(std::is_nothrow_constructible_v<Value, Us...> ||
+            std::is_void_v<Value>) {
       unifex::activate_union_member(result_->value_, (Us&&) us...);
       result_->state_ = _state::value;
       continuation_.resume();
@@ -109,7 +109,7 @@ struct _awaitable_base<Promise, Value>::type {
       result_->state_ = _state::exception;
       continuation_.resume();
     }
-    
+
     void set_done() && noexcept {
       result_->state_ = _state::done;
       continuation_.promise().unhandled_done().resume();

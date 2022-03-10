@@ -136,7 +136,7 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const trigger_receiver& r,
-      VisitFunc&& func) noexcept(is_nothrow_invocable_v<
+      VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
     std::invoke(func, r.get_receiver());
@@ -180,7 +180,7 @@ public:
   }
 
   template(typename Error)
-    (requires is_invocable_v<Func&, Error>)
+    (requires std::is_invocable_v<Func&, Error>)
   void set_error(Error error) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
     auto* const op = op_;
@@ -192,7 +192,7 @@ public:
     using trigger_receiver_t = trigger_receiver<Source, Func, Receiver, trigger_sender_t>;
     using trigger_op_t = unifex::connect_result_t<trigger_sender_t, trigger_receiver_t>;
 
-    if constexpr (is_nothrow_invocable_v<Func&, Error> &&
+    if constexpr (std::is_nothrow_invocable_v<Func&, Error> &&
                   is_nothrow_connectable_v<trigger_sender_t, trigger_receiver_t>) {
       auto& triggerOp = unifex::activate_union_member_with<trigger_op_t>(
         op->triggerOps_,
@@ -230,7 +230,7 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const source_receiver& r,
-      VisitFunc&& func) noexcept(is_nothrow_invocable_v<
+      VisitFunc&& func) noexcept(std::is_nothrow_invocable_v<
                                 VisitFunc&,
                                 const Receiver&>) {
     std::invoke(func, r.get_receiver());
@@ -251,9 +251,9 @@ class _op<Source, Func, Receiver>::type {
 public:
   template <typename Source2, typename Func2, typename Receiver2>
   explicit type(Source2&& source, Func2&& func, Receiver2&& receiver)
-      noexcept(is_nothrow_constructible_v<Source, Source2> &&
-               is_nothrow_constructible_v<Func, Func2> &&
-               is_nothrow_constructible_v<Receiver, Receiver2> &&
+      noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
+               std::is_nothrow_constructible_v<Func, Func2> &&
+               std::is_nothrow_constructible_v<Receiver, Receiver2> &&
                is_nothrow_connectable_v<Source&, source_receiver_t>)
   : source_((Source2&&)source)
   , func_((Func2&&)func)
@@ -313,10 +313,10 @@ template <typename Source, typename Func>
 using sender = typename _sender<remove_cvref_t<Source>, std::decay_t<Func>>::type;
 
 template<typename Sender>
-struct sends_done_impl : bool_constant<sender_traits<Sender>::sends_done> {};
+struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {};
 
 template<typename... Senders>
-using any_sends_done = disjunction<sends_done_impl<Senders>...>;
+using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
 
 template <typename Source, typename Func>
 class _sender<Source, Func>::type {
@@ -349,8 +349,8 @@ public:
 
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)
-    noexcept(is_nothrow_constructible_v<Source, Source2> &&
-             is_nothrow_constructible_v<Func, Func2>)
+    noexcept(std::is_nothrow_constructible_v<Source, Source2> &&
+             std::is_nothrow_constructible_v<Func, Func2>)
     : source_((Source2&&)source)
     , func_((Func2&&)func)
   {}
@@ -368,9 +368,9 @@ public:
           sender_to<Source&, source_receiver<Source, Func, remove_cvref_t<Receiver>>>)
   friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r)
       noexcept(
-        is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
-        is_nothrow_constructible_v<Func, member_t<Self, Func>> &&
-        is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+        std::is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
+        std::is_nothrow_constructible_v<Func, member_t<Self, Func>> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
         is_nothrow_connectable_v<Source&, source_receiver<Source, Func, remove_cvref_t<Receiver>>>)
       -> operation<Source, Func, Receiver> {
     return operation<Source, Func, Receiver>{
@@ -405,7 +405,7 @@ namespace _retry_when_cpo {
           constructible_from<remove_cvref_t<Source>, Source> AND
           constructible_from<remove_cvref_t<Func>, Func>)
     auto operator()(Source&& source, Func&& func) const
-        noexcept(is_nothrow_constructible_v<
+        noexcept(std::is_nothrow_constructible_v<
           _retry_when::sender<Source, Func>, Source, Func>)
         -> _result_t<Source, Func> {
       return _retry_when::sender<Source, Func>{(Source&&)source, (Func&&)func};

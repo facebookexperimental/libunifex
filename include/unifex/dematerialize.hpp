@@ -47,7 +47,7 @@ namespace _demat {
     template(typename Receiver2)
       (requires constructible_from<Receiver, Receiver2>)
     explicit type(Receiver2&& receiver) noexcept(
-        is_nothrow_constructible_v<Receiver, Receiver2>)
+        std::is_nothrow_constructible_v<Receiver, Receiver2>)
       : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
     template(typename CPO, typename... Values)
@@ -80,7 +80,7 @@ namespace _demat {
 
     template <typename Func>
     friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) noexcept(
-                                  is_nothrow_invocable_v<
+                                  std::is_nothrow_invocable_v<
                                       Func&,
                                       const Receiver&>) {
       std::invoke(func, unifex::as_const(r.receiver_));
@@ -99,7 +99,7 @@ namespace _demat {
     template <typename First, typename... Rest>
     struct apply_impl<First, Rest...>
       : std::conditional<
-            is_base_of_v<CPO, std::decay_t<First>>,
+            std::is_base_of_v<CPO, std::decay_t<First>>,
             type_list<Tuple<Rest...>>,
             type_list<>> {};
 
@@ -165,7 +165,7 @@ namespace _demat {
 
     template <typename Source2>
     explicit type(Source2&& source)
-        noexcept(is_nothrow_constructible_v<Source, Source2>)
+        noexcept(std::is_nothrow_constructible_v<Source, Source2>)
       : source_(static_cast<Source2&&>(source)) {}
 
     template(typename Self, typename Receiver)
@@ -173,7 +173,7 @@ namespace _demat {
           sender_to<member_t<Self, Source>, receiver_t<Receiver>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(is_nothrow_connectable_v<member_t<Self, Source>, receiver_t<Receiver>> &&
-                 is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+                 std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
         -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
       return unifex::connect(
           static_cast<Self&&>(self).source_,
@@ -208,7 +208,7 @@ namespace _demat_cpo {
     template(typename Sender)
       (requires (!tag_invocable<_fn, Sender>))
     auto operator()(Sender&& predecessor) const
-        noexcept(is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
+        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
         -> _result_t<Sender> {
       return _demat::sender<Sender>{(Sender &&) predecessor};
     }

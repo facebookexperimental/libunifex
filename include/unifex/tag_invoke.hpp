@@ -88,7 +88,7 @@ namespace unifex {
   {};
 
   template <typename CPO, typename... Args>
-  using is_tag_invocable = bool_constant<is_tag_invocable_v<CPO, Args...>>;
+  using is_tag_invocable = std::bool_constant<is_tag_invocable_v<CPO, Args...>>;
 
   template <typename CPO, typename... Args>
   inline constexpr bool is_nothrow_tag_invocable_v =
@@ -96,7 +96,7 @@ namespace unifex {
 
   template <typename CPO, typename... Args>
   using is_nothrow_tag_invocable =
-      bool_constant<is_nothrow_tag_invocable_v<CPO, Args...>>;
+      std::bool_constant<is_nothrow_tag_invocable_v<CPO, Args...>>;
 
   template <typename CPO, typename... Args>
   UNIFEX_CONCEPT tag_invocable =
