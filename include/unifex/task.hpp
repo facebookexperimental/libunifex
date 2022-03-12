@@ -107,7 +107,7 @@ struct _promise_base {
     }
   };
 
-  void transform_schedule_sender_impl_(any_scheduler_ref newSched);
+  void transform_schedule_sender_impl_(any_scheduler newSched);
 
   coro::suspend_always initial_suspend() noexcept {
     return {};
@@ -127,7 +127,7 @@ struct _promise_base {
     return p.stoken_;
   }
 
-  friend any_scheduler_ref tag_invoke(tag_t<get_scheduler>, const _promise_base& p) noexcept {
+  friend any_scheduler tag_invoke(tag_t<get_scheduler>, const _promise_base& p) noexcept {
     return p.sched_;
   }
 
@@ -140,7 +140,7 @@ struct _promise_base {
 
   continuation_handle<> continuation_;
   inplace_stop_token stoken_;
-  any_scheduler_ref sched_{_default_scheduler};
+  any_scheduler sched_{_default_scheduler};
   bool rescheduled_ = false;
 };
 
@@ -368,7 +368,7 @@ struct _awaiter {
     using scheduler_t = remove_cvref_t<get_scheduler_result_t<OtherPromise&>>;
     using stop_token_t = remove_cvref_t<stop_token_type_t<OtherPromise>>;
     using needs_scheduler_t =
-        bool_constant<!same_as<scheduler_t, any_scheduler_ref>>;
+        bool_constant<!same_as<scheduler_t, any_scheduler>>;
     using needs_stop_token_t =
         bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
 

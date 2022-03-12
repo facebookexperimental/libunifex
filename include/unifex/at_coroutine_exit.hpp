@@ -122,14 +122,14 @@ struct _cleanup_promise_base {
     return unstoppable_token{};
   }
 
-  friend any_scheduler_ref
+  friend any_scheduler
   tag_invoke(tag_t<get_scheduler>, const _cleanup_promise_base& p) noexcept {
     return p.sched_;
   }
 
   inline static constexpr inline_scheduler _default_scheduler{};
   continuation_handle<> continuation_{};
-  any_scheduler_ref sched_{_default_scheduler};
+  any_scheduler sched_{_default_scheduler};
   bool isUnhandledDone_{false};
 };
 
