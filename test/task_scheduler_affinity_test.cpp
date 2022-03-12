@@ -82,8 +82,8 @@ task<bool> test_current_scheduler(Scheduler s) {
 UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
 task<std::pair<bool, std::thread::id>> test_current_scheduler_is_inherited_impl(Scheduler s) {
-  any_scheduler_ref s2 = co_await current_scheduler();
-  bool sameScheduler = s2.equal_to(s);
+  any_scheduler s2 = co_await current_scheduler();
+  bool sameScheduler = (s2 == s);
   co_return std::make_pair(sameScheduler, std::this_thread::get_id());
 }
 UNIFEX_TEMPLATE(typename Scheduler)
