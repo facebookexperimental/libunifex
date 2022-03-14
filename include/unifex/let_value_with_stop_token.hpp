@@ -53,7 +53,7 @@ public:
   explicit type(
       Operation* op,
       inplace_stop_token stop_token,
-      Receiver&& r) noexcept(unifex::is_nothrow_move_constructible_v<Receiver>)
+      Receiver&& r) noexcept(std::is_nothrow_move_constructible_v<Receiver>)
     : op_(op)
     , stop_token_(stop_token)
     , receiver_{(Receiver &&) r} {}
@@ -123,7 +123,7 @@ template <typename SuccessorFactory>
 class _stop_token_sender<SuccessorFactory>::type {
 public:
   using inner_sender_t =
-      unifex::invoke_result_t<SuccessorFactory, inplace_stop_token>;
+      std::invoke_result_t<SuccessorFactory, inplace_stop_token>;
 
   template <
       template <typename...>
@@ -139,16 +139,16 @@ public:
 
   template <typename SuccessorFactory2>
   explicit type(SuccessorFactory2&& func) noexcept(
-      unifex::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>)
+      std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>)
     : func_((SuccessorFactory2 &&) func) {}
 
   template(typename Self, typename Receiver)
     (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver>) friend
   auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
     noexcept(
-      is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_token>
-      && is_nothrow_move_constructible_v<Receiver>
-      && is_nothrow_constructible_v<
+      std::is_nothrow_invocable_v<member_t<Self, SuccessorFactory>, inplace_stop_token>
+      && std::is_nothrow_move_constructible_v<Receiver>
+      && std::is_nothrow_constructible_v<
         operation<member_t<Self, SuccessorFactory>, unifex::remove_cvref_t<Receiver>>,
         SuccessorFactory&&,
         Receiver&&>)
@@ -174,21 +174,21 @@ struct _stop_token_operation<
         is_stop_never_possible_v<stop_token_type_t<Receiver>>>> {
   struct type {
     using inner_sender_t =
-        unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
+        std::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
     using receiver_t = stop_token_receiver<
         operation<SuccessorFactory, Receiver>,
         unifex::remove_cvref_t<Receiver>>;
 
     static constexpr bool successor_is_nothrow =
-        unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
+        std::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
     static constexpr bool inner_receiver_nothrow_constructible =
-        unifex::is_nothrow_constructible_v<
+        std::is_nothrow_constructible_v<
             receiver_t,
             type*,
             inplace_stop_token,
             Receiver&&>;
     static constexpr bool nothrow_connectable =
-        unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>;
+        is_nothrow_connectable_v<inner_sender_t, receiver_t>;
 
   private:
     auto connect_inner_op(
@@ -220,8 +220,8 @@ struct _stop_token_operation<
 
     template <typename SuccessorFactory2, typename Receiver2>
     type(SuccessorFactory2&& func, Receiver2&& r) noexcept(
-        is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>
-        && is_nothrow_constructible_v<Receiver, Receiver2&&>
+        std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>
+        && std::is_nothrow_constructible_v<Receiver, Receiver2&&>
         && noexcept(
             connect_inner_op(
               func_,
@@ -240,15 +240,15 @@ struct _stop_token_operation<
 template <typename SuccessorFactory, typename Receiver, typename AlwaysVoid>
 struct _stop_token_operation<SuccessorFactory, Receiver, AlwaysVoid>::type {
   using inner_sender_t =
-      unifex::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
+      std::invoke_result_t<SuccessorFactory&&, inplace_stop_token>;
   using receiver_t = stop_token_receiver<
       operation<SuccessorFactory, Receiver>,
       unifex::remove_cvref_t<Receiver>>;
 
   static constexpr bool successor_is_nothrow =
-      unifex::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
+      std::is_nothrow_invocable_v<SuccessorFactory&&, inplace_stop_token>;
   static constexpr bool inner_receiver_nothrow_constructible =
-      unifex::is_nothrow_constructible_v<
+      std::is_nothrow_constructible_v<
           receiver_t,
           type*,
           inplace_stop_token,
@@ -278,8 +278,8 @@ private:
 public:
   template <typename SuccessorFactory2, typename Receiver2>
   type(SuccessorFactory2&& func, Receiver2&& r) noexcept(
-      is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>
-      && is_nothrow_constructible_v<Receiver, Receiver2>
+      std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>
+      && std::is_nothrow_constructible_v<Receiver, Receiver2>
       && noexcept(
           connect_inner_op(
           func_,
@@ -305,7 +305,7 @@ namespace _cpo {
 struct _fn {
   template <typename SuccessorFactory>
   auto operator()(SuccessorFactory&& factory) const
-      noexcept(unifex::is_nothrow_constructible_v<
+      noexcept(std::is_nothrow_constructible_v<
                std::decay_t<SuccessorFactory>,
                SuccessorFactory>)
           -> stop_token_sender<std::decay_t<SuccessorFactory>> {

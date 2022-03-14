@@ -44,7 +44,7 @@ namespace _inline_sched {
 
     template(typename Receiver2)
       (requires constructible_from<Receiver, Receiver2>)
-    explicit type(Receiver2&& r) noexcept(is_nothrow_constructible_v<Receiver, Receiver2>)
+    explicit type(Receiver2&& r) noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2>)
       : receiver_((Receiver2 &&) r) {}
 
     void start() noexcept {

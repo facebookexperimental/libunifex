@@ -51,10 +51,10 @@ public:
     template(typename... Values)
         (requires
             invocable<Func&, Values...> AND
-            is_void_v<std::invoke_result_t<Func&, Values...>>)
+            std::is_void_v<std::invoke_result_t<Func&, Values...>>)
     void set_next(Values&&... values) &
         noexcept(
-            is_nothrow_invocable_v<Func&, Values...> &&
+            std::is_nothrow_invocable_v<Func&, Values...> &&
             is_nothrow_next_receiver_v<Receiver>) {
         std::invoke(func_, (Values&&)values...);
         unifex::set_next(receiver_);
@@ -63,10 +63,10 @@ public:
     template(typename... Values)
         (requires
             invocable<Func&, Values...> AND
-            (!is_void_v<std::invoke_result_t<Func&, Values...>>))
+            (!std::is_void_v<std::invoke_result_t<Func&, Values...>>))
     void set_next(Values&&... values) &
         noexcept(
-            is_nothrow_invocable_v<Func&, Values...> &&
+            std::is_nothrow_invocable_v<Func&, Values...> &&
             is_nothrow_next_receiver_v<Receiver, std::invoke_result_t<Func&, Values...>>) {
         unifex::set_next(receiver_, std::invoke(func_, (Values&&)values...));
     }
@@ -136,7 +136,7 @@ struct result_overload {
 using type = type_list<Result>;
 };
 template <typename Result>
-struct result_overload<Result, std::enable_if_t<is_void_v<Result>>> {
+struct result_overload<Result, std::enable_if_t<std::is_void_v<Result>>> {
 using type = type_list<>;
 };
 
@@ -178,10 +178,10 @@ public:
             sender_to<member_t<Self, Source>, tfx_receiver<Func, Policy, remove_cvref_t<Receiver>>>)
     friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r)
         noexcept(
-            is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
-            is_nothrow_constructible_v<Func, member_t<Self, Func>> &&
-            is_nothrow_constructible_v<Policy, member_t<Self, Policy>> &&
-            is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
+            std::is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
+            std::is_nothrow_constructible_v<Func, member_t<Self, Func>> &&
+            std::is_nothrow_constructible_v<Policy, member_t<Self, Policy>> &&
+            std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>) {
         return unifex::connect(
             static_cast<Self&&>(self).source_,
             tfx_receiver<Func, Policy, remove_cvref_t<Receiver>>{
@@ -221,9 +221,9 @@ struct _fn {
             (!tag_invocable<_fn, Source, Func, FuncPolicy>))
     auto operator()(Source&& s, Func&& f, FuncPolicy policy) const
         noexcept(
-            is_nothrow_constructible_v<remove_cvref_t<Source>, Source> &&
-            is_nothrow_constructible_v<remove_cvref_t<Func>, Func> &&
-            is_nothrow_move_constructible_v<FuncPolicy>)
+            std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source> &&
+            std::is_nothrow_constructible_v<remove_cvref_t<Func>, Func> &&
+            std::is_nothrow_move_constructible_v<FuncPolicy>)
         -> tfx_sender<remove_cvref_t<Source>, remove_cvref_t<Func>, FuncPolicy> {
         return tfx_sender<remove_cvref_t<Source>, remove_cvref_t<Func>, FuncPolicy>{
             (Source&&)s, (Func&&)f, std::move(policy)

@@ -130,7 +130,7 @@
 #if defined(_MSC_VER)
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
   typename NAME, \
-  std::enable_if_t<unifex::is_same_v<NAME, __VA_ARGS__>, int> = 0
+  std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0
  # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) NAME
 #else
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__

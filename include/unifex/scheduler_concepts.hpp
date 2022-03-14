@@ -135,7 +135,7 @@ namespace _get_scheduler {
     template (typename T)
       (requires (!same_as<_fn, remove_cvref_t<T>>))
     constexpr kv<_fn, remove_cvref_t<T>> operator=(T&& t) const &
-        noexcept(is_nothrow_constructible_v<remove_cvref_t<T>, T>) {
+        noexcept(std::is_nothrow_constructible_v<remove_cvref_t<T>, T>) {
       return {*this, (T&&) t};
     }
   };

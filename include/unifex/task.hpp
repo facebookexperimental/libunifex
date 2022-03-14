@@ -49,11 +49,11 @@ using namespace _util;
 
 template <typename... Types>
 using _is_single_valued_tuple =
-    bool_constant<1 >= sizeof...(Types)>;
+    std::bool_constant<1 >= sizeof...(Types)>;
 
 template <typename... Types>
 using _is_single_valued_variant =
-    bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
+    std::bool_constant<sizeof...(Types) == 1 && (Types::value &&...)>;
 
 template <typename Sender>
 UNIFEX_CONCEPT_FRAGMENT(     //
@@ -150,7 +150,7 @@ struct _return_value_or_void {
     template(typename Value = T)
         (requires convertible_to<Value, T> AND constructible_from<T, Value>)
     void return_value(Value&& value) noexcept(
-        is_nothrow_constructible_v<T, Value>) {
+        std::is_nothrow_constructible_v<T, Value>) {
       expected_.reset_value();
       unifex::activate_union_member(expected_.value_, (Value &&) value);
       expected_.state_ = _state::value;
@@ -368,9 +368,9 @@ struct _awaiter {
     using scheduler_t = remove_cvref_t<get_scheduler_result_t<OtherPromise&>>;
     using stop_token_t = remove_cvref_t<stop_token_type_t<OtherPromise>>;
     using needs_scheduler_t =
-        bool_constant<!same_as<scheduler_t, any_scheduler>>;
+        std::bool_constant<!same_as<scheduler_t, any_scheduler>>;
     using needs_stop_token_t =
-        bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
+        std::bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
 
     // Only store the scheduler and the stop_token in the awaiter if we need to type
     // erase them. Otherwise, these members are "empty" and should take up no space
@@ -400,7 +400,7 @@ struct _task<T>::type : _task_base, coro_holder {
     template<typename...> class Tuple>
   using value_types =
     Variant<
-      typename conditional_t<is_void_v<T>, type_list<>, type_list<T>>
+      typename std::conditional_t<std::is_void_v<T>, type_list<>, type_list<T>>
         ::template apply<Tuple>>;
 
   template<

@@ -134,7 +134,7 @@ namespace _alloc_cpo {
     template(typename Sender)
       (requires (!tag_invocable<_fn, Sender>))
     auto operator()(Sender&& predecessor) const
-        noexcept(is_nothrow_constructible_v<_alloc::sender<Sender>, Sender>)
+        noexcept(std::is_nothrow_constructible_v<_alloc::sender<Sender>, Sender>)
         -> _result_t<Sender> {
       return _alloc::sender<Sender>{(Sender &&) predecessor};
     }

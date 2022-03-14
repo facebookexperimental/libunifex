@@ -17,79 +17,11 @@
 
 #include <unifex/config.hpp>
 
-#include <functional>
 #include <type_traits>
-
-#if defined(UNIFEX_USE_ABSEIL)
-#include <absl/meta/type_traits.h>
-#endif
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
-
-using std::is_same_v;
-using std::is_void_v;
-using std::is_const_v;
-using std::is_empty_v;
-using std::is_object_v;
-using std::is_base_of_v;
-using std::is_reference_v;
-using std::is_convertible_v;
-using std::is_lvalue_reference_v;
-using std::is_nothrow_destructible_v;
-using std::is_nothrow_constructible_v;
-using std::is_nothrow_copy_constructible_v;
-using std::is_nothrow_move_constructible_v;
-
-#if defined(__cpp_lib_bool_constant) && \
-  __cpp_lib_bool_constant > 0
-using std::bool_constant;
-#else
-template <bool Bool>
-using bool_constant = std::integral_constant<bool, Bool>;
-#endif
-
-#if defined(__cpp_lib_void_t) && __cpp_lib_void_t > 0
-using std::void_t;
-#else
-template <typename...>
-using void_t = void;
-#endif
-
-using std::invoke_result;
-using std::invoke_result_t;
-using std::is_invocable;
-using std::is_nothrow_invocable;
-using std::is_invocable_v;
-using std::is_nothrow_invocable_v;
-
-#if defined(UNIFEX_USE_ABSEIL)
-using absl::disjunction;
-#else
-using std::disjunction;
-#endif
-
-template <std::size_t Len, class... Types>
-struct aligned_union {
-private:
-  static constexpr std::size_t _max(std::initializer_list<std::size_t> alignments) noexcept {
-    std::size_t result = 0;
-    for (auto z : alignments)
-      if (z > result)
-        result = z;
-    return result;
-  }
-public:
-  static constexpr std::size_t alignment_value = _max({alignof(Types)...});
-
-  struct type {
-    alignas(alignment_value) char _s[_max({Len, sizeof(Types)...})];
-  };
-};
-
-template <std::size_t Len, class... Types>
-using aligned_union_t = typename aligned_union<Len, Types...>::type;
 
 namespace _ti {
 template <typename T>
@@ -137,7 +69,7 @@ template <template <typename...> class T, typename... Args>
 inline constexpr bool instance_of_v<T, T<Args...>> = true;
 
 template <template <typename...> class T, typename X>
-using instance_of = bool_constant<instance_of_v<T, X>>;
+using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 namespace _unit {
 struct unit {};
@@ -159,11 +91,11 @@ template <bool B, typename T, typename U>
 using conditional_t = typename _if<B>::template apply<T, U>;
 
 template <typename T>
-using non_void_t = conditional_t<is_void_v<T>, unit, T>;
+using non_void_t = conditional_t<std::is_void_v<T>, unit, T>;
 
 template <typename T>
 using wrap_reference_t = conditional_t<
-    is_reference_v<T>,
+    std::is_reference_v<T>,
     std::reference_wrapper<std::remove_reference_t<T>>,
     T>;
 
@@ -177,10 +109,10 @@ using member_t = decltype(
 
 template <typename T>
 using decay_rvalue_t =
-    conditional_t<is_lvalue_reference_v<T>, T, remove_cvref_t<T>>;
+    conditional_t<std::is_lvalue_reference_v<T>, T, remove_cvref_t<T>>;
 
 template <typename... Args>
-using is_empty_list = bool_constant<(sizeof...(Args) == 0)>;
+using is_empty_list = std::bool_constant<(sizeof...(Args) == 0)>;
 
 template <typename T>
 struct is_nothrow_constructible_from {
@@ -220,14 +152,14 @@ inline constexpr bool is_callable_v =
   sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) == sizeof(_is_callable::yes_type);
 
 template <typename Fn, typename... As>
-struct is_callable : bool_constant<is_callable_v<Fn, As...>> {};
+struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
 
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
     noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
-struct is_nothrow_callable : bool_constant<is_nothrow_callable_v<Fn, As...>> {};
+struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
 template <typename T>
 struct type_always {

@@ -303,7 +303,7 @@ bool io_uring_context::try_submit_io(PopulateFn populateSqe) noexcept {
 
       static_assert(noexcept(populateSqe(sqe)));
 
-      if constexpr (is_void_v<decltype(populateSqe(sqe))>) {
+      if constexpr (std::is_void_v<decltype(populateSqe(sqe))>) {
         populateSqe(sqe);
       } else {
         if (!populateSqe(sqe)) {

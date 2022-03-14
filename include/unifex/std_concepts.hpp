@@ -42,7 +42,7 @@ namespace unifex {
   template <typename From, typename To>
   UNIFEX_CONCEPT
     convertible_to =
-      is_convertible_v<std::add_rvalue_reference_t<From>, To> &&
+      std::is_convertible_v<std::add_rvalue_reference_t<From>, To> &&
       UNIFEX_FRAGMENT(unifex::_explicitly_convertible_to, From, To);
 
   /// \cond
@@ -107,7 +107,7 @@ namespace unifex {
   template <typename T, typename U>
   UNIFEX_CONCEPT
     assignable_from =
-      is_lvalue_reference_v<T> &&
+      std::is_lvalue_reference_v<T> &&
       UNIFEX_FRAGMENT(unifex::_assignable_from, T, U);
 
   template <typename T>
@@ -210,7 +210,7 @@ namespace unifex {
   template <typename T>
   UNIFEX_CONCEPT
     destructible =
-      is_nothrow_destructible_v<T>;
+      std::is_nothrow_destructible_v<T>;
 
   template <typename T, typename... Args>
   UNIFEX_CONCEPT
@@ -253,7 +253,7 @@ namespace unifex {
   template <typename T>
   UNIFEX_CONCEPT
     movable =
-      is_object_v<T> &&
+      std::is_object_v<T> &&
       move_constructible<T> &&
       UNIFEX_FRAGMENT(unifex::_move_assignable, T) &&
       swappable<T>;
@@ -287,7 +287,7 @@ namespace unifex {
   template <typename Fn, typename... As>
   UNIFEX_CONCEPT  //
     invocable = //
-      is_invocable_v<Fn, As...>;
+      std::is_invocable_v<Fn, As...>;
 
 #if UNIFEX_CXX_CONCEPTS
   template <typename Fn, typename... As>

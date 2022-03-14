@@ -51,7 +51,7 @@ namespace detail {
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_sender_types_impl, //
       requires() (          //
-        typename (bool_constant<S::sends_done>),
+        typename (std::bool_constant<S::sends_done>),
         typename (_has_value_types<S::template value_types>),
         typename (_has_error_types<S::template error_types>)
       ));
@@ -64,7 +64,7 @@ namespace detail {
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_bulk_sender_types_impl, //
       requires() (          //
-        typename (bool_constant<S::sends_done>),
+        typename (std::bool_constant<S::sends_done>),
         typename (_has_value_types<S::template value_types>),
         typename (_has_value_types<S::template next_types>),
         typename (_has_error_types<S::template error_types>)
@@ -115,7 +115,7 @@ namespace detail {
 #ifdef _MSC_VER
   template <typename S>
   inline constexpr bool _has_sender_traits =
-      !is_base_of_v<_no_sender_traits, sender_traits<S>>;
+      !std::is_base_of_v<_no_sender_traits, sender_traits<S>>;
 #elif UNIFEX_CXX_CONCEPTS
   template <typename S>
   concept _has_sender_traits =
@@ -141,7 +141,7 @@ namespace detail {
       return _typed_bulk_sender_traits<S>{};
     } else if constexpr (_has_sender_types<S>) {
       return _typed_sender_traits<S>{};
-    } else if constexpr (is_base_of_v<sender_base, S>) {
+    } else if constexpr (std::is_base_of_v<sender_base, S>) {
       return sender_base{};
     } else {
       return _no_sender_traits{};

@@ -35,7 +35,7 @@ constexpr bool has_member_operator_co_await_v = false;
 template <typename Awaitable>
 constexpr bool has_member_operator_co_await_v<
     Awaitable,
-    unifex::void_t<decltype(std::declval<Awaitable>().operator co_await())>> =
+    std::void_t<decltype(std::declval<Awaitable>().operator co_await())>> =
     true;
 
 template <typename Awaitable, typename = void>
@@ -44,7 +44,7 @@ constexpr bool has_free_operator_co_await_v = false;
 template <typename Awaitable>
 constexpr bool has_free_operator_co_await_v<
     Awaitable,
-    unifex::void_t<decltype(operator co_await(std::declval<Awaitable>()))>> = true;
+    std::void_t<decltype(operator co_await(std::declval<Awaitable>()))>> = true;
 
 template <typename Awaiter, typename = void>
 struct await_result_impl {};
@@ -52,7 +52,7 @@ struct await_result_impl {};
 template <typename Awaiter>
 struct await_result_impl<
     Awaiter,
-    unifex::void_t<
+    std::void_t<
         decltype(std::declval<Awaiter&>().await_ready() ? (void)0 : (void)0),
         decltype(std::declval<Awaiter&>().await_resume())>> {
   using type = decltype(std::declval<Awaiter&>().await_resume());

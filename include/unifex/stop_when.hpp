@@ -177,7 +177,7 @@ namespace unifex
           Receiver2&& receiver)
           noexcept(is_nothrow_connectable_v<Source, source_receiver> &&
                    is_nothrow_connectable_v<Trigger, trigger_receiver> &&
-                   is_nothrow_constructible_v<Receiver, Receiver2>)
+                   std::is_nothrow_constructible_v<Receiver, Receiver2>)
         : receiver_((Receiver2 &&) receiver)
         , sourceOp_(unifex::connect((Source &&) source, source_receiver{this}))
         , triggerOp_(
@@ -309,8 +309,8 @@ namespace unifex
 
       template <typename Source2, typename Trigger2>
       explicit type(Source2&& source, Trigger2&& trigger) noexcept(
-          is_nothrow_constructible_v<Source, Source2> &&
-          is_nothrow_constructible_v<Trigger, Trigger2>)
+          std::is_nothrow_constructible_v<Source, Source2> &&
+          std::is_nothrow_constructible_v<Trigger, Trigger2>)
         : source_((Source2 &&) source)
         , trigger_((Trigger2 &&) trigger) {}
 
@@ -365,8 +365,8 @@ namespace unifex
       template(typename Source, typename Trigger)
           (requires (!tag_invocable<_fn, Source, Trigger>))
       auto operator()(Source&& source, Trigger&& trigger) const noexcept(
-          is_nothrow_constructible_v<remove_cvref_t<Source>, Source> &&
-          is_nothrow_constructible_v<remove_cvref_t<Trigger>, Trigger>)
+          std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Trigger>, Trigger>)
           -> _stop_when::stop_when_sender<
               remove_cvref_t<Source>,
               remove_cvref_t<Trigger>> {

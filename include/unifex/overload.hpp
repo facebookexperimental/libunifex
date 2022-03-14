@@ -48,7 +48,7 @@ struct base_cpo {
 };
 
 template <typename CPO>
-struct base_cpo<CPO, unifex::void_t<typename CPO::base_cpo_t>> {
+struct base_cpo<CPO, std::void_t<typename CPO::base_cpo_t>> {
   using type = typename CPO::base_cpo_t;
 };
 

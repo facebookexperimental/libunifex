@@ -72,7 +72,7 @@ class delegating_context {
 template<typename T>
 struct FuncWrapper {
   T func_;
-  operator invoke_result_t<T>() {
+  operator std::invoke_result_t<T>() {
     return func_();
   }
 };

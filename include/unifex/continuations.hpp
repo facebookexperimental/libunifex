@@ -48,7 +48,7 @@ namespace _visit_continuations_cpo {
                 const Continuation&,
                 Func&&>) {
       static_assert(
-          is_void_v<tag_invoke_result_t<
+          std::is_void_v<tag_invoke_result_t<
               _fn,
               const Continuation&,
               Func&&>>,

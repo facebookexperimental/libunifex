@@ -198,7 +198,7 @@ namespace detach_on_cancel_impl {
 inline constexpr struct detach_on_cancel_fn {
   template(typename Sender)(requires sender<Sender>) constexpr auto
   operator()(Sender&& sender) const
-      noexcept(is_nothrow_constructible_v<_detach_on_cancel::sender<remove_cvref_t<Sender>>,
+      noexcept(std::is_nothrow_constructible_v<_detach_on_cancel::sender<remove_cvref_t<Sender>>,
                Sender>) -> _detach_on_cancel::sender<remove_cvref_t<Sender>> {
     return _detach_on_cancel::sender<remove_cvref_t<Sender>>{(Sender &&)
                                                                  sender};

@@ -29,14 +29,14 @@ namespace unifex {
 
 template <typename T>
 class manual_lifetime {
-  static_assert(is_nothrow_destructible_v<T>);
+  static_assert(std::is_nothrow_destructible_v<T>);
  public:
   manual_lifetime() noexcept {}
   ~manual_lifetime() {}
 
   template <typename... Args>
   [[maybe_unused]] T& construct(Args&&... args) noexcept(
-      is_nothrow_constructible_v<T, Args...>) {
+      std::is_nothrow_constructible_v<T, Args...>) {
     return *::new (static_cast<void*>(std::addressof(value_)))
         T((Args &&) args...);
   }
@@ -44,7 +44,7 @@ class manual_lifetime {
   template <typename Func>
   [[maybe_unused]] T& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     static_assert(
-        is_same_v<callable_result_t<Func>, T>,
+        std::is_same_v<callable_result_t<Func>, T>,
         "Return type of func() must be exactly T to permit copy-elision.");
     return *::new (static_cast<void*>(std::addressof(value_)))
         T(((Func &&) func)());
@@ -86,7 +86,7 @@ class manual_lifetime<T&> {
 
   template <typename Func>
   [[maybe_unused]] T& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    static_assert(is_same_v<callable_result_t<Func>, T&>);
+    static_assert(std::is_same_v<callable_result_t<Func>, T&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
   }
@@ -114,7 +114,7 @@ class manual_lifetime<T&&> {
 
   template <typename Func>
   [[maybe_unused]] T&& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    static_assert(is_same_v<callable_result_t<Func>, T&&>);
+    static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
   }
@@ -138,7 +138,7 @@ class manual_lifetime<void> {
   void construct() noexcept {}
   template <typename Func>
   void construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    static_assert(is_void_v<callable_result_t<Func>>);
+    static_assert(std::is_void_v<callable_result_t<Func>>);
     ((Func &&) func)();
   }
   void destruct() noexcept {}
@@ -153,7 +153,7 @@ class manual_lifetime<void const> : public manual_lifetime<void> {};
 template <typename T, typename... Args>
 [[maybe_unused]] //
 T& activate_union_member(manual_lifetime<T>& box, Args&&... args) noexcept(
-    is_nothrow_constructible_v<T, Args...>) {
+    std::is_nothrow_constructible_v<T, Args...>) {
   auto* p = ::new (&box) manual_lifetime<T>{};
   scope_guard guard = [=]() noexcept { p->~manual_lifetime(); };
   auto& t = box.construct(static_cast<Args&&>(args)...);

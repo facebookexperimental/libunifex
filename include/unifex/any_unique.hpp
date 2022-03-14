@@ -300,8 +300,8 @@ struct _concrete_impl {
 
     template <typename... Args>
     explicit base(std::allocator_arg_t, allocator_type alloc, Args&&... args)
-      noexcept(is_nothrow_move_constructible_v<allocator_type> &&
-          is_nothrow_constructible_v<Concrete, Args...>)
+      noexcept(std::is_nothrow_move_constructible_v<allocator_type> &&
+          std::is_nothrow_constructible_v<Concrete, Args...>)
       : value((Args &&) args...)
       , alloc(std::move(alloc)) {}
 

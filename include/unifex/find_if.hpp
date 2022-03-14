@@ -390,8 +390,8 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
     (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
-      is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
-      is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
+      std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+      std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
       is_nothrow_connectable_v<
         member_t<Sender, Predecessor>,
         receiver_type<remove_cvref_t<Receiver>>>)
@@ -416,9 +416,9 @@ namespace _find_if_cpo {
       (requires (!tag_invocable<_fn, Sender, Func, FuncPolicy>))
     auto operator()(Sender&& predecessor, Func&& func, FuncPolicy policy) const
         noexcept(
-        is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
-        is_nothrow_constructible_v<remove_cvref_t<Func>, Func> &&
-        is_nothrow_constructible_v<remove_cvref_t<FuncPolicy>, FuncPolicy>)
+        std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<Func>, Func> &&
+        std::is_nothrow_constructible_v<remove_cvref_t<FuncPolicy>, FuncPolicy>)
         -> _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
       return _find_if::sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
         (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};

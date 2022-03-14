@@ -28,9 +28,9 @@ template <typename Receiver, typename Fn, typename Context>
 struct _op {
   struct type {
     explicit type(Receiver rec, Fn fn, Context ctx)
-        noexcept(is_nothrow_move_constructible_v<Receiver> &&
-          is_nothrow_move_constructible_v<Fn> &&
-          is_nothrow_move_constructible_v<Context>)
+        noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
+          std::is_nothrow_move_constructible_v<Fn> &&
+          std::is_nothrow_move_constructible_v<Context>)
       : rec_((Receiver&&) rec), fn_((Fn&&) fn), ctx_((Context&&) ctx) {}
 
     template (typename... Ts)
@@ -96,7 +96,7 @@ struct _snd_base {
         constructible_from<Context, member_t<Self, Context>>)
     friend _operation<remove_cvref_t<Receiver>, Fn, Context>
     tag_invoke(tag_t<connect>, Self&& self, Receiver&& rec)
-        noexcept(is_nothrow_constructible_v<
+        noexcept(std::is_nothrow_constructible_v<
           _operation<Receiver, Fn, Context>,
           Receiver,
           member_t<Self, Fn>,
@@ -137,13 +137,13 @@ struct _fn {
   template (typename Fn)
     (requires move_constructible<Fn>)
   _sender<Fn, ValueTypes...> operator()(Fn fn) const
-      noexcept(is_nothrow_constructible_v<_sender<Fn, ValueTypes...>, Fn>) {
+      noexcept(std::is_nothrow_constructible_v<_sender<Fn, ValueTypes...>, Fn>) {
     return _sender<Fn, ValueTypes...>{{(Fn&&) fn}};
   }
   template (typename Fn, typename Context)
     (requires move_constructible<Fn> AND move_constructible<Context>)
   _sender_with_context<Fn, Context, ValueTypes...> operator()(Fn fn, Context ctx) const
-      noexcept(is_nothrow_constructible_v<
+      noexcept(std::is_nothrow_constructible_v<
           _sender_with_context<Fn, Context, ValueTypes...>,
           Fn,
           Context>) {
@@ -157,7 +157,7 @@ struct _fn {
  * \fn template <class... ValueTypes> auto create(auto fn [, auto ctx])
  * \brief A utility for building a sender-based API out of a C-style API that
  *        accepts a void* context and a function pointer continuation.
- * 
+ *
  * \em Example:
  * \code
  *  // A void-returning C-style async API that accepts a context and a continuation:

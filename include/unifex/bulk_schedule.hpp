@@ -206,8 +206,8 @@ struct _fn {
             (!tag_invocable<_fn, Scheduler, Integral>))
     auto operator()(Scheduler&& s, Integral n) const
         noexcept(
-            is_nothrow_constructible_v<remove_cvref_t<Scheduler>, Scheduler> &&
-            is_nothrow_move_constructible_v<Integral>)
+            std::is_nothrow_constructible_v<remove_cvref_t<Scheduler>, Scheduler> &&
+            std::is_nothrow_move_constructible_v<Integral>)
         -> default_sender<remove_cvref_t<Scheduler>, Integral> {
         return default_sender<remove_cvref_t<Scheduler>, Integral>{(Scheduler&&)s, std::move(n)};
     }
