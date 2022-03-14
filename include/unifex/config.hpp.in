@@ -228,7 +228,7 @@
 #elif defined(__GNUC__) && __GNUC__ >= 6
 #define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_SAME(...) std::std::is_same_v<__VA_ARGS__>
+#define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
 #else
 #define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
 #endif
