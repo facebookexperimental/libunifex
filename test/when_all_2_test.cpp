@@ -112,7 +112,7 @@ struct string_const_ref_sender {
     unifex::remove_cvref_t<Receiver> receiver_;
     void start() & noexcept {
       std::string s = "hello world";
-      unifex::set_value(std::move(receiver_), unifex::as_const(s));
+      unifex::set_value(std::move(receiver_), std::as_const(s));
       s = "goodbye old value";
     }
   };

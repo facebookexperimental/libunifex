@@ -88,7 +88,7 @@ struct _error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type
   friend auto tag_invoke(CPO cpo, const type& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(unifex::as_const(r.op_.receiver_));
+    return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
   friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const type&) noexcept {
@@ -137,7 +137,7 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type 
   friend auto tag_invoke(CPO cpo, const type& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(unifex::as_const(r.op_.receiver_));
+    return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
   friend unstoppable_token tag_invoke(tag_t<get_stop_token>, const type&) noexcept {
@@ -174,7 +174,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
   friend auto tag_invoke(CPO cpo, const type& r)
       noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(unifex::as_const(r.op_.receiver_));
+    return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
   template <typename Func>
