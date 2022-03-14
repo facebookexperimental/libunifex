@@ -115,7 +115,7 @@ namespace detail {
 #ifdef _MSC_VER
   template <typename S>
   inline constexpr bool _has_sender_traits =
-      !is_base_of_v<_no_sender_traits, sender_traits<S>>;
+      !std::is_base_of_v<_no_sender_traits, sender_traits<S>>;
 #elif UNIFEX_CXX_CONCEPTS
   template <typename S>
   concept _has_sender_traits =
