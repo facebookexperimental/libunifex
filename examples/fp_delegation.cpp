@@ -154,7 +154,7 @@ class delegating_sender {
     auto target_op = [&receiver]() mutable {
       return unifex::connect(
         unifex::schedule(
-          unifex::get_scheduler(unifex::as_const(receiver))),
+          unifex::get_scheduler(std::as_const(receiver))),
           (Receiver&&)receiver);
     };
 

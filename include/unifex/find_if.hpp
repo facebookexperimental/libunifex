@@ -108,7 +108,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
     friend auto tag_invoke(CPO cpo, const R& r) noexcept(
         is_nothrow_callable_v<CPO, const OutputReceiver&>)
         -> callable_result_t<CPO, const OutputReceiver&> {
-      return std::move(cpo)(unifex::as_const(r.output_receiver_));
+      return std::move(cpo)(std::as_const(r.output_receiver_));
     }
   };
 
@@ -265,7 +265,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(unifex::as_const(r.receiver_));
+    return std::move(cpo)(std::as_const(r.receiver_));
   }
 
   template <typename Visit>

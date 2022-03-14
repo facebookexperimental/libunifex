@@ -177,7 +177,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   friend auto tag_invoke(CPO cpo, const R& r) noexcept(
       is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(unifex::as_const(r.get_receiver()));
+    return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
   inplace_stop_source& get_stop_source() const {

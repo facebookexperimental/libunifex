@@ -43,17 +43,6 @@ using std::in_place;
 // using std::in_place_type;
 #endif
 
-#if defined(__cpp_lib_as_const) && __cpp_lib_as_const > 0
-using std::as_const;
-#else
-template <class T>
-constexpr std::add_const_t<T>& as_const(T& t) noexcept {
-  return t;
-}
-template <class T>
-void as_const(const T&&) = delete;
-#endif
-
 } // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

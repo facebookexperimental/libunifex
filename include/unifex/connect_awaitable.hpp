@@ -110,7 +110,7 @@ public:
     friend auto tag_invoke(CPO cpo, const promise_type& p)
         noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
         -> callable_result_t<CPO, const Receiver&> {
-      return cpo(unifex::as_const(p.receiver_));
+      return cpo(std::as_const(p.receiver_));
     }
 
     Receiver& receiver_;
