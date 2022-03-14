@@ -402,8 +402,7 @@ namespace unifex::win32
     template(typename Receiver)(requires receiver_of<Receiver>) friend auto tag_invoke(
         tag_t<connect>,
         const schedule_sender& s,
-        Receiver&& r) noexcept(std::
-                                   std::is_nothrow_constructible_v<
+        Receiver&& r) noexcept(std::is_nothrow_constructible_v<
                                        remove_cvref_t<Receiver>,
                                        Receiver>)
         -> schedule_op<remove_cvref_t<Receiver>> {
