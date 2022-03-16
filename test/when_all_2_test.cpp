@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/just.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
@@ -134,4 +135,10 @@ TEST(WhenAll2, ResultsAreDecayCopied) {
       "hello world", std::get<0>(var::get<0>(std::get<0>(result.value()))));
   EXPECT_EQ(
       "hello world", std::get<0>(var::get<0>(std::get<1>(result.value()))));
+}
+
+TEST(WhenAll2, SenderIsLvalueConnectable) {
+  auto test = unifex::when_all(unifex::just(), unifex::just());
+
+  unifex::sync_wait(test);
 }
