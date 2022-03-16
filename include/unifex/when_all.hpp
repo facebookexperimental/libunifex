@@ -206,9 +206,10 @@ struct _op<Receiver, Senders...>::type {
   template <std::size_t Index, typename Receiver2, typename... Senders2>
   friend struct _element_receiver;
 
-  explicit type(Receiver&& receiver, Senders&&... senders)
-    : receiver_((Receiver &&) receiver),
-      ops_(*this, (Senders &&) senders...) {}
+  template <typename Receiver2, typename... Senders2>
+  explicit type(Receiver2&& receiver, Senders2&&... senders)
+    : receiver_((Receiver2 &&) receiver),
+      ops_(*this, (Senders2 &&) senders...) {}
 
   void start() noexcept {
     stopCallback_.construct(
@@ -312,9 +313,9 @@ class _sender<Senders...>::type {
         when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
   friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
     -> operation<Receiver, member_t<Sender, Senders>...> {
-    return std::apply([&](Senders&&... senders) {
+    return std::apply([&](auto&&... senders) {
       return operation<Receiver, member_t<Sender, Senders>...>{
-          (Receiver &&) receiver, (Senders &&) senders...};
+          (Receiver &&) receiver, static_cast<decltype(senders)>(senders)...};
     }, static_cast<Sender &&>(sender).senders_);
   }
 
