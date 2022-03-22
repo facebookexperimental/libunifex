@@ -52,6 +52,7 @@
 * [Stream Algorithms](#stream-algorithms)
   * [`adapt_stream()`](#adapt_streamstream-stream-func-adaptor---stream)
   * [`next_adapt_stream()`](#next_adapt_streamstream-stream-func-adaptor---stream)
+  * [`cleanup_adapt_stream()`](#cleanup_adapt_streamstream-stream-func-adaptor---stream)
   * [`reduce_stream()`](#reduce_streamstream-stream-t-initialstate-func-reducer---sendert)
   * [`for_each()`](#for_eachstream-stream-func-func---sendervoid)
   * [`transform_stream()`](#transform_streamstream-stream-func-func---stream)
@@ -826,6 +827,11 @@ applies `cleanupAdaptor()` to `cleanup(stream)`.
 
 Applies `adaptor()` to `next(stream)` only.
 The `cleanup(stream)` Sender is passed through unchanged.
+
+### `cleanup_adapt_stream(Stream stream, Func adaptor) -> Stream`
+
+Applies `adaptor()` to `cleanup(stream)` only.
+The `next(stream)` Sender is passed through unchanged.
 
 ### `reduce_stream(Stream stream, T initialState, Func reducer) -> Sender<T>`
 
