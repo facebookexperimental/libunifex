@@ -924,11 +924,13 @@ class io_uring_context::scheduler {
   friend async_read_write_file tag_invoke(
       tag_t<open_file_read_write>,
       scheduler s,
-      const filesystem::path& path);
+      const filesystem::path& path,
+      filesystem::perms perms);
   friend async_write_only_file tag_invoke(
       tag_t<open_file_write_only>,
       scheduler s,
-      const filesystem::path& path);
+      const filesystem::path& path,
+      filesystem::perms perms);
 
   friend bool operator==(scheduler a, scheduler b) noexcept {
     return a.context_ == b.context_;

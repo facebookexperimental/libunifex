@@ -28,6 +28,7 @@ namespace unifex
     namespace filesystem
     {
         using std::filesystem::path;
+        using std::filesystem::perms;
     }
 }
 #   endif
@@ -42,6 +43,7 @@ namespace unifex
     namespace filesystem
     {
         using std::experimental::filesystem::path;
+        using std::experimental::filesystem::perms;
     }
 }
 #   endif
