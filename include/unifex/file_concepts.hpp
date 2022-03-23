@@ -25,6 +25,10 @@
 
 namespace unifex {
 namespace _filesystem {
+inline constexpr filesystem::perms kDefaultPerms = filesystem::perms::owner_write |
+    filesystem::perms::owner_read | filesystem::perms::group_read |
+    filesystem::perms::others_read;
+
 inline const struct open_file_read_only_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor, const filesystem::path& path) const
@@ -42,31 +46,35 @@ inline const struct open_file_read_only_cpo {
 
 inline const struct open_file_write_only_cpo {
   template <typename Executor>
-  auto operator()(Executor&& executor, const filesystem::path& path) const
+  auto operator()(Executor&& executor, const filesystem::path& path, filesystem::perms perms = kDefaultPerms) const
       noexcept(is_nothrow_tag_invocable_v<
                open_file_write_only_cpo,
                Executor,
-               const filesystem::path&>)
+               const filesystem::path&,
+               filesystem::perms>)
           -> tag_invoke_result_t<
               open_file_write_only_cpo,
               Executor,
-              const filesystem::path&> {
-    return unifex::tag_invoke(*this, (Executor &&) executor, path);
+              const filesystem::path&,
+              filesystem::perms> {
+    return unifex::tag_invoke(*this, (Executor &&) executor, path, perms);
   }
 } open_file_write_only{};
 
 inline const struct open_file_read_write_cpo {
   template <typename Executor>
-  auto operator()(Executor&& executor, const filesystem::path& path) const
+  auto operator()(Executor&& executor, const filesystem::path& path, filesystem::perms perms = kDefaultPerms) const
       noexcept(is_nothrow_tag_invocable_v<
                open_file_read_write_cpo,
                Executor,
-               const filesystem::path&>)
+               const filesystem::path&,
+               filesystem::perms>)
           -> tag_invoke_result_t<
               open_file_read_write_cpo,
               Executor,
-              const filesystem::path&> {
-    return unifex::tag_invoke(*this, (Executor &&) executor, path);
+              const filesystem::path&,
+              filesystem::perms> {
+    return unifex::tag_invoke(*this, (Executor &&) executor, path, perms);
   }
 } open_file_read_write{};
 } // namespace _filesystem

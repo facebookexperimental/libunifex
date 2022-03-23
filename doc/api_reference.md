@@ -950,8 +950,8 @@ CPOs.
 You can also call one of the following CPOs, passing the scheduler obtained from
 a given `io_uring_context`, to open a file:
 * `open_file_read_only(scheduler, path) -> AsyncReadFile`
-* `open_file_write_only(scheduler, path) -> AsyncWriteFile`
-* `open_file_read_write(scheduler, path) -> AsyncReadWriteFile`
+* `open_file_write_only(scheduler, path, [perms]) -> AsyncWriteFile`
+* `open_file_read_write(scheduler, path, [perms]) -> AsyncReadWriteFile`
 
 You can then use the following CPOs to read from and/or write to that file.
 * `async_read_some_at(AsyncReadFile& file, AsyncReadFile::offset_t offset, span<std::byte> buffer)`
