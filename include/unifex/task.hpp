@@ -97,10 +97,10 @@ struct _task {
 
 struct _promise_base {
   struct _final_suspend_awaiter_base {
-    static bool await_ready() noexcept {
+    bool await_ready() noexcept {
       return false;
     }
-    static void await_resume() noexcept {}
+    void await_resume() noexcept {}
 
     friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _final_suspend_awaiter_base&) noexcept {
       return blocking_kind::always_inline;
