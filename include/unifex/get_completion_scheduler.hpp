@@ -20,6 +20,7 @@
 #include <unifex/completion_channels.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/std_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 
 #include <type_traits>
@@ -29,18 +30,40 @@
 namespace unifex {
 namespace _get_completion_scheduler {
 
-template <typename CPO, typename T>
+template <typename CPO>
 struct _fn;
 
-template <typename CPO>
-struct _fn<CPO, typename std::enable_if_t<
-            std::is_same_v<CPO, unifex::set_value_t> ||
-            std::is_same_v<CPO, unifex::set_error_t> ||
-            std::is_same_v<CPO, unifex::set_done_t>, void>> {
-  template(typename Sender)
-    (requires sender<Sender>&& is_nothrow_tag_invocable_v<_fn, Sender const&>&&
-          scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
-  auto operator()(Sender const& sender) const noexcept -> tag_invoke_result_t<_fn, Sender const&> {
+template <>
+struct _fn<set_value_t> {
+  template (typename Sender)
+  (requires sender<Sender> AND
+            is_nothrow_tag_invocable_v<_fn, Sender const&> AND
+            scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
+  constexpr auto operator()(const Sender& s) const noexcept {
+    return tag_invoke(*this, s);
+  }
+};
+
+template <>
+struct _fn<set_error_t> {
+  template (typename Sender)
+  (requires sender<Sender> AND
+            is_nothrow_tag_invocable_v<_fn, Sender const&> AND
+            scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
+  constexpr auto operator()(Sender const& sender) const noexcept
+      -> tag_invoke_result_t<_fn, Sender const&> {
+    return tag_invoke(*this, sender);
+  }
+};
+
+template <>
+struct _fn<set_done_t> {
+  template (typename Sender)
+  (requires sender<Sender> AND
+            is_nothrow_tag_invocable_v<_fn, Sender const&> AND
+            scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
+  constexpr auto operator()(Sender const& sender) const noexcept
+      -> tag_invoke_result_t<_fn, Sender const&> {
     return tag_invoke(*this, sender);
   }
 };
@@ -48,7 +71,7 @@ struct _fn<CPO, typename std::enable_if_t<
 }  // namespace _get_completion_scheduler
 
 template <typename CPO>
-constexpr _get_completion_scheduler::_fn<CPO, void> get_completion_scheduler{};
+inline _get_completion_scheduler::_fn<CPO> get_completion_scheduler{};
 
 }  // namespace unifex
 
