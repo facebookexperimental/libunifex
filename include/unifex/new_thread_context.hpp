@@ -15,8 +15,11 @@
  */
 #pragma once
 
+#include <unifex/completion_channels.hpp>
+#include <unifex/get_completion_scheduler.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/tag_invoke.hpp>
 
 #include <atomic>
 #include <condition_variable>
@@ -39,18 +42,17 @@ using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
 template <typename Receiver>
 class _op<Receiver>::type final {
- public:
+public:
   template <typename Receiver2>
   explicit type(context* ctx, Receiver2&& r)
-    : ctx_(ctx), receiver_((Receiver2&&)r) {}
+    : ctx_(ctx)
+    , receiver_((Receiver2 &&) r) {}
 
-  ~type() {
-      UNIFEX_ASSERT(!thread_.joinable());
-  }
+  ~type() { UNIFEX_ASSERT(!thread_.joinable()); }
 
   void start() & noexcept;
 
- private:
+private:
   void run() noexcept;
 
   context* ctx_;
@@ -65,10 +67,15 @@ private:
   template <class Receiver>
   friend struct _op;
 
+  class scheduler;
+
   class schedule_sender {
   public:
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = Variant<Tuple<>>;
 
     template <template <typename...> class Variant>
@@ -76,12 +83,18 @@ private:
 
     static constexpr bool sends_done = true;
 
-    explicit schedule_sender(context* ctx) noexcept
-      : context_(ctx) {}
+    explicit schedule_sender(context* ctx) noexcept : context_(ctx) {}
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const {
-      return operation<Receiver>{context_, (Receiver&&)r};
+      return operation<Receiver>{context_, (Receiver &&) r};
+    }
+
+    template <typename CPO>
+    friend auto tag_invoke(
+        _get_completion_scheduler::_fn<CPO>,
+        schedule_sender const& sender) noexcept -> scheduler {
+      return scheduler{sender.context_};
     }
 
   private:
@@ -110,9 +123,9 @@ public:
   context() = default;
 
   ~context() {
-    // The activeThreadCount_ counter is initialised to 1 so it will never get to
-    // zero until after enter the destructor and decrement the last count here.
-    // We do this so that the retire_thread() call doesn't end up calling
+    // The activeThreadCount_ counter is initialised to 1 so it will never get
+    // to zero until after enter the destructor and decrement the last count
+    // here. We do this so that the retire_thread() call doesn't end up calling
     // into the cv_.notify_one() until we are about to start waiting on the
     // cv.
     activeThreadCount_.fetch_sub(1, std::memory_order_relaxed);
@@ -126,9 +139,7 @@ public:
     }
   }
 
-  scheduler get_scheduler() noexcept {
-    return scheduler{this};
-  }
+  scheduler get_scheduler() noexcept { return scheduler{this}; }
 
 private:
   void retire_thread(std::thread t) noexcept {
@@ -170,7 +181,8 @@ inline void _op<Receiver>::type::start() & noexcept {
     // we ensure the count increment happens before the count decrement that
     // is performed when the thread is being retired.
     ctx_->activeThreadCount_.fetch_add(1, std::memory_order_relaxed);
-  } UNIFEX_CATCH (...) {
+  }
+  UNIFEX_CATCH(...) {
     unifex::set_error(std::move(receiver_), std::current_exception());
   }
 }
@@ -191,8 +203,8 @@ inline void _op<Receiver>::type::run() noexcept {
     // inside start().
     //
     // TODO: This can be replaced with an atomic<bool>::wait() once we have
-    // access to C++20 atomics. This would eliminate the unnecessary synchronisation
-    // performed by the unlock() at end-of-scope here.
+    // access to C++20 atomics. This would eliminate the unnecessary
+    // synchronisation performed by the unlock() at end-of-scope here.
     std::lock_guard opLock{mut_};
     thisThread = std::move(thread_);
   }
@@ -200,9 +212,8 @@ inline void _op<Receiver>::type::run() noexcept {
   if (get_stop_token(receiver_).stop_requested()) {
     unifex::set_done(std::move(receiver_));
   } else {
-    UNIFEX_TRY {
-      unifex::set_value(std::move(receiver_));
-    } UNIFEX_CATCH (...) {
+    UNIFEX_TRY { unifex::set_value(std::move(receiver_)); }
+    UNIFEX_CATCH(...) {
       unifex::set_error(std::move(receiver_), std::current_exception());
     }
   }
@@ -210,10 +221,10 @@ inline void _op<Receiver>::type::run() noexcept {
   ctx->retire_thread(std::move(thisThread));
 }
 
-} // namespace _new_thread
+}  // namespace _new_thread
 
 using new_thread_context = _new_thread::context;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
