@@ -107,22 +107,22 @@ namespace unifex
     template(typename T)                                        //
         (requires(!same_as<remove_cvref_t<T>, type>) AND        //
          (!_is_any_object_tag_argument<remove_cvref_t<T>>) AND  //
-             can_be_type_erased_v<remove_cvref_t<T>> AND        //
+             _any_object::can_be_type_erased_v<remove_cvref_t<T>> AND        //
                  constructible_from<remove_cvref_t<T>, T> AND   //
-         (can_be_stored_inplace_v<remove_cvref_t<T>> ||         //
+         (_any_object::can_be_stored_inplace_v<remove_cvref_t<T>> ||         //
           default_constructible<DefaultAllocator>))             //
         /*implicit*/ type(T&& object) noexcept(
-            can_be_stored_inplace_v<remove_cvref_t<T>>&&
+            _any_object::can_be_stored_inplace_v<remove_cvref_t<T>>&&
                 std::is_nothrow_constructible_v<remove_cvref_t<T>, T>)
       : type(std::in_place_type<remove_cvref_t<T>>, static_cast<T&&>(object)) {}
 
     template(typename T, typename Allocator)                   //
-        (requires can_be_type_erased_v<remove_cvref_t<T>> AND  //
+        (requires _any_object::can_be_type_erased_v<remove_cvref_t<T>> AND  //
              constructible_from<remove_cvref_t<T>, T>)         //
         explicit type(
             std::allocator_arg_t,
             Allocator allocator,
-            T&& value) noexcept(can_be_stored_inplace_v<remove_cvref_t<T>>&&
+            T&& value) noexcept(_any_object::can_be_stored_inplace_v<remove_cvref_t<T>>&&
                                     std::is_nothrow_constructible_v<
                                         remove_cvref_t<T>,
                                         T>)
@@ -133,7 +133,7 @@ namespace unifex
             static_cast<T&&>(value)) {}
 
     template(typename T, typename... Args)     //
-        (requires can_be_stored_inplace_v<T>)  //
+        (requires _any_object::can_be_stored_inplace_v<T>)  //
         explicit type(std::in_place_type_t<T>, Args&&... args) noexcept(
             std::is_nothrow_constructible_v<T, Args...>)
       : vtable_(vtable_holder_t::template create<T>()) {
@@ -141,8 +141,8 @@ namespace unifex
     }
 
     template(typename T, typename... Args)             //
-        (requires can_be_type_erased_v<T> AND          //
-         (!can_be_stored_inplace_v<T>) AND             //
+        (requires _any_object::can_be_type_erased_v<T> AND          //
+         (!_any_object::can_be_stored_inplace_v<T>) AND             //
              default_constructible<DefaultAllocator>)  //
         explicit type(std::in_place_type_t<T>, Args&&... args)
       : type(
@@ -152,8 +152,8 @@ namespace unifex
             static_cast<Args&&>(args)...) {}
 
     template(typename T, typename Allocator, typename... Args)  //
-        (requires can_be_type_erased_v<T> AND                   //
-             can_be_stored_inplace_v<T>)                        //
+        (requires _any_object::can_be_type_erased_v<T> AND                   //
+             _any_object::can_be_stored_inplace_v<T>)                        //
         explicit type(
             std::allocator_arg_t,
             Allocator,
@@ -163,8 +163,8 @@ namespace unifex
       : type(std::in_place_type<T>, static_cast<Args&&>(args)...) {}
 
     template(typename T, typename Alloc, typename... Args)  //
-        (requires can_be_type_erased_v<T> AND               //
-         (!can_be_stored_inplace_v<T>))                     //
+        (requires _any_object::can_be_type_erased_v<T> AND               //
+         (!_any_object::can_be_stored_inplace_v<T>))                     //
         explicit type(
             std::allocator_arg_t,
             Alloc alloc,
@@ -229,9 +229,9 @@ namespace unifex
     }
 
     template(typename T)                                      //
-        (requires can_be_type_erased_v<T> AND                 //
+        (requires _any_object::can_be_type_erased_v<T> AND                 //
              constructible_from<remove_cvref_t<T>, T> AND     //
-                 can_be_stored_inplace_v<remove_cvref_t<T>>)  //
+                 _any_object::can_be_stored_inplace_v<remove_cvref_t<T>>)  //
         type&
         operator=(T&& value) noexcept(
             std::is_nothrow_constructible_v<remove_cvref_t<T>, T>) {
@@ -252,10 +252,10 @@ namespace unifex
     }
 
     template(typename T)                                      //
-        (requires can_be_type_erased_v<T> AND                 //
+        (requires _any_object::can_be_type_erased_v<T> AND                 //
              constructible_from<remove_cvref_t<T>, T> AND     //
                  default_constructible<DefaultAllocator> AND  //
-         (!can_be_stored_inplace_v<remove_cvref_t<T>>))       //
+         (!_any_object::can_be_stored_inplace_v<remove_cvref_t<T>>))       //
         type&
         operator=(T&& value) {
       auto* destroy = vtable_->template get<detail::_destroy_cpo>();
