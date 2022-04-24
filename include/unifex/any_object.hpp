@@ -107,8 +107,8 @@ namespace unifex
     template(typename T)                                        //
         (requires(!same_as<remove_cvref_t<T>, type>) AND        //
          (!_is_any_object_tag_argument<remove_cvref_t<T>>) AND  //
+             constructible_from<remove_cvref_t<T>, T> AND                  //
              _any_object::can_be_type_erased_v<remove_cvref_t<T>> AND        //
-                 constructible_from<remove_cvref_t<T>, T> AND   //
          (_any_object::can_be_stored_inplace_v<remove_cvref_t<T>> ||         //
           default_constructible<DefaultAllocator>))             //
         /*implicit*/ type(T&& object) noexcept(
@@ -133,17 +133,19 @@ namespace unifex
             static_cast<T&&>(value)) {}
 
     template(typename T, typename... Args)     //
-        (requires _any_object::can_be_stored_inplace_v<T>)  //
+        (requires constructible_from<T, Args...> AND
+                  _any_object::can_be_stored_inplace_v<T>)  //
         explicit type(std::in_place_type_t<T>, Args&&... args) noexcept(
             std::is_nothrow_constructible_v<T, Args...>)
       : vtable_(vtable_holder_t::template create<T>()) {
       ::new (static_cast<void*>(&storage_)) T(static_cast<Args&&>(args)...);
     }
 
-    template(typename T, typename... Args)             //
-        (requires _any_object::can_be_type_erased_v<T> AND          //
-         (!_any_object::can_be_stored_inplace_v<T>) AND             //
-             default_constructible<DefaultAllocator>)  //
+    template(typename T, typename... Args)               //
+        (requires constructible_from<T, Args...> AND     //
+             _any_object::can_be_type_erased_v<T> AND    //
+         (!_any_object::can_be_stored_inplace_v<T>) AND  //
+             default_constructible<DefaultAllocator>)    //
         explicit type(std::in_place_type_t<T>, Args&&... args)
       : type(
             std::allocator_arg,
@@ -163,20 +165,33 @@ namespace unifex
       : type(std::in_place_type<T>, static_cast<Args&&>(args)...) {}
 
     template(typename T, typename Alloc, typename... Args)  //
-        (requires _any_object::can_be_type_erased_v<T> AND               //
-         (!_any_object::can_be_stored_inplace_v<T>))                     //
+        (requires _any_object::can_be_type_erased_v<T> AND  //
+         (!_any_object::can_be_stored_inplace_v<T>))        //
         explicit type(
             std::allocator_arg_t,
             Alloc alloc,
             std::in_place_type_t<T>,
             Args&&... args)
-      : type(
-            std::in_place_type<
-                detail::any_heap_allocated_storage<T, Alloc, CPOs...>>,
-            std::allocator_arg,
-            std::move(alloc),
-            std::in_place_type<T>,
-            static_cast<Args&&>(args)...) {}
+      // COMPILER: This should ideally be delegating to the constructor:
+      //
+      //   type(std::in_place_type<
+      //          detail::any_heap_allocated_storage<T, Alloc, CPOs...>,
+      //        std::allocator_arg, std::move(alloc), std::in_place_type<T>,
+      //        static_cast<Args&&>(args)...)
+      //
+      // But doing so causes an infinite recursion of template constructor
+      // instantiations under MSVC 14.31.31103 (as well as other versions).
+      // So instead we duplicate the body of the constructor this would end
+      // up calling here to avoid the recursive instantiations.
+      : vtable_(vtable_holder_t::template create<
+                detail::any_heap_allocated_storage<T, Alloc, CPOs...>>()) {
+      ::new (static_cast<void*>(&storage_))
+          detail::any_heap_allocated_storage<T, Alloc, CPOs...>(
+              std::allocator_arg,
+              std::move(alloc),
+              std::in_place_type<T>,
+              static_cast<Args&&>(args)...);
+    }
 
     type(const type&) = delete;
 
