@@ -72,8 +72,9 @@ struct _successor_receiver<Operation, Values...>::type {
   }
 
   void set_done() && noexcept {
+    auto& op = op_;
     cleanup();
-    unifex::set_done(std::move(op_.receiver_));
+    unifex::set_done(std::move(op.receiver_));
   }
 
   // Taking by value here to force a copy on the offchance the error
@@ -81,8 +82,9 @@ struct _successor_receiver<Operation, Values...>::type {
   // case the call to cleanup() would invalidate it.
   template <typename Error>
   void set_error(Error error) && noexcept {
+    auto& op = op_;
     cleanup();
-    unifex::set_error(std::move(op_.receiver_), (Error &&) error);
+    unifex::set_error(std::move(op.receiver_), (Error &&) error);
   }
 
 private:

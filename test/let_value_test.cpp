@@ -245,6 +245,13 @@ unifex::task<int> someTask(int num) {
   co_return num;
 }
 
+unifex::task<void> someDoneTask(int num) {
+  if (num == 1) {
+    throw std::invalid_argument("Throwing for testing purposes");
+  }
+  co_return;
+}
+
 TEST(Let, SimpleLetValueWithCoroutine) {
   optional<int> result =
       sync_wait(let_value(unifex::just(42), [](int num) {
@@ -254,5 +261,17 @@ TEST(Let, SimpleLetValueWithCoroutine) {
   EXPECT_TRUE(!!result);
   EXPECT_EQ(*result, 42);
   std::cout << "let_value with simple coroutine done " << *result << "\n";
+}
+
+TEST(Let, SimpleLetValueVoidWithCoroutine) {
+  EXPECT_NO_THROW(sync_wait(let_value(unifex::just(), []() {
+    return someDoneTask(5);
+  })));
+}
+
+TEST(Let, SimpleLetValueErrorWithCoroutine) {
+  EXPECT_THROW(sync_wait(let_value(unifex::just(1), [](int num) {
+    return someDoneTask(num);
+  })), std::invalid_argument);
 }
 #endif // !UNIFEX_NO_COROUTINES
