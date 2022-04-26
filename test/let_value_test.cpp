@@ -26,6 +26,10 @@
 #include <iostream>
 #include <unifex/variant.hpp>
 
+#if !UNIFEX_NO_COROUTINES
+#include <unifex/task.hpp>
+#endif // !UNIFEX_NO_COROUTINES
+
 #include <gtest/gtest.h>
 
 using namespace unifex;
@@ -235,3 +239,20 @@ TEST(Let, PipeNeverBlockingKind) {
   using Snd2 = decltype(snd2);
   static_assert(blocking_kind::never == cblocking<Snd2>());
 }
+
+#if !UNIFEX_NO_COROUTINES
+unifex::task<int> someTask(int num) {
+  co_return num;
+}
+
+TEST(Let, SimpleLetValueWithCoroutine) {
+  optional<int> result =
+      sync_wait(let_value(unifex::just(42), [](int num) {
+        return someTask(num);
+    }));
+
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(*result, 42);
+  std::cout << "let_value with simple coroutine done " << *result << "\n";
+}
+#endif // !UNIFEX_NO_COROUTINES
