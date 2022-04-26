@@ -264,8 +264,8 @@ TEST(Let, SimpleLetValueWithCoroutine) {
 }
 
 TEST(Let, SimpleLetValueVoidWithCoroutine) {
-  EXPECT_NO_THROW(sync_wait(let_value(unifex::just(), []() {
-    return someDoneTask(5);
+  EXPECT_NO_THROW(sync_wait(let_value(unifex::just(5), [](int num) {
+    return someDoneTask(num);
   })));
 }
 
