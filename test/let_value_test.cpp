@@ -21,14 +21,13 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/allocate.hpp>
+#include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
 
 #include <chrono>
 #include <iostream>
 #include <unifex/variant.hpp>
-
-#if !UNIFEX_NO_COROUTINES
-#include <unifex/task.hpp>
-#endif // !UNIFEX_NO_COROUTINES
 
 #include <gtest/gtest.h>
 
@@ -240,38 +239,25 @@ TEST(Let, PipeNeverBlockingKind) {
   static_assert(blocking_kind::never == cblocking<Snd2>());
 }
 
-#if !UNIFEX_NO_COROUTINES
-unifex::task<int> someTask(int num) {
-  co_return num;
-}
-
-unifex::task<void> someDoneTask(int num) {
-  if (num == 1) {
-    throw std::invalid_argument("Throwing for testing purposes");
-  }
-  co_return;
-}
-
-TEST(Let, SimpleLetValueWithCoroutine) {
+TEST(Let, SimpleLetValueWithAllocate) {
   optional<int> result =
       sync_wait(let_value(unifex::just(42), [](int num) {
-        return someTask(num);
+        return unifex::allocate(unifex::just(num));
     }));
 
   EXPECT_TRUE(!!result);
   EXPECT_EQ(*result, 42);
-  std::cout << "let_value with simple coroutine done " << *result << "\n";
+  std::cout << "let_value with allocate done " << *result << "\n";
 }
 
-TEST(Let, SimpleLetValueVoidWithCoroutine) {
-  EXPECT_NO_THROW(sync_wait(let_value(unifex::just(5), [](int num) {
-    return someDoneTask(num);
+TEST(Let, SimpleLetValueVoidWithAllocate) {
+  EXPECT_NO_THROW(sync_wait(let_value(unifex::just(42), [](int) {
+    return unifex::allocate(unifex::just_done());
   })));
 }
 
-TEST(Let, SimpleLetValueErrorWithCoroutine) {
-  EXPECT_THROW(sync_wait(let_value(unifex::just(1), [](int num) {
-    return someDoneTask(num);
+TEST(Let, SimpleLetValueErrorWithAllocate) {
+  EXPECT_THROW(sync_wait(let_value(unifex::just(1), [](int) {
+    return unifex::allocate(unifex::just_error(std::invalid_argument("Throwing error for testing purposes")));
   })), std::invalid_argument);
 }
-#endif // !UNIFEX_NO_COROUTINES
