@@ -15,15 +15,15 @@
  */
 #pragma once
 
+#include <unifex/any_ref.hpp>
+#include <unifex/any_sender_of.hpp>
 #include <unifex/any_unique.hpp>
 #include <unifex/receiver_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/any_unique.hpp>
-#include <unifex/any_sender_of.hpp>
+#include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/type_index.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/type_index.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -125,8 +125,8 @@ struct _schedule_and_connect_fn {
   };
 };
 
-template <typename... CPOs>
-inline constexpr typename _schedule_and_connect_fn<CPOs...>::type _schedule_and_connect{};
+template <typename... ReceiverCPOs>
+inline constexpr typename _schedule_and_connect_fn<ReceiverCPOs...>::type _schedule_and_connect{};
 
 template <typename... CPOs>
 using _any_void_sender_of =
@@ -210,8 +210,8 @@ private:
   any_scheduler_impl<CPOs...> impl_;
 };
 
-template <typename... CPOs>
-using any_scheduler_ref_impl = any_ref_t<_schedule_and_connect<CPOs...>>;
+template <typename... ReceiverCPOs>
+using any_scheduler_ref_impl = any_ref_t<_schedule_and_connect<ReceiverCPOs...>>;
 
 template <typename... CPOs>
 struct _with<CPOs...>::any_scheduler_ref {

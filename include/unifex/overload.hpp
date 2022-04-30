@@ -50,9 +50,6 @@ struct base_cpo<CPO, std::void_t<typename CPO::base_cpo_t>> {
   using type = typename CPO::base_cpo_t;
 };
 
-template <typename CPO>
-using base_cpo_t = typename base_cpo<CPO>::type;
-
 template <typename CPO, typename Sig>
 inline constexpr typename _cpo_t<CPO, Sig>::type _cpo{};
 
@@ -63,6 +60,9 @@ struct _sig {};
 
 template <typename Sig>
 inline constexpr _overload::_sig<Sig> const sig{};
+
+template <typename CPO>
+using base_cpo_t = typename _overload::base_cpo<CPO>::type;
 
 template <auto& CPO, typename Sig>
 using overload_t = typename _overload::_cpo_t<tag_t<CPO>, Sig>::type;

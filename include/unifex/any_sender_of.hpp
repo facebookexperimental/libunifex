@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/any_ref.hpp>
 #include <unifex/any_unique.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>

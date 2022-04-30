@@ -150,6 +150,33 @@ using decay_rvalue_t =
 template <typename... Args>
 using is_empty_list = std::bool_constant<(sizeof...(Args) == 0)>;
 
+// Polyfill for std::is_nothrow_convertible[_v] which is only available in C++20 or later.
+#if __cpp_lib_is_nothrow_convertible >= 201806L
+
+template<typename From, typename To>
+inline constexpr bool is_nothrow_convertible_v = std::is_nothrow_convertible_v<From, To>;
+
+template<typename From, typename To>
+using is_nothrow_convertible = std::is_nothrow_convertible<From, To>;
+
+#else
+namespace _is_nothrow_convertible {
+
+template<typename From, typename To>
+auto test(int) -> decltype(std::bool_constant<noexcept(static_cast<void(*)(To) noexcept>(nullptr)(static_cast<From(*)() noexcept>(nullptr)()))>{});
+template<typename From, typename To>
+auto test(...) -> std::bool_constant<std::is_void_v<From> && std::is_void_v<To>>;
+
+}
+
+template<typename From, typename To>
+using is_nothrow_convertible = decltype(_is_nothrow_convertible::test<From, To>(0));
+
+template<typename From, typename To>
+inline constexpr bool is_nothrow_convertible_v = is_nothrow_convertible<From, To>::value;
+
+#endif
+
 template <typename T>
 struct is_nothrow_constructible_from {
   template <typename... Args>
@@ -190,12 +217,36 @@ inline constexpr bool is_callable_v =
 template <typename Fn, typename... As>
 struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
 
+template <bool Callable, typename R, typename Fn, typename... As>
+inline constexpr bool _is_callable_r_v = false;
+
+template<typename R, typename Fn, typename... As>
+inline constexpr bool _is_callable_r_v<true, R, Fn, As...> = std::is_convertible_v<callable_result_t<Fn, As...>, R>;
+
+template<typename R, typename Fn, typename... As>
+inline constexpr bool is_callable_r_v = _is_callable_r_v<is_callable_v<Fn, As...>, R, Fn, As...>;
+
+template<typename R, typename Fn, typename... As>
+struct is_callable_r : std::bool_constant<is_callable_r_v<R, Fn, As...>> {};
+
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
     noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
 struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
+
+template<bool IsNothrowCallable, typename R, typename Fn, typename... As>
+inline constexpr bool _is_nothrow_callable_r_v = false;
+
+template<typename R, typename Fn, typename... As>
+inline constexpr bool _is_nothrow_callable_r_v<true, R, Fn, As...> = is_nothrow_convertible<callable_result_t<Fn, As...>, R>::value; 
+
+template<typename R, typename Fn, typename... As>
+inline constexpr bool is_nothrow_callable_r_v = _is_nothrow_callable_r_v<is_nothrow_callable_v<Fn, As...>, R, Fn, As...>;
+
+template<typename R, typename Fn, typename... As>
+struct is_nothrow_callable_r : std::bool_constant<is_nothrow_callable_r_v<R, Fn, As...>> {};
 
 template <typename T>
 struct type_always {

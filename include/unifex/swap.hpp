@@ -30,29 +30,16 @@ template <typename T, typename U, typename = void>
 extern bool const is_nothrow_swappable_with_v;
 
 namespace _swap {
-    struct nope;
-
-    // Intentionally create an ambiguity with std::swap, which is
-    // (possibly) unconstrained.
-    template <typename T>
-    nope* swap(T &, T &) = delete;
-
-    template <typename T, std::size_t N>
-    nope* swap(T (&)[N], T (&)[N]) = delete;
-
-#ifdef CPP_WORKAROUND_MSVC_895622
-    nope swap();
-#endif
+    void swap();
 
     template <typename T, typename U>
-    decltype(swap(std::declval<T>(), std::declval<U>())) try_adl_swap_(int);
+    decltype(static_cast<void>(swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&))), std::true_type{}) _try_adl_swap(int);
 
     template <typename T, typename U>
-    nope* try_adl_swap_(long);
+    std::false_type _try_adl_swap(long);
 
     template <typename T, typename U = T>
-    inline constexpr bool is_adl_swappable_v =
-        !UNIFEX_IS_SAME(decltype(_swap::try_adl_swap_<T, U>(42)), nope*);
+    inline constexpr bool is_adl_swappable_v = decltype(_swap::_try_adl_swap<T, U>(0))::value;
 
     struct _fn {
         // Dispatch to user-defined swap found via ADL:
@@ -92,21 +79,21 @@ namespace _swap {
 namespace _swap_cpo {
 inline constexpr _swap::_fn swap {};
 } // namespace _swap_cpo
-using _swap_cpo::swap;
+using namespace _swap_cpo;
 
 template <typename, typename, typename>
 inline constexpr bool is_swappable_with_v = false;
 
 template <typename T, typename U>
 inline constexpr bool is_swappable_with_v<
-    T, U, decltype(swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&)))> = true;
+    T, U, decltype(unifex::swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&)))> = true;
 
 template <typename, typename, typename>
 inline constexpr bool is_nothrow_swappable_with_v = false;
 
 template <typename T, typename U>
 inline constexpr bool is_nothrow_swappable_with_v<
-    T, U, decltype(swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&)))> = 
+    T, U, decltype(unifex::swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&)))> = 
     noexcept(swap(UNIFEX_DECLVAL(T&&), UNIFEX_DECLVAL(U&&)));
 } // namespace unifex
 
