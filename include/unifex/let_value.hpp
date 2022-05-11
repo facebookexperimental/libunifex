@@ -250,12 +250,12 @@ private:
   using predecessor_type = remove_cvref_t<Predecessor>;
   UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  UNIFEX_NO_UNIQUE_ADDRESS typename predecessor_type::
+  UNIFEX_NO_UNIQUE_ADDRESS typename sender_traits<predecessor_type>::
       template value_types<manual_lifetime_union, decayed_tuple>
           values_;
   union {
     manual_lifetime<connect_result_t<Predecessor, predecessor_receiver<operation>>> predOp_;
-    typename predecessor_type::template
+    typename sender_traits<predecessor_type>::template
         value_types<manual_lifetime_union, successor_operation>
             succOp_;
   };

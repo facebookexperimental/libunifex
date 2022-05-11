@@ -261,3 +261,24 @@ TEST(Let, SimpleLetValueErrorWithAllocate) {
     return unifex::allocate(unifex::just_error(std::invalid_argument("Throwing error for testing purposes")));
   })), std::invalid_argument);
 }
+
+namespace {
+struct TraitslessSender {
+  template <typename Receiver>
+  auto connect(Receiver&& receiver) {
+    return unifex::connect(unifex::just(42), (Receiver &&) receiver);
+  }
+};
+}  // namespace
+
+namespace unifex {
+template <>
+struct sender_traits<TraitslessSender> : sender_traits<decltype(just(42))> {};
+}  // namespace unifex
+
+TEST(Let, LetValueWithTraitlessPredecessor) {
+  auto ret = sync_wait(
+      let_value(TraitslessSender{}, [](int val) { return just(val); }));
+  ASSERT_TRUE(ret);
+  EXPECT_EQ(*ret, 42);
+}
