@@ -16,11 +16,11 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/blocking.hpp>
+#include <unifex/optional.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
-#include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/optional.hpp>
 
 #include <exception>
 #include <tuple>
@@ -60,10 +60,12 @@ template <typename Error>
 class _sender<Error>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Error error_;
 
-  public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<>;
 
   template <template <typename...> class Variant>
@@ -71,17 +73,22 @@ class _sender<Error>::type {
 
   static constexpr bool sends_done = false;
 
-  template<typename Error2>
-  explicit type(in_place_t, Error2&& error)
-    noexcept(std::is_nothrow_constructible_v<Error, Error2>)
+  template <typename Error2>
+  explicit type(in_place_t, Error2&& error) noexcept(
+      std::is_nothrow_constructible_v<Error, Error2>)
     : error_((Error2 &&) error) {}
 
-  template(typename This, typename Receiver)
-      (requires same_as<remove_cvref_t<This>, type> AND
-        receiver<Receiver, Error> AND
-        constructible_from<Error, member_t<This, Error>>)
-  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
-      noexcept(std::is_nothrow_constructible_v<Error, member_t<This, Error>>)
+  template(typename This, typename Receiver)(
+      requires same_as<remove_cvref_t<This>, type> AND receiver<Receiver, Error> AND constructible_from<
+          Error,
+          member_t<
+              This,
+              Error>>) friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r) noexcept(std::
+                                                                                                      is_nothrow_constructible_v<
+                                                                                                          Error,
+                                                                                                          member_t<
+                                                                                                              This,
+                                                                                                              Error>>)
       -> operation<Receiver, Error> {
     return {static_cast<This&&>(that).error_, static_cast<Receiver&&>(r)};
   }
@@ -90,20 +97,20 @@ class _sender<Error>::type {
     return blocking_kind::always_inline;
   }
 };
-} // namespace _just_error
+}  // namespace _just_error
 
 namespace _just_error_cpo {
-  inline const struct just_error_fn {
-    template <typename Error>
-    constexpr auto operator()(Error&& error) const
+inline const struct just_error_fn {
+  template <typename Error>
+  constexpr auto operator()(Error&& error) const
       noexcept(std::is_nothrow_constructible_v<std::decay_t<Error>, Error>)
-      -> _just_error::sender<Error> {
-      return _just_error::sender<Error>{in_place, (Error&&) error};
-    }
-  } just_error{};
-} // namespace _just_error_cpo
+          -> _just_error::sender<Error> {
+    return _just_error::sender<Error>{in_place, (Error &&) error};
+  }
+} just_error{};
+}  // namespace _just_error_cpo
 using _just_error_cpo::just_error;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

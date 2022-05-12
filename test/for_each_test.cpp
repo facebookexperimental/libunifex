@@ -16,8 +16,8 @@
 #include <unifex/for_each.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/trampoline_scheduler.hpp>
 #include <unifex/then.hpp>
+#include <unifex/trampoline_scheduler.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/typed_via_stream.hpp>
 
@@ -29,20 +29,16 @@ using namespace unifex;
 
 TEST(ForEach, Smoke) {
   sync_wait(then(
-    for_each(
-      transform_stream(
-        range_stream{0, 10}, [](int value) { return value * value; }),
-      [](int value) { std::printf("got %i\n", value); }),
-    []() { std::printf("done\n"); }));
+      for_each(
+          transform_stream(
+              range_stream{0, 10}, [](int value) { return value * value; }),
+          [](int value) { std::printf("got %i\n", value); }),
+      []() { std::printf("done\n"); }));
 }
 
 TEST(ForEach, Pipeable) {
-  range_stream{0, 10}
-    | transform_stream(
-        [](int value) { return value * value; })
-    | for_each(
-      [](int value) { std::printf("got %i\n", value); })
-    | then(
-      []() { std::printf("done\n"); })
-    | sync_wait();
+  range_stream{0, 10} |
+      transform_stream([](int value) { return value * value; }) |
+      for_each([](int value) { std::printf("got %i\n", value); }) |
+      then([]() { std::printf("done\n"); }) | sync_wait();
 }

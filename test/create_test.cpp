@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
+#include <unifex/async_scope.hpp>
 #include <unifex/create.hpp>
 #include <unifex/single_thread_context.hpp>
-#include <unifex/async_scope.hpp>
 #include <unifex/sync_wait.hpp>
 
 #include <gtest/gtest.h>
 
 #if !UNIFEX_NO_COROUTINES
-#include <unifex/task.hpp>
-#endif // !UNIFEX_NO_COROUTINES
+#  include <unifex/task.hpp>
+#endif  // !UNIFEX_NO_COROUTINES
 
 using namespace unifex;
 
@@ -32,28 +32,30 @@ struct CreateTest : testing::Test {
   unifex::single_thread_context someThread;
   unifex::async_scope someScope;
 
-  ~CreateTest() {
-    sync_wait(someScope.cleanup());
-  }
+  ~CreateTest() { sync_wait(someScope.cleanup()); }
 
-  void anIntAPI(int a, int b, void* context, void (*completed)(void* context, int result)) {
+  void anIntAPI(
+      int a,
+      int b,
+      void* context,
+      void (*completed)(void* context, int result)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
-      auto result = a + b;
-      completed(context, result);
-    });
+    someScope.detached_spawn_call_on(
+        someThread.get_scheduler(), [=]() noexcept {
+          auto result = a + b;
+          completed(context, result);
+        });
   }
 
   void aVoidAPI(void* context, void (*completed)(void* context)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
-      completed(context);
-    });
+    someScope.detached_spawn_call_on(
+        someThread.get_scheduler(), [=]() noexcept { completed(context); });
   }
 };
-} // anonymous namespace
+}  // anonymous namespace
 
 TEST_F(CreateTest, BasicTest) {
   auto snd = [this](int a, int b) {
@@ -73,15 +75,16 @@ TEST_F(CreateTest, BasicTest) {
 TEST_F(CreateTest, VoidWithContextTest) {
   bool called = false;
   auto snd = [&called, this]() {
-    return create<>([this](auto& rec) {
-      static_assert(receiver_of<decltype(rec)>);
-      aVoidAPI(&rec, [](void* context) {
-        auto& rec2 = unifex::void_cast<decltype(rec)>(context);
-        rec2.context().get() = true;
-        rec2.set_value();
-      });
-    },
-    std::ref(called));
+    return create<>(
+        [this](auto& rec) {
+          static_assert(receiver_of<decltype(rec)>);
+          aVoidAPI(&rec, [](void* context) {
+            auto& rec2 = unifex::void_cast<decltype(rec)>(context);
+            rec2.context().get() = true;
+            rec2.set_value();
+          });
+        },
+        std::ref(called));
   }();
 
   optional<unit> res = sync_wait(std::move(snd));
@@ -105,4 +108,4 @@ TEST_F(CreateTest, AwaitTest) {
   EXPECT_EQ(*res, 3);
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

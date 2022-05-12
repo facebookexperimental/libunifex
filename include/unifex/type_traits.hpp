@@ -28,10 +28,10 @@ template <typename T>
 struct type_identity {
   using type = T;
 };
-} // namespace _ti
+}  // namespace _ti
 using _ti::type_identity;
 
-template<typename T>
+template <typename T>
 using type_identity_t = typename type_identity<T>::type;
 
 template <typename... Ts>
@@ -47,20 +47,41 @@ using single_type_t = typename single_type<Ts...>::type;
 
 // We don't care about volatile, and not handling volatile is
 // less work for the compiler.
-template <class T> struct remove_cvref { using type = T; };
-template <class T> struct remove_cvref<T const> { using type = T; };
+template <class T>
+struct remove_cvref {
+  using type = T;
+};
+template <class T>
+struct remove_cvref<T const> {
+  using type = T;
+};
 // template <class T> struct remove_cvref<T volatile> { using type = T; };
 // template <class T> struct remove_cvref<T const volatile> { using type = T; };
-template <class T> struct remove_cvref<T&> { using type = T; };
-template <class T> struct remove_cvref<T const&> { using type = T; };
+template <class T>
+struct remove_cvref<T&> {
+  using type = T;
+};
+template <class T>
+struct remove_cvref<T const&> {
+  using type = T;
+};
 // template <class T> struct remove_cvref<T volatile&> { using type = T; };
-// template <class T> struct remove_cvref<T const volatile&> { using type = T; };
-template <class T> struct remove_cvref<T&&> { using type = T; };
-template <class T> struct remove_cvref<T const&&> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile&> { using type = T;
+// };
+template <class T>
+struct remove_cvref<T&&> {
+  using type = T;
+};
+template <class T>
+struct remove_cvref<T const&&> {
+  using type = T;
+};
 // template <class T> struct remove_cvref<T volatile&&> { using type = T; };
-// template <class T> struct remove_cvref<T const volatile&&> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile&&> { using type = T;
+// };
 
-template <class T> using remove_cvref_t = typename remove_cvref<T>::type;
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
 
 template <template <typename...> class T, typename X>
 inline constexpr bool instance_of_v = false;
@@ -73,7 +94,7 @@ using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 namespace _unit {
 struct unit {};
-}
+}  // namespace _unit
 using _unit::unit;
 
 template <bool B>
@@ -103,9 +124,8 @@ template <class Member, class Self>
 Member Self::*_memptr(const Self&);
 
 template <typename Self, typename Member>
-using member_t = decltype(
-    (UNIFEX_DECLVAL(Self&&) .*
-        unifex::_memptr<Member>(UNIFEX_DECLVAL(Self&&))));
+using member_t = decltype((
+    UNIFEX_DECLVAL(Self &&).*unifex::_memptr<Member>(UNIFEX_DECLVAL(Self &&))));
 
 template <typename T>
 using decay_rvalue_t =
@@ -131,35 +151,39 @@ inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =
-    decltype(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...));
+    decltype(UNIFEX_DECLVAL(Fn &&)(UNIFEX_DECLVAL(As &&)...));
 
 namespace _is_callable {
-  struct yes_type { char dummy; };
-  struct no_type { char dummy[2]; };
-  static_assert(sizeof(yes_type) != sizeof(no_type));
+struct yes_type {
+  char dummy;
+};
+struct no_type {
+  char dummy[2];
+};
+static_assert(sizeof(yes_type) != sizeof(no_type));
 
-  template <
-      typename Fn,
-      typename... As,
-      typename = callable_result_t<Fn, As...>>
-  yes_type _try_call(Fn(*)(As...))
-      noexcept(noexcept(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...)));
-  no_type _try_call(...) noexcept(false);
-} // namespace _is_callable
+template <typename Fn, typename... As, typename = callable_result_t<Fn, As...>>
+yes_type _try_call(Fn (*)(As...)) noexcept(
+    noexcept(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...)));
+no_type _try_call(...) noexcept(false);
+}  // namespace _is_callable
 
 template <typename Fn, typename... As>
-inline constexpr bool is_callable_v =
-  sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) == sizeof(_is_callable::yes_type);
+inline constexpr bool
+    is_callable_v = sizeof(decltype(_is_callable::_try_call(
+                        static_cast<Fn (*)(As...)>(nullptr)))) ==
+    sizeof(_is_callable::yes_type);
 
 template <typename Fn, typename... As>
 struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
 
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
-    noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+    noexcept(_is_callable::_try_call(static_cast<Fn (*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
-struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
+struct is_nothrow_callable
+  : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
 template <typename T>
 struct type_always {
@@ -245,7 +269,6 @@ struct meta_quote1_ {
   };
 };
 
-
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

@@ -26,8 +26,7 @@ namespace unifex {
 namespace {
 
 TEST(just_void_or_done, just_void) {
-  optional<int> i =
-      sync_wait(then(just_void_or_done(true), [] { return 42; }));
+  optional<int> i = sync_wait(then(just_void_or_done(true), [] { return 42; }));
   ASSERT_TRUE(i.has_value());
   EXPECT_EQ(*i, 42);
 }

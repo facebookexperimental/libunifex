@@ -15,13 +15,13 @@
  */
 #pragma once
 
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/optional.hpp>
+#include <unifex/ready_done_sender.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/ready_done_sender.hpp>
-#include <unifex/scope_guard.hpp>
-#include <unifex/optional.hpp>
 
 #include <type_traits>
 
@@ -34,7 +34,8 @@ struct _next_op {
   struct type;
 };
 template <typename Sender, typename Receiver>
-using next_operation = typename _next_op<Sender, remove_cvref_t<Receiver>>::type;
+using next_operation =
+    typename _next_op<Sender, remove_cvref_t<Receiver>>::type;
 
 template <typename Sender, typename Receiver>
 struct _next_op<Sender, Receiver>::type {
@@ -44,19 +45,16 @@ struct _next_op<Sender, Receiver>::type {
   };
   bool done_;
 
-  template(typename Receiver2)
-    (requires constructible_from<Receiver, Receiver2>)
-  explicit type(Receiver2&& receiver)
-    : receiver_((Receiver2&&)receiver)
-    , done_(true)
-  {}
+  template(typename Receiver2)(requires constructible_from<
+                               Receiver,
+                               Receiver2>) explicit type(Receiver2&& receiver)
+    : receiver_((Receiver2 &&) receiver)
+    , done_(true) {}
 
-  explicit type(Sender&& sender, Receiver&& receiver)
-    : done_(false)
-  {
+  explicit type(Sender&& sender, Receiver&& receiver) : done_(false) {
     unifex::activate_union_member_with(innerOp_, [&] {
       return unifex::connect(
-          static_cast<Sender&&>(sender), (Receiver&&)receiver);
+          static_cast<Sender&&>(sender), (Receiver &&) receiver);
     });
   }
 
@@ -91,8 +89,11 @@ struct _stream<Sender>::type {
   struct next_sender {
     optional<Sender> sender_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = sender_value_types_t<Sender, Variant, Tuple>;
 
     template <template <typename...> class Variant>
@@ -103,15 +104,18 @@ struct _stream<Sender>::type {
     template <typename Receiver>
     auto connect(Receiver&& receiver) {
       if (sender_) {
-        return next_operation<Sender, Receiver>{*std::move(sender_), (Receiver&&)receiver};
+        return next_operation<Sender, Receiver>{
+            *std::move(sender_), (Receiver &&) receiver};
       } else {
-        return next_operation<Sender, Receiver>{(Receiver&&)receiver};
+        return next_operation<Sender, Receiver>{(Receiver &&) receiver};
       }
     }
   };
 
   friend next_sender tag_invoke(tag_t<next>, type& s) {
-    scope_guard g{[&]() noexcept { s.sender_.reset(); }};
+    scope_guard g{[&]() noexcept {
+      s.sender_.reset();
+    }};
     return next_sender{std::move(s.sender_)};
   }
 
@@ -120,28 +124,26 @@ struct _stream<Sender>::type {
   }
 
   template <typename Sender2>
-  explicit type(Sender2&& sender)
-    : sender_(in_place, (Sender2&&)sender) {}
+  explicit type(Sender2&& sender) : sender_(in_place, (Sender2 &&) sender) {}
 };
-} // namespace _single
+}  // namespace _single
 
 namespace _single_cpo {
-  inline const struct _fn {
-    template <typename Sender>
-    auto operator()(Sender&& sender) const {
-      return _single::stream<Sender>{(Sender&&)sender};
-    }
-    constexpr auto operator()() const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn>)
-        -> bind_back_result_t<_fn> {
-      return bind_back(*this);
-    }
-  } single{};
-} // namespace _single_cpo
+inline const struct _fn {
+  template <typename Sender>
+  auto operator()(Sender&& sender) const {
+    return _single::stream<Sender>{(Sender &&) sender};
+  }
+  constexpr auto operator()() const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+          -> bind_back_result_t<_fn> {
+    return bind_back(*this);
+  }
+} single{};
+}  // namespace _single_cpo
 
 using _single_cpo::single;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

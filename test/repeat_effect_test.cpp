@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
-#include <unifex/then.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/repeat_effect_until.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/just_from.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -39,12 +39,9 @@ TEST(RepeatEffect, Smoke) {
 
   std::atomic<int> count{0};
 
-  sync_wait(
-    stop_when(
-      repeat_effect(
-        sequence(
-          schedule_after(scheduler, 50ms), 
-          just_from([&]{ ++count; }))),
+  sync_wait(stop_when(
+      repeat_effect(sequence(
+          schedule_after(scheduler, 50ms), just_from([&] { ++count; }))),
       schedule_after(scheduler, 500ms)));
 
   EXPECT_GT(count.load(), 1);
@@ -57,12 +54,9 @@ TEST(RepeatEffect, Pipeable) {
 
   std::atomic<int> count{0};
 
-  sequence(
-    schedule_after(scheduler, 50ms), 
-    just_from([&]{ ++count; }))
-    | repeat_effect()
-    | stop_when(schedule_after(scheduler, 500ms))
-    | sync_wait();
+  sequence(schedule_after(scheduler, 50ms), just_from([&] { ++count; })) |
+      repeat_effect() | stop_when(schedule_after(scheduler, 500ms)) |
+      sync_wait();
 
   EXPECT_GT(count.load(), 1);
 }

@@ -18,47 +18,47 @@
 
 #if !UNIFEX_NO_LIBURING
 
-#include <unifex/linux/io_uring_context.hpp>
+#  include <unifex/linux/io_uring_context.hpp>
 
-#include <unifex/scope_guard.hpp>
-#include <unifex/exception.hpp>
+#  include <unifex/exception.hpp>
+#  include <unifex/scope_guard.hpp>
 
-#include "io_uring_syscall.hpp"
+#  include "io_uring_syscall.hpp"
 
-#include <cstring>
-#include <system_error>
+#  include <cstring>
+#  include <system_error>
 
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/eventfd.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
+#  include <fcntl.h>
+#  include <poll.h>
+#  include <sys/eventfd.h>
+#  include <sys/mman.h>
+#  include <sys/stat.h>
+#  include <time.h>
+#  include <unistd.h>
 
-#include <cstdio>
+#  include <cstdio>
 
 //#define LOGGING_ENABLED
 
-#ifdef LOGGING_ENABLED
-#define LOG(S)             \
-  do {                     \
-    ::std::puts(S);        \
-    ::std::fflush(stdout); \
-  } while (false)
-#define LOGX(...)               \
-  do {                          \
-    ::std::printf(__VA_ARGS__); \
-    ::std::fflush(stdout);      \
-  } while (false)
-#else
-#define LOG(S) \
-  do {         \
-  } while (false)
-#define LOGX(...) \
-  do {            \
-  } while (false)
-#endif
+#  ifdef LOGGING_ENABLED
+#    define LOG(S)             \
+      do {                     \
+        ::std::puts(S);        \
+        ::std::fflush(stdout); \
+      } while (false)
+#    define LOGX(...)               \
+      do {                          \
+        ::std::printf(__VA_ARGS__); \
+        ::std::fflush(stdout);      \
+      } while (false)
+#  else
+#    define LOG(S) \
+      do {         \
+      } while (false)
+#    define LOGX(...) \
+      do {            \
+      } while (false)
+#  endif
 
 /////////////////////////////////////////////////////
 // io_uring structures
@@ -282,7 +282,7 @@ io_uring_context::io_uring_context() {
         cqEntryCount_ ==
         *reinterpret_cast<unsigned*>(
             cqBlock +
-            params.cq_off.ring_entries)); // Is this a valid assumption?
+            params.cq_off.ring_entries));  // Is this a valid assumption?
     cqMask_ = *reinterpret_cast<unsigned*>(cqBlock + params.cq_off.ring_mask);
     UNIFEX_ASSERT(cqMask_ == (cqEntryCount_ - 1));
     cqHead_ =
@@ -317,7 +317,7 @@ io_uring_context::io_uring_context() {
         sqEntryCount_ ==
         *reinterpret_cast<unsigned*>(
             sqBlock +
-            params.sq_off.ring_entries)); // Is this a valid assumption?
+            params.sq_off.ring_entries));  // Is this a valid assumption?
     sqMask_ = *reinterpret_cast<unsigned*>(sqBlock + params.sq_off.ring_mask);
     UNIFEX_ASSERT(sqMask_ == (sqEntryCount_ - 1));
     sqHead_ =
@@ -362,7 +362,8 @@ io_uring_context::io_uring_context() {
   LOG("io_uring_context construction done");
 }
 
-io_uring_context::~io_uring_context() {}
+io_uring_context::~io_uring_context() {
+}
 
 void io_uring_context::run_impl(const bool& shouldStop) {
   LOG("run loop started");
@@ -614,7 +615,7 @@ void io_uring_context::acquire_remote_queued_items() noexcept {
 bool io_uring_context::try_register_remote_queue_notification() noexcept {
   // Check that we haven't already hit the limit of pending
   // I/O completion events.
-  const auto populateRemoteQueuePollSqe = [this](io_uring_sqe & sqe) noexcept {
+  const auto populateRemoteQueuePollSqe = [this](io_uring_sqe& sqe) noexcept {
     auto queuedItems = remoteQueue_.try_mark_inactive_or_dequeue_all();
     if (!queuedItems.empty()) {
       schedule_local(std::move(queuedItems));
@@ -745,7 +746,7 @@ void io_uring_context::update_timers() noexcept {
 }
 
 bool io_uring_context::try_submit_timer_io(const time_point& dueTime) noexcept {
-  auto populateSqe = [&](io_uring_sqe & sqe) noexcept {
+  auto populateSqe = [&](io_uring_sqe& sqe) noexcept {
     sqe.opcode = IORING_OP_TIMEOUT;
     sqe.flags = 0;
     sqe.ioprio = 0;
@@ -754,7 +755,7 @@ bool io_uring_context::try_submit_timer_io(const time_point& dueTime) noexcept {
     sqe.addr = reinterpret_cast<std::uintptr_t>(&time_);
     sqe.len = 1;
     sqe.rw_flags =
-        1; // HACK: Should be 'sqe.timeout_flags = IORING_TIMEOUT_ABS'
+        1;  // HACK: Should be 'sqe.timeout_flags = IORING_TIMEOUT_ABS'
     sqe.user_data = timer_user_data();
     sqe.__pad2[0] = sqe.__pad2[1] = sqe.__pad2[2] = 0;
 
@@ -771,8 +772,8 @@ bool io_uring_context::try_submit_timer_io(const time_point& dueTime) noexcept {
 }
 
 bool io_uring_context::try_submit_timer_io_cancel() noexcept {
-  auto populateSqe = [&](io_uring_sqe & sqe) noexcept {
-    sqe.opcode = 12; // IORING_OP_TIMEOUT_REMOVE;
+  auto populateSqe = [&](io_uring_sqe& sqe) noexcept {
+    sqe.opcode = 12;  // IORING_OP_TIMEOUT_REMOVE;
     sqe.flags = 0;
     sqe.ioprio = 0;
     sqe.fd = 0;
@@ -826,6 +827,6 @@ io_uring_context::async_read_write_file tag_invoke(
   return io_uring_context::async_read_write_file{*scheduler.context_, result};
 }
 
-} // namespace unifex::linuxos
+}  // namespace unifex::linuxos
 
-#endif // UNIFEX_NO_LIBURING
+#endif  // UNIFEX_NO_LIBURING

@@ -61,7 +61,7 @@ inline constexpr typename _cpo_t<CPO, Sig>::type _cpo{};
 template <typename Sig>
 struct _sig {};
 
-} // namespace _overload
+}  // namespace _overload
 
 template <typename Sig>
 inline constexpr _overload::_sig<Sig> const sig{};
@@ -75,6 +75,6 @@ overload(CPO const&, _overload::_sig<Sig> = {}) noexcept {
   return _overload::_cpo<CPO, Sig>;
 }
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

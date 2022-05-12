@@ -30,7 +30,7 @@ inline constexpr std::size_t dynamic_extent = static_cast<std::size_t>(-1);
 
 template <typename T, std::size_t Extent = dynamic_extent>
 struct span {
- public:
+public:
   using value_type = T;
   using size_type = std::size_t;
   using reference = std::add_lvalue_reference_t<T>;
@@ -42,7 +42,7 @@ struct span {
   explicit constexpr span(T* data) noexcept : data_(data) {}
 
   explicit constexpr span(const span<T, dynamic_extent>& other) noexcept
-      : data_(other.data()) {
+    : data_(other.data()) {
     UNIFEX_ASSERT(other.size() >= Extent);
   }
 
@@ -58,23 +58,26 @@ struct span {
 
   template <std::size_t OtherExtent>
   constexpr span(const span<T, OtherExtent>& other) noexcept
-      : data_(other.data()) {
+    : data_(other.data()) {
     static_assert(
         OtherExtent >= Extent,
         "Cannot construct a larger span from a smaller one");
   }
 
-  template(typename U)
-    (requires (!std::is_const_v<U>) AND same_as<const U, T>)
-  explicit constexpr span(const span<U, dynamic_extent>& other) noexcept
-      : data_(other.data()) {
+  template(typename U)(
+      requires(!std::is_const_v<U>) AND same_as<
+          const U,
+          T>) explicit constexpr span(const span<U, dynamic_extent>&
+                                          other) noexcept
+    : data_(other.data()) {
     UNIFEX_ASSERT(other.size() >= Extent);
   }
 
-  template(std::size_t OtherExtent, typename U)
-      (requires (!std::is_const_v<U>) AND same_as<const U, T>)
-  constexpr span(const span<U, OtherExtent>& other) noexcept
-      : data_(other.data()) {
+  template(std::size_t OtherExtent, typename U)(
+      requires(!std::is_const_v<U>)
+          AND same_as<const U, T>) constexpr span(const span<U, OtherExtent>&
+                                                      other) noexcept
+    : data_(other.data()) {
     static_assert(
         OtherExtent >= Extent,
         "Cannot construct a larger span from a smaller one");
@@ -85,25 +88,15 @@ struct span {
     return data_[index];
   }
 
-  constexpr T* data() const noexcept {
-    return data_;
-  }
+  constexpr T* data() const noexcept { return data_; }
 
-  constexpr std::size_t size() const noexcept {
-    return Extent;
-  }
+  constexpr std::size_t size() const noexcept { return Extent; }
 
-  constexpr bool empty() const noexcept {
-    return Extent == 0;
-  }
+  constexpr bool empty() const noexcept { return Extent == 0; }
 
-  T* begin() const noexcept {
-    return data();
-  }
+  T* begin() const noexcept { return data(); }
 
-  T* end() const noexcept {
-    return data() + size();
-  }
+  T* end() const noexcept { return data() + size(); }
 
   template <std::size_t N>
   span<T, N> first() const noexcept {
@@ -138,13 +131,13 @@ struct span {
 
   span<T, dynamic_extent> after(std::size_t count) const noexcept;
 
- private:
+private:
   T* data_;
 };
 
 template <typename T>
 struct span<T, dynamic_extent> {
- public:
+public:
   using value_type = T;
   using size_type = std::size_t;
   using reference = std::add_lvalue_reference_t<T>;
@@ -153,45 +146,40 @@ struct span<T, dynamic_extent> {
   constexpr span() noexcept : data_(nullptr), size_(0) {}
 
   constexpr span(T* data, std::size_t size) noexcept
-      : data_(data), size_(size) {}
+    : data_(data)
+    , size_(size) {}
 
   template <std::size_t N>
-  constexpr span(T (&arr)[N]) noexcept : data_(arr), size_(N) {}
+  constexpr span(T (&arr)[N]) noexcept : data_(arr)
+                                       , size_(N) {}
 
   template <std::size_t N>
   constexpr span(std::array<T, N>& arr) noexcept
-      : data_(arr.data()), size_(N) {}
+    : data_(arr.data())
+    , size_(N) {}
 
-  template(typename U, std::size_t OtherExtent)
-      (requires same_as<U, T> ||
-          (!std::is_const_v<U> && same_as<const U, T>))
-  constexpr span(const span<U, OtherExtent>& other) noexcept
-      : data_(other.data()), size_(other.size()) {}
+  template(typename U, std::size_t OtherExtent)(
+      requires same_as<U, T> ||
+      (!std::is_const_v<U> &&
+       same_as<const U, T>)) constexpr span(const span<U, OtherExtent>&
+                                                other) noexcept
+    : data_(other.data())
+    , size_(other.size()) {}
 
   T& operator[](std::size_t index) const noexcept {
     UNIFEX_ASSERT(index < size());
     return data_[index];
   }
 
-  T* data() const noexcept {
-    return data_;
-  }
+  T* data() const noexcept { return data_; }
 
-  bool empty() const noexcept {
-    return size_ == 0;
-  }
+  bool empty() const noexcept { return size_ == 0; }
 
-  std::size_t size() const noexcept {
-    return size_;
-  }
+  std::size_t size() const noexcept { return size_; }
 
-  T* begin() const noexcept {
-    return data();
-  }
+  T* begin() const noexcept { return data(); }
 
-  T* end() const noexcept {
-    return data() + size();
-  }
+  T* end() const noexcept { return data() + size(); }
 
   template <std::size_t N>
   span<T, N> first() const noexcept {
@@ -241,47 +229,47 @@ struct span<T, dynamic_extent> {
     return span<T, dynamic_extent>{data() + count, size() - count};
   }
 
- private:
+private:
   T* data_;
   std::size_t size_;
 };
 
 template <typename T, std::size_t Extent>
-inline span<T, dynamic_extent> span<T, Extent>::first(std::size_t count) const
-    noexcept {
+inline span<T, dynamic_extent>
+span<T, Extent>::first(std::size_t count) const noexcept {
   UNIFEX_ASSERT(count <= Extent);
   return span<T, dynamic_extent>{data(), count};
 }
 
 template <typename T, std::size_t Extent>
-inline span<T, dynamic_extent> span<T, Extent>::last(std::size_t count) const
-    noexcept {
+inline span<T, dynamic_extent>
+span<T, Extent>::last(std::size_t count) const noexcept {
   UNIFEX_ASSERT(count <= Extent);
   return span<T, dynamic_extent>{data() + (Extent - count), count};
 }
 
 template <typename T, std::size_t Extent>
-inline span<T, dynamic_extent> span<T, Extent>::after(std::size_t count) const
-    noexcept {
+inline span<T, dynamic_extent>
+span<T, Extent>::after(std::size_t count) const noexcept {
   UNIFEX_ASSERT(count <= Extent);
   return span<T, dynamic_extent>{data() + count, Extent - count};
 }
 
 template <typename T, std::size_t N>
-span(T (&)[N])->span<T, N>;
+span(T (&)[N]) -> span<T, N>;
 
 template <typename T, std::size_t N>
-span(std::array<T, N>&)->span<T, N>;
+span(std::array<T, N>&) -> span<T, N>;
 
 template <typename T, std::size_t N>
-span(const std::array<T, N>&)->span<const T, N>;
+span(const std::array<T, N>&) -> span<const T, N>;
 
 template <typename T>
-span(T*, std::size_t)->span<T>;
+span(T*, std::size_t) -> span<T>;
 
 template <typename T, std::size_t Extent>
-span<const std::byte, Extent * sizeof(T)> as_bytes(
-    const span<T, Extent>& s) noexcept {
+span<const std::byte, Extent * sizeof(T)>
+as_bytes(const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   static_assert(Extent <= maxSize);
   return span<const std::byte, Extent * sizeof(T)>{
@@ -292,29 +280,27 @@ template <typename T>
 span<const std::byte> as_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   UNIFEX_ASSERT(s.size() <= maxSize);
-  return span<const std::byte>{reinterpret_cast<const std::byte*>(s.data()),
-                                  s.size() * sizeof(T)};
+  return span<const std::byte>{
+      reinterpret_cast<const std::byte*>(s.data()), s.size() * sizeof(T)};
 }
 
-template(typename T, std::size_t Extent)
-    (requires (!std::is_const_v<T>))
-span<std::byte, Extent * sizeof(T)> as_writable_bytes(
-    const span<T, Extent>& s) noexcept {
+template(typename T, std::size_t Extent)(requires(!std::is_const_v<T>))
+    span<std::byte, Extent * sizeof(T)> as_writable_bytes(
+        const span<T, Extent>& s) noexcept {
   constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   static_assert(Extent <= maxSize);
   return span<std::byte, Extent * sizeof(T)>{
       reinterpret_cast<std::byte*>(s.data())};
 }
 
-template(typename T)
-    (requires (!std::is_const_v<T>))
-span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
+template(typename T)(requires(!std::is_const_v<T>))
+    span<std::byte> as_writable_bytes(const span<T>& s) noexcept {
   [[maybe_unused]] constexpr std::size_t maxSize = std::size_t(-1) / sizeof(T);
   UNIFEX_ASSERT(s.size() <= maxSize);
-  return span<std::byte>{reinterpret_cast<std::byte*>(s.data()),
-                            s.size() * sizeof(T)};
+  return span<std::byte>{
+      reinterpret_cast<std::byte*>(s.data()), s.size() * sizeof(T)};
 }
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

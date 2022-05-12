@@ -16,12 +16,12 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/detail/unifex_fwd.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/std_concepts.hpp>
+#include <unifex/submit.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/std_concepts.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/submit.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 
 #include <exception>
 
@@ -32,47 +32,39 @@ namespace _execute {
 template <typename F, typename S>
 struct _as_receiver {
   F f_;
-  void set_value() noexcept(is_nothrow_callable_v<F&>) {
-    f_();
-  }
-  [[noreturn]] void set_error(std::exception_ptr) noexcept {
-    std::terminate();
-  }
+  void set_value() noexcept(is_nothrow_callable_v<F&>) { f_(); }
+  [[noreturn]] void set_error(std::exception_ptr) noexcept { std::terminate(); }
   void set_done() noexcept {}
 };
 
 namespace _cpo {
-  template <typename Fn>
-  UNIFEX_CONCEPT //
-    _lvalue_callable = //
-      callable<remove_cvref_t<Fn>&> &&
-      constructible_from<remove_cvref_t<Fn>, Fn> &&
-      move_constructible<remove_cvref_t<Fn>>;
+template <typename Fn>
+UNIFEX_CONCEPT          //
+    _lvalue_callable =  //
+    callable<remove_cvref_t<Fn>&>&& constructible_from<remove_cvref_t<Fn>, Fn>&&
+        move_constructible<remove_cvref_t<Fn>>;
 
-  struct _fn {
-    template(typename Scheduler, typename Fn)
-      (requires _lvalue_callable<Fn> AND
-          scheduler<Scheduler> AND
-          tag_invocable<_fn, Scheduler, Fn>)
-    void operator()(Scheduler&& sched, Fn&& fn) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler, Fn>) {
-      unifex::tag_invoke(_fn{}, (Scheduler &&) sched, (Fn &&) fn);
-    }
-    template(typename Scheduler, typename Fn)
-      (requires _lvalue_callable<Fn> AND
-          scheduler<Scheduler> AND
-          (!tag_invocable<_fn, Scheduler, Fn>))
-    void operator()(Scheduler&& sched, Fn&& fn) const {
-      using Receiver =
-          _as_receiver<remove_cvref_t<Fn>, Scheduler>;
-      auto snd = unifex::schedule((Scheduler&&) sched);
-      unifex::submit(std::move(snd), Receiver{(Fn&&) fn});
-    }
-  };
-} // namespace _cpo
-} // namespace _execute
+struct _fn {
+  template(typename Scheduler, typename Fn)(
+      requires _lvalue_callable<Fn> AND scheduler<Scheduler> AND
+          tag_invocable<_fn, Scheduler, Fn>) void
+  operator()(Scheduler&& sched, Fn&& fn) const
+      noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler, Fn>) {
+    unifex::tag_invoke(_fn{}, (Scheduler &&) sched, (Fn &&) fn);
+  }
+  template(typename Scheduler, typename Fn)(
+      requires _lvalue_callable<Fn> AND
+          scheduler<Scheduler> AND(!tag_invocable<_fn, Scheduler, Fn>)) void
+  operator()(Scheduler&& sched, Fn&& fn) const {
+    using Receiver = _as_receiver<remove_cvref_t<Fn>, Scheduler>;
+    auto snd = unifex::schedule((Scheduler &&) sched);
+    unifex::submit(std::move(snd), Receiver{(Fn &&) fn});
+  }
+};
+}  // namespace _cpo
+}  // namespace _execute
 
-inline constexpr _execute::_cpo::_fn execute {};
-} // namespace unifex
+inline constexpr _execute::_cpo::_fn execute{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

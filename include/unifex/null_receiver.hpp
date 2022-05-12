@@ -21,18 +21,16 @@
 
 namespace unifex {
 namespace _null {
-  struct receiver {
-    void set_value() noexcept {}
-    [[noreturn]] void set_done() noexcept {
-      std::terminate();
-    }
-    template <typename Error>
-    [[noreturn]] void set_error(Error&&) noexcept {
-      std::terminate();
-    }
-  };
-} // namespace _null
+struct receiver {
+  void set_value() noexcept {}
+  [[noreturn]] void set_done() noexcept { std::terminate(); }
+  template <typename Error>
+  [[noreturn]] void set_error(Error&&) noexcept {
+    std::terminate();
+  }
+};
+}  // namespace _null
 using null_receiver = _null::receiver;
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

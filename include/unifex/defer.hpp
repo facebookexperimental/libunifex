@@ -21,18 +21,18 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-  namespace _defer {
-    inline const struct _fn {
-      template (typename Callable)
-        (requires callable<Callable> AND sender<callable_result_t<Callable>>)
-      constexpr auto operator()(Callable&& callable) const {
-        return let_value(just(), (Callable&&) callable);
-      }
-    } defer{};
-  } // namespace _defer
-  using _defer::defer;
-} // namespace unifex
+namespace unifex {
+namespace _defer {
+inline const struct _fn {
+  template(typename Callable)(
+      requires callable<Callable> AND
+          sender<callable_result_t<Callable>>) constexpr auto
+  operator()(Callable&& callable) const {
+    return let_value(just(), (Callable &&) callable);
+  }
+} defer{};
+}  // namespace _defer
+using _defer::defer;
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

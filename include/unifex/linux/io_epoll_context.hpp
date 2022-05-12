@@ -18,36 +18,36 @@
 #include <unifex/config.hpp>
 #if !UNIFEX_NO_EPOLL
 
-#include <unifex/detail/atomic_intrusive_queue.hpp>
-#include <unifex/detail/intrusive_heap.hpp>
-#include <unifex/detail/intrusive_queue.hpp>
-#include <unifex/pipe_concepts.hpp>
-#include <unifex/get_stop_token.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/span.hpp>
-#include <unifex/stop_token_concepts.hpp>
-#include <unifex/optional.hpp>
+#  include <unifex/get_stop_token.hpp>
+#  include <unifex/manual_lifetime.hpp>
+#  include <unifex/optional.hpp>
+#  include <unifex/pipe_concepts.hpp>
+#  include <unifex/receiver_concepts.hpp>
+#  include <unifex/span.hpp>
+#  include <unifex/stop_token_concepts.hpp>
+#  include <unifex/detail/atomic_intrusive_queue.hpp>
+#  include <unifex/detail/intrusive_heap.hpp>
+#  include <unifex/detail/intrusive_queue.hpp>
 
-#include <unifex/linux/monotonic_clock.hpp>
-#include <unifex/linux/safe_file_descriptor.hpp>
+#  include <unifex/linux/monotonic_clock.hpp>
+#  include <unifex/linux/safe_file_descriptor.hpp>
 
-#include <atomic>
-#include <cstddef>
-#include <cstdint>
-#include <system_error>
-#include <utility>
+#  include <atomic>
+#  include <cstddef>
+#  include <cstdint>
+#  include <system_error>
+#  include <utility>
 
-#include <sys/uio.h>
-#include <sys/epoll.h>
+#  include <sys/epoll.h>
+#  include <sys/uio.h>
 
-#include <unifex/detail/prologue.hpp>
+#  include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace linuxos {
 
 class io_epoll_context {
- public:
+public:
   class schedule_sender;
   class schedule_at_sender;
   template <typename Duration>
@@ -67,23 +67,23 @@ class io_epoll_context {
 
   scheduler get_scheduler() noexcept;
 
- private:
+private:
   struct operation_base {
-    ~operation_base() {
-      UNIFEX_ASSERT(enqueued_.load() == 0);
-    }
-    operation_base() noexcept : enqueued_(0), next_(nullptr), execute_(nullptr)  {}
+    ~operation_base() { UNIFEX_ASSERT(enqueued_.load() == 0); }
+    operation_base() noexcept
+      : enqueued_(0)
+      , next_(nullptr)
+      , execute_(nullptr) {}
     std::atomic<int> enqueued_;
     operation_base* next_;
     void (*execute_)(operation_base*) noexcept;
   };
 
-  struct completion_base : operation_base {
-  };
+  struct completion_base : operation_base {};
 
   struct stop_operation : operation_base {
     stop_operation() noexcept {
-      this->execute_ = [](operation_base * op) noexcept {
+      this->execute_ = [](operation_base* op) noexcept {
         static_cast<stop_operation*>(op)->shouldStop_ = true;
       };
     }
@@ -97,9 +97,9 @@ class io_epoll_context {
         io_epoll_context& context,
         const time_point& dueTime,
         bool canBeCancelled) noexcept
-        : context_(context),
-          dueTime_(dueTime),
-          canBeCancelled_(canBeCancelled) {}
+      : context_(context)
+      , dueTime_(dueTime)
+      , canBeCancelled_(canBeCancelled) {}
 
     schedule_at_operation* timerNext_;
     schedule_at_operation* timerPrev_;
@@ -148,7 +148,8 @@ class io_epoll_context {
   //
   // Returns true if successful.
   //
-  // Returns false if some other thread concurrently enqueued work to the remote queue.
+  // Returns false if some other thread concurrently enqueued work to the remote
+  // queue.
   bool try_schedule_local_remote_queue_contents() noexcept;
 
   // Signal the remote queue eventfd.
@@ -200,7 +201,9 @@ class io_epoll_context {
 template <typename StopToken>
 void io_epoll_context::run(StopToken stopToken) {
   stop_operation stopOp;
-  auto onStopRequested = [&] { this->schedule_impl(&stopOp); };
+  auto onStopRequested = [&] {
+    this->schedule_impl(&stopOp);
+  };
   typename StopToken::template callback_type<decltype(onStopRequested)>
       stopCallback{std::move(stopToken), std::move(onStopRequested)};
   run_impl(stopOp.shouldStop_);
@@ -209,22 +212,24 @@ void io_epoll_context::run(StopToken stopToken) {
 class io_epoll_context::schedule_sender {
   template <typename Receiver>
   class operation : private operation_base {
-   public:
+  public:
     void start() noexcept {
       UNIFEX_TRY {
         context_.schedule_impl(this);
-      } UNIFEX_CATCH (...) {
+      }
+      UNIFEX_CATCH(...) {
         unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
     }
 
-   private:
+  private:
     friend schedule_sender;
 
     template <typename Receiver2>
     explicit operation(io_epoll_context& context, Receiver2&& r)
-        : context_(context), receiver_((Receiver2 &&) r) {
+      : context_(context)
+      , receiver_((Receiver2 &&) r) {
       this->execute_ = &execute_impl;
     }
 
@@ -241,7 +246,8 @@ class io_epoll_context::schedule_sender {
       } else {
         UNIFEX_TRY {
           unifex::set_value(static_cast<Receiver&&>(op.receiver_));
-        } UNIFEX_CATCH (...) {
+        }
+        UNIFEX_CATCH(...) {
           unifex::set_error(
               static_cast<Receiver&&>(op.receiver_), std::current_exception());
         }
@@ -252,10 +258,12 @@ class io_epoll_context::schedule_sender {
     Receiver receiver_;
   };
 
- public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
@@ -265,15 +273,15 @@ class io_epoll_context::schedule_sender {
 
   template <typename Receiver>
   operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) && {
-    return operation<std::remove_reference_t<Receiver>>{context_,
-                                                        (Receiver &&) r};
+    return operation<std::remove_reference_t<Receiver>>{
+        context_, (Receiver &&) r};
   }
 
- private:
+private:
   friend io_epoll_context::scheduler;
 
   explicit schedule_sender(io_epoll_context& context) noexcept
-      : context_(context) {}
+    : context_(context) {}
 
   io_epoll_context& context_;
 };
@@ -284,16 +292,12 @@ class io_epoll_context::schedule_at_sender {
     static constexpr bool is_stop_ever_possible =
         !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
 
-   public:
+  public:
     explicit operation(
-        io_epoll_context& context,
-        const time_point& dueTime,
-        Receiver&& r)
-        : schedule_at_operation(
-              context,
-              dueTime,
-              get_stop_token(r).stop_possible()),
-          receiver_((Receiver &&) r) {}
+        io_epoll_context& context, const time_point& dueTime, Receiver&& r)
+      : schedule_at_operation(
+            context, dueTime, get_stop_token(r).stop_possible())
+      , receiver_((Receiver &&) r) {}
 
     void start() noexcept {
       if (this->context_.is_running_on_io_thread()) {
@@ -303,7 +307,7 @@ class io_epoll_context::schedule_at_sender {
       }
     }
 
-   private:
+  private:
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_local();
     }
@@ -336,8 +340,10 @@ class io_epoll_context::schedule_at_sender {
       } else {
         UNIFEX_TRY {
           unifex::set_value(std::move(timerOp).receiver_);
-        } UNIFEX_CATCH (...) {
-          unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
+        }
+        UNIFEX_CATCH(...) {
+          unifex::set_error(
+              std::move(timerOp).receiver_, std::current_exception());
         }
       }
     }
@@ -431,9 +437,7 @@ class io_epoll_context::schedule_at_sender {
     struct cancel_callback {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     Receiver receiver_;
@@ -442,10 +446,12 @@ class io_epoll_context::schedule_at_sender {
         stopCallback_;
   };
 
- public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
@@ -454,23 +460,23 @@ class io_epoll_context::schedule_at_sender {
   static constexpr bool sends_done = true;
 
   explicit schedule_at_sender(
-      io_epoll_context& context,
-      const time_point& dueTime) noexcept
-      : context_(context), dueTime_(dueTime) {}
+      io_epoll_context& context, const time_point& dueTime) noexcept
+    : context_(context)
+    , dueTime_(dueTime) {}
 
   template <typename Receiver>
-  operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const & {
+  operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
     return operation<remove_cvref_t<Receiver>>{
         context_, dueTime_, (Receiver &&) r};
   }
 
- private:
+private:
   io_epoll_context& context_;
   time_point dueTime_;
 };
 
 class io_epoll_context::scheduler {
- public:
+public:
   scheduler(const scheduler&) noexcept = default;
   scheduler& operator=(const scheduler&) = default;
   ~scheduler() = default;
@@ -479,20 +485,17 @@ class io_epoll_context::scheduler {
     return schedule_sender{*context_};
   }
 
-  time_point now() const noexcept {
-    return monotonic_clock::now();
-  }
+  time_point now() const noexcept { return monotonic_clock::now(); }
 
   schedule_at_sender schedule_at(const time_point& dueTime) const noexcept {
     return schedule_at_sender{*context_, dueTime};
   }
 
- private:
+private:
   friend io_epoll_context;
 
-  friend std::pair<async_reader, async_writer> tag_invoke(
-      tag_t<open_pipe>,
-      scheduler s);
+  friend std::pair<async_reader, async_writer>
+  tag_invoke(tag_t<open_pipe>, scheduler s);
 
   friend bool operator==(scheduler a, scheduler b) noexcept {
     return a.context_ == b.context_;
@@ -501,8 +504,7 @@ class io_epoll_context::scheduler {
     return a.context_ != b.context_;
   }
 
-  explicit scheduler(io_epoll_context& context) noexcept
-    : context_(&context) {}
+  explicit scheduler(io_epoll_context& context) noexcept : context_(&context) {}
 
   io_epoll_context* context_;
 };
@@ -512,37 +514,38 @@ inline io_epoll_context::scheduler io_epoll_context::get_scheduler() noexcept {
 }
 
 class io_epoll_context::read_sender {
-
-  struct done_op : operation_base {
-  };
+  struct done_op : operation_base {};
 
   template <typename Receiver>
-  class operation : private completion_base, private done_op {
+  class operation
+    : private completion_base
+    , private done_op {
     friend io_epoll_context;
 
     static constexpr bool is_stop_ever_possible =
         !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
 
-   public:
+  public:
     template <typename Receiver2>
     explicit operation(const read_sender& sender, Receiver2&& r)
-        : context_(sender.context_),
-          fd_(sender.fd_),
-          receiver_((Receiver2 &&) r) {
+      : context_(sender.context_)
+      , fd_(sender.fd_)
+      , receiver_((Receiver2 &&) r) {
       buffer_[0].iov_base = sender.buffer_.data();
       buffer_[0].iov_len = sender.buffer_.size();
     }
 
     void start() noexcept {
       if (!context_.is_running_on_io_thread()) {
-        static_cast<completion_base*>(this)->execute_ = &operation::on_schedule_complete;
+        static_cast<completion_base*>(this)->execute_ =
+            &operation::on_schedule_complete;
         context_.schedule_remote(static_cast<completion_base*>(this));
       } else {
         start_io();
       }
     }
-    
-   private:
+
+  private:
     static void on_schedule_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
       self.start_io();
@@ -558,8 +561,10 @@ class io_epoll_context::read_sender {
           stopCallback_.construct(
               get_stop_token(receiver_), cancel_callback{*this});
         }
-        UNIFEX_ASSERT(static_cast<completion_base*>(this)->enqueued_.load() == 0);
-        static_cast<completion_base*>(this)->execute_ = &operation::on_read_complete;
+        UNIFEX_ASSERT(
+            static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        static_cast<completion_base*>(this)->execute_ =
+            &operation::on_read_complete;
         epoll_event event;
         event.data.ptr = static_cast<completion_base*>(this);
         event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP;
@@ -570,9 +575,12 @@ class io_epoll_context::read_sender {
       auto oldState = state_.fetch_add(
           io_epoll_context::read_sender::operation<Receiver>::io_flag,
           std::memory_order_acq_rel);
-      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+      if ((oldState &
+           io_epoll_context::read_sender::operation<
+               Receiver>::cancel_pending_mask) != 0) {
         // io has been cancelled by a remote thread.
-        // The other thread is responsible for enqueueing the operation completion
+        // The other thread is responsible for enqueueing the operation
+        // completion
         return;
       }
 
@@ -584,7 +592,8 @@ class io_epoll_context::read_sender {
         } else {
           UNIFEX_TRY {
             unifex::set_value(std::move(receiver_), ssize_t(result));
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
         }
@@ -605,14 +614,18 @@ class io_epoll_context::read_sender {
       auto oldState = self.state_.fetch_add(
           io_epoll_context::read_sender::operation<Receiver>::io_flag,
           std::memory_order_acq_rel);
-      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+      if ((oldState &
+           io_epoll_context::read_sender::operation<
+               Receiver>::cancel_pending_mask) != 0) {
         // io has been cancelled by a remote thread.
-        // The other thread is responsible for enqueueing the operation completion
+        // The other thread is responsible for enqueueing the operation
+        // completion
         return;
       }
 
       epoll_event event = {};
-      (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
+      (void)epoll_ctl(
+          self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
 
       auto result = readv(self.fd_, self.buffer_, 1);
       UNIFEX_ASSERT(result != -EAGAIN);
@@ -625,8 +638,10 @@ class io_epoll_context::read_sender {
         } else {
           UNIFEX_TRY {
             unifex::set_value(std::move(self).receiver_, ssize_t(result));
-          } UNIFEX_CATCH (...) {
-            unifex::set_error(std::move(self).receiver_, std::current_exception());
+          }
+          UNIFEX_CATCH(...) {
+            unifex::set_error(
+                std::move(self).receiver_, std::current_exception());
           }
         }
       } else {
@@ -658,12 +673,15 @@ class io_epoll_context::read_sender {
 
     void request_stop() noexcept {
       auto oldState = this->state_.fetch_add(
-          io_epoll_context::read_sender::operation<Receiver>::cancel_pending_flag,
+          io_epoll_context::read_sender::operation<
+              Receiver>::cancel_pending_flag,
           std::memory_order_acq_rel);
-      if ((oldState & io_epoll_context::read_sender::operation<Receiver>::io_mask) == 0) {
+      if ((oldState &
+           io_epoll_context::read_sender::operation<Receiver>::io_mask) == 0) {
         // IO not yet completed.
         epoll_event event = {};
-        (void)epoll_ctl(this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
+        (void)epoll_ctl(
+            this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
 
         // We are responsible for scheduling the completion of this io
         // operation.
@@ -675,9 +693,7 @@ class io_epoll_context::read_sender {
     struct cancel_callback {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     io_epoll_context& context_;
@@ -685,8 +701,8 @@ class io_epoll_context::read_sender {
     iovec buffer_[1];
     Receiver receiver_;
     manual_lifetime<typename stop_token_type_t<
-      Receiver>::template callback_type<cancel_callback>>
-      stopCallback_;
+        Receiver>::template callback_type<cancel_callback>>
+        stopCallback_;
     static constexpr std::uint32_t io_flag = 0x00010000;
     static constexpr std::uint32_t io_mask = 0xFFFF0000;
     static constexpr std::uint32_t cancel_pending_flag = 1;
@@ -694,11 +710,13 @@ class io_epoll_context::read_sender {
     std::atomic<std::uint32_t> state_ = 0;
   };
 
- public:
+public:
   // Produces number of bytes read.
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<ssize_t>>;
 
   template <template <typename...> class Variant>
@@ -707,54 +725,55 @@ class io_epoll_context::read_sender {
   static constexpr bool sends_done = true;
 
   explicit read_sender(
-      io_epoll_context& context,
-      int fd,
-      span<std::byte> buffer) noexcept
-      : context_(context), fd_(fd), buffer_(buffer) {}
+      io_epoll_context& context, int fd, span<std::byte> buffer) noexcept
+    : context_(context)
+    , fd_(fd)
+    , buffer_(buffer) {}
 
   template <typename Receiver>
   operation<std::decay_t<Receiver>> connect(Receiver&& r) && {
     return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
   }
 
- private:
+private:
   io_epoll_context& context_;
   int fd_;
   span<std::byte> buffer_;
 };
 
 class io_epoll_context::write_sender {
-
-  struct done_op : operation_base {
-  };
+  struct done_op : operation_base {};
 
   template <typename Receiver>
-  class operation : private completion_base, private done_op {
+  class operation
+    : private completion_base
+    , private done_op {
     friend io_epoll_context;
 
     static constexpr bool is_stop_ever_possible =
         !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
-   public:
+
+  public:
     template <typename Receiver2>
     explicit operation(const write_sender& sender, Receiver2&& r)
-        : context_(sender.context_),
-          fd_(sender.fd_),
-          receiver_((Receiver2 &&) r) {
+      : context_(sender.context_)
+      , fd_(sender.fd_)
+      , receiver_((Receiver2 &&) r) {
       buffer_[0].iov_base = (void*)sender.buffer_.data();
       buffer_[0].iov_len = sender.buffer_.size();
     }
 
     void start() noexcept {
       if (!context_.is_running_on_io_thread()) {
-        static_cast<completion_base*>(this)->execute_ = &operation::on_schedule_complete;
+        static_cast<completion_base*>(this)->execute_ =
+            &operation::on_schedule_complete;
         context_.schedule_remote(static_cast<completion_base*>(this));
       } else {
         start_io();
       }
     }
 
-   private:
-
+  private:
     static void on_schedule_complete(operation_base* op) noexcept {
       auto& self = *static_cast<operation*>(static_cast<completion_base*>(op));
       self.start_io();
@@ -771,8 +790,10 @@ class io_epoll_context::write_sender {
               get_stop_token(receiver_), cancel_callback{*this});
         }
 
-        UNIFEX_ASSERT(static_cast<completion_base*>(this)->enqueued_.load() == 0);
-        static_cast<completion_base*>(this)->execute_ = &operation::on_write_complete;
+        UNIFEX_ASSERT(
+            static_cast<completion_base*>(this)->enqueued_.load() == 0);
+        static_cast<completion_base*>(this)->execute_ =
+            &operation::on_write_complete;
         epoll_event event;
         event.data.ptr = static_cast<completion_base*>(this);
         event.events = EPOLLOUT | EPOLLRDHUP | EPOLLHUP;
@@ -783,9 +804,12 @@ class io_epoll_context::write_sender {
       auto oldState = state_.fetch_add(
           io_epoll_context::write_sender::operation<Receiver>::io_flag,
           std::memory_order_acq_rel);
-      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+      if ((oldState &
+           io_epoll_context::write_sender::operation<
+               Receiver>::cancel_pending_mask) != 0) {
         // io has been cancelled by a remote thread.
-        // The other thread is responsible for enqueueing the operation completion
+        // The other thread is responsible for enqueueing the operation
+        // completion
         return;
       }
 
@@ -797,7 +821,8 @@ class io_epoll_context::write_sender {
         } else {
           UNIFEX_TRY {
             unifex::set_value(std::move(receiver_), ssize_t(result));
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
         }
@@ -816,14 +841,18 @@ class io_epoll_context::write_sender {
       self.stopCallback_.destruct();
 
       epoll_event event = {};
-      (void)epoll_ctl(self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
+      (void)epoll_ctl(
+          self.context_.epollFd_.get(), EPOLL_CTL_DEL, self.fd_, &event);
 
       auto oldState = self.state_.fetch_add(
           io_epoll_context::write_sender::operation<Receiver>::io_flag,
           std::memory_order_acq_rel);
-      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::cancel_pending_mask) != 0) {
+      if ((oldState &
+           io_epoll_context::write_sender::operation<
+               Receiver>::cancel_pending_mask) != 0) {
         // io has been cancelled by a remote thread.
-        // The other thread is responsible for enqueueing the operation completion
+        // The other thread is responsible for enqueueing the operation
+        // completion
         return;
       }
 
@@ -838,8 +867,10 @@ class io_epoll_context::write_sender {
         } else {
           UNIFEX_TRY {
             unifex::set_value(std::move(self).receiver_, ssize_t(result));
-          } UNIFEX_CATCH (...) {
-            unifex::set_error(std::move(self).receiver_, std::current_exception());
+          }
+          UNIFEX_CATCH(...) {
+            unifex::set_error(
+                std::move(self).receiver_, std::current_exception());
           }
         }
       } else {
@@ -871,12 +902,15 @@ class io_epoll_context::write_sender {
 
     void request_stop() noexcept {
       auto oldState = this->state_.fetch_add(
-          io_epoll_context::write_sender::operation<Receiver>::cancel_pending_flag,
+          io_epoll_context::write_sender::operation<
+              Receiver>::cancel_pending_flag,
           std::memory_order_acq_rel);
-      if ((oldState & io_epoll_context::write_sender::operation<Receiver>::io_mask) == 0) {
+      if ((oldState &
+           io_epoll_context::write_sender::operation<Receiver>::io_mask) == 0) {
         // IO not yet completed.
         epoll_event event = {};
-        (void)epoll_ctl(this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
+        (void)epoll_ctl(
+            this->context_.epollFd_.get(), EPOLL_CTL_DEL, this->fd_, &event);
 
         // We are responsible for scheduling the completion of this io
         // operation.
@@ -888,9 +922,7 @@ class io_epoll_context::write_sender {
     struct cancel_callback {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     io_epoll_context& context_;
@@ -898,8 +930,8 @@ class io_epoll_context::write_sender {
     iovec buffer_[1];
     Receiver receiver_;
     manual_lifetime<typename stop_token_type_t<
-      Receiver>::template callback_type<cancel_callback>>
-      stopCallback_;
+        Receiver>::template callback_type<cancel_callback>>
+        stopCallback_;
     static constexpr std::uint32_t io_flag = 0x00010000;
     static constexpr std::uint32_t io_mask = 0xFFFF0000;
     static constexpr std::uint32_t cancel_pending_flag = 1;
@@ -907,11 +939,13 @@ class io_epoll_context::write_sender {
     std::atomic<std::uint32_t> state_ = 0;
   };
 
- public:
+public:
   // Produces number of bytes read.
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<ssize_t>>;
 
   template <template <typename...> class Variant>
@@ -920,29 +954,29 @@ class io_epoll_context::write_sender {
   static constexpr bool sends_done = true;
 
   explicit write_sender(
-      io_epoll_context& context,
-      int fd,
-      span<const std::byte> buffer) noexcept
-      : context_(context), fd_(fd), buffer_(buffer) {}
+      io_epoll_context& context, int fd, span<const std::byte> buffer) noexcept
+    : context_(context)
+    , fd_(fd)
+    , buffer_(buffer) {}
 
   template <typename Receiver>
   operation<std::decay_t<Receiver>> connect(Receiver&& r) && {
     return operation<std::decay_t<Receiver>>{*this, (Receiver &&) r};
   }
 
- private:
+private:
   io_epoll_context& context_;
   int fd_;
   span<const std::byte> buffer_;
 };
 
 class io_epoll_context::async_reader {
- public:
-
+public:
   explicit async_reader(io_epoll_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
+    : context_(context)
+    , fd_(fd) {}
 
- private:
+private:
   friend scheduler;
 
   friend read_sender tag_invoke(
@@ -957,12 +991,12 @@ class io_epoll_context::async_reader {
 };
 
 class io_epoll_context::async_writer {
- public:
-
+public:
   explicit async_writer(io_epoll_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
+    : context_(context)
+    , fd_(fd) {}
 
- private:
+private:
   friend scheduler;
 
   friend write_sender tag_invoke(
@@ -976,9 +1010,9 @@ class io_epoll_context::async_writer {
   safe_file_descriptor fd_;
 };
 
-} // namespace linuxos
-} // namespace unifex
+}  // namespace linuxos
+}  // namespace unifex
 
-#include <unifex/detail/epilogue.hpp>
+#  include <unifex/detail/epilogue.hpp>
 
-#endif // !UNIFEX_NO_EPOLL
+#endif  // !UNIFEX_NO_EPOLL

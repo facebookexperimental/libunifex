@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/sync_wait.hpp>
-#include <unifex/transform_stream.hpp>
-#include <unifex/reduce_stream.hpp>
-#include <unifex/then.hpp>
 #include <unifex/range_stream.hpp>
+#include <unifex/reduce_stream.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/transform_stream.hpp>
 
 #include <cstdio>
 
@@ -31,8 +31,7 @@ TEST(reduce_stream, Smoke) {
   sync_wait(then(
       reduce_stream(
           transform_stream(
-              range_stream{0, 10},
-              [](int value) { return value * value; }),
+              range_stream{0, 10}, [](int value) { return value * value; }),
           0,
           [](int state, int value) { return state + value; }),
       [&](int result) { finalResult = result; }));
@@ -44,14 +43,10 @@ TEST(reduce_stream, Smoke) {
 TEST(reduce_stream, Pipeable) {
   int finalResult;
 
-  range_stream{0, 10}
-    | transform_stream(
-        [](int value) { return value * value; })
-    | reduce_stream(
-        0,
-        [](int state, int value) { return state + value; })
-    | then([&](int result) { finalResult = result; })
-    | sync_wait();
+  range_stream{0, 10} |
+      transform_stream([](int value) { return value * value; }) |
+      reduce_stream(0, [](int state, int value) { return state + value; }) |
+      then([&](int result) { finalResult = result; }) | sync_wait();
 
   EXPECT_EQ(finalResult, 285);
   std::printf("result = %i\n", finalResult);

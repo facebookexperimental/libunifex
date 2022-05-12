@@ -23,53 +23,52 @@ namespace unifex::win32 {
 
 class safe_handle {
 public:
-    safe_handle() noexcept : handle_(nullptr) {}
+  safe_handle() noexcept : handle_(nullptr) {}
 
-    explicit safe_handle(handle_t h) noexcept : handle_(h) {}
+  explicit safe_handle(handle_t h) noexcept : handle_(h) {}
 
-    safe_handle(safe_handle&& h) noexcept : handle_(std::exchange(h.handle_, nullptr)) {}
+  safe_handle(safe_handle&& h) noexcept
+    : handle_(std::exchange(h.handle_, nullptr)) {}
 
-    ~safe_handle() { reset(); }
+  ~safe_handle() { reset(); }
 
-    safe_handle(const safe_handle&) = delete;
+  safe_handle(const safe_handle&) = delete;
 
-    safe_handle& operator=(safe_handle h) noexcept {
-        swap(h);
-        return *this;
-    }
+  safe_handle& operator=(safe_handle h) noexcept {
+    swap(h);
+    return *this;
+  }
 
-    handle_t get() const noexcept { return handle_; }
+  handle_t get() const noexcept { return handle_; }
 
-    handle_t release() noexcept { return std::exchange(handle_, nullptr); }
+  handle_t release() noexcept { return std::exchange(handle_, nullptr); }
 
-    void reset() noexcept;
+  void reset() noexcept;
 
-    void swap(safe_handle& other) noexcept {
-        std::swap(handle_, other.handle_);
-    }
+  void swap(safe_handle& other) noexcept { std::swap(handle_, other.handle_); }
 
-    friend bool operator==(const safe_handle& a, const safe_handle& b) noexcept {
-        return a.handle_ == b.handle_;
-    }
-    friend bool operator==(const safe_handle& a, handle_t b) noexcept {
-        return a.handle_ == b;
-    }
-    friend bool operator==(handle_t a, const safe_handle& b) noexcept {
-        return a == b.handle_;
-    }
+  friend bool operator==(const safe_handle& a, const safe_handle& b) noexcept {
+    return a.handle_ == b.handle_;
+  }
+  friend bool operator==(const safe_handle& a, handle_t b) noexcept {
+    return a.handle_ == b;
+  }
+  friend bool operator==(handle_t a, const safe_handle& b) noexcept {
+    return a == b.handle_;
+  }
 
-    friend bool operator!=(const safe_handle& a, const safe_handle& b) noexcept {
-        return !(a == b);
-    }
-    friend bool operator!=(const safe_handle& a, handle_t b) noexcept {
-        return !(a == b);
-    }
-    friend bool operator!=(handle_t a, const safe_handle& b) noexcept {
-        return !(a == b);
-    }
+  friend bool operator!=(const safe_handle& a, const safe_handle& b) noexcept {
+    return !(a == b);
+  }
+  friend bool operator!=(const safe_handle& a, handle_t b) noexcept {
+    return !(a == b);
+  }
+  friend bool operator!=(handle_t a, const safe_handle& b) noexcept {
+    return !(a == b);
+  }
 
 private:
-    handle_t handle_;
+  handle_t handle_;
 };
 
-} // namespace unifex::win32
+}  // namespace unifex::win32

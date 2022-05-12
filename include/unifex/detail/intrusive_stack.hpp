@@ -19,50 +19,45 @@
 
 namespace unifex {
 
-template<typename T, T* T::*Next>
+template <typename T, T* T::*Next>
 class intrusive_stack {
 public:
-    intrusive_stack() : head_(nullptr) {}
+  intrusive_stack() : head_(nullptr) {}
 
-    intrusive_stack(intrusive_stack&& other) noexcept : head_(std::exchange(other.head_, nullptr)) {}
+  intrusive_stack(intrusive_stack&& other) noexcept
+    : head_(std::exchange(other.head_, nullptr)) {}
 
-    intrusive_stack(const intrusive_stack&) = delete;
-    intrusive_stack& operator=(const intrusive_stack&) = delete;
-    intrusive_stack& operator=(intrusive_stack&&) = delete;
+  intrusive_stack(const intrusive_stack&) = delete;
+  intrusive_stack& operator=(const intrusive_stack&) = delete;
+  intrusive_stack& operator=(intrusive_stack&&) = delete;
 
-    ~intrusive_stack() {
-        UNIFEX_ASSERT(empty());
-    }
+  ~intrusive_stack() { UNIFEX_ASSERT(empty()); }
 
-    // Adopt an existing linked-list as a stack.
-    static intrusive_stack adopt(T* head) noexcept {
-        intrusive_stack stack;
-        stack.head_ = head;
-        return stack;
-    }
+  // Adopt an existing linked-list as a stack.
+  static intrusive_stack adopt(T* head) noexcept {
+    intrusive_stack stack;
+    stack.head_ = head;
+    return stack;
+  }
 
-    T* release() noexcept {
-        return std::exchange(head_, nullptr);
-    }
+  T* release() noexcept { return std::exchange(head_, nullptr); }
 
-    [[nodiscard]] bool empty() const noexcept {
-        return head_ == nullptr;
-    }
+  [[nodiscard]] bool empty() const noexcept { return head_ == nullptr; }
 
-    void push_front(T* item) noexcept {
-        item->*Next = head_;
-        head_ = item;
-    }
+  void push_front(T* item) noexcept {
+    item->*Next = head_;
+    head_ = item;
+  }
 
-    [[nodiscard]] T* pop_front() noexcept {
-        UNIFEX_ASSERT(!empty());
-        T* item = head_;
-        head_ = item->*Next;
-        return item;
-    }
+  [[nodiscard]] T* pop_front() noexcept {
+    UNIFEX_ASSERT(!empty());
+    T* item = head_;
+    head_ = item->*Next;
+    return item;
+  }
 
 private:
-    T* head_;
+  T* head_;
 };
 
-} // namespace unifex
+}  // namespace unifex

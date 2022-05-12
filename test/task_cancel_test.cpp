@@ -18,16 +18,16 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <atomic>
+#  include <atomic>
 
-#include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
-#include <unifex/then.hpp>
-#include <unifex/let_done.hpp>
-#include <unifex/just.hpp>
-#include <unifex/stop_if_requested.hpp>
+#  include <unifex/just.hpp>
+#  include <unifex/let_done.hpp>
+#  include <unifex/stop_if_requested.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
+#  include <unifex/then.hpp>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 
@@ -36,24 +36,22 @@ struct dummy_stop_token {
   static int count;
   struct _callback_type {
     template <class T>
-    _callback_type(dummy_stop_token, T&&) { ++count; }
+    _callback_type(dummy_stop_token, T&&) {
+      ++count;
+    }
     ~_callback_type() { --count; }
     _callback_type(_callback_type&&) noexcept { ++count; }
     _callback_type& operator=(_callback_type&&) noexcept { return *this; }
   };
   template <typename>
   using callback_type = _callback_type;
-  static constexpr bool stop_possible() noexcept {
-    return true;
-  }
-  static constexpr bool stop_requested() noexcept {
-    return true;
-  }
+  static constexpr bool stop_possible() noexcept { return true; }
+  static constexpr bool stop_requested() noexcept { return true; }
 };
 int dummy_stop_token::count = 0;
 
 task<int> foo() {
-  co_await stop(); // sends a done signal, unwinds the coroutine stack
+  co_await stop();  // sends a done signal, unwinds the coroutine stack
   ADD_FAILURE();
   co_return 42;
 }
@@ -62,8 +60,7 @@ task<int> bar() {
   try {
     co_await foo();
     ADD_FAILURE();
-  }
-  catch (...) {
+  } catch (...) {
     ADD_FAILURE();
   }
   co_return -1;
@@ -88,25 +85,28 @@ task<void> void_test() {
 bool continuedWhenStopWasNotYetRequested = false;
 
 task<int> test_stop_if_requested(inplace_stop_source& stopSource) {
-  co_await stop_if_requested(); // shouldn't stop
+  co_await stop_if_requested();  // shouldn't stop
   continuedWhenStopWasNotYetRequested = true;
   stopSource.request_stop();
-  co_await stop_if_requested(); // should stop
+  co_await stop_if_requested();  // should stop
   ADD_FAILURE() << "didn't stop but should have";
   co_return 42;
 }
 
-template<typename Sender>
+template <typename Sender>
 auto done_as_optional(Sender&& sender) {
-  using value_type = sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
+  using value_type =
+      sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
   return let_done(
-    then((Sender&&)sender, [](auto&&... values) {
-      return optional<value_type>{in_place, static_cast<decltype(values)>(values)...};
-    }), []() {
-      return just(optional<value_type>(nullopt));
-    });
+      then(
+          (Sender &&) sender,
+          [](auto&&... values) {
+            return optional<value_type>{
+                in_place, static_cast<decltype(values)>(values)...};
+          }),
+      []() { return just(optional<value_type>(nullopt)); });
 }
-} // <anonymous namespace>
+}  // namespace
 
 TEST(TaskCancel, Cancel) {
   optional<int> j = sync_wait(bar());
@@ -126,24 +126,18 @@ TEST(TaskCancel, VoidTask) {
 
 TEST(TaskCancel, PropagatesStopToken) {
   inplace_stop_source stopSource;
-  optional<inplace_stop_token> i =
-    sync_wait(
-      with_query_value(
-        get_token_outer(),
-        get_stop_token,
-        stopSource.get_token()));
+  optional<inplace_stop_token> i = sync_wait(with_query_value(
+      get_token_outer(), get_stop_token, stopSource.get_token()));
   EXPECT_TRUE(i);
   EXPECT_EQ(*i, stopSource.get_token());
 }
 
 TEST(TaskCancel, StopIfRequested) {
   inplace_stop_source stopSource;
-  optional<int> i =
-    sync_wait(
-      with_query_value(
-        test_stop_if_requested(stopSource),
-        get_stop_token,
-        stopSource.get_token()));
+  optional<int> i = sync_wait(with_query_value(
+      test_stop_if_requested(stopSource),
+      get_stop_token,
+      stopSource.get_token()));
   EXPECT_TRUE(!i);
   EXPECT_TRUE(continuedWhenStopWasNotYetRequested);
 }
@@ -152,13 +146,9 @@ TEST(TaskCancel, StopIfRequested) {
 // unsubscribed on cancellation:
 TEST(TaskCancel, UnsubscribeStopTokenAdaptor) {
   optional<int> i =
-    sync_wait(
-      with_query_value(
-        bar(),
-        get_stop_token,
-        dummy_stop_token{}));
+      sync_wait(with_query_value(bar(), get_stop_token, dummy_stop_token{}));
   EXPECT_TRUE(!i);
   EXPECT_EQ(dummy_stop_token::count, 0);
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

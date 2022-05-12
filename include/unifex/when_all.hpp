@@ -16,16 +16,16 @@
 #pragma once
 
 #include <unifex/async_trace.hpp>
+#include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/optional.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
-#include <unifex/type_traits.hpp>
-#include <unifex/type_list.hpp>
-#include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/optional.hpp>
+#include <unifex/type_list.hpp>
+#include <unifex/type_traits.hpp>
 #include <unifex/utility.hpp>
 #include <unifex/variant.hpp>
 
@@ -41,20 +41,24 @@ namespace _when_all {
 
 template <
     std::size_t Index,
-    template <std::size_t> class Receiver,
+    template <std::size_t>
+    class Receiver,
     typename... Senders>
 struct _operation_tuple {
   struct type;
 };
 template <
     std::size_t Index,
-    template <std::size_t> class Receiver,
+    template <std::size_t>
+    class Receiver,
     typename... Senders>
-using operation_tuple = typename _operation_tuple<Index, Receiver, Senders...>::type;
+using operation_tuple =
+    typename _operation_tuple<Index, Receiver, Senders...>::type;
 
 template <
     std::size_t Index,
-    template <std::size_t> class Receiver,
+    template <std::size_t>
+    class Receiver,
     typename First,
     typename... Rest>
 struct _operation_tuple<Index, Receiver, First, Rest...> {
@@ -62,22 +66,23 @@ struct _operation_tuple<Index, Receiver, First, Rest...> {
 };
 template <
     std::size_t Index,
-    template <std::size_t> class Receiver,
+    template <std::size_t>
+    class Receiver,
     typename First,
     typename... Rest>
 struct _operation_tuple<Index, Receiver, First, Rest...>::type
   : operation_tuple<Index + 1, Receiver, Rest...> {
   template <typename Parent>
   explicit type(Parent& parent, First&& first, Rest&&... rest)
-    : operation_tuple<Index + 1, Receiver, Rest...>{parent, (Rest &&) rest...},
-      op_(connect((First &&) first, Receiver<Index>{parent})) {}
+    : operation_tuple<Index + 1, Receiver, Rest...>{parent, (Rest &&) rest...}
+    , op_(connect((First &&) first, Receiver<Index>{parent})) {}
 
   void start() noexcept {
     unifex::start(op_);
     operation_tuple<Index + 1, Receiver, Rest...>::start();
   }
 
- private:
+private:
   connect_result_t<First, Receiver<Index>> op_;
 };
 
@@ -96,9 +101,7 @@ struct _operation_tuple<Index, Receiver>::type {
 struct cancel_operation {
   inplace_stop_source& stopSource_;
 
-  void operator()() noexcept {
-    stopSource_.request_stop();
-  }
+  void operator()() noexcept { stopSource_.request_stop(); }
 };
 
 template <typename Receiver, typename... Senders>
@@ -109,29 +112,30 @@ template <typename Receiver, typename... Senders>
 using operation = typename _op<remove_cvref_t<Receiver>, Senders...>::type;
 
 template <typename... Errors>
-using unique_decayed_error_types = concat_type_lists_unique_t<
-  type_list<std::decay_t<Errors>>...>;
+using unique_decayed_error_types =
+    concat_type_lists_unique_t<type_list<std::decay_t<Errors>>...>;
 
 template <template <typename...> class Variant, typename... Senders>
-using error_types =
-    typename concat_type_lists_unique_t<
-        sender_error_types_t<Senders, unique_decayed_error_types>...,
-        type_list<std::exception_ptr>>::template apply<Variant>;
+using error_types = typename concat_type_lists_unique_t<
+    sender_error_types_t<Senders, unique_decayed_error_types>...,
+    type_list<std::exception_ptr>>::template apply<Variant>;
 
 template <typename... Values>
 using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
 
 template <typename Sender>
-using value_variant_for_sender =
-  typename sender_value_types_t<Sender, concat_type_lists_unique_t, decayed_value_tuple>
-      ::template apply<variant>;
+using value_variant_for_sender = typename sender_value_types_t<
+    Sender,
+    concat_type_lists_unique_t,
+    decayed_value_tuple>::template apply<variant>;
 
 template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver {
   struct type;
 };
 template <size_t Index, typename Receiver, typename... Senders>
-using element_receiver = typename _element_receiver<Index, Receiver, Senders...>::type;
+using element_receiver =
+    typename _element_receiver<Index, Receiver, Senders...>::type;
 
 template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver<Index, Receiver, Senders...>::type final {
@@ -147,7 +151,8 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
               in_place_type_t<std::tuple<std::decay_t<Values>...>>{},
               (Values &&) values...);
       op_.element_complete();
-    } UNIFEX_CATCH (...) {
+    }
+    UNIFEX_CATCH(...) {
       this->set_error(std::current_exception());
     }
   }
@@ -155,7 +160,8 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-      op_.error_.emplace(in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
+      op_.error_.emplace(
+          in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
@@ -170,31 +176,24 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
 
   Receiver& get_receiver() const { return op_.receiver_; }
 
-  template(typename CPO, typename R)
-      (requires is_receiver_query_cpo_v<CPO> AND
-          same_as<R, element_receiver> AND
-          is_callable_v<CPO, const Receiver&>)
-  friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-      is_nothrow_callable_v<CPO, const Receiver&>)
+  template(typename CPO, typename R)(
+      requires is_receiver_query_cpo_v<CPO> AND same_as<R, element_receiver> AND is_callable_v<
+          CPO,
+          const Receiver&>) friend auto tag_invoke(CPO cpo, const R& r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
       -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
-  inplace_stop_source& get_stop_source() const {
-    return op_.stopSource_;
-  }
+  inplace_stop_source& get_stop_source() const { return op_.stopSource_; }
 
-  friend inplace_stop_token tag_invoke(
-      tag_t<get_stop_token>,
-      const element_receiver& r) noexcept {
+  friend inplace_stop_token
+  tag_invoke(tag_t<get_stop_token>, const element_receiver& r) noexcept {
     return r.get_stop_source().get_token();
   }
 
   template <typename Func>
   friend void tag_invoke(
-      tag_t<visit_continuations>,
-      const element_receiver& r,
-      Func&& func) {
+      tag_t<visit_continuations>, const element_receiver& r, Func&& func) {
     std::invoke(func, r.get_receiver());
   }
 };
@@ -208,8 +207,8 @@ struct _op<Receiver, Senders...>::type {
 
   template <typename Receiver2, typename... Senders2>
   explicit type(Receiver2&& receiver, Senders2&&... senders)
-    : receiver_((Receiver2 &&) receiver),
-      ops_(*this, (Senders2 &&) senders...) {}
+    : receiver_((Receiver2 &&) receiver)
+    , ops_(*this, (Senders2 &&) senders...) {}
 
   void start() noexcept {
     stopCallback_.construct(
@@ -217,7 +216,7 @@ struct _op<Receiver, Senders...>::type {
     ops_.start();
   }
 
-  private:
+private:
   void element_complete() noexcept {
     if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
       deliver_result();
@@ -250,12 +249,14 @@ struct _op<Receiver, Senders...>::type {
       unifex::set_value(
           std::move(receiver_),
           std::get<Indices>(std::move(values_)).value()...);
-    } UNIFEX_CATCH (...) {
+    }
+    UNIFEX_CATCH(...) {
       unifex::set_error(std::move(receiver_), std::current_exception());
     }
   }
 
-  std::tuple<optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
+  std::tuple<optional<value_variant_for_sender<remove_cvref_t<Senders>>>...>
+      values_;
   optional<error_types<variant, remove_cvref_t<Senders>...>> error_;
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
@@ -280,22 +281,31 @@ template <typename Receiver, typename Indices, typename... Senders>
 extern const bool _when_all_connectable_v;
 
 template <typename Receiver, std::size_t... Indices, typename... Senders>
-inline constexpr bool _when_all_connectable_v<Receiver, std::index_sequence<Indices...>, Senders...> =
-  (sender_to<Senders, element_receiver<Indices, Receiver, Senders...>> &&...);
+inline constexpr bool _when_all_connectable_v<
+    Receiver,
+    std::index_sequence<Indices...>,
+    Senders...> =
+    (sender_to<Senders, element_receiver<Indices, Receiver, Senders...>> &&
+     ...);
 
 template <typename Receiver, typename... Senders>
-inline constexpr bool when_all_connectable_v =
-  _when_all_connectable_v<Receiver, std::index_sequence_for<Senders...>, Senders...>;
+inline constexpr bool when_all_connectable_v = _when_all_connectable_v<
+    Receiver,
+    std::index_sequence_for<Senders...>,
+    Senders...>;
 
 template <typename... Senders>
 class _sender<Senders...>::type {
   using sender = type;
- public:
+
+public:
   static_assert(sizeof...(Senders) > 0);
 
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<value_variant_for_sender<Senders>...>>;
 
   template <template <typename...> class Variant>
@@ -304,50 +314,48 @@ class _sender<Senders...>::type {
   static constexpr bool sends_done = true;
 
   template <typename... Senders2>
-  explicit type(Senders2&&... senders)
-    : senders_((Senders2 &&) senders...) {}
+  explicit type(Senders2&&... senders) : senders_((Senders2 &&) senders...) {}
 
-  template(typename CPO, typename Sender, typename Receiver)
-      (requires same_as<CPO, tag_t<unifex::connect>> AND
-        same_as<remove_cvref_t<Sender>, type> AND
-        when_all_connectable_v<remove_cvref_t<Receiver>, member_t<Sender, Senders>...>)
-  friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
-    -> operation<Receiver, member_t<Sender, Senders>...> {
-    return std::apply([&](auto&&... senders) {
-      return operation<Receiver, member_t<Sender, Senders>...>{
-          (Receiver &&) receiver, static_cast<decltype(senders)>(senders)...};
-    }, static_cast<Sender &&>(sender).senders_);
+  template(typename CPO, typename Sender, typename Receiver)(
+      requires same_as<CPO, tag_t<unifex::connect>> AND
+          same_as<remove_cvref_t<Sender>, type> AND when_all_connectable_v<
+              remove_cvref_t<Receiver>,
+              member_t<
+                  Sender,
+                  Senders>...>) friend auto tag_invoke([[maybe_unused]] CPO cpo, Sender&& sender, Receiver&& receiver)
+      -> operation<Receiver, member_t<Sender, Senders>...> {
+    return std::apply(
+        [&](auto&&... senders) {
+          return operation<Receiver, member_t<Sender, Senders>...>{
+              (Receiver &&) receiver,
+              static_cast<decltype(senders)>(senders)...};
+        },
+        static_cast<Sender&&>(sender).senders_);
   }
 
- private:
-
+private:
   // Customise the 'blocking' CPO to combine the blocking-nature
   // of each of the child operations.
   friend blocking_kind tag_invoke(tag_t<blocking>, const sender& s) noexcept {
     bool alwaysInline = true;
     bool alwaysBlocking = true;
-    bool neverBlocking =  false;
+    bool neverBlocking = false;
 
     auto handleBlockingStatus = [&](blocking_kind kind) noexcept {
       switch (kind) {
-        case blocking_kind::never:
-          neverBlocking = true;
-          [[fallthrough]];
-        case blocking_kind::maybe:
-          alwaysBlocking = false;
-          [[fallthrough]];
-        case blocking_kind::always:
-          alwaysInline = false;
-          [[fallthrough]];
-        case blocking_kind::always_inline:
-          break;
+        case blocking_kind::never: neverBlocking = true; [[fallthrough]];
+        case blocking_kind::maybe: alwaysBlocking = false; [[fallthrough]];
+        case blocking_kind::always: alwaysInline = false; [[fallthrough]];
+        case blocking_kind::always_inline: break;
       }
     };
 
-    std::apply([&](const auto&... senders) {
-      (void)std::initializer_list<int>{
-        (handleBlockingStatus(blocking(senders)), 0)... };
-    }, s.senders_);
+    std::apply(
+        [&](const auto&... senders) {
+          (void)std::initializer_list<int>{
+              (handleBlockingStatus(blocking(senders)), 0)...};
+        },
+        s.senders_);
 
     if (neverBlocking) {
       return blocking_kind::never;
@@ -364,25 +372,24 @@ class _sender<Senders...>::type {
 };
 
 namespace _cpo {
-  struct _fn {
-    template (typename... Senders)
-      (requires (unifex::sender<Senders> &&...) AND tag_invocable<_fn, Senders...>)
-    auto operator()(Senders&&... senders) const
-        -> tag_invoke_result_t<_fn, Senders...> {
-      return tag_invoke(*this, (Senders &&) senders...);
-    }
-    template (typename... Senders)
-      (requires (typed_sender<Senders> &&...) AND (!tag_invocable<_fn, Senders...>))
-    auto operator()(Senders&&... senders) const
-        -> _when_all::sender<Senders...> {
-      return _when_all::sender<Senders...>{(Senders &&) senders...};
-    }
-  };
-} // namespace _cpo
-} // namespace _when_all
+struct _fn {
+  template(typename... Senders)(requires(unifex::sender<Senders>&&...)
+                                    AND tag_invocable<_fn, Senders...>) auto
+  operator()(Senders&&... senders) const
+      -> tag_invoke_result_t<_fn, Senders...> {
+    return tag_invoke(*this, (Senders &&) senders...);
+  }
+  template(typename... Senders)(requires(typed_sender<Senders>&&...)
+                                    AND(!tag_invocable<_fn, Senders...>)) auto
+  operator()(Senders&&... senders) const -> _when_all::sender<Senders...> {
+    return _when_all::sender<Senders...>{(Senders &&) senders...};
+  }
+};
+}  // namespace _cpo
+}  // namespace _when_all
 
 inline constexpr _when_all::_cpo::_fn when_all{};
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

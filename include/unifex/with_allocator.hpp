@@ -22,23 +22,22 @@
 
 namespace unifex {
 namespace _with_alloc_cpo {
-  struct _fn {
-    template <typename Sender, typename Allocator>
-    auto operator()(Sender &&sender, Allocator &&allocator) const {
-      return with_query_value((Sender &&) sender, get_allocator,
-                              (Allocator &&) allocator);
-    }
-    template <typename Allocator>
-    constexpr auto operator()(Allocator&& allocator) const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn, Allocator>)
-        -> bind_back_result_t<_fn, Allocator> {
-      return bind_back(*this, (Allocator&&)allocator);
-    }
-  };
-} // namespace _with_alloc_cpo
+struct _fn {
+  template <typename Sender, typename Allocator>
+  auto operator()(Sender&& sender, Allocator&& allocator) const {
+    return with_query_value(
+        (Sender &&) sender, get_allocator, (Allocator &&) allocator);
+  }
+  template <typename Allocator>
+  constexpr auto operator()(Allocator&& allocator) const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Allocator>)
+          -> bind_back_result_t<_fn, Allocator> {
+    return bind_back(*this, (Allocator &&) allocator);
+  }
+};
+}  // namespace _with_alloc_cpo
 
-inline constexpr _with_alloc_cpo::_fn with_allocator {};
-} // namespace unifex
+inline constexpr _with_alloc_cpo::_fn with_allocator{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

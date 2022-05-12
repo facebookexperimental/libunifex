@@ -17,30 +17,37 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-    // Execution policies are used to describe constraints on the safe execution
-    // of bulk operations with respect to each other.
-    //
-    // sequenced - Operations must be sequenced with respect to each other.
-    //             They are not safe to executed concurrently on differen threads or to
-    //             interleaved with each other on the same thread.
-    //
-    // unsequenced - Operations are safe to be interleaved with each other, e.g. using vectorised
-    //               SIMD instructions, but may not be executed concurrently on different
-    //               threads. This generally implies that forward progress of one operation
-    //               is not dependent on forward progress of other operations.   
-    //
-    // parallel - Operations are safe to be executed concurrently with each other on different
-    //            threads but operations on each thread must not be interleaved.
-    //
-    // parallel_unsequenced - Operations are safe to be executed concurrently on different
-    //            threads and may be interleaved with each other on the same thread.
+namespace unifex {
+// Execution policies are used to describe constraints on the safe execution
+// of bulk operations with respect to each other.
+//
+// sequenced - Operations must be sequenced with respect to each other.
+//             They are not safe to executed concurrently on differen threads or
+//             to interleaved with each other on the same thread.
+//
+// unsequenced - Operations are safe to be interleaved with each other, e.g.
+// using vectorised
+//               SIMD instructions, but may not be executed concurrently on
+//               different threads. This generally implies that forward progress
+//               of one operation is not dependent on forward progress of other
+//               operations.
+//
+// parallel - Operations are safe to be executed concurrently with each other on
+// different
+//            threads but operations on each thread must not be interleaved.
+//
+// parallel_unsequenced - Operations are safe to be executed concurrently on
+// different
+//            threads and may be interleaved with each other on the same thread.
 
-    inline constexpr struct sequenced_policy {} seq;
-    inline constexpr struct unsequenced_policy {} unseq;
-    inline constexpr struct parallel_policy {} par;
-    inline constexpr struct parallel_unsequenced_policy {} par_unseq;
-}
+inline constexpr struct sequenced_policy {
+} seq;
+inline constexpr struct unsequenced_policy {
+} unseq;
+inline constexpr struct parallel_policy {
+} par;
+inline constexpr struct parallel_unsequenced_policy {
+} par_unseq;
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

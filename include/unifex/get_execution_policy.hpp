@@ -20,26 +20,25 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-    namespace _get_execution_policy {
-        struct _fn {
-            template(typename PolicyProvider)
-                (requires tag_invocable<_fn, const PolicyProvider&>)
-            constexpr auto operator()(const PolicyProvider& provider) const noexcept
-                -> tag_invoke_result_t<_fn, const PolicyProvider&> {
-                return tag_invoke(_fn{}, provider);
-            }
+namespace unifex {
+namespace _get_execution_policy {
+struct _fn {
+  template(typename PolicyProvider)(
+      requires tag_invocable<_fn, const PolicyProvider&>) constexpr auto
+  operator()(const PolicyProvider& provider) const noexcept
+      -> tag_invoke_result_t<_fn, const PolicyProvider&> {
+    return tag_invoke(_fn{}, provider);
+  }
 
-            template(typename PolicyProvider)
-                (requires (!tag_invocable<_fn, const PolicyProvider&>))
-            constexpr sequenced_policy operator()([[maybe_unused]] const PolicyProvider&) const noexcept {
-                return {};
-            }
-        };
-    }
+  template(typename PolicyProvider)(requires(
+      !tag_invocable<_fn, const PolicyProvider&>)) constexpr sequenced_policy
+  operator()([[maybe_unused]] const PolicyProvider&) const noexcept {
+    return {};
+  }
+};
+}  // namespace _get_execution_policy
 
-    inline constexpr _get_execution_policy::_fn get_execution_policy{};
-}
+inline constexpr _get_execution_policy::_fn get_execution_policy{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

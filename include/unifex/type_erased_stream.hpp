@@ -15,18 +15,18 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/any_scheduler.hpp>
 #include <unifex/async_trace.hpp>
-#include <unifex/config.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/stream_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/get_stop_token.hpp>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -49,7 +49,7 @@ struct _stream<Values...>::type final {
 
     using visitor_t = void(const continuation_info&, void*);
 
-   private:
+  private:
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -58,8 +58,8 @@ struct _stream<Values...>::type final {
       visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
 
-    friend auto
-    tag_invoke(tag_t<get_scheduler>, const next_receiver_base& receiver) noexcept {
+    friend auto tag_invoke(
+        tag_t<get_scheduler>, const next_receiver_base& receiver) noexcept {
       return receiver.get_scheduler();
     }
 
@@ -72,7 +72,7 @@ struct _stream<Values...>::type final {
     virtual void set_done() noexcept = 0;
     virtual void set_error(std::exception_ptr ex) noexcept = 0;
 
-   private:
+  private:
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -81,8 +81,8 @@ struct _stream<Values...>::type final {
       visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
 
-    friend auto
-    tag_invoke(tag_t<get_scheduler>, const cleanup_receiver_base& receiver) noexcept {
+    friend auto tag_invoke(
+        tag_t<get_scheduler>, const cleanup_receiver_base& receiver) noexcept {
       return receiver.get_scheduler();
     }
 
@@ -92,7 +92,7 @@ struct _stream<Values...>::type final {
   };
 
   struct stream_base {
-    virtual ~stream_base() {};
+    virtual ~stream_base(){};
     virtual void start_next(
         next_receiver_base& receiver,
         inplace_stop_token stopToken) noexcept = 0;
@@ -104,8 +104,7 @@ struct _stream<Values...>::type final {
     struct type final : next_receiver_base {
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-      explicit type(Receiver&& receiver)
-        : receiver_((Receiver &&) receiver) {}
+      explicit type(Receiver&& receiver) : receiver_((Receiver &&) receiver) {}
 
       void set_value(Values&&... values) noexcept override {
         unifex::set_value(std::move(receiver_), (Values &&) values...);
@@ -137,8 +136,7 @@ struct _stream<Values...>::type final {
     struct type final : cleanup_receiver_base {
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-      explicit type(Receiver&& receiver)
-        : receiver_((Receiver &&) receiver) {}
+      explicit type(Receiver&& receiver) : receiver_((Receiver &&) receiver) {}
 
       void set_done() noexcept override {
         unifex::set_done(std::move(receiver_));
@@ -185,7 +183,8 @@ struct _stream<Values...>::type final {
               unifex::deactivate_union_member(stream_.next_);
               receiver_.set_value((Values &&) values...);
             }((Values &&) values...);
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             unifex::deactivate_union_member(stream_.next_);
             receiver_.set_error(std::current_exception());
           }
@@ -204,7 +203,7 @@ struct _stream<Values...>::type final {
         template <typename Error>
         void set_error(Error&& error) && noexcept {
           // Type-erase any errors that come through.
-          std::move(*this).set_error(make_exception_ptr((Error&&)error));
+          std::move(*this).set_error(make_exception_ptr((Error &&) error));
         }
 
         friend const inplace_stop_token& tag_invoke(
@@ -268,8 +267,7 @@ struct _stream<Values...>::type final {
       ~type() {}
 
       union {
-        manual_lifetime<next_operation_t<Stream, next_receiver_wrapper>>
-            next_;
+        manual_lifetime<next_operation_t<Stream, next_receiver_wrapper>> next_;
         manual_lifetime<cleanup_operation_t<Stream, cleanup_receiver_wrapper>>
             cleanup_;
       };
@@ -279,12 +277,13 @@ struct _stream<Values...>::type final {
           inplace_stop_token stopToken) noexcept override {
         UNIFEX_TRY {
           unifex::activate_union_member_with(next_, [&] {
-              return connect(
-                  next(stream_),
-                  next_receiver_wrapper{receiver, *this, stopToken});
-            });
+            return connect(
+                next(stream_),
+                next_receiver_wrapper{receiver, *this, stopToken});
+          });
           start(next_.get());
-        } UNIFEX_CATCH (...) {
+        }
+        UNIFEX_CATCH(...) {
           receiver.set_error(std::current_exception());
         }
       }
@@ -292,12 +291,12 @@ struct _stream<Values...>::type final {
       void start_cleanup(cleanup_receiver_base& receiver) noexcept override {
         UNIFEX_TRY {
           unifex::activate_union_member_with(cleanup_, [&] {
-              return connect(
-                  cleanup(stream_),
-                  cleanup_receiver_wrapper{receiver, *this});
-            });
+            return connect(
+                cleanup(stream_), cleanup_receiver_wrapper{receiver, *this});
+          });
           start(cleanup_.get());
-        } UNIFEX_CATCH (...) {
+        }
+        UNIFEX_CATCH(...) {
           receiver.set_error(std::current_exception());
         }
       }
@@ -309,8 +308,11 @@ struct _stream<Values...>::type final {
   struct next_sender final {
     stream_base& stream_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = Variant<Tuple<Values...>>;
 
     template <template <typename...> class Variant>
@@ -323,34 +325,32 @@ struct _stream<Values...>::type final {
       struct type final {
         struct cancel_callback final {
           inplace_stop_source& stopSource_;
-          void operator()() noexcept {
-            stopSource_.request_stop();
-          }
+          void operator()() noexcept { stopSource_.request_stop(); }
         };
 
         stream_base& stream_;
         inplace_stop_source stopSource_;
         next_receiver<Receiver> receiver_;
         UNIFEX_NO_UNIQUE_ADDRESS
-            typename stop_token_type_t<Receiver&>::
-            template callback_type<cancel_callback>
-          stopCallback_;
+        typename stop_token_type_t<Receiver&>::template callback_type<
+            cancel_callback>
+            stopCallback_;
 
         template <typename Receiver2>
         explicit type(stream_base& strm, Receiver2&& receiver)
-          : stream_(strm),
-            stopSource_(),
-            receiver_((Receiver2 &&) receiver),
-            stopCallback_(
-              get_stop_token(receiver_.receiver_),
-              cancel_callback{stopSource_})
-        {}
+          : stream_(strm)
+          , stopSource_()
+          , receiver_((Receiver2 &&) receiver)
+          , stopCallback_(
+                get_stop_token(receiver_.receiver_),
+                cancel_callback{stopSource_}) {}
 
         void start() noexcept {
           stream_.start_next(
-            receiver_,
-            get_stop_token(receiver_.receiver_).stop_possible() ?
-            stopSource_.get_token() : inplace_stop_token{});
+              receiver_,
+              get_stop_token(receiver_.receiver_).stop_possible()
+                  ? stopSource_.get_token()
+                  : inplace_stop_token{});
         }
       };
     };
@@ -366,8 +366,11 @@ struct _stream<Values...>::type final {
   struct cleanup_sender final {
     stream_base& stream_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = Variant<>;
 
     template <template <typename...> class Variant>
@@ -385,9 +388,7 @@ struct _stream<Values...>::type final {
           : stream_(stream)
           , receiver_((Receiver &&) receiver) {}
 
-        void start() noexcept {
-          stream_.start_cleanup(receiver_);
-        }
+        void start() noexcept { stream_.start_cleanup(receiver_); }
       };
     };
     template <typename Receiver>
@@ -403,9 +404,8 @@ struct _stream<Values...>::type final {
 
   template <typename ConcreteStream>
   explicit type(ConcreteStream&& strm)
-    : stream_(
-        std::make_unique<type::stream<ConcreteStream>>(
-            (ConcreteStream &&) strm)) {}
+    : stream_(std::make_unique<type::stream<ConcreteStream>>((ConcreteStream &&)
+                                                                 strm)) {}
 
   friend next_sender tag_invoke(tag_t<next>, type& s) noexcept {
     return next_sender{*s.stream_};
@@ -415,30 +415,29 @@ struct _stream<Values...>::type final {
     return cleanup_sender{*s.stream_};
   }
 };
-} // namespace _type_erase
+}  // namespace _type_erase
 
 namespace _type_erase_cpo {
-  template <typename... Ts>
-  struct _fn final {
-    template <typename Stream>
-    _type_erase::stream<Ts...> operator()(Stream&& strm) const {
-      return _type_erase::stream<Ts...>{(Stream &&) strm};
-    }
-    constexpr auto operator()() const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn>)
-        -> bind_back_result_t<_fn> {
-      return bind_back(*this);
-    }
-  };
-} // namespace _type_erase_cpo
+template <typename... Ts>
+struct _fn final {
+  template <typename Stream>
+  _type_erase::stream<Ts...> operator()(Stream&& strm) const {
+    return _type_erase::stream<Ts...>{(Stream &&) strm};
+  }
+  constexpr auto operator()() const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+          -> bind_back_result_t<_fn> {
+    return bind_back(*this);
+  }
+};
+}  // namespace _type_erase_cpo
 
 template <typename... Ts>
-inline constexpr _type_erase_cpo::_fn<Ts...> type_erase {};
+inline constexpr _type_erase_cpo::_fn<Ts...> type_erase{};
 
 template <typename... Ts>
 using type_erased_stream = typename _type_erase::stream<Ts...>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

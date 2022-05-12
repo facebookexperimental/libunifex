@@ -22,95 +22,96 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-  namespace _sf
-  {
-    template <typename Query>
-    struct _property {
-      const typename Query::value_type& operator()(const typename Query::key_type &) const noexcept {
-        return query_.value;
-      }
-      UNIFEX_NO_UNIQUE_ADDRESS Query query_;
-    };
-    template <typename... Queries>
-    struct _ctx {
-      struct type : _property<Queries>... {
-        using _property<Queries>::operator()...;
-      };
-    };
-    template <typename... Queries>
-    using _context = typename _ctx<Queries...>::type;
+namespace unifex {
+namespace _sf {
+template <typename Query>
+struct _property {
+  const typename Query::value_type&
+  operator()(const typename Query::key_type&) const noexcept {
+    return query_.value;
+  }
+  UNIFEX_NO_UNIQUE_ADDRESS Query query_;
+};
+template <typename... Queries>
+struct _ctx {
+  struct type : _property<Queries>... {
+    using _property<Queries>::operator()...;
+  };
+};
+template <typename... Queries>
+using _context = typename _ctx<Queries...>::type;
 
-    template <const auto& C, typename Sender, typename Context>
-    struct sender_for {
-      explicit sender_for(Sender snd, Context ctx)
-          noexcept(
-              std::is_nothrow_move_constructible_v<Sender> &&
-              std::is_nothrow_move_constructible_v<Context>)
-        : snd_((Sender&&) snd), ctx_{(Context&&) ctx} {}
+template <const auto& C, typename Sender, typename Context>
+struct sender_for {
+  explicit sender_for(Sender snd, Context ctx) noexcept(
+      std::is_nothrow_move_constructible_v<Sender>&&
+          std::is_nothrow_move_constructible_v<Context>)
+    : snd_((Sender &&) snd)
+    , ctx_{(Context &&) ctx} {}
 
-      // Forward all tag_invokes:
-      template (typename CPO, typename Self, typename... Args)
-        (requires same_as<sender_for, remove_cvref_t<Self>> AND
-            (!callable<const Context&, CPO>) AND
-            callable<CPO, member_t<Self, Sender>, Args...>)
-      UNIFEX_ALWAYS_INLINE
-      friend decltype(auto) tag_invoke(CPO cpo, Self&& self, Args&&... args)
-          noexcept(is_nothrow_callable_v<CPO, member_t<Self, Sender>, Args...>) {
-        return ((CPO&&) cpo)(((Self&&) self).snd_, (Args&&) args...);
-      }
+  // Forward all tag_invokes:
+  template(typename CPO, typename Self, typename... Args)(
+      requires same_as<sender_for, remove_cvref_t<Self>> AND(
+          !callable<const Context&, CPO>)
+          AND callable<CPO, member_t<Self, Sender>, Args...>)
+      UNIFEX_ALWAYS_INLINE friend decltype(auto)
+          tag_invoke(CPO cpo, Self&& self, Args&&... args) noexcept(
+              is_nothrow_callable_v<CPO, member_t<Self, Sender>, Args...>) {
+    return ((CPO &&) cpo)(((Self &&) self).snd_, (Args &&) args...);
+  }
 
-      // Handle custom property queries by consulting the context:
-      template (typename CPO)
-        (requires callable<const Context&, CPO>)
-      UNIFEX_ALWAYS_INLINE
-      friend decltype(auto) tag_invoke(CPO cpo, const sender_for& self) noexcept {
-        return self.ctx_(cpo);
-      }
+  // Handle custom property queries by consulting the context:
+  template(typename CPO)(requires callable<const Context&, CPO>)
+      UNIFEX_ALWAYS_INLINE friend decltype(auto)
+          tag_invoke(CPO cpo, const sender_for& self) noexcept {
+    return self.ctx_(cpo);
+  }
 
-      const Sender& base() const & noexcept {
-        return snd_;
-      }
+  const Sender& base() const& noexcept { return snd_; }
 
-      Sender&& base() && noexcept {
-        return (Sender&&) snd_;
-      }
-     private:
-      Sender snd_;
-      UNIFEX_NO_UNIQUE_ADDRESS Context ctx_;
-    };
+  Sender&& base() && noexcept { return (Sender &&) snd_; }
 
-    template <auto& CPO>
-    struct _make_sender_for {
-      template (typename Sender, typename... Queries)
-        (requires sender<Sender>)
-      sender_for<CPO, remove_cvref_t<Sender>, _context<remove_cvref_t<Queries>...>>
-      operator()(Sender&& snd, Queries&&... queries) const
-          noexcept(
-              std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
-              (std::is_nothrow_constructible_v<remove_cvref_t<Queries>, Queries> &&...)) {
-        return sender_for<CPO, remove_cvref_t<Sender>, _context<remove_cvref_t<Queries>...>>{
-            (Sender&&) snd, _context<remove_cvref_t<Queries>...>{{(Queries&&) queries}...}};
-      }
-    };
-  } // namespace _sf
+private:
+  Sender snd_;
+  UNIFEX_NO_UNIQUE_ADDRESS Context ctx_;
+};
 
-  using _sf::sender_for;
+template <auto& CPO>
+struct _make_sender_for {
+  template(typename Sender, typename... Queries)(requires sender<Sender>)
+      sender_for<
+          CPO,
+          remove_cvref_t<Sender>,
+          _context<remove_cvref_t<Queries>...>>
+      operator()(Sender&& snd, Queries&&... queries) const noexcept(
+          std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
+          (std::is_nothrow_constructible_v<remove_cvref_t<Queries>, Queries> &&
+           ...)) {
+    return sender_for<
+        CPO,
+        remove_cvref_t<Sender>,
+        _context<remove_cvref_t<Queries>...>>{
+        (Sender &&) snd,
+        _context<remove_cvref_t<Queries>...>{{(Queries &&) queries}...}};
+  }
+};
+}  // namespace _sf
 
-  template <const auto& CPO>
-  inline constexpr _sf::_make_sender_for<CPO> make_sender_for {};
+using _sf::sender_for;
 
-  template <typename T, const auto& CPO>
-  inline constexpr bool is_sender_for_v = false;
+template <const auto& CPO>
+inline constexpr _sf::_make_sender_for<CPO> make_sender_for{};
 
-  template <typename Sender, typename Context, const auto& CPO>
-  inline constexpr bool is_sender_for_v<sender_for<CPO, Sender, Context>, CPO> = true;
+template <typename T, const auto& CPO>
+inline constexpr bool is_sender_for_v = false;
 
-  template <const auto& CPO, typename Sender, typename Context>
-  struct sender_traits<sender_for<CPO, Sender, Context>>
-    : sender_traits<Sender>
-  {};
-} // namespace unifex
+template <typename Sender, typename Context, const auto& CPO>
+inline constexpr bool is_sender_for_v<sender_for<CPO, Sender, Context>, CPO> =
+    true;
+
+template <const auto& CPO, typename Sender, typename Context>
+struct sender_traits<sender_for<CPO, Sender, Context>>
+  : sender_traits<Sender> {};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

@@ -16,11 +16,11 @@
 #include <unifex/just.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
-#include <unifex/when_all.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/utility.hpp>
 #include <unifex/variant.hpp>
+#include <unifex/when_all.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -34,7 +34,7 @@ using namespace std::chrono_literals;
 
 namespace {
 struct my_error {};
-}
+}  // namespace
 
 #if !UNIFEX_NO_EXCEPTIONS
 
@@ -93,7 +93,7 @@ TEST(WhenAll2, Smoke) {
   EXPECT_FALSE(ranFinalCallback);
 }
 
-#endif // !UNIFEX_NO_EXCEPTIONS
+#endif  // !UNIFEX_NO_EXCEPTIONS
 
 struct string_const_ref_sender {
   template <

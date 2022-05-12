@@ -18,9 +18,9 @@
 #include <unifex/config.hpp>
 
 #if !UNIFEX_NO_COROUTINES
-#include UNIFEX_COROUTINES_HEADER
+#  include UNIFEX_COROUTINES_HEADER
 
 namespace unifex {
-    namespace coro = UNIFEX_COROUTINES_NAMESPACE;
+namespace coro = UNIFEX_COROUTINES_NAMESPACE;
 }
 #endif

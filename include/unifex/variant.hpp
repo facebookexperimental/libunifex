@@ -18,44 +18,43 @@
 #include <unifex/config.hpp>
 
 #if defined(UNIFEX_USE_ABSEIL)
-#include <absl/types/variant.h>
+#  include <absl/types/variant.h>
 #else
-#include <variant>
+#  include <variant>
 #endif
 
 #include <unifex/utility.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
+namespace unifex {
 #if defined(UNIFEX_USE_ABSEIL)
+using absl::bad_variant_access;
+using absl::holds_alternative;
+using absl::monostate;
 using absl::variant;
-using absl::variant_size;
 using absl::variant_alternative;
 using absl::variant_npos;
-using absl::holds_alternative;
+using absl::variant_size;
 using absl::visit;
-using absl::monostate;
-using absl::bad_variant_access;
 namespace var {
 using absl::get;
 using absl::get_if;
-}
+}  // namespace var
 #else
+using std::bad_variant_access;
+using std::holds_alternative;
+using std::monostate;
 using std::variant;
-using std::variant_size;
 using std::variant_alternative;
 using std::variant_npos;
-using std::holds_alternative;
+using std::variant_size;
 using std::visit;
-using std::monostate;
-using std::bad_variant_access;
 namespace var {
 using std::get;
 using std::get_if;
-}
+}  // namespace var
 #endif
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

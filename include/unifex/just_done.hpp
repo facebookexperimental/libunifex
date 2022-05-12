@@ -16,9 +16,9 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/blocking.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
-#include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
 
 #include <exception>
@@ -42,16 +42,16 @@ template <typename Receiver>
 struct _op<Receiver>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-  void start() & noexcept {
-    unifex::set_done((Receiver &&) receiver_);
-  }
+  void start() & noexcept { unifex::set_done((Receiver &&) receiver_); }
 };
 
 class sender {
- public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<>;
 
   template <template <typename...> class Variant>
@@ -59,11 +59,9 @@ class sender {
 
   static constexpr bool sends_done = true;
 
-  template(typename This, typename Receiver)
-      (requires same_as<remove_cvref_t<This>, sender> AND
-        receiver<Receiver>)
-  friend auto tag_invoke(tag_t<connect>, This&&, Receiver&& r)
-      noexcept
+  template(typename This, typename Receiver)(
+      requires same_as<remove_cvref_t<This>, sender> AND receiver<
+          Receiver>) friend auto tag_invoke(tag_t<connect>, This&&, Receiver&& r) noexcept
       -> operation<Receiver> {
     return {static_cast<Receiver&&>(r)};
   }
@@ -72,18 +70,17 @@ class sender {
     return blocking_kind::always_inline;
   }
 };
-} // namespace _just_done
+}  // namespace _just_done
 
 namespace _just_done_cpo {
-  inline const struct just_done_fn {
-    constexpr auto operator()() const noexcept
-      -> _just_done::sender {
-      return _just_done::sender{};
-    }
-  } just_done{};
-} // namespace _just_done_cpo
+inline const struct just_done_fn {
+  constexpr auto operator()() const noexcept -> _just_done::sender {
+    return _just_done::sender{};
+  }
+} just_done{};
+}  // namespace _just_done_cpo
 using _just_done_cpo::just_done;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

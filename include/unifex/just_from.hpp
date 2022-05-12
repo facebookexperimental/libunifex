@@ -21,18 +21,16 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-  namespace _just_from {
-    inline const struct _fn {
-      template (typename Callable)
-        (requires callable<Callable>)
-      constexpr auto operator()(Callable&& callable) const {
-        return then(just(), (Callable&&) callable);
-      }
-    } just_from{};
-  } // namespace _just_froom
-  using _just_from::just_from;
-} // namespace unifex
+namespace unifex {
+namespace _just_from {
+inline const struct _fn {
+  template(typename Callable)(requires callable<Callable>) constexpr auto
+  operator()(Callable&& callable) const {
+    return then(just(), (Callable &&) callable);
+  }
+} just_from{};
+}  // namespace _just_from
+using _just_from::just_from;
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

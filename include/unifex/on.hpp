@@ -15,12 +15,12 @@
  */
 #pragma once
 
-#include <unifex/tag_invoke.hpp>
-#include <unifex/sender_concepts.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/with_query_value.hpp>
-#include <unifex/sequence.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
+#include <unifex/sequence.hpp>
+#include <unifex/tag_invoke.hpp>
+#include <unifex/with_query_value.hpp>
 
 #include <type_traits>
 
@@ -28,34 +28,32 @@
 
 namespace unifex {
 namespace _on {
-  inline const struct _fn {
-    template(typename Scheduler, typename Sender)
-        (requires sender<Sender> AND scheduler<Scheduler> AND //
-          tag_invocable<_fn, Sender, Scheduler>)
-    auto operator()(Scheduler&& scheduler, Sender&& sender) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler, Sender>)
-        -> tag_invoke_result_t<_fn, Scheduler, Sender> {
-      return unifex::tag_invoke(
-          _fn{}, (Scheduler &&) scheduler, (Sender &&) sender);
-    }
+inline const struct _fn {
+  template(typename Scheduler, typename Sender)(
+      requires sender<Sender> AND scheduler<Scheduler> AND  //
+          tag_invocable<_fn, Sender, Scheduler>) auto
+  operator()(Scheduler&& scheduler, Sender&& sender) const
+      noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler, Sender>)
+          -> tag_invoke_result_t<_fn, Scheduler, Sender> {
+    return unifex::tag_invoke(
+        _fn{}, (Scheduler &&) scheduler, (Sender &&) sender);
+  }
 
-    template(typename Scheduler, typename Sender)
-        (requires sender<Sender> AND scheduler<Scheduler> AND //
-          (!tag_invocable<_fn, Scheduler, Sender>))
-    auto operator()(Scheduler&& scheduler, Sender&& sender) const {
-      auto scheduleSender = schedule(scheduler);
-      return sequence(
+  template(typename Scheduler, typename Sender)(
+      requires sender<Sender> AND scheduler<Scheduler> AND  //
+      (!tag_invocable<_fn, Scheduler, Sender>)) auto
+  operator()(Scheduler&& scheduler, Sender&& sender) const {
+    auto scheduleSender = schedule(scheduler);
+    return sequence(
         std::move(scheduleSender),
         with_query_value(
-          (Sender&&) sender,
-          get_scheduler,
-          (Scheduler&&) scheduler));
-    }
-  } on{};
-} // namespace _on
+            (Sender &&) sender, get_scheduler, (Scheduler &&) scheduler));
+  }
+} on{};
+}  // namespace _on
 
 using _on::on;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

@@ -15,7 +15,6 @@
  */
 #pragma once
 
-
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -24,7 +23,7 @@ namespace unifex {
 // field of the list items.
 template <typename T, T* T::*Next, T* T::*Prev, typename Key, Key T::*SortKey>
 class intrusive_heap {
- public:
+public:
   intrusive_heap() noexcept : head_(nullptr) {}
 
   ~intrusive_heap() {
@@ -42,9 +41,7 @@ class intrusive_heap {
     UNIFEX_ASSERT(empty());
   }
 
-  bool empty() const noexcept {
-    return head_ == nullptr;
-  }
+  bool empty() const noexcept { return head_ == nullptr; }
 
   T* top() const noexcept {
     UNIFEX_ASSERT(!empty());
@@ -106,10 +103,10 @@ class intrusive_heap {
     }
   }
 
- private:
+private:
   T* head_;
 };
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

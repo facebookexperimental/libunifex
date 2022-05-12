@@ -15,7 +15,6 @@
  */
 #include <unifex/linux/safe_file_descriptor.hpp>
 
-
 #include <unistd.h>
 
 namespace unifex::linuxos {
@@ -26,4 +25,4 @@ void safe_file_descriptor::close() noexcept {
   UNIFEX_ASSERT(result == 0);
 }
 
-} // namespace unifex::linuxos
+}  // namespace unifex::linuxos

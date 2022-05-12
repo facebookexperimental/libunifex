@@ -21,7 +21,6 @@
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/stream_concepts.hpp>
 
 #include <type_traits>
@@ -57,26 +56,25 @@ struct _op<Receiver>::type {
 
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   manual_lifetime<
-      typename stop_token_type::
-          template callback_type<cancel_callback>>
-    stopCallback_;
+      typename stop_token_type::template callback_type<cancel_callback>>
+      stopCallback_;
 
-  template(typename Receiver2)
-    (requires constructible_from<Receiver, Receiver2>)
-  type(Receiver2&& receiver)
+  template(typename Receiver2)(requires constructible_from<Receiver, Receiver2>)
+      type(Receiver2&& receiver)
     : receiver_((Receiver2 &&) receiver) {}
 
   void start() noexcept {
     UNIFEX_ASSERT(get_stop_token(receiver_).stop_possible());
-    stopCallback_.construct(
-        get_stop_token(receiver_), cancel_callback{*this});
+    stopCallback_.construct(get_stop_token(receiver_), cancel_callback{*this});
   }
 };
 
 struct sender {
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<>;
 
   template <template <typename...> class Variant>
@@ -94,14 +92,15 @@ struct stream {
   friend constexpr sender tag_invoke(tag_t<next>, stream&) noexcept {
     return {};
   }
-  friend constexpr ready_done_sender tag_invoke(tag_t<cleanup>, stream&) noexcept {
+  friend constexpr ready_done_sender
+  tag_invoke(tag_t<cleanup>, stream&) noexcept {
     return {};
   }
 };
-} // namespace _never
+}  // namespace _never
 
 using never_sender = _never::sender;
 using never_stream = _never::stream;
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

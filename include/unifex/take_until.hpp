@@ -16,18 +16,18 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/sender_concepts.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/stream_concepts.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/unstoppable_token.hpp>
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/get_stop_token.hpp>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
+#include <unifex/unstoppable_token.hpp>
 
-#include <exception>
 #include <atomic>
+#include <exception>
 #include <type_traits>
 #include <utility>
 
@@ -40,14 +40,13 @@ struct _stream {
   struct type;
 };
 template <typename SourceStream, typename TriggerStream>
-using stream =
-    typename _stream<
-        remove_cvref_t<SourceStream>,
-        remove_cvref_t<TriggerStream>>::type;
+using stream = typename _stream<
+    remove_cvref_t<SourceStream>,
+    remove_cvref_t<TriggerStream>>::type;
 
 template <typename SourceStream, typename TriggerStream>
 struct _stream<SourceStream, TriggerStream>::type {
- private:
+private:
   using take_until_stream = type;
   struct trigger_next_receiver {
     take_until_stream& stream_;
@@ -68,12 +67,10 @@ struct _stream<SourceStream, TriggerStream>::type {
       stream.trigger_next_done();
     }
 
-    inplace_stop_source& get_stop_source() const {
-      return stream_.stopSource_;
-    }
+    inplace_stop_source& get_stop_source() const { return stream_.stopSource_; }
 
-    friend inplace_stop_token tag_invoke(
-        tag_t<get_stop_token>, const trigger_next_receiver& r) noexcept {
+    friend inplace_stop_token
+    tag_invoke(tag_t<get_stop_token>, const trigger_next_receiver& r) noexcept {
       return r.get_stop_source().get_token();
     }
   };
@@ -85,25 +82,26 @@ struct _stream<SourceStream, TriggerStream>::type {
   struct cancel_callback {
     inplace_stop_source& stopSource_;
 
-    void operator()() noexcept {
-      stopSource_.request_stop();
-    }
+    void operator()() noexcept { stopSource_.request_stop(); }
   };
 
   struct next_sender {
     take_until_stream& stream_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
-    using value_types =
-      typename sender_traits<next_sender_t<SourceStream>>::
-        template value_types<Variant, Tuple>;
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
+    using value_types = typename sender_traits<
+        next_sender_t<SourceStream>>::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types =
-      sender_error_types_t<next_sender_t<SourceStream>, Variant>;
+        sender_error_types_t<next_sender_t<SourceStream>, Variant>;
 
-    static constexpr bool sends_done = sender_traits<next_sender_t<SourceStream>>::sends_done;
+    static constexpr bool sends_done =
+        sender_traits<next_sender_t<SourceStream>>::sends_done;
 
     template <typename Receiver>
     struct _op {
@@ -114,7 +112,7 @@ struct _stream<SourceStream, TriggerStream>::type {
           template <typename... Values>
           void set_value(Values&&... values) && noexcept {
             op_.stopCallback_.destruct();
-            unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
+            unifex::set_value(std::move(op_.receiver_), (Values &&) values...);
           }
 
           void set_done() && noexcept {
@@ -127,7 +125,7 @@ struct _stream<SourceStream, TriggerStream>::type {
           void set_error(Error&& error) && noexcept {
             op_.stopCallback_.destruct();
             op_.stream_.stopSource_.request_stop();
-            unifex::set_error(std::move(op_.receiver_), (Error&&)error);
+            unifex::set_error(std::move(op_.receiver_), (Error &&) error);
           }
 
           inplace_stop_source& get_stop_source() const {
@@ -139,10 +137,10 @@ struct _stream<SourceStream, TriggerStream>::type {
             return r.get_stop_source().get_token();
           }
 
-          template(typename CPO)
-              (requires is_receiver_query_cpo_v<CPO>)
-          friend auto tag_invoke(CPO cpo, const receiver_wrapper& r) noexcept(
-              is_nothrow_callable_v<CPO, const Receiver&>)
+          template(typename CPO)(requires is_receiver_query_cpo_v<CPO>) friend auto tag_invoke(
+              CPO cpo,
+              const receiver_wrapper&
+                  r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
               -> callable_result_t<CPO, const Receiver&> {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
@@ -158,19 +156,17 @@ struct _stream<SourceStream, TriggerStream>::type {
 
         take_until_stream& stream_;
         Receiver receiver_;
-        manual_lifetime<typename stop_token_type_t<Receiver&>::
-                        template callback_type<cancel_callback>>
-          stopCallback_;
+        manual_lifetime<typename stop_token_type_t<
+            Receiver&>::template callback_type<cancel_callback>>
+            stopCallback_;
         next_operation_t<SourceStream, receiver_wrapper> innerOp_;
 
         template <typename Receiver2>
         explicit type(take_until_stream& stream, Receiver2&& receiver)
           : stream_(stream)
-          , receiver_((Receiver2&&)receiver)
+          , receiver_((Receiver2 &&) receiver)
           , innerOp_(unifex::connect(
-                next(stream.source_),
-                receiver_wrapper{*this}))
-        {}
+                next(stream.source_), receiver_wrapper{*this})) {}
 
         void start() noexcept {
           if (!stream_.triggerNextStarted_) {
@@ -179,18 +175,17 @@ struct _stream<SourceStream, TriggerStream>::type {
             UNIFEX_TRY {
               stream_.triggerNextOp_.construct_with([&] {
                 return unifex::connect(
-                  next(stream_.trigger_),
-                  trigger_next_receiver{stream_});
+                    next(stream_.trigger_), trigger_next_receiver{stream_});
               });
               unifex::start(stream_.triggerNextOp_.get());
-            } UNIFEX_CATCH (...) {
+            }
+            UNIFEX_CATCH(...) {
               stream_.trigger_next_done();
             }
           }
 
           stopCallback_.construct(
-            get_stop_token(receiver_),
-            cancel_callback{stream_.stopSource_});
+              get_stop_token(receiver_), cancel_callback{stream_.stopSource_});
           unifex::start(innerOp_);
         }
       };
@@ -200,24 +195,24 @@ struct _stream<SourceStream, TriggerStream>::type {
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{
-        stream_,
-        (Receiver&&)receiver};
+      return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
   };
 
   struct cleanup_sender {
     take_until_stream& stream_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
-    using value_types =
-      typename sender_traits<cleanup_sender_t<SourceStream>>::
-        template value_types<Variant, Tuple>;
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
+    using value_types = typename sender_traits<
+        cleanup_sender_t<SourceStream>>::template value_types<Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types =
-      sender_error_types_t<cleanup_sender_t<SourceStream>, Variant>;
+        sender_error_types_t<cleanup_sender_t<SourceStream>, Variant>;
 
     static constexpr bool sends_done = true;
 
@@ -235,7 +230,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
           template <typename Error>
           void set_error(Error&& error) && noexcept {
-            std::move(*this).set_error(make_exception_ptr((Error&&)error));
+            std::move(*this).set_error(make_exception_ptr((Error &&) error));
           }
 
           void set_error(std::exception_ptr error) && noexcept {
@@ -244,10 +239,10 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.source_cleanup_error(std::move(error));
           }
 
-          template(typename CPO)
-              (requires is_receiver_query_cpo_v<CPO>)
-          friend auto tag_invoke(CPO cpo, const source_receiver& r) noexcept(
-              is_nothrow_callable_v<CPO, const Receiver&>)
+          template(typename CPO)(requires is_receiver_query_cpo_v<CPO>) friend auto tag_invoke(
+              CPO cpo,
+              const source_receiver&
+                  r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
               -> callable_result_t<CPO, const Receiver&> {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
@@ -272,7 +267,7 @@ struct _stream<SourceStream, TriggerStream>::type {
 
           template <typename Error>
           void set_error(Error&& error) && noexcept {
-            std::move(*this).set_error(make_exception_ptr((Error&&)error));
+            std::move(*this).set_error(make_exception_ptr((Error &&) error));
           }
 
           void set_error(std::exception_ptr error) && noexcept {
@@ -281,10 +276,10 @@ struct _stream<SourceStream, TriggerStream>::type {
             op.trigger_cleanup_error(std::move(error));
           }
 
-          template(typename CPO)
-              (requires is_receiver_query_cpo_v<CPO>)
-          friend auto tag_invoke(CPO cpo, const trigger_receiver& r) noexcept(
-              is_nothrow_callable_v<CPO, const Receiver&>)
+          template(typename CPO)(requires is_receiver_query_cpo_v<CPO>) friend auto tag_invoke(
+              CPO cpo,
+              const trigger_receiver&
+                  r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
               -> callable_result_t<CPO, const Receiver&> {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
@@ -305,32 +300,32 @@ struct _stream<SourceStream, TriggerStream>::type {
         UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
         manual_lifetime<cleanup_operation_t<SourceStream, source_receiver>>
-          sourceOp_;
+            sourceOp_;
         manual_lifetime<cleanup_operation_t<TriggerStream, trigger_receiver>>
-          triggerOp_;
+            triggerOp_;
 
         template <typename Receiver2>
         explicit type(take_until_stream& stream, Receiver2&& receiver)
           : stream_(stream)
-          , receiver_((Receiver2&&)receiver)
-        {}
+          , receiver_((Receiver2 &&) receiver) {}
 
         void start() noexcept {
           UNIFEX_TRY {
             sourceOp_.construct_with([&] {
               return unifex::connect(
-                cleanup(stream_.source_),
-                source_receiver{*this});
+                  cleanup(stream_.source_), source_receiver{*this});
             });
             unifex::start(sourceOp_.get());
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             source_cleanup_error(std::current_exception());
           }
 
           if (!stream_.cleanupReady_.load(std::memory_order_acquire)) {
             stream_.cleanupOperation_ = this;
             stream_.stopSource_.request_stop();
-            if (!stream_.cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
+            if (!stream_.cleanupReady_.exchange(
+                    true, std::memory_order_acq_rel)) {
               // The trigger cleanup is not yet ready to run.
               // The trigger_next_receiver will start this when it completes.
               return;
@@ -345,11 +340,11 @@ struct _stream<SourceStream, TriggerStream>::type {
           UNIFEX_TRY {
             triggerOp_.construct_with([&] {
               return unifex::connect(
-                cleanup(stream_.trigger_),
-                trigger_receiver{*this});
+                  cleanup(stream_.trigger_), trigger_receiver{*this});
             });
             unifex::start(triggerOp_.get());
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             trigger_cleanup_error(std::current_exception());
             return;
           }
@@ -445,39 +440,36 @@ struct _stream<SourceStream, TriggerStream>::type {
   bool triggerNextStarted_ = false;
 
   manual_lifetime<next_operation_t<TriggerStream, trigger_next_receiver>>
-    triggerNextOp_;
+      triggerNextOp_;
 
   void trigger_next_done() noexcept {
-      if (!cleanupReady_.load(std::memory_order_acquire)) {
-        stopSource_.request_stop();
-        if (!cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
-          // Successfully registered completion of next(trigger)
-          // before someone called cleanup(stream). We have passed
-          // responsibility for calling cleanup(trigger_) to the
-          // call to start() on the cleanup(stream) sender.
-          return;
-        }
+    if (!cleanupReady_.load(std::memory_order_acquire)) {
+      stopSource_.request_stop();
+      if (!cleanupReady_.exchange(true, std::memory_order_acq_rel)) {
+        // Successfully registered completion of next(trigger)
+        // before someone called cleanup(stream). We have passed
+        // responsibility for calling cleanup(trigger_) to the
+        // call to start() on the cleanup(stream) sender.
+        return;
       }
+    }
 
-      // Otherwise, the cleanup(stream) operation has already been started
-      // before the next(trigger) operation finished.
-      // We have the responsibility for launching cleanup(trigger).
-      UNIFEX_ASSERT(cleanupOperation_ != nullptr);
-      cleanupOperation_->start_trigger_cleanup();
+    // Otherwise, the cleanup(stream) operation has already been started
+    // before the next(trigger) operation finished.
+    // We have the responsibility for launching cleanup(trigger).
+    UNIFEX_ASSERT(cleanupOperation_ != nullptr);
+    cleanupOperation_->start_trigger_cleanup();
   }
 
 public:
-
   template <typename SourceStream2, typename TriggerStream2>
   explicit type(SourceStream2&& source, TriggerStream2&& trigger)
-  : source_((SourceStream2&&)source)
-  , trigger_((TriggerStream2&&)trigger)
-  {}
+    : source_((SourceStream2 &&) source)
+    , trigger_((TriggerStream2 &&) trigger) {}
 
   type(type&& other)
-  : source_(std::move(other.source_))
-  , trigger_(std::move(other.trigger_))
-  {}
+    : source_(std::move(other.source_))
+    , trigger_(std::move(other.trigger_)) {}
 
   friend next_sender tag_invoke(tag_t<next>, take_until_stream& s) {
     return {s};
@@ -487,28 +479,26 @@ public:
     return {s};
   }
 };
-} // namespace _take_until
+}  // namespace _take_until
 
 namespace _take_until_cpo {
-  inline const struct _fn {
-    template <typename SourceStream, typename TriggerStream>
-    auto operator()(SourceStream&& source, TriggerStream&& trigger) const {
-      return _take_until::stream<SourceStream, TriggerStream>{
-        (SourceStream&&)source,
-        (TriggerStream&&)trigger};
-    }
-    template <typename TriggerStream>
-    constexpr auto operator()(TriggerStream&& trigger) const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn, TriggerStream>)
-        -> bind_back_result_t<_fn, TriggerStream> {
-      return bind_back(*this, (TriggerStream&&)trigger);
-    }
-  } take_until {};
-} // namespace _take_until_cpo
+inline const struct _fn {
+  template <typename SourceStream, typename TriggerStream>
+  auto operator()(SourceStream&& source, TriggerStream&& trigger) const {
+    return _take_until::stream<SourceStream, TriggerStream>{
+        (SourceStream &&) source, (TriggerStream &&) trigger};
+  }
+  template <typename TriggerStream>
+  constexpr auto operator()(TriggerStream&& trigger) const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, TriggerStream>)
+          -> bind_back_result_t<_fn, TriggerStream> {
+    return bind_back(*this, (TriggerStream &&) trigger);
+  }
+} take_until{};
+}  // namespace _take_until_cpo
 
 using _take_until_cpo::take_until;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

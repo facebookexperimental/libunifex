@@ -18,17 +18,17 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/just.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
-#include <unifex/stop_when.hpp>
-#include <unifex/timed_single_thread_context.hpp>
-#include <unifex/when_all.hpp>
-#include <unifex/scheduler_concepts.hpp>
+#  include <unifex/just.hpp>
+#  include <unifex/scheduler_concepts.hpp>
+#  include <unifex/stop_when.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
+#  include <unifex/timed_single_thread_context.hpp>
+#  include <unifex/when_all.hpp>
 
-#include <chrono>
+#  include <chrono>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 using namespace std::chrono_literals;
@@ -38,8 +38,7 @@ TEST(awaitable_senders, non_void) {
     co_return co_await just(42);
   };
 
-  optional<int> answer =
-      sync_wait(makeTask());
+  optional<int> answer = sync_wait(makeTask());
 
   EXPECT_TRUE(answer.has_value());
   EXPECT_EQ(42, *answer);
@@ -52,8 +51,7 @@ TEST(awaitable_senders, void) {
     co_return unifex::unit{};
   };
 
-  optional<unifex::unit> answer =
-      sync_wait(makeTask());
+  optional<unifex::unit> answer = sync_wait(makeTask());
 
   EXPECT_TRUE(answer.has_value());
 }
@@ -61,8 +59,7 @@ TEST(awaitable_senders, void) {
 TEST(awaitable_senders, task_cancellation) {
   timed_single_thread_context ctx;
   auto sched = ctx.get_scheduler();
-  sync_wait(
-    stop_when(
+  sync_wait(stop_when(
       [&]() -> task<int> {
         co_await schedule_after(sched, 500ms);
         ADD_FAILURE();

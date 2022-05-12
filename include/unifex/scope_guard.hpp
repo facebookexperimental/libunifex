@@ -32,16 +32,11 @@ private:
   bool released_ = false;
 
 public:
-  scope_guard(Func&& func) noexcept
-      : func_((Func &&) func) {}
+  scope_guard(Func&& func) noexcept : func_((Func &&) func) {}
 
-  ~scope_guard() {
-    reset();
-  }
+  ~scope_guard() { reset(); }
 
-  void release() noexcept {
-    released_ = true;
-  }
+  void release() noexcept { released_ = true; }
 
   void reset() noexcept {
     static_assert(noexcept(((Func &&) func_)()));
@@ -54,6 +49,6 @@ public:
 template <typename Func>
 scope_guard(Func&& func) -> scope_guard<Func>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

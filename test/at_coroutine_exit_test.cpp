@@ -18,14 +18,14 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/at_coroutine_exit.hpp>
+#  include <unifex/at_coroutine_exit.hpp>
 
-#include <unifex/task.hpp>
-#include <unifex/stop_if_requested.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/just_from.hpp>
+#  include <unifex/just_from.hpp>
+#  include <unifex/stop_if_requested.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 
@@ -35,46 +35,67 @@ struct AtCoroutineExit : testing::Test {
 
   task<void> test_one_cleanup_action() {
     ++result;
-    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> {
+      result *= 2;
+      co_return;
+    });
     ++result;
   }
 
   task<void> test_two_cleanup_actions() {
     ++result;
-    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
-    co_await at_coroutine_exit([this]() -> task<void> { result *= result; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> {
+      result *= 2;
+      co_return;
+    });
+    co_await at_coroutine_exit([this]() -> task<void> {
+      result *= result;
+      co_return;
+    });
     ++result;
   }
 
   task<void> test_one_cleanup_action_with_stop() {
     ++result;
-    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> {
+      result *= 2;
+      co_return;
+    });
     co_await stop();
     ++result;
   }
 
   task<void> test_two_cleanup_actions_with_stop() {
     ++result;
-    co_await at_coroutine_exit([this]() -> task<void> { result *= 2; co_return; });
-    co_await at_coroutine_exit([this]() -> task<void> { result *= result; co_return; });
+    co_await at_coroutine_exit([this]() -> task<void> {
+      result *= 2;
+      co_return;
+    });
+    co_await at_coroutine_exit([this]() -> task<void> {
+      result *= result;
+      co_return;
+    });
     co_await stop();
     ++result;
   }
 
   task<void> test_sender_cleanup_action() {
-    co_await at_coroutine_exit([this]{ return just_from([this]{++result;}); });
+    co_await at_coroutine_exit(
+        [this] { return just_from([this] { ++result; }); });
   }
 
   task<void> test_stateful_cleanup_action(int arg) {
-    co_await at_coroutine_exit([arg,this]{ return just_from([arg,this]{result += arg;}); });
+    co_await at_coroutine_exit(
+        [arg, this] { return just_from([arg, this] { result += arg; }); });
   }
 
   task<void> test_mutable_stateful_cleanup_action() {
     auto&& [i] = co_await at_coroutine_exit(
-      [this](int&& i) -> task<void> {
-        result += i;
-        co_return;
-      }, 3);
+        [this](int&& i) -> task<void> {
+          result += i;
+          co_return;
+        },
+        3);
     ++result;
     i *= i;
   }
@@ -86,69 +107,59 @@ struct AtCoroutineExit : testing::Test {
 
   void test_cancel_in_cleanup_action_causes_death() {
     task<void> t = []() -> task<void> {
-      co_await at_coroutine_exit([]() -> task<void> {
-        co_await stop();
-      });
+      co_await at_coroutine_exit([]() -> task<void> { co_await stop(); });
     }();
-    sync_wait(std::move(t)); // causes termination
+    sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 
   void test_cancel_during_cancellation_unwind_causes_death() {
     task<void> t = []() -> task<void> {
       co_await at_coroutine_exit([]() -> task<void> {
-        co_await stop(); // BOOM
+        co_await stop();  // BOOM
       });
       co_await stop();
     }();
-    sync_wait(std::move(t)); // causes termination
+    sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 
   void test_throw_in_cleanup_action_causes_death() {
     task<void> t = []() -> task<void> {
-      co_await at_coroutine_exit([]() -> task<void> {
-        throw 42;
-      });
+      co_await at_coroutine_exit([]() -> task<void> { throw 42; });
     }();
-    sync_wait(std::move(t)); // causes termination
+    sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 
   void test_throw_in_cleanup_action_during_exception_unwind_causes_death() {
     task<void> t = []() -> task<void> {
-      co_await at_coroutine_exit([]() -> task<void> {
-        throw 42;
-      });
+      co_await at_coroutine_exit([]() -> task<void> { throw 42; });
       throw 42;
     }();
-    sync_wait(std::move(t)); // causes termination
+    sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 
   void test_cancel_in_cleanup_action_during_exception_unwind_causes_death() {
     task<void> t = []() -> task<void> {
-      co_await at_coroutine_exit([]() -> task<void> {
-        co_await stop();
-      });
+      co_await at_coroutine_exit([]() -> task<void> { co_await stop(); });
       throw 42;
     }();
-    sync_wait(std::move(t)); // causes termination
+    sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 
   void test_throw_in_cleanup_action_during_cancellation_unwind_causes_death() {
     task<void> t = []() -> task<void> {
-      co_await at_coroutine_exit([]() -> task<void> {
-        throw 42;
-      });
+      co_await at_coroutine_exit([]() -> task<void> { throw 42; });
       co_await stop();
     }();
-    sync_wait(std::move(t)); // causes termination
+    sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 };
-} // unnamed namespace
+}  // unnamed namespace
 
 TEST_F(AtCoroutineExit, OneCleanupAction) {
   sync_wait(test_one_cleanup_action());
@@ -201,39 +212,36 @@ TEST_F(AtCoroutineExit, MutableStatefulCleanupAction) {
 }
 
 TEST_F(AtCoroutineExit, CancelInCleanupActionCallsTerminate) {
-  ASSERT_DEATH_IF_SUPPORTED(
-    test_cancel_in_cleanup_action_causes_death(),
-    "");
+  ASSERT_DEATH_IF_SUPPORTED(test_cancel_in_cleanup_action_causes_death(), "");
 }
 
 TEST_F(AtCoroutineExit, CancelDuringCancellationUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
-    test_cancel_during_cancellation_unwind_causes_death(),
-    "");
+      test_cancel_during_cancellation_unwind_causes_death(), "");
 }
 
 TEST_F(AtCoroutineExit, ThrowInCleanupActionCallsTerminate) {
-  ASSERT_DEATH_IF_SUPPORTED(
-    test_throw_in_cleanup_action_causes_death(),
-    "");
+  ASSERT_DEATH_IF_SUPPORTED(test_throw_in_cleanup_action_causes_death(), "");
 }
 
-TEST_F(AtCoroutineExit, ThrowInCleanupActionDuringExceptionUnwindCallsTerminate) {
+TEST_F(
+    AtCoroutineExit, ThrowInCleanupActionDuringExceptionUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
-    test_throw_in_cleanup_action_during_exception_unwind_causes_death(),
-    "");
+      test_throw_in_cleanup_action_during_exception_unwind_causes_death(), "");
 }
 
-TEST_F(AtCoroutineExit, CancelInCleanupActionDuringExceptionUnwindCallsTerminate) {
+TEST_F(
+    AtCoroutineExit, CancelInCleanupActionDuringExceptionUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
-    test_cancel_in_cleanup_action_during_exception_unwind_causes_death(),
-    "");
+      test_cancel_in_cleanup_action_during_exception_unwind_causes_death(), "");
 }
 
-TEST_F(AtCoroutineExit, ThrowInCleanupActionDuringCancellationUnwindCallsTerminate) {
+TEST_F(
+    AtCoroutineExit,
+    ThrowInCleanupActionDuringCancellationUnwindCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(
-    test_throw_in_cleanup_action_during_cancellation_unwind_causes_death(),
-    "");
+      test_throw_in_cleanup_action_during_cancellation_unwind_causes_death(),
+      "");
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

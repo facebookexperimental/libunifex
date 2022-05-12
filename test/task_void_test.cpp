@@ -18,28 +18,28 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <atomic>
+#  include <atomic>
 
-#include <unifex/static_thread_pool.hpp>
-#include <unifex/when_all.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/let_value_with.hpp>
-#include <unifex/task.hpp>
+#  include <unifex/let_value_with.hpp>
+#  include <unifex/static_thread_pool.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
+#  include <unifex/when_all.hpp>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-task<void> child(Scheduler s, std::atomic<int>& x) {
+(requires scheduler<Scheduler>)
+    task<void> child(Scheduler s, std::atomic<int>& x) {
   co_await schedule(s);
   ++x;
 }
 
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-task<void> example(Scheduler s, std::atomic<int>& x) {
+(requires scheduler<Scheduler>)
+    task<void> example(Scheduler s, std::atomic<int>& x) {
   ++x;
   co_await when_all(child(s, x), child(s, x));
 }
@@ -57,4 +57,4 @@ TEST(TaskVoid, WhenAll) {
   EXPECT_EQ(x.load(), 45);
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

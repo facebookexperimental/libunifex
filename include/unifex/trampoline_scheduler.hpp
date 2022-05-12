@@ -31,24 +31,20 @@ namespace _trampoline {
 class scheduler {
   std::size_t maxRecursionDepth_;
 
- public:
+public:
   scheduler() noexcept : maxRecursionDepth_(16) {}
 
-  explicit scheduler(std::size_t depth) noexcept
-      : maxRecursionDepth_(depth) {}
+  explicit scheduler(std::size_t depth) noexcept : maxRecursionDepth_(depth) {}
 
- private:
+private:
   struct operation_base {
     using execute_fn = void(operation_base*) noexcept;
 
     explicit operation_base(execute_fn* execute, std::size_t maxDepth) noexcept
-    : execute_(execute)
-    , maxRecursionDepth_(maxDepth)
-    {}
+      : execute_(execute)
+      , maxRecursionDepth_(maxDepth) {}
 
-    void execute() noexcept {
-      execute_(this);
-    }
+    void execute() noexcept { execute_(this); }
 
     void start() noexcept {
       auto* currentState = trampoline_state::current_;
@@ -62,8 +58,7 @@ class scheduler {
       } else {
         // Exceeded recursion limit.
         next_ = std::exchange(
-          currentState->head_,
-          static_cast<operation_base*>(this));
+            currentState->head_, static_cast<operation_base*>(this));
       }
     }
 
@@ -75,13 +70,9 @@ class scheduler {
   struct trampoline_state {
     static thread_local trampoline_state* current_;
 
-    trampoline_state() noexcept {
-      current_ = this;
-    }
+    trampoline_state() noexcept { current_ = this; }
 
-    ~trampoline_state() {
-      current_ = nullptr;
-    }
+    ~trampoline_state() { current_ = nullptr; }
 
     void drain() noexcept;
 
@@ -115,7 +106,7 @@ class scheduler {
           }
         }
       }
-      
+
     public:
       using operation_base::start;
     };
@@ -126,12 +117,13 @@ class scheduler {
   class schedule_sender {
   public:
     explicit schedule_sender(std::size_t maxDepth) noexcept
-      : maxRecursionDepth_(maxDepth)
-    {}
+      : maxRecursionDepth_(maxDepth) {}
 
     template <
-        template <typename...> class Variant,
-        template <typename...> class Tuple>
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = Variant<Tuple<>>;
 
     template <template <typename...> class Variant>
@@ -152,17 +144,13 @@ public:
   schedule_sender schedule() const noexcept {
     return schedule_sender{maxRecursionDepth_};
   }
-  friend bool operator==(scheduler, scheduler) noexcept {
-    return true;
-  }
-  friend bool operator!=(scheduler, scheduler) noexcept {
-    return false;
-  }
+  friend bool operator==(scheduler, scheduler) noexcept { return true; }
+  friend bool operator!=(scheduler, scheduler) noexcept { return false; }
 };
-} // namespace _trampoline
+}  // namespace _trampoline
 
 using trampoline_scheduler = _trampoline::scheduler;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

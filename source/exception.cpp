@@ -28,10 +28,11 @@ inline void _ref::rethrow() const {
 std::exception_ptr _fn::operator()(_ref const e) const noexcept {
   UNIFEX_TRY {
     e.rethrow();
-  } UNIFEX_CATCH(...) {
+  }
+  UNIFEX_CATCH(...) {
     return std::current_exception();
   }
 }
 #endif
-} // namespace _except_ptr
-} // namespace unifex
+}  // namespace _except_ptr
+}  // namespace unifex

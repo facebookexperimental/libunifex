@@ -23,8 +23,8 @@
 #include <unifex/type_index.hpp>
 
 #include <atomic>
-#include <thread>
 #include <cstdint>
+#include <thread>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>
@@ -37,10 +37,8 @@ template <typename F>
 class inplace_stop_callback;
 
 class inplace_stop_callback_base {
- public:
-  void execute() noexcept {
-    this->execute_(this);
-  }
+public:
+  void execute() noexcept { this->execute_(this); }
 
 #ifndef NDEBUG
   char const* type_name() const noexcept {
@@ -48,15 +46,24 @@ class inplace_stop_callback_base {
   }
 #endif
 
- protected:
+protected:
   using execute_fn = void(inplace_stop_callback_base* cb) noexcept;
 
 #ifndef NDEBUG
-  explicit inplace_stop_callback_base(inplace_stop_source* source, execute_fn* execute, char const* type_name) noexcept
-      : source_(source), execute_(execute), type_name_(type_name) {}
+  explicit inplace_stop_callback_base(
+      inplace_stop_source* source,
+      execute_fn* execute,
+      char const* type_name) noexcept
+    : source_(source)
+    , execute_(execute)
+    , type_name_(type_name) {
+  }
 #else
-  explicit inplace_stop_callback_base(inplace_stop_source* source, execute_fn* execute) noexcept
-      : source_(source), execute_(execute) {}
+  explicit inplace_stop_callback_base(
+      inplace_stop_source* source, execute_fn* execute) noexcept
+    : source_(source)
+    , execute_(execute) {
+  }
 #endif
 
   void register_callback() noexcept;
@@ -75,7 +82,7 @@ class inplace_stop_callback_base {
 };
 
 class inplace_stop_source {
- public:
+public:
   inplace_stop_source() noexcept = default;
 
   ~inplace_stop_source();
@@ -93,7 +100,7 @@ class inplace_stop_source {
     return (state_.load(std::memory_order_acquire) & stop_requested_flag) != 0;
   }
 
- private:
+private:
   friend inplace_stop_token;
   friend inplace_stop_callback_base;
   template <typename F>
@@ -117,7 +124,7 @@ class inplace_stop_source {
 };
 
 class inplace_stop_token {
- public:
+public:
   template <typename F>
   using callback_type = inplace_stop_callback<F>;
 
@@ -125,35 +132,36 @@ class inplace_stop_token {
 
   inplace_stop_token(const inplace_stop_token& other) noexcept = default;
 
-  inplace_stop_token& operator=(const inplace_stop_token& other) noexcept = default;
+  inplace_stop_token&
+  operator=(const inplace_stop_token& other) noexcept = default;
 
   bool stop_requested() const noexcept {
     return source_ != nullptr && source_->stop_requested();
   }
 
-  bool stop_possible() const noexcept {
-    return source_ != nullptr;
-  }
+  bool stop_possible() const noexcept { return source_ != nullptr; }
 
   void swap(inplace_stop_token& other) noexcept {
     std::swap(source_, other.source_);
   }
 
-  friend bool operator==(const inplace_stop_token& a, const inplace_stop_token& b) noexcept {
+  friend bool operator==(
+      const inplace_stop_token& a, const inplace_stop_token& b) noexcept {
     return a.source_ == b.source_;
   }
 
-  friend bool operator!=(const inplace_stop_token& a, const inplace_stop_token& b) noexcept {
+  friend bool operator!=(
+      const inplace_stop_token& a, const inplace_stop_token& b) noexcept {
     return !(a == b);
   }
 
- private:
+private:
   friend inplace_stop_source;
   template <typename F>
   friend class inplace_stop_callback;
 
   explicit inplace_stop_token(inplace_stop_source* source) noexcept
-      : source_(source) {}
+    : source_(source) {}
 
   inplace_stop_source* source_;
 };
@@ -164,17 +172,20 @@ inline inplace_stop_token inplace_stop_source::get_token() noexcept {
 
 template <typename F>
 class inplace_stop_callback final : private inplace_stop_callback_base {
- public:
-  template(typename T)
-    (requires convertible_to<T, F>)
-  explicit inplace_stop_callback(inplace_stop_token token, T&& func) noexcept(
-      std::is_nothrow_constructible_v<F, T>)
+public:
+  template(typename T)(requires convertible_to<T, F>) explicit inplace_stop_callback(
+      inplace_stop_token token,
+      T&& func) noexcept(std::is_nothrow_constructible_v<F, T>)
 #ifndef NDEBUG
-      : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl, unifex::type_id<F>().name())
+    : inplace_stop_callback_base(
+          token.source_,
+          &inplace_stop_callback::execute_impl,
+          unifex::type_id<F>().name())
 #else
-      : inplace_stop_callback_base(token.source_, &inplace_stop_callback::execute_impl)
+    : inplace_stop_callback_base(
+          token.source_, &inplace_stop_callback::execute_impl)
 #endif
-      , func_((T&&) func) {
+    , func_((T &&) func) {
     this->register_callback();
   }
 
@@ -184,7 +195,7 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
     }
   }
 
- private:
+private:
   static void execute_impl(inplace_stop_callback_base* cb) noexcept {
     auto& self = *static_cast<inplace_stop_callback*>(cb);
     self.func_();
@@ -194,32 +205,30 @@ class inplace_stop_callback final : private inplace_stop_callback_base {
 };
 
 inline void inplace_stop_callback_base::register_callback() noexcept {
-    if (source_ != nullptr) {
-      if (!source_->try_add_callback(this)) {
-        source_ = nullptr;
-        // Callback not registered because stop_requested() was true.
-        // Execute inline here.
-        execute();
-      }
+  if (source_ != nullptr) {
+    if (!source_->try_add_callback(this)) {
+      source_ = nullptr;
+      // Callback not registered because stop_requested() was true.
+      // Execute inline here.
+      execute();
     }
+  }
 }
 
 namespace detail {
-  struct forward_stop_request_to_inplace_stop_source {
-    inplace_stop_source& source;
+struct forward_stop_request_to_inplace_stop_source {
+  inplace_stop_source& source;
 
-    forward_stop_request_to_inplace_stop_source(inplace_stop_source& s) noexcept
-      : source(s) {}
+  forward_stop_request_to_inplace_stop_source(inplace_stop_source& s) noexcept
+    : source(s) {}
 
-    void operator()() const noexcept {
-      source.request_stop();
-    }
-  };
-} // namespace detail
+  void operator()() const noexcept { source.request_stop(); }
+};
+}  // namespace detail
 
 // Helper class for adapting an incoming StopToken type to an
 // inplace_stop_token.
-template<typename StopToken, typename = void>
+template <typename StopToken, typename = void>
 class inplace_stop_token_adapter {
 public:
   inplace_stop_token subscribe(StopToken stoken) noexcept {
@@ -228,17 +237,16 @@ public:
     return stopPossible ? source_.get_token() : inplace_stop_token{};
   }
 
-  void unsubscribe() noexcept {
-    callback_.destruct();
-  }
+  void unsubscribe() noexcept { callback_.destruct(); }
 
 private:
-  using stop_callback = typename StopToken::template callback_type<detail::forward_stop_request_to_inplace_stop_source>;
+  using stop_callback = typename StopToken::template callback_type<
+      detail::forward_stop_request_to_inplace_stop_source>;
   inplace_stop_source source_;
   UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<stop_callback> callback_;
 };
 
-template<>
+template <>
 class inplace_stop_token_adapter<inplace_stop_token, void> {
 public:
   inplace_stop_token subscribe(inplace_stop_token stoken) noexcept {
@@ -248,8 +256,10 @@ public:
   void unsubscribe() noexcept {}
 };
 
-template<typename StopToken>
-class inplace_stop_token_adapter<StopToken, std::enable_if_t<is_stop_never_possible_v<StopToken>>> {
+template <typename StopToken>
+class inplace_stop_token_adapter<
+    StopToken,
+    std::enable_if_t<is_stop_never_possible_v<StopToken>>> {
 public:
   inplace_stop_token subscribe(StopToken) noexcept {
     return inplace_stop_token{};
@@ -272,17 +282,16 @@ struct inplace_stop_token_adapter_subscription {
       stopTokenAdapter_.unsubscribe();
     }
   }
-  ~inplace_stop_token_adapter_subscription() {
-    unsubscribe();
-  }
+  ~inplace_stop_token_adapter_subscription() { unsubscribe(); }
+
 private:
   bool isSubscribed_ = false;
   UNIFEX_NO_UNIQUE_ADDRESS
   inplace_stop_token_adapter<StopToken> stopTokenAdapter_{};
 };
-} // namespace detail
+}  // namespace detail
 /// \endcond
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

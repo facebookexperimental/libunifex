@@ -30,18 +30,11 @@ TEST(Execute, execute_with_scheduler) {
 TEST(Execute, Pipeable) {
   int i = 0;
   struct _receiver {
-    int *p;
-    void set_value() && noexcept {
-      *p += 1;
-    }
-    void set_error(std::exception_ptr) && noexcept {
-      *p += 2;
-    }
-    void set_done() && noexcept {
-      *p += 4;
-    }
+    int* p;
+    void set_value() && noexcept { *p += 1; }
+    void set_error(std::exception_ptr) && noexcept { *p += 2; }
+    void set_done() && noexcept { *p += 4; }
   };
-  schedule(inline_scheduler{})
-    | submit(_receiver{&i});
+  schedule(inline_scheduler{}) | submit(_receiver{&i});
   EXPECT_EQ(1, i);
 }

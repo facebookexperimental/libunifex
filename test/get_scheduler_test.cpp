@@ -35,8 +35,7 @@ TEST(get_scheduler, schedule) {
 
   // Check that the schedule() operation can pick up the current
   // scheduler from the receiver which we inject by using 'with_query_value()'.
-  sync_wait(with_query_value(schedule(), get_scheduler,
-                             ctx.get_scheduler()));
+  sync_wait(with_query_value(schedule(), get_scheduler, ctx.get_scheduler()));
 }
 
 TEST(get_scheduler, schedule_after) {
@@ -55,14 +54,16 @@ TEST(get_scheduler, current_scheduler) {
   // composed operations.
   sync_wait(with_query_value(
       then(
-          for_each(via_stream(current_scheduler,
-                              transform_stream(range_stream{0, 10},
-                                               [](int value) {
-                                                 return value * value;
-                                               })),
-                   [](int value) { std::printf("got %i\n", value); }),
+          for_each(
+              via_stream(
+                  current_scheduler,
+                  transform_stream(
+                      range_stream{0, 10},
+                      [](int value) { return value * value; })),
+              [](int value) { std::printf("got %i\n", value); }),
           []() { std::printf("done\n"); }),
-      get_scheduler, ctx.get_scheduler()));
+      get_scheduler,
+      ctx.get_scheduler()));
 }
 
 TEST(get_scheduler, Pipeable) {
@@ -70,13 +71,10 @@ TEST(get_scheduler, Pipeable) {
 
   // Check that this can propagate through multiple levels of
   // composed operations.
-  range_stream{0, 10}
-    | transform_stream([](int value) {
-        return value * value;
-    })
-    | via_stream(current_scheduler)
-    | for_each([](int value) { std::printf("got %i\n", value); })
-    | then([]() { std::printf("done\n"); })
-    | with_query_value(get_scheduler, ctx.get_scheduler())
-    | sync_wait();
+  range_stream{0, 10} |
+      transform_stream([](int value) { return value * value; }) |
+      via_stream(current_scheduler) |
+      for_each([](int value) { std::printf("got %i\n", value); }) |
+      then([]() { std::printf("done\n"); }) |
+      with_query_value(get_scheduler, ctx.get_scheduler()) | sync_wait();
 }

@@ -45,8 +45,7 @@ using operation = typename _operation<Receiver>::type;
 struct async_manual_reset_event;
 
 struct _sender {
-  template <template <class...> class Variant,
-            template <class...> class Tuple>
+  template <template <class...> class Variant, template <class...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <template <class...> class Variant>
@@ -54,24 +53,22 @@ struct _sender {
 
   static constexpr bool sends_done = false;
 
-  explicit _sender(async_manual_reset_event& evt) noexcept
-    : evt_(&evt) {}
+  explicit _sender(async_manual_reset_event& evt) noexcept : evt_(&evt) {}
 
-  template (typename Receiver)
-    (requires receiver_of<Receiver> AND scheduler_provider<Receiver>)
-  operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const noexcept(
-      noexcept(operation<remove_cvref_t<Receiver>>{
-          UNIFEX_DECLVAL(async_manual_reset_event&), (Receiver&&)r})) {
-    return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver&&)r};
+  template(typename Receiver)(
+      requires receiver_of<Receiver> AND scheduler_provider<Receiver>)
+      operation<remove_cvref_t<Receiver>> connect(Receiver&& r) const
+      noexcept(noexcept(operation<remove_cvref_t<Receiver>>{
+          UNIFEX_DECLVAL(async_manual_reset_event&), (Receiver &&) r})) {
+    return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver &&) r};
   }
 
- private:
+private:
   async_manual_reset_event* evt_;
 };
 
 struct async_manual_reset_event {
-  async_manual_reset_event() noexcept
-    : async_manual_reset_event(false) {}
+  async_manual_reset_event() noexcept : async_manual_reset_event(false) {}
 
   explicit async_manual_reset_event(bool startSignalled) noexcept
     : state_(startSignalled ? this : nullptr) {}
@@ -95,11 +92,9 @@ struct async_manual_reset_event {
         oldState, nullptr, std::memory_order_acq_rel);
   }
 
-  [[nodiscard]] _sender async_wait() noexcept {
-    return _sender{*this};
-  }
+  [[nodiscard]] _sender async_wait() noexcept { return _sender{*this}; }
 
- private:
+private:
   std::atomic<void*> state_{};
 
   friend struct _op_base;
@@ -108,7 +103,8 @@ struct async_manual_reset_event {
   //       a member function on _op_base and so will already have op in first
   //       argument position; making this function a member would require some
   //       register-juggling code, which would increase binary size
-  static void start_or_wait(_op_base& op, async_manual_reset_event& evt) noexcept;
+  static void
+  start_or_wait(_op_base& op, async_manual_reset_event& evt) noexcept;
 };
 
 struct _op_base {
@@ -124,17 +120,18 @@ struct _op_base {
   void (*setValue_)(_op_base*) noexcept;
   async_manual_reset_event* evt_;
 
-  explicit _op_base(async_manual_reset_event& evt, void (*setValue)(_op_base*) noexcept) noexcept
-    : setValue_(setValue), evt_(&evt) {}
+  explicit _op_base(
+      async_manual_reset_event& evt,
+      void (*setValue)(_op_base*) noexcept) noexcept
+    : setValue_(setValue)
+    , evt_(&evt) {}
 
   ~_op_base() = default;
 
   _op_base(_op_base&&) = delete;
   _op_base& operator=(_op_base&&) = delete;
 
-  void set_value() noexcept {
-    setValue_(this);
-  }
+  void set_value() noexcept { setValue_(this); }
 
   void start() noexcept {
     async_manual_reset_event::start_or_wait(*this, *evt_);
@@ -144,7 +141,8 @@ struct _op_base {
 template <typename Receiver>
 auto connect_as_unstoppable(Receiver&& r) noexcept(
     is_nothrow_connectable_v<
-        decltype(with_query_value(schedule(), get_stop_token, unstoppable_token{})),
+        decltype(with_query_value(
+            schedule(), get_stop_token, unstoppable_token{})),
         Receiver>) {
   return connect(
       with_query_value(schedule(), get_stop_token, unstoppable_token{}),
@@ -153,10 +151,10 @@ auto connect_as_unstoppable(Receiver&& r) noexcept(
 
 template <typename Receiver>
 struct _operation<Receiver>::type : private _op_base {
-  explicit type(async_manual_reset_event& evt, Receiver r)
-      noexcept(noexcept(connect_as_unstoppable(std::move(r))))
-    : _op_base(evt, &set_value_impl),
-      op_(connect_as_unstoppable(std::move(r))) {}
+  explicit type(async_manual_reset_event& evt, Receiver r) noexcept(
+      noexcept(connect_as_unstoppable(std::move(r))))
+    : _op_base(evt, &set_value_impl)
+    , op_(connect_as_unstoppable(std::move(r))) {}
 
   ~type() = default;
 
@@ -165,8 +163,9 @@ struct _operation<Receiver>::type : private _op_base {
 
   using _op_base::start;
 
- private:
-  UNIFEX_NO_UNIQUE_ADDRESS decltype(connect_as_unstoppable(std::declval<Receiver>())) op_;
+private:
+  UNIFEX_NO_UNIQUE_ADDRESS decltype(connect_as_unstoppable(
+      std::declval<Receiver>())) op_;
 
   static void set_value_impl(_op_base* base) noexcept {
     auto self = static_cast<type*>(base);
@@ -175,10 +174,10 @@ struct _operation<Receiver>::type : private _op_base {
   }
 };
 
-} // namespace _amre
+}  // namespace _amre
 
 using _amre::async_manual_reset_event;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

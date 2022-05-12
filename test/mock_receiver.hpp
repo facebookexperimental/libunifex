@@ -73,32 +73,26 @@ struct mock_receiver_body : mock_receiver_body_base<Sigs>... {
 
 template <typename... Sigs>
 struct mock_receiver {
- private:
-  std::shared_ptr<mock_receiver_body<Sigs...>> body_
-      = std::make_shared<mock_receiver_body<Sigs...>>();
+private:
+  std::shared_ptr<mock_receiver_body<Sigs...>> body_ =
+      std::make_shared<mock_receiver_body<Sigs...>>();
 
- public:
+public:
   template <typename... T>
-  auto set_value(T&&... ts) noexcept(noexcept(body_->set_value((T&&)ts...)))
-      -> decltype(body_->set_value((T&&)ts...)) {
-    body_->set_value((T&&)ts...);
+  auto set_value(T&&... ts) noexcept(noexcept(body_->set_value((T &&) ts...)))
+      -> decltype(body_->set_value((T &&) ts...)) {
+    body_->set_value((T &&) ts...);
   }
 
   void set_error(std::exception_ptr eptr) noexcept {
     body_->set_error(std::move(eptr));
   }
 
-  void set_done() noexcept {
-    body_->set_done();
-  }
+  void set_done() noexcept { body_->set_done(); }
 
-  auto& operator*() noexcept {
-    return *body_;
-  }
+  auto& operator*() noexcept { return *body_; }
 
-  const auto& operator*() const noexcept {
-    return *body_;
-  }
+  const auto& operator*() const noexcept { return *body_; }
 };
 
-} // namespace unifex_test
+}  // namespace unifex_test

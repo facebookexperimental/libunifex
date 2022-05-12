@@ -24,12 +24,12 @@ namespace unifex {
 
 template <typename Item, Item* Item::*Next>
 class intrusive_queue {
- public:
+public:
   intrusive_queue() noexcept = default;
 
   intrusive_queue(intrusive_queue&& other) noexcept
-      : head_(std::exchange(other.head_, nullptr)),
-        tail_(std::exchange(other.tail_, nullptr)) {}
+    : head_(std::exchange(other.head_, nullptr))
+    , tail_(std::exchange(other.tail_, nullptr)) {}
 
   intrusive_queue& operator=(intrusive_queue other) noexcept {
     std::swap(head_, other.head_);
@@ -37,9 +37,7 @@ class intrusive_queue {
     return *this;
   }
 
-  ~intrusive_queue() {
-    UNIFEX_ASSERT(empty());
-  }
+  ~intrusive_queue() { UNIFEX_ASSERT(empty()); }
 
   static intrusive_queue make_reversed(Item* list) noexcept {
     Item* newHead = nullptr;
@@ -57,9 +55,7 @@ class intrusive_queue {
     return result;
   }
 
-  [[nodiscard]] bool empty() const noexcept {
-    return head_ == nullptr;
-  }
+  [[nodiscard]] bool empty() const noexcept { return head_ == nullptr; }
 
   [[nodiscard]] Item* pop_front() noexcept {
     UNIFEX_ASSERT(!empty());
@@ -116,11 +112,11 @@ class intrusive_queue {
     other.head_ = nullptr;
   }
 
- private:
+private:
   Item* head_ = nullptr;
   Item* tail_ = nullptr;
 };
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

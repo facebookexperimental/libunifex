@@ -33,7 +33,7 @@ template <typename Scheduler, typename F>
 auto run_on(Scheduler&& s, F&& func) {
   return then(schedule((Scheduler &&) s), (F &&) func);
 }
-} // anonymous namespace
+}  // anonymous namespace
 
 TEST(StaticThreadPool, Smoke) {
   static_thread_pool tpContext;

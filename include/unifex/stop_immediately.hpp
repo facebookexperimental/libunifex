@@ -15,23 +15,23 @@
  */
 #pragma once
 
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
-#include <unifex/stream_concepts.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/type_traits.hpp>
-#include <unifex/type_list.hpp>
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/unstoppable_token.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/get_stop_token.hpp>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
+#include <unifex/stream_concepts.hpp>
+#include <unifex/type_list.hpp>
+#include <unifex/type_traits.hpp>
+#include <unifex/unstoppable_token.hpp>
 
 #include <atomic>
 #include <exception>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -46,7 +46,7 @@ using stream = typename _stream<remove_cvref_t<SourceStream>, Values...>::type;
 
 template <typename SourceStream, typename... Values>
 struct _stream<SourceStream, Values...>::type {
- private:
+private:
   using stream = type;
   enum class state {
     not_started,
@@ -88,9 +88,9 @@ struct _stream<SourceStream, Values...>::type {
         // compare-exchange below since we have already synchronised with the
         // 'acquire' operation above.
         if (stream_.state_.compare_exchange_strong(
-              oldState,
-              state::source_next_active_stream_stopped,
-              std::memory_order_relaxed)) {
+                oldState,
+                state::source_next_active_stream_stopped,
+                std::memory_order_relaxed)) {
           // Successfully acquired ownership over the receiver.
           // Send the 'done' signal immediately to signal the end of the
           // sequence and also send the stop signal to the still-running
@@ -111,9 +111,7 @@ struct _stream<SourceStream, Values...>::type {
   struct next_receiver {
     stream& stream_;
 
-    inplace_stop_source& get_stop_source() const {
-      return stream_.stopSource_;
-    }
+    inplace_stop_source& get_stop_source() const { return stream_.stopSource_; }
 
     // Note, parameters passed by value here just in case we are passed
     // references to values owned by the operation object that we will be
@@ -121,8 +119,9 @@ struct _stream<SourceStream, Values...>::type {
     void set_value(Values... values) && noexcept {
       handle_signal([&](next_receiver_base* receiver) noexcept {
         UNIFEX_TRY {
-          std::move(*receiver).set_value((Values&&)values...);
-        } UNIFEX_CATCH (...) {
+          std::move(*receiver).set_value((Values &&) values...);
+        }
+        UNIFEX_CATCH(...) {
           std::move(*receiver).set_error(std::current_exception());
         }
       });
@@ -136,7 +135,7 @@ struct _stream<SourceStream, Values...>::type {
 
     template <typename Error>
     void set_error(Error&& error) && noexcept {
-      std::move(*this).set_error(make_exception_ptr((Error&&)error));
+      std::move(*this).set_error(make_exception_ptr((Error &&) error));
     }
 
     void set_error(std::exception_ptr ex) && noexcept {
@@ -156,8 +155,9 @@ struct _stream<SourceStream, Values...>::type {
 
       if (oldState == state::source_next_active) {
         if (strm.state_.compare_exchange_strong(
-              oldState, state::source_next_completed,
-              std::memory_order_relaxed)) {
+                oldState,
+                state::source_next_completed,
+                std::memory_order_relaxed)) {
           // We acquired ownership of the receiver before it was cancelled.
           auto* receiver = std::exchange(strm.nextReceiver_, nullptr);
           UNIFEX_ASSERT(receiver != nullptr);
@@ -168,9 +168,10 @@ struct _stream<SourceStream, Values...>::type {
 
       if (oldState == state::source_next_active_stream_stopped) {
         if (strm.state_.compare_exchange_strong(
-              oldState, state::source_next_completed,
-              std::memory_order_release,
-              std::memory_order_acquire)) {
+                oldState,
+                state::source_next_completed,
+                std::memory_order_release,
+                std::memory_order_acquire)) {
           // Successfully signalled that 'next' completed before 'cleanup'
           // operation started. Discard this signal without forwarding it on.
           return;
@@ -185,16 +186,14 @@ struct _stream<SourceStream, Values...>::type {
       stream_.cleanupOp_->start_cleanup();
     }
 
-    friend inplace_stop_token tag_invoke(
-        tag_t<get_stop_token>, const next_receiver& r) noexcept {
+    friend inplace_stop_token
+    tag_invoke(tag_t<get_stop_token>, const next_receiver& r) noexcept {
       return r.get_stop_source().get_token();
     }
 
     template <typename Func>
     friend void tag_invoke(
-        tag_t<visit_continuations>,
-        const next_receiver& r,
-        Func&& func) {
+        tag_t<visit_continuations>, const next_receiver& r, Func&& func) {
       std::invoke(func, r.op_->receiver_);
     }
   };
@@ -202,14 +201,17 @@ struct _stream<SourceStream, Values...>::type {
   struct next_sender {
     stream& stream_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types =
-      sender_value_types_t<next_sender_t<SourceStream>, Variant, Tuple>;
+        sender_value_types_t<next_sender_t<SourceStream>, Variant, Tuple>;
 
     template <template <typename...> class Variant>
     using error_types =
-      sender_error_types_t<next_sender_t<SourceStream>, Variant>;
+        sender_error_types_t<next_sender_t<SourceStream>, Variant>;
 
     static constexpr bool sends_done = true;
 
@@ -219,13 +221,11 @@ struct _stream<SourceStream, Values...>::type {
         struct concrete_receiver final : next_receiver_base {
           type& op_;
 
-          explicit concrete_receiver(type& op)
-            : op_(op)
-          {}
+          explicit concrete_receiver(type& op) : op_(op) {}
 
           void set_value(Values&&... values) && noexcept final {
             op_.stopCallback_.destruct();
-            unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
+            unifex::set_value(std::move(op_.receiver_), (Values &&) values...);
           }
 
           void set_done() && noexcept final {
@@ -245,50 +245,48 @@ struct _stream<SourceStream, Values...>::type {
         concrete_receiver concreteReceiver_;
         UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
         UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<
-          typename ST::template callback_type<cancel_next_callback>>
+            typename ST::template callback_type<cancel_next_callback>>
             stopCallback_;
 
         template <typename Receiver2>
         explicit type(stream& strm, Receiver2&& receiver)
           : stream_(strm)
           , concreteReceiver_(*this)
-          , receiver_{(Receiver2&&)receiver}
-        {}
+          , receiver_{(Receiver2 &&) receiver} {}
 
         void start() noexcept {
           auto stopToken = get_stop_token(receiver_);
           if (stopToken.stop_requested()) {
-              unifex::set_done(std::move(receiver_));
-              return;
+            unifex::set_done(std::move(receiver_));
+            return;
           }
 
-          static_assert(
-            std::is_same_v<decltype(stopToken), ST>);
+          static_assert(std::is_same_v<decltype(stopToken), ST>);
 
           UNIFEX_TRY {
             stream_.nextOp_.construct_with([&] {
               return unifex::connect(
-                next(stream_.source_),
-                next_receiver{stream_});
+                  next(stream_.source_), next_receiver{stream_});
             });
             stream_.nextReceiver_ = &concreteReceiver_;
             stream_.state_.store(
-              state::source_next_active, std::memory_order_relaxed);
+                state::source_next_active, std::memory_order_relaxed);
             UNIFEX_TRY {
               stopCallback_.construct(
-                std::move(stopToken),
-                cancel_next_callback{stream_});
+                  std::move(stopToken), cancel_next_callback{stream_});
               unifex::start(stream_.nextOp_.get());
-            } UNIFEX_CATCH (...) {
+            }
+            UNIFEX_CATCH(...) {
               stream_.nextReceiver_ = nullptr;
               stream_.nextOp_.destruct();
               stream_.state_.store(
-                state::source_next_completed, std::memory_order_relaxed);
+                  state::source_next_completed, std::memory_order_relaxed);
               unifex::set_error(std::move(receiver_), std::current_exception());
             }
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             stream_.state_.store(
-              state::source_next_completed, std::memory_order_relaxed);
+                state::source_next_completed, std::memory_order_relaxed);
             unifex::set_error(std::move(receiver_), std::current_exception());
           }
         }
@@ -299,24 +297,26 @@ struct _stream<SourceStream, Values...>::type {
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{stream_, (Receiver&&)receiver};
+      return operation<Receiver>{stream_, (Receiver &&) receiver};
     }
     template <typename Receiver>
-    void connect(Receiver&& receiver) const& =delete;
+    void connect(Receiver&& receiver) const& = delete;
   };
 
   struct cleanup_sender {
     stream& stream_;
 
-    template <template <typename...> class Variant,
-             template <typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = Variant<>;
 
     template <template <typename...> class Variant>
-    using error_types =
-        typename concat_type_lists_unique_t<
-            sender_error_types_t<cleanup_sender_t<SourceStream>, type_list>,
-            type_list<std::exception_ptr>>::template apply<Variant>;
+    using error_types = typename concat_type_lists_unique_t<
+        sender_error_types_t<cleanup_sender_t<SourceStream>, type_list>,
+        type_list<std::exception_ptr>>::template apply<Variant>;
 
     static constexpr bool sends_done = true;
 
@@ -347,9 +347,9 @@ struct _stream<SourceStream, Values...>::type {
             // the error from cleanup(source_).
             if (op.stream_.nextError_) {
               unifex::set_error(
-                std::move(op.receiver_), std::move(op.stream_.nextError_));
+                  std::move(op.receiver_), std::move(op.stream_.nextError_));
             } else {
-              unifex::set_error(std::move(op.receiver_), (Error&&)error);
+              unifex::set_error(std::move(op.receiver_), (Error &&) error);
             }
           }
         };
@@ -363,17 +363,17 @@ struct _stream<SourceStream, Values...>::type {
         template <typename Receiver2>
         explicit type(stream& strm, Receiver2&& receiver)
           : stream_(strm)
-          , receiver_((Receiver2&&)receiver)
-        {}
+          , receiver_((Receiver2 &&) receiver) {}
 
         void start() noexcept {
           auto oldState = stream_.state_.load(std::memory_order_acquire);
           if (oldState == state::source_next_active_stream_stopped) {
             stream_.cleanupOp_ = this;
             if (stream_.state_.compare_exchange_strong(
-                  oldState, state::source_next_active_cleanup_requested,
-                  std::memory_order_release,
-                  std::memory_order_acquire)) {
+                    oldState,
+                    state::source_next_active_cleanup_requested,
+                    std::memory_order_release,
+                    std::memory_order_acquire)) {
               // Successfully signalled that cleanup has been requested and
               // that the next() operation should call start_cleanup() when
               // it completes.
@@ -400,15 +400,16 @@ struct _stream<SourceStream, Values...>::type {
           UNIFEX_TRY {
             cleanupOp_.construct_with([&] {
               return unifex::connect(
-                cleanup(stream_.source_),
-                receiver_wrapper{*this});
+                  cleanup(stream_.source_), receiver_wrapper{*this});
             });
             unifex::start(cleanupOp_.get());
-          } UNIFEX_CATCH (...) {
+          }
+          UNIFEX_CATCH(...) {
             // Prefer to send the error from next(source_) over the error
             // from cleanup(source_) if there was one.
             if (stream_.nextError_) {
-              unifex::set_error(std::move(receiver_), std::move(stream_.nextError_));
+              unifex::set_error(
+                  std::move(receiver_), std::move(stream_.nextError_));
             } else {
               unifex::set_error(std::move(receiver_), std::current_exception());
             }
@@ -436,46 +437,36 @@ struct _stream<SourceStream, Values...>::type {
   manual_lifetime<next_operation_t<SourceStream, next_receiver>> nextOp_;
 
 public:
-
   template <typename SourceStream2>
-  explicit type(SourceStream2&& source)
-    : source_((SourceStream2&&)source)
-  {}
+  explicit type(SourceStream2&& source) : source_((SourceStream2 &&) source) {}
 
-  type(type&& other)
-    : source_(std::move(other.source_))
-  {}
+  type(type&& other) : source_(std::move(other.source_)) {}
 
-  friend next_sender tag_invoke(tag_t<next>, stream& s) {
-    return {s};
-  }
+  friend next_sender tag_invoke(tag_t<next>, stream& s) { return {s}; }
 
-  friend cleanup_sender tag_invoke(tag_t<cleanup>, stream& s) {
-    return {s};
-  }
+  friend cleanup_sender tag_invoke(tag_t<cleanup>, stream& s) { return {s}; }
 };
-} // namespace _stop_immediately
+}  // namespace _stop_immediately
 
 namespace _stop_immediately_cpo {
-  template <typename... Values>
-  struct _fn {
-    template <typename SourceStream>
-    auto operator()(SourceStream&& source) const {
-      return _stop_immediately::stream<SourceStream, Values...>{
-        (SourceStream &&) source};
-    }
-    constexpr auto operator()() const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn>)
-        -> bind_back_result_t<_fn> {
-      return bind_back(*this);
-    }
-  };
-} // namespace _stop_immediately_cpo
+template <typename... Values>
+struct _fn {
+  template <typename SourceStream>
+  auto operator()(SourceStream&& source) const {
+    return _stop_immediately::stream<SourceStream, Values...>{(SourceStream &&)
+                                                                  source};
+  }
+  constexpr auto operator()() const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+          -> bind_back_result_t<_fn> {
+    return bind_back(*this);
+  }
+};
+}  // namespace _stop_immediately_cpo
 
 template <typename... Values>
 inline constexpr _stop_immediately_cpo::_fn<Values...> stop_immediately{};
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

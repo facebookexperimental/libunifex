@@ -15,6 +15,7 @@
  */
 
 #include <unifex/just.hpp>
+#include <unifex/memory_resource.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/submit.hpp>
@@ -23,7 +24,6 @@
 #include <unifex/via.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_allocator.hpp>
-#include <unifex/memory_resource.hpp>
 
 #include <cstddef>
 #include <memory>
@@ -38,31 +38,31 @@ using namespace unifex::pmr;
 
 class counting_memory_resource : public memory_resource {
 public:
-  explicit counting_memory_resource(memory_resource *r) noexcept : inner_(r) {}
+  explicit counting_memory_resource(memory_resource* r) noexcept : inner_(r) {}
 
   std::size_t total_allocated_bytes() const { return allocated_.load(); }
 
   std::size_t total_allocation_count() const { return count_.load(); }
 
 private:
-  void *do_allocate(std::size_t bytes, std::size_t alignment) override {
-    void *p = inner_->allocate(bytes, alignment);
+  void* do_allocate(std::size_t bytes, std::size_t alignment) override {
+    void* p = inner_->allocate(bytes, alignment);
     allocated_ += bytes;
     ++count_;
     return p;
   }
 
-  void do_deallocate(void *p, std::size_t bytes,
-                     std::size_t alignment) override {
+  void
+  do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override {
     allocated_ -= bytes;
     inner_->deallocate(p, bytes, alignment);
   }
 
-  bool do_is_equal(const memory_resource &other) const noexcept override {
+  bool do_is_equal(const memory_resource& other) const noexcept override {
     return &other == this;
   }
 
-  memory_resource *inner_;
+  memory_resource* inner_;
   std::atomic<std::size_t> allocated_ = 0;
   std::atomic<std::size_t> count_ = 0;
 };
@@ -75,20 +75,18 @@ void test(Scheduler scheduler, Allocator allocator) {
   auto addToValue = [&](int x) {
     // The via() is expected to allocate when it calls submit().
     // NOTE: This may start failing if we ever merge via() and typed_via().
-    return via(scheduler, just(x))
-      | then([&](int x) {
-          std::printf("got %i\n", x);
-          value += x;
-        });
+    return via(scheduler, just(x)) | then([&](int x) {
+             std::printf("got %i\n", x);
+             value += x;
+           });
   };
 
-  when_all(addToValue(1), addToValue(2))
-    | with_allocator(allocator)
-    | sync_wait();
+  when_all(addToValue(1), addToValue(2)) | with_allocator(allocator) |
+      sync_wait();
 
   EXPECT_EQ(value, 3);
 }
-} // anonymous namespace
+}  // anonymous namespace
 
 TEST(with_allocator, SubmitWithStdAllocator) {
   single_thread_context thread;

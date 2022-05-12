@@ -626,8 +626,8 @@ class _attached_op<Sender, Receiver>::type final {
 public:
   template <typename Receiver2>
   explicit type(Sender&& s, Receiver2&& r, async_scope* scope) noexcept(
-      is_nothrow_connectable_v<Sender, cleaning_receiver_t>&&
-          std::is_nothrow_constructible_v<cleaning_receiver_t, type*, Receiver2>&&
+      is_nothrow_connectable_v<Sender, cleaning_receiver_t>&& std::
+          is_nothrow_constructible_v<cleaning_receiver_t, type*, Receiver2>&&
               std::is_nothrow_constructible_v<Receiver, Receiver2>)
     : scope_(reinterpret_cast<std::uintptr_t>(scope) & started_mask)
     , receiverToken_(get_stop_token(r)) {

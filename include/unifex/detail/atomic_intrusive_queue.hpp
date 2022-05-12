@@ -42,7 +42,7 @@ public:
   atomic_intrusive_queue() noexcept : head_(nullptr) {}
 
   explicit atomic_intrusive_queue(bool initiallyActive) noexcept
-      : head_(initiallyActive ? nullptr : producer_inactive_value()) {}
+    : head_(initiallyActive ? nullptr : producer_inactive_value()) {}
 
   ~atomic_intrusive_queue() {
     // Check that all items in this queue have beel dequeued.
@@ -62,10 +62,12 @@ public:
   // operation successfully marked it as active.
   // Returns false if the previous state was active.
   [[nodiscard]] bool try_mark_active() noexcept {
-    void *oldValue = producer_inactive_value();
-    return head_.compare_exchange_strong(oldValue, nullptr,
-                                         std::memory_order_acquire,
-                                         std::memory_order_relaxed);
+    void* oldValue = producer_inactive_value();
+    return head_.compare_exchange_strong(
+        oldValue,
+        nullptr,
+        std::memory_order_acquire,
+        std::memory_order_relaxed);
   }
 
   // Either enqueue an item to the queue if the producer is
@@ -77,19 +79,19 @@ public:
   // Returns true if the item was enqueued.
   // Returns false if the item was not enqueued and the queue
   // was transitioned from inactive to active.
-  [[nodiscard]] bool enqueue_or_mark_active(Item *item) noexcept {
-    void *const inactive = producer_inactive_value();
-    void *oldValue = head_.load(std::memory_order_relaxed);
-    void *newValue;
+  [[nodiscard]] bool enqueue_or_mark_active(Item* item) noexcept {
+    void* const inactive = producer_inactive_value();
+    void* oldValue = head_.load(std::memory_order_relaxed);
+    void* newValue;
     do {
       if (oldValue == inactive) {
         newValue = nullptr;
       } else {
-        item->*Next = static_cast<Item *>(oldValue);
+        item->*Next = static_cast<Item*>(oldValue);
         newValue = item;
       }
-    } while (!head_.compare_exchange_weak(oldValue, newValue,
-                                          std::memory_order_acq_rel));
+    } while (!head_.compare_exchange_weak(
+        oldValue, newValue, std::memory_order_acq_rel));
     return oldValue != inactive;
   }
 
@@ -156,7 +158,7 @@ public:
       }
     }
 
-    // The queue was 
+    // The queue was
     UNIFEX_ASSERT(oldValue != nullptr);
     UNIFEX_ASSERT(oldValue != inactive);
     return false;
@@ -180,7 +182,7 @@ public:
         static_cast<Item*>(oldValue));
   }
 
- private:
+private:
   void* producer_inactive_value() const noexcept {
     // Pick some pointer that is not nullptr and that is
     // guaranteed to not be the address of a valid item.
@@ -190,6 +192,6 @@ public:
   std::atomic<void*> head_;
 };
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

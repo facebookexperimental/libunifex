@@ -15,13 +15,12 @@
  */
 #pragma once
 
-#include <unifex/blocking.hpp>
 #include <unifex/config.hpp>
+#include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
-#include <unifex/stop_token_concepts.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/scheduler_concepts.hpp>
+#include <unifex/stop_token_concepts.hpp>
 
 #include <type_traits>
 
@@ -29,78 +28,79 @@
 
 namespace unifex {
 namespace _inline_sched {
-  template <typename Receiver>
-  struct _op {
-    struct type;
-  };
-  template <typename Receiver>
-  using operation = typename _op<remove_cvref_t<Receiver>>::type;
+template <typename Receiver>
+struct _op {
+  struct type;
+};
+template <typename Receiver>
+using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
-  template <typename Receiver>
-  struct _op<Receiver>::type final {
-    using stop_token_type = stop_token_type_t<Receiver&>;
+template <typename Receiver>
+struct _op<Receiver>::type final {
+  using stop_token_type = stop_token_type_t<Receiver&>;
 
-    UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-    template(typename Receiver2)
-      (requires constructible_from<Receiver, Receiver2>)
-    explicit type(Receiver2&& r) noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2>)
-      : receiver_((Receiver2 &&) r) {}
+  template(typename Receiver2)(
+      requires constructible_from<
+          Receiver,
+          Receiver2>) explicit type(Receiver2&&
+                                        r) noexcept(std::
+                                                        is_nothrow_constructible_v<
+                                                            Receiver,
+                                                            Receiver2>)
+    : receiver_((Receiver2 &&) r) {}
 
-    void start() noexcept {
-      UNIFEX_TRY {
-        if constexpr (is_stop_never_possible_v<stop_token_type>) {
-          unifex::set_value((Receiver &&) receiver_);
+  void start() noexcept {
+    UNIFEX_TRY {
+      if constexpr (is_stop_never_possible_v<stop_token_type>) {
+        unifex::set_value((Receiver &&) receiver_);
+      } else {
+        if (get_stop_token(receiver_).stop_requested()) {
+          unifex::set_done((Receiver &&) receiver_);
         } else {
-          if (get_stop_token(receiver_).stop_requested()) {
-            unifex::set_done((Receiver &&) receiver_);
-          } else {
-            unifex::set_value((Receiver &&) receiver_);
-          }
+          unifex::set_value((Receiver &&) receiver_);
         }
-      } UNIFEX_CATCH (...) {
-        unifex::set_error((Receiver &&) receiver_, std::current_exception());
       }
+    }
+    UNIFEX_CATCH(...) {
+      unifex::set_error((Receiver &&) receiver_, std::current_exception());
+    }
+  }
+};
+
+struct scheduler {
+  struct schedule_task {
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
+    using value_types = Variant<Tuple<>>;
+
+    template <template <typename...> class Variant>
+    using error_types = Variant<std::exception_ptr>;
+
+    static constexpr bool sends_done = true;
+
+    friend constexpr auto
+    tag_invoke(tag_t<blocking>, const schedule_task&) noexcept {
+      return blocking_kind::always_inline;
+    }
+
+    template <typename Receiver>
+    operation<Receiver> connect(Receiver&& receiver) {
+      return operation<Receiver>{(Receiver &&) receiver};
     }
   };
 
-  struct scheduler {
-    struct schedule_task {
-      template <
-          template <typename...> class Variant,
-          template <typename...> class Tuple>
-      using value_types = Variant<Tuple<>>;
-
-      template <template <typename...> class Variant>
-      using error_types = Variant<std::exception_ptr>;
-
-      static constexpr bool sends_done = true;
-
-      friend constexpr auto tag_invoke(
-          tag_t<blocking>,
-          const schedule_task&) noexcept {
-        return blocking_kind::always_inline;
-      }
-
-      template <typename Receiver>
-      operation<Receiver> connect(Receiver&& receiver) {
-        return operation<Receiver>{(Receiver &&) receiver};
-      }
-    };
-
-    constexpr schedule_task schedule() const noexcept {
-      return {};
-    }
-    friend bool operator==(scheduler, scheduler) noexcept {
-      return true;
-    }
-    friend bool operator!=(scheduler, scheduler) noexcept {
-      return false;
-    }
-  };
-} // namespace _inline_sched
+  constexpr schedule_task schedule() const noexcept { return {}; }
+  friend bool operator==(scheduler, scheduler) noexcept { return true; }
+  friend bool operator!=(scheduler, scheduler) noexcept { return false; }
+};
+}  // namespace _inline_sched
 
 using inline_scheduler = _inline_sched::scheduler;
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
