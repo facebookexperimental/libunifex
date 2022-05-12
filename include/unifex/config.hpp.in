@@ -25,28 +25,27 @@
 #include <cassert>
 
 // the configured options and settings for unifex
-#define UNIFEX_VERSION_MAJOR @libunifex_VERSION_MAJOR @
-#define UNIFEX_VERSION_MINOR @libunifex_VERSION_MINOR @
+#define UNIFEX_VERSION_MAJOR @libunifex_VERSION_MAJOR@
+#define UNIFEX_VERSION_MINOR @libunifex_VERSION_MINOR@
 
 #cmakedefine01 UNIFEX_NO_MEMORY_RESOURCE
-#cmakedefine UNIFEX_MEMORY_RESOURCE_HEADER < @UNIFEX_MEMORY_RESOURCE_HEADER @>
-#cmakedefine UNIFEX_MEMORY_RESOURCE_NAMESPACE \
-    @UNIFEX_MEMORY_RESOURCE_NAMESPACE @
+#cmakedefine UNIFEX_MEMORY_RESOURCE_HEADER <@UNIFEX_MEMORY_RESOURCE_HEADER@>
+#cmakedefine UNIFEX_MEMORY_RESOURCE_NAMESPACE @UNIFEX_MEMORY_RESOURCE_NAMESPACE@
 
 #if !defined(__has_cpp_attribute)
-#  define UNIFEX_NO_UNIQUE_ADDRESS
+#define UNIFEX_NO_UNIQUE_ADDRESS
 #elif !__has_cpp_attribute(no_unique_address)
-#  define UNIFEX_NO_UNIQUE_ADDRESS
+#define UNIFEX_NO_UNIQUE_ADDRESS
 // prior to clang-10, [[no_unique_address]] leads to bad codegen
 #elif defined(__clang__) && __clang_major__ < 10
-#  define UNIFEX_NO_UNIQUE_ADDRESS
+#define UNIFEX_NO_UNIQUE_ADDRESS
 // GCC 10.3/11 introduced bug 98995, which fails to compile with no_uniq_addr.
 // See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98995
 // For simplicity, assume anything above 9 is broken.
 #elif !defined(__clang__) && defined(__GNUC__) && (__GNUC__ > 9)
-#  define UNIFEX_NO_UNIQUE_ADDRESS
+#define UNIFEX_NO_UNIQUE_ADDRESS
 #else
-#  define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#define UNIFEX_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
 
 #if !defined(UNIFEX_NO_COROUTINES)
@@ -80,11 +79,11 @@
 #endif
 
 #if !defined(UNIFEX_NO_EPOLL)
-#  cmakedefine01 UNIFEX_NO_EPOLL
+#cmakedefine01 UNIFEX_NO_EPOLL
 #endif
 
 #if !defined(UNIFEX_NO_LIBURING)
-#  cmakedefine01 UNIFEX_NO_LIBURING
+#cmakedefine01 UNIFEX_NO_LIBURING
 #endif
 
 // UNIFEX_DECLARE_NON_DEDUCED_TYPE(type)
@@ -93,24 +92,21 @@
 // These macros work around a bug in MSVC that causes it to try to specialize
 // all found function templates for which it can successfully deduce template
 // arguments even if there are parameters that do not participate in template
-// parameter deduction for which there is no conversion possible from the
-// argument.
+// parameter deduction for which there is no conversion possible from the argument.
 //
 // This is most likely related to the core issue CWG1391 [*] which MSVC has not
 // yet implemented as of VS 2019.4.
 //
-// These macros are intended to be used in template functions, typically
-// tag_invoke() overloads, as follows.
+// These macros are intended to be used in template functions, typically tag_invoke()
+// overloads, as follows.
 //
 // Where you would normally write:
 //
 // class foo_sender {
 //    template<
 //      typename Receiver,
-//      std::enable_if_t<is_callable_v<decltype(set_value), Receiver, foo>, int>
-//      = 0>
-//    friend auto tag_invoke(tag_t<connect>, foo_sender&& s, Receiver&& r) ->
-//    foo_operation<Receiver> {
+//      std::enable_if_t<is_callable_v<decltype(set_value), Receiver, foo>, int> = 0>
+//    friend auto tag_invoke(tag_t<connect>, foo_sender&& s, Receiver&& r) -> foo_operation<Receiver> {
 //      return ...;
 //    }
 // };
@@ -122,8 +118,7 @@
 //     typename Receiver,
 //     UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<connect>),
 //     UNIFEX_DECLARE_NON_DEDUCED_TYPE(S, foo_sender),
-//     std::enable_if_t<is_callable_v<decltype(set_value), Receiver, foo>, int>
-//     = 0?
+//     std::enable_if_t<is_callable_v<decltype(set_value), Receiver, foo>, int> = 0?
 //   friend auto tag_invoke(
 //        UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<connect>),
 //        UNIFEX_USE_NON_DEDUCED_TYPE(S, foo_sender)&& s,
@@ -133,22 +128,23 @@
 // };
 
 #if defined(_MSC_VER)
-#  define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
-    typename NAME, std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0
-#  define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) NAME
+# define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
+  typename NAME, \
+  std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0
+ # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) NAME
 #else
-#  define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
-#  define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
+# define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) typename NAME = __VA_ARGS__
+# define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) __VA_ARGS__
 #endif
 
 #if !defined(UNIFEX_CXX_CONCEPTS)
-#  ifdef UNIFEX_DOXYGEN_INVOKED
-#    define UNIFEX_CXX_CONCEPTS 201800L
-#  elif defined(__cpp_concepts) && __cpp_concepts > 0
-#    define UNIFEX_CXX_CONCEPTS __cpp_concepts
-#  else
-#    define UNIFEX_CXX_CONCEPTS 0L
-#  endif
+#ifdef UNIFEX_DOXYGEN_INVOKED
+#define UNIFEX_CXX_CONCEPTS 201800L
+#elif defined(__cpp_concepts) && __cpp_concepts > 0
+#define UNIFEX_CXX_CONCEPTS __cpp_concepts
+#else
+#define UNIFEX_CXX_CONCEPTS 0L
+#endif
 #endif
 
 #if __cpp_rtti >= 199711
@@ -165,128 +161,124 @@
 #else
 #  define UNIFEX_NO_EXCEPTIONS 1
 #  define UNIFEX_TRY
-#  define UNIFEX_CATCH(...) \
-    if constexpr (true) {   \
-    } else
+#  define UNIFEX_CATCH(...) if constexpr (true) {} else
 #  define UNIFEX_RETHROW() ((void)0)
 #endif
 
 #if defined(_MSC_VER) && !defined(__clang__)
-#  define UNIFEX_DIAGNOSTIC_PUSH __pragma(warning(push))
-#  define UNIFEX_DIAGNOSTIC_POP __pragma(warning(pop))
-#  define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
-#  define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
-#  define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
-#else  // ^^^ defined(_MSC_VER) ^^^ / vvv !defined(_MSC_VER) vvv
-#  if defined(__GNUC__) || defined(__clang__)
-#    define UNIFEX_PRAGMA(X) _Pragma(#    X)
-#    define UNIFEX_DIAGNOSTIC_PUSH UNIFEX_PRAGMA(GCC diagnostic push)
-#    define UNIFEX_DIAGNOSTIC_POP UNIFEX_PRAGMA(GCC diagnostic pop)
-#    define UNIFEX_DIAGNOSTIC_IGNORE_PRAGMAS \
+  #define UNIFEX_DIAGNOSTIC_PUSH __pragma(warning(push))
+  #define UNIFEX_DIAGNOSTIC_POP __pragma(warning(pop))
+  #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
+  #define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
+  #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
+#else // ^^^ defined(_MSC_VER) ^^^ / vvv !defined(_MSC_VER) vvv
+  #if defined(__GNUC__) || defined(__clang__)
+    #define UNIFEX_PRAGMA(X) _Pragma(#X)
+    #define UNIFEX_DIAGNOSTIC_PUSH UNIFEX_PRAGMA(GCC diagnostic push)
+    #define UNIFEX_DIAGNOSTIC_POP UNIFEX_PRAGMA(GCC diagnostic pop)
+    #define UNIFEX_DIAGNOSTIC_IGNORE_PRAGMAS \
       UNIFEX_PRAGMA(GCC diagnostic ignored "-Wpragmas")
-#    define UNIFEX_DIAGNOSTIC_IGNORE(X)                         \
-      UNIFEX_DIAGNOSTIC_IGNORE_PRAGMAS                          \
+    #define UNIFEX_DIAGNOSTIC_IGNORE(X) \
+      UNIFEX_DIAGNOSTIC_IGNORE_PRAGMAS \
       UNIFEX_PRAGMA(GCC diagnostic ignored "-Wunknown-pragmas") \
       UNIFEX_PRAGMA(GCC diagnostic ignored X)
-#    define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME    \
+    #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME \
       UNIFEX_DIAGNOSTIC_IGNORE("-Wunknown-warning-option") \
       UNIFEX_DIAGNOSTIC_IGNORE("-Winit-list-lifetime")
-#    define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL \
+    #define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL \
       UNIFEX_DIAGNOSTIC_IGNORE("-Wfloat-equal")
-#    define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT \
+    #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT \
       UNIFEX_DIAGNOSTIC_IGNORE("-Wc++2a-compat")
-#  else
-#    define UNIFEX_DIAGNOSTIC_PUSH
-#    define UNIFEX_DIAGNOSTIC_POP
-#    define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
-#    define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
-#    define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
-#  endif
-#endif  // MSVC/Generic configuration switch
+  #else
+    #define UNIFEX_DIAGNOSTIC_PUSH
+    #define UNIFEX_DIAGNOSTIC_POP
+    #define UNIFEX_DIAGNOSTIC_IGNORE_INIT_LIST_LIFETIME
+    #define UNIFEX_DIAGNOSTIC_IGNORE_FLOAT_EQUAL
+    #define UNIFEX_DIAGNOSTIC_IGNORE_CPP2A_COMPAT
+  #endif
+#endif // MSVC/Generic configuration switch
 
 #if defined(__GNUC__) || defined(__clang__)
-#  define UNIFEX_ALWAYS_INLINE         \
-    __attribute__((__always_inline__)) \
-    __attribute__((__visibility__("hidden"))) inline
+  #define UNIFEX_ALWAYS_INLINE \
+    __attribute__((__always_inline__)) __attribute__((__visibility__("hidden"))) inline
 #elif defined(_MSC_VER)
-#  define UNIFEX_ALWAYS_INLINE __forceinline
+  #define UNIFEX_ALWAYS_INLINE __forceinline
 #else
-#  define UNIFEX_ALWAYS_INLINE inline
+  #define UNIFEX_ALWAYS_INLINE inline
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
-#  define UNIFEX_NO_INLINE __attribute__((__noinline__))
+  #define UNIFEX_NO_INLINE __attribute__((__noinline__))
 #elif defined(_MSC_VER)
-#  define UNIFEX_NO_INLINE __declspec(noinline)
+  #define UNIFEX_NO_INLINE __declspec(noinline)
 #else
-#  define UNIFEX_NO_INLINE
+  #define UNIFEX_NO_INLINE
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
-#  define UNIFEX_ASSUME_UNREACHABLE __builtin_unreachable()
+  #define UNIFEX_ASSUME_UNREACHABLE __builtin_unreachable()
 #elif defined(_MSC_VER)
-#  define UNIFEX_ASSUME_UNREACHABLE __assume(0)
+  #define UNIFEX_ASSUME_UNREACHABLE __assume(0)
 #else
-#  define UNIFEX_ASSUME_UNREACHABLE std::terminate()
+  #define UNIFEX_ASSUME_UNREACHABLE std::terminate()
 #endif
 
 #if defined(__clang__)
-#  define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
+#define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
 #elif defined(__GNUC__) && __GNUC__ >= 6
-#  define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
+#define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#  define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
+#define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
 #else
-#  define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
+#define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
 #endif
 
 #if defined(__GNUC__) || defined(_MSC_VER)
-#  define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
+#define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#  define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
 #else
-#  define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
+#define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
 #endif
 
 #if defined(__clang__) || defined(_MSC_VER) || \
-    (defined(__GNUC__) && __GNUC__ >= 8)
-#  define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
+  (defined(__GNUC__) && __GNUC__ >= 8)
+#define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#  define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
 #else
-#  define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
+#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
 #endif
 
-#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__ (*)() noexcept>(nullptr)()
+#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__(*)()noexcept>(nullptr)()
 
 #ifndef UNIFEX_ASSERT
-#  define UNIFEX_ASSERT assert
+# define UNIFEX_ASSERT assert
 #endif
 
 #if defined(__clang__)
-// Clang's optimizer interacts badly with its address sanitizer. Certain
-// functions must have optimizations disabled in order to avoid triggering
-// stack-use-after-scope-exit errors.
-#  if __has_feature(address_sanitizer)
-#    define UNIFEX_CLANG_DISABLE_OPTIMIZATION __attribute__((__optnone__))
-#  else
-#    define UNIFEX_CLANG_DISABLE_OPTIMIZATION
-#  endif
+  // Clang's optimizer interacts badly with its address sanitizer. Certain
+  // functions must have optimizations disabled in order to avoid triggering
+  // stack-use-after-scope-exit errors.
+  #if __has_feature(address_sanitizer)
+    #define UNIFEX_CLANG_DISABLE_OPTIMIZATION __attribute__((__optnone__))
+  #else
+    #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
+  #endif
 #else
-#  define UNIFEX_CLANG_DISABLE_OPTIMIZATION
+  #define UNIFEX_CLANG_DISABLE_OPTIMIZATION
 #endif
 
 #if !defined(UNIFEX_DEPRECATED_HEADER)
-#  ifdef __GNUC__
-#    define UNIFEX_PRAGMA(X) _Pragma(#    X)
-#    define UNIFEX_DEPRECATED_HEADER(MSG) UNIFEX_PRAGMA(GCC warning MSG)
-#  elif defined(_MSC_VER)
-#    define UNIFEX_STRINGIZE_(MSG) #    MSG
-#    define UNIFEX_STRINGIZE(MSG) UNIFEX_STRINGIZE_(MSG)
-#    define UNIFEX_DEPRECATED_HEADER(MSG) \
-      __pragma(message(__FILE__           \
-                       "(" UNIFEX_STRINGIZE(__LINE__) ") : Warning: " MSG))
-#  endif
+  #ifdef __GNUC__
+    #define UNIFEX_PRAGMA(X) _Pragma(#X)
+    #define UNIFEX_DEPRECATED_HEADER(MSG) UNIFEX_PRAGMA(GCC warning MSG)
+  #elif defined(_MSC_VER)
+    #define UNIFEX_STRINGIZE_(MSG) #MSG
+    #define UNIFEX_STRINGIZE(MSG) UNIFEX_STRINGIZE_(MSG)
+    #define UNIFEX_DEPRECATED_HEADER(MSG) \
+        __pragma(message(__FILE__ "(" UNIFEX_STRINGIZE(__LINE__) ") : Warning: " MSG))
+  #endif
 #else
-#  define UNIFEX_DEPRECATED_HEADER(MSG) /**/
+  #define UNIFEX_DEPRECATED_HEADER(MSG) /**/
 #endif
