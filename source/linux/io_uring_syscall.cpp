@@ -55,11 +55,15 @@
 
 namespace unifex::linuxos {
 template <typename F>
-int retryInterruptableSyscall(F&& func) {
+int retry_interruptable_syscall(F&& func) {
   while (true) {
     auto ret = func();
-    if (ret == EINTR) {
-      continue;
+    auto ret = func();
+    if (ret < 0) {
+      auto err = errno;
+      if (err == EINTR) {
+        continue;
+      }
     }
 
     return ret;
@@ -68,13 +72,13 @@ int retryInterruptableSyscall(F&& func) {
 
 int io_uring_register(
     int fd, unsigned opcode, const void* arg, unsigned nr_args) {
-  return retryInterruptableSyscall([=]() {
+  return retry_interruptable_syscall([=]() {
     return syscall(__NR_io_uring_register, fd, opcode, arg, nr_args);
   });
 }
 
 int io_uring_setup(unsigned entries, struct io_uring_params* p) {
-  return retryInterruptableSyscall(
+  return retry_interruptable_syscall(
       [=]() { return syscall(__NR_io_uring_setup, entries, p); });
 }
 
@@ -84,7 +88,7 @@ int io_uring_enter(
     unsigned min_complete,
     unsigned flags,
     sigset_t* sig) {
-  return retryInterruptableSyscall([=]() {
+  return retry_interruptable_syscall([=]() {
     return syscall(
         __NR_io_uring_enter,
         fd,
