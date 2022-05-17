@@ -56,23 +56,25 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
+    auto& op = op_;
     UNIFEX_TRY {
       // Taking by value here to force a copy on the offchance the value
       // objects lives in the operation state (e.g., just), in which
       // case the call to cleanup() would invalidate them.
-      [this](auto... copies) {
+      [&](auto... copies) {
         cleanup();
         unifex::set_value(
-            std::move(op_.receiver_), (decltype(copies) &&) copies...);
+            std::move(op.receiver_), (decltype(copies) &&) copies...);
       } ((SuccessorValues&&) values...);
     } UNIFEX_CATCH (...) {
-      unifex::set_error(std::move(op_.receiver_), std::current_exception());
+      unifex::set_error(std::move(op.receiver_), std::current_exception());
     }
   }
 
   void set_done() && noexcept {
+    auto& op = op_;
     cleanup();
-    unifex::set_done(std::move(op_.receiver_));
+    unifex::set_done(std::move(op.receiver_));
   }
 
   // Taking by value here to force a copy on the offchance the error
@@ -80,8 +82,9 @@ struct _successor_receiver<Operation, Values...>::type {
   // case the call to cleanup() would invalidate it.
   template <typename Error>
   void set_error(Error error) && noexcept {
+    auto& op = op_;
     cleanup();
-    unifex::set_error(std::move(op_.receiver_), (Error &&) error);
+    unifex::set_error(std::move(op.receiver_), (Error &&) error);
   }
 
 private:
@@ -89,8 +92,9 @@ private:
   using successor_operation = typename Operation::template successor_operation<Values2...>;
 
   void cleanup() noexcept {
-    unifex::deactivate_union_member<successor_operation<Values...>>(op_.succOp_);
-    op_.values_.template destruct<decayed_tuple<Values...>>();
+    auto& op = op_;
+    unifex::deactivate_union_member<successor_operation<Values...>>(op.succOp_);
+    op.values_.template destruct<decayed_tuple<Values...>>();
   }
 
   template(typename CPO)
@@ -246,12 +250,12 @@ private:
   using predecessor_type = remove_cvref_t<Predecessor>;
   UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-  UNIFEX_NO_UNIQUE_ADDRESS typename predecessor_type::
+  UNIFEX_NO_UNIQUE_ADDRESS typename sender_traits<predecessor_type>::
       template value_types<manual_lifetime_union, decayed_tuple>
           values_;
   union {
     manual_lifetime<connect_result_t<Predecessor, predecessor_receiver<operation>>> predOp_;
-    typename predecessor_type::template
+    typename sender_traits<predecessor_type>::template
         value_types<manual_lifetime_union, successor_operation>
             succOp_;
   };

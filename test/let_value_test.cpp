@@ -21,6 +21,9 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/allocate.hpp>
+#include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -234,4 +237,48 @@ TEST(Let, PipeNeverBlockingKind) {
   auto snd2 = never_block() | let_value(multi_sender);
   using Snd2 = decltype(snd2);
   static_assert(blocking_kind::never == cblocking<Snd2>());
+}
+
+TEST(Let, SimpleLetValueWithAllocate) {
+  optional<int> result =
+      sync_wait(let_value(unifex::just(42), [](int num) {
+        return unifex::allocate(unifex::just(num));
+    }));
+
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(*result, 42);
+  std::cout << "let_value with allocate done " << *result << "\n";
+}
+
+TEST(Let, SimpleLetValueVoidWithAllocate) {
+  EXPECT_NO_THROW(sync_wait(let_value(unifex::just(42), [](int) {
+    return unifex::allocate(unifex::just_done());
+  })));
+}
+
+TEST(Let, SimpleLetValueErrorWithAllocate) {
+  EXPECT_THROW(sync_wait(let_value(unifex::just(1), [](int) {
+    return unifex::allocate(unifex::just_error(std::invalid_argument("Throwing error for testing purposes")));
+  })), std::invalid_argument);
+}
+
+namespace {
+struct TraitslessSender {
+  template <typename Receiver>
+  auto connect(Receiver&& receiver) {
+    return unifex::connect(unifex::just(42), (Receiver &&) receiver);
+  }
+};
+}  // namespace
+
+namespace unifex {
+template <>
+struct sender_traits<TraitslessSender> : sender_traits<decltype(just(42))> {};
+}  // namespace unifex
+
+TEST(Let, LetValueWithTraitlessPredecessor) {
+  auto ret = sync_wait(
+      let_value(TraitslessSender{}, [](int val) { return just(val); }));
+  ASSERT_TRUE(ret);
+  EXPECT_EQ(*ret, 42);
 }
