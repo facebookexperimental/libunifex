@@ -93,20 +93,20 @@ struct _operation_tuple<Index, Receiver>::type {
   void start() noexcept {}
 };
 
-struct cancel_operation {
-  inplace_stop_source& stopSource_;
-
-  void operator()() noexcept {
-    stopSource_.request_stop();
-  }
-};
-
 template <typename Receiver, typename... Senders>
 struct _op {
   struct type;
 };
 template <typename Receiver, typename... Senders>
 using operation = typename _op<remove_cvref_t<Receiver>, Senders...>::type;
+
+template <typename Receiver, typename... Senders>
+struct cancel_operation {
+  operation<Receiver, Senders...>& op_;
+  void operator()() noexcept {
+    op_.request_stop();
+  }
+};
 
 template <typename... Errors>
 using unique_decayed_error_types = concat_type_lists_unique_t<
@@ -213,19 +213,39 @@ struct _op<Receiver, Senders...>::type {
 
   void start() noexcept {
     stopCallback_.construct(
-        get_stop_token(receiver_), cancel_operation{stopSource_});
+        get_stop_token(receiver_),
+        cancel_operation<Receiver, Senders...>{*this});
     ops_.start();
   }
 
-  private:
+  void request_stop() noexcept {
+    // mark callback as running (own deliver_result)
+    auto oldCount = refCount_.fetch_add(1, std::memory_order_relaxed);
+    UNIFEX_ASSERT(!(oldCount & callback_running_bit));
+    stopSource_.request_stop();
+    // unmark (deliver_result back to operation)
+    oldCount = refCount_.fetch_sub(1, std::memory_order_relaxed);
+    UNIFEX_ASSERT(oldCount & callback_running_bit);
+    // deliver_result as there are no more operations
+    if (oldCount == 1) {
+      unifex::set_done(std::move(receiver_));
+    }
+  }
+
+private:
   void element_complete() noexcept {
-    if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+    // +2 for last operation, +1 for callback running
+    if (refCount_.fetch_sub(2, std::memory_order_release) < 4) {
       deliver_result();
     }
   }
 
   void deliver_result() noexcept {
     stopCallback_.destruct();
+    if (refCount_.load(std::memory_order_acquire) == 1) {
+      // request_stop owns deliver_result (callback running)
+      return;
+    }
 
     if (get_stop_token(receiver_).stop_requested()) {
       unifex::set_done(std::move(receiver_));
@@ -255,13 +275,16 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
+  static constexpr std::size_t callback_running_bit{1};
   std::tuple<optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
   optional<error_types<variant, remove_cvref_t<Senders>...>> error_;
-  std::atomic<std::size_t> refCount_{sizeof...(Senders)};
+  // count left-shifted by 1 to allow add 1 when stop is requested
+  std::atomic<std::size_t> refCount_{sizeof...(Senders) << 1};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
-  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
-      Receiver&>::template callback_type<cancel_operation>>
+  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<
+      typename stop_token_type_t<Receiver&>::template callback_type<
+          cancel_operation<Receiver, Senders...>>>
       stopCallback_;
   Receiver receiver_;
   template <std::size_t Index>
@@ -290,7 +313,7 @@ inline constexpr bool when_all_connectable_v =
 template <typename... Senders>
 class _sender<Senders...>::type {
   using sender = type;
- public:
+public:
   static_assert(sizeof...(Senders) > 0);
 
   template <
@@ -319,7 +342,7 @@ class _sender<Senders...>::type {
     }, static_cast<Sender &&>(sender).senders_);
   }
 
- private:
+private:
 
   // Customise the 'blocking' CPO to combine the blocking-nature
   // of each of the child operations.
