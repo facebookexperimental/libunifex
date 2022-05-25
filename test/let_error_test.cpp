@@ -17,8 +17,12 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/on.hpp>
+#if !UNIFEX_NO_COROUTINES
+#include <unifex/task.hpp>
+#endif // !UNIFEX_NO_COROUTINES
 #include <unifex/then.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_error.hpp>
@@ -106,3 +110,42 @@ TEST(TransformError, WithValue) {
   EXPECT_TRUE(multiple.has_value());
   EXPECT_EQ(*multiple, std::tuple(42, 1, 2));
 }
+
+#if !UNIFEX_NO_COROUTINES
+TEST(TransformError, WithTask) {
+  auto value =
+    let_error(
+      []() -> task<int> { co_return 42; }(),
+      [](auto&&) { return just(-1); }
+    )
+    | let_done([]() { return just(-2); })
+    | sync_wait();
+
+  EXPECT_TRUE(value.has_value());
+  EXPECT_EQ(*value, 42);
+
+#if !UNIFEX_NO_EXCEPTIONS
+  auto error =
+    let_error(
+      []() -> task<int> { throw std::runtime_error(""); co_return 42; }(),
+      [](auto&&) { return just(-1); }
+    )
+    | let_done([]() { return just(-2); })
+    | sync_wait();
+
+  EXPECT_TRUE(error.has_value());
+  EXPECT_EQ(*error, -1);
+#endif // !UNIFEX_NO_EXCEPTIONS
+
+  auto done =
+    let_error(
+      []() -> task<int> { co_await just_done(); co_return 42; }(),
+      [](auto&&) { return just(-1); }
+    )
+    | let_done([]() { return just(-2); })
+    | sync_wait();
+
+  EXPECT_TRUE(done.has_value());
+  EXPECT_EQ(*done, -2);
+}
+#endif // !UNIFEX_NO_COROUTINES
