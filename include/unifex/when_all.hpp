@@ -218,32 +218,24 @@ struct _op<Receiver, Senders...>::type {
 
   void request_stop() noexcept {
     // mark callback as running (own deliver_result)
-    auto oldCount = refCount_.fetch_add(1, std::memory_order_relaxed);
-    UNIFEX_ASSERT(!(oldCount & callback_running_bit));
+    if (refCount_.fetch_add(1, std::memory_order_relaxed) == 0) {
+      // deliver_result already called
+      return;
+    }
     stopSource_.request_stop();
     // unmark (deliver_result back to operation)
-    oldCount = refCount_.fetch_sub(1, std::memory_order_relaxed);
-    UNIFEX_ASSERT(oldCount & callback_running_bit);
-    // deliver_result as there are no more operations
-    if (oldCount == 1) {
-      unifex::set_done(std::move(receiver_));
-    }
+    element_complete();
   }
 
   private:
   void element_complete() noexcept {
-    // +2 for last operation, +1 for callback running
-    if (refCount_.fetch_sub(2, std::memory_order_release) < 4) {
+    if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
       deliver_result();
     }
   }
 
   void deliver_result() noexcept {
     stopCallback_.destruct();
-    if (refCount_.load(std::memory_order_acquire) == 1) {
-      // request_stop owns deliver_result (callback running)
-      return;
-    }
 
     if (get_stop_token(receiver_).stop_requested()) {
       unifex::set_done(std::move(receiver_));
@@ -273,11 +265,10 @@ struct _op<Receiver, Senders...>::type {
     }
   }
 
-  static constexpr std::size_t callback_running_bit{1};
   std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
   std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
-  // count left-shifted by 1 to allow add 1 when stop is requested
-  std::atomic<std::size_t> refCount_{sizeof...(Senders) << 1};
+  // a running cancel_operation increments refCount
+  std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
   UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<
