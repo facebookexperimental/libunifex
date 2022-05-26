@@ -30,6 +30,7 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
+#include <unifex/when_all.hpp>
 
 #include "mock_receiver.hpp"
 #include "stoppable_receiver.hpp"
@@ -596,6 +597,34 @@ TEST_F(async_scope_test, attach_stop_source_sync) {
   sync_wait(std::move(sender));
   sync_wait(scope.cleanup());
   EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(async_scope_test, attach_record_done) {
+  async_manual_reset_event evt;
+
+  struct slow_receiver {
+    async_manual_reset_event& evt;
+    void set_value(int) noexcept {
+      auto& localEvt = evt;
+      sync_wait(localEvt.async_wait());
+    }
+
+    void set_error(std::exception_ptr) noexcept {
+      auto& localEvt = evt;
+      sync_wait(localEvt.async_wait());
+    }
+
+    void set_done() noexcept {
+      auto& localEvt = evt;
+      sync_wait(localEvt.async_wait());
+    }
+  };
+
+  auto operation = connect(
+      scope.attach_on(thread.get_scheduler(), just(42)), slow_receiver{evt});
+  start(operation);
+  sync_wait(
+      when_all(scope.cleanup(), just_from([&]() noexcept { evt.set(); })));
 }
 
 TEST_F(async_scope_test, attach_unstoppable_stop_token) {
