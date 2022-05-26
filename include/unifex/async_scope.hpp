@@ -577,19 +577,28 @@ template <typename Operation, typename Receiver>
 struct _cleaning_receiver<Operation, Receiver>::type final {
   template <typename... Values>
   void set_value(Values&&... values) noexcept {
-    op_->cleanup();
+    auto scope = op_->scope_ref();
+    UNIFEX_ASSERT(scope != nullptr);
+    op_->deregister_callbacks();
     unifex::set_value(std::move(receiver_), (Values &&) values...);
+    record_done(scope);
   }
 
   template <typename E>
   void set_error(E&& e) noexcept {
-    op_->cleanup();
+    auto scope = op_->scope_ref();
+    UNIFEX_ASSERT(scope != nullptr);
+    op_->deregister_callbacks();
     unifex::set_error(std::move(receiver_), (E &&) e);
+    record_done(scope);
   }
 
   void set_done() noexcept {
-    op_->cleanup();
+    auto scope = op_->scope_ref();
+    UNIFEX_ASSERT(scope != nullptr);
+    op_->deregister_callbacks();
     unifex::set_done(std::move(receiver_));
+    record_done(scope);
   }
 
   template(typename CPO)                       //
@@ -644,11 +653,12 @@ public:
   type(type&& op) = delete;
 
   ~type() {
-    if (scope_ref()) {
+    auto scope = scope_ref();
+    if (scope) {
       unifex::deactivate_union_member(op_);
       // started => receiver responsible for cleanup
       if (!has_started()) {
-        cleanup();
+        record_done(scope);
       }
     } else {
       unifex::deactivate_union_member(receiver_);
@@ -657,10 +667,8 @@ public:
 
   auto get_token() { return stopSource_.get_token(); }
 
-  void cleanup() noexcept {
-    UNIFEX_ASSERT(scope_ref() != nullptr);
+  void deregister_callbacks() noexcept {
     stopSource_.deregister_callbacks();
-    record_done(scope_ref());
   }
 
   friend void tag_invoke(tag_t<start>, type& op) noexcept {
@@ -672,6 +680,10 @@ public:
     } else {
       unifex::set_done(std::move(op).receiver_.get());
     }
+  }
+
+  async_scope* scope_ref() const noexcept {
+    return reinterpret_cast<async_scope*>(scope_ & started_mask);
   }
 
 private:
@@ -688,9 +700,6 @@ private:
     manual_lifetime<Receiver> receiver_;
   };
 
-  async_scope* scope_ref() const noexcept {
-    return reinterpret_cast<async_scope*>(scope_ & started_mask);
-  }
   bool has_started() const noexcept { return scope_ & started_bit; }
   void set_started() noexcept { scope_ |= started_bit; }
 };
