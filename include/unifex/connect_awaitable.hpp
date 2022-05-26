@@ -32,6 +32,15 @@
 
 #include <unifex/detail/prologue.hpp>
 
+#if defined(__GNUC__) && __GNUC__ == 10 && __GNUC_MINOR__ <= 2
+// GCC <= 10.2 appears to pass pre-copy references to the coroutine
+// function arguments, rather than post-copy. GCC 10.3 fixes this.
+// We workaround this bug by using a unique_ptr, allowing for a
+// reference to the underlying Receiver object to be stored into the
+// promise_type correctly.
+#define PROMISE_CTOR_WORKAROUND
+#endif
+
 namespace unifex {
 namespace _await {
 
@@ -46,10 +55,17 @@ template<typename Receiver>
 class _sender_task<Receiver>::type {
 public:
   struct promise_type {
+#ifdef PROMISE_CTOR_WORKAROUND
+    template <typename Awaitable>
+    explicit promise_type(Awaitable&, std::unique_ptr<Receiver>& r) noexcept
+        : receiver_(*r)
+    {}
+#else
     template <typename Awaitable>
     explicit promise_type(Awaitable&, Receiver& r) noexcept
         : receiver_(r)
     {}
+#endif
 
     type get_return_object() noexcept {
       return type{
@@ -163,8 +179,14 @@ namespace _await_cpo {
       operator unit() const noexcept { return {}; }
     };
     template <typename Awaitable, typename Receiver>
+#ifdef PROMISE_CTOR_WORKAROUND
+    static auto connect_impl(Awaitable awaitable, std::unique_ptr<Receiver> receiver_p)
+        -> _await::sender_task<Receiver> {
+      Receiver& receiver = *receiver_p;
+#else
     static auto connect_impl(Awaitable awaitable, Receiver receiver)
         -> _await::sender_task<Receiver> {
+#endif
 #if !UNIFEX_NO_EXCEPTIONS
       std::exception_ptr ex;
       try {
@@ -221,7 +243,11 @@ namespace _await_cpo {
     template <typename Awaitable, typename Receiver>
     auto operator()(Awaitable&& awaitable, Receiver&& receiver) const
       -> _await::sender_task<remove_cvref_t<Receiver>> {
+#ifdef PROMISE_CTOR_WORKAROUND
+      return connect_impl((Awaitable&&)awaitable, std::make_unique<remove_cvref_t<Receiver>>((Receiver&&)receiver));
+#else
       return connect_impl((Awaitable&&)awaitable, (Receiver&&)receiver);
+#endif
     }
   } connect_awaitable{};
 } // namespace _await_cpo
@@ -229,5 +255,9 @@ namespace _await_cpo {
 using _await_cpo::connect_awaitable;
 
 } // namespace unifex
+
+#ifdef PROMISE_CTOR_WORKAROUND
+#undef PROMISE_CTOR_WORKAROUND
+#endif
 
 #include <unifex/detail/epilogue.hpp>
