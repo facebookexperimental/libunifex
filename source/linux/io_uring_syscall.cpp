@@ -58,7 +58,6 @@ template <typename F>
 int retry_interruptable_syscall(F&& func) {
   while (true) {
     auto ret = func();
-    auto ret = func();
     if (ret < 0) {
       auto err = errno;
       if (err == EINTR) {
