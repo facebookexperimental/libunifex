@@ -17,7 +17,6 @@
 
 #include <unifex/config.hpp>
 #include <unifex/async_manual_reset_event.hpp>
-#include <unifex/fused_stop_source.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just_from.hpp>
@@ -577,28 +576,23 @@ template <typename Operation, typename Receiver>
 struct _cleaning_receiver<Operation, Receiver>::type final {
   template <typename... Values>
   void set_value(Values&&... values) noexcept {
-    auto scope = op_->scope_ref();
-    UNIFEX_ASSERT(scope != nullptr);
-    op_->deregister_callbacks();
-    unifex::set_value(std::move(receiver_), (Values &&) values...);
-    record_done(scope);
+    op_->deliver_result([&](auto&& r) noexcept {
+      UNIFEX_TRY { unifex::set_value(std::move(r), (Values &&) values...); }
+      UNIFEX_CATCH(...) {
+        unifex::set_error(std::move(r), std::current_exception());
+      }
+    });
   }
 
   template <typename E>
   void set_error(E&& e) noexcept {
-    auto scope = op_->scope_ref();
-    UNIFEX_ASSERT(scope != nullptr);
-    op_->deregister_callbacks();
-    unifex::set_error(std::move(receiver_), (E &&) e);
-    record_done(scope);
+    op_->deliver_result(
+        [&](auto&& r) noexcept { unifex::set_error(std::move(r), (E &&) e); });
   }
 
   void set_done() noexcept {
-    auto scope = op_->scope_ref();
-    UNIFEX_ASSERT(scope != nullptr);
-    op_->deregister_callbacks();
-    unifex::set_done(std::move(receiver_));
-    record_done(scope);
+    op_->deliver_result(
+        [&](auto&& r) noexcept { unifex::set_done(std::move(r)); });
   }
 
   template(typename CPO)                       //
@@ -606,7 +600,7 @@ struct _cleaning_receiver<Operation, Receiver>::type final {
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
           is_nothrow_callable_v<CPO, const Receiver&>)
           -> callable_result_t<CPO, const Receiver&> {
-    return static_cast<CPO&&>(cpo)(r.receiver_);
+    return static_cast<CPO&&>(cpo)(r.get_receiver());
   }
 
   friend inplace_stop_token
@@ -615,7 +609,6 @@ struct _cleaning_receiver<Operation, Receiver>::type final {
   }
 
   Operation* op_;
-  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 };
 
 template <typename Sender, typename Receiver>
@@ -632,76 +625,136 @@ class _attached_op<Sender, Receiver>::type final {
   using cleaning_receiver_t = cleaning_receiver<type, Receiver>;
   using nested_operation_t = connect_result_t<Sender, cleaning_receiver_t>;
 
+  struct stop_callback {
+    void operator()() noexcept { op_.request_stop(); }
+
+    type& op_;
+  };
+
 public:
   template <typename Receiver2>
   explicit type(Sender&& s, Receiver2&& r, async_scope* scope) noexcept(
       is_nothrow_connectable_v<Sender, cleaning_receiver_t>&&
-          std::is_nothrow_constructible_v<cleaning_receiver_t, type*, Receiver2>&&
+          std::is_nothrow_constructible_v<cleaning_receiver_t, type*>&&
               std::is_nothrow_constructible_v<Receiver, Receiver2>)
-    : scope_(reinterpret_cast<std::uintptr_t>(scope) & started_mask)
-    , receiverToken_(get_stop_token(r)) {
-    if (scope_ref()) {
-      unifex::activate_union_member_with(op_, [&] {
-        return unifex::connect(
-            (Sender &&) s, cleaning_receiver_t{this, (Receiver2 &&) r});
+    : scope_(init_refcount(scope))
+    , receiver_((Receiver2 &&) r) {
+    if (scope) {
+      op_.construct_with([&, this] {
+        return unifex::connect((Sender &&) s, cleaning_receiver_t{this});
       });
-    } else {
-      unifex::activate_union_member(receiver_, (Receiver2 &&) r);
     }
   }
 
   type(type&& op) = delete;
 
   ~type() {
-    auto scope = scope_ref();
-    if (scope) {
-      unifex::deactivate_union_member(op_);
+    auto scope = scope_.load(std::memory_order_relaxed);
+    if (scope != 0u) {
+      op_.destruct();
       // started => receiver responsible for cleanup
-      if (!has_started()) {
-        record_done(scope);
+      if (ref_count(scope) != 0u) {
+        UNIFEX_ASSERT(ref_count(scope) == 1u);
+        record_done(scope_ptr(scope));
       }
-    } else {
-      unifex::deactivate_union_member(receiver_);
     }
   }
 
-  auto get_token() { return stopSource_.get_token(); }
+  void request_stop() noexcept {
+    // increment from 0 means lost race with a completion method so
+    // no-op and let the in-flight completion complete
+    auto scope = scope_.load(std::memory_order_relaxed);
+    auto expected = (scope & mask) | 1u;
+    if (!scope_.compare_exchange_strong(
+            expected, expected + 1u, std::memory_order_relaxed)) {
+      return;
+    }
+    stopSource_.request_stop();
+    deliver_result([](auto&& r) noexcept { unifex::set_done(std::move(r)); });
+  }
+
+  // reduce size of the templated `deliver_result`
+  async_scope* deliver_result_prelude() noexcept {
+    auto scope = scope_.fetch_sub(1u, std::memory_order_acq_rel);
+    if (ref_count(scope) != 1u) {
+      UNIFEX_ASSERT(ref_count(scope) == 2u);
+      return nullptr;
+    }
+    UNIFEX_ASSERT(scope_ptr(scope) != nullptr);
+    deregister_callbacks();
+    return scope_ptr(scope);
+  }
+
+  template <typename Func>
+  void deliver_result(Func func) noexcept {
+    auto scope = deliver_result_prelude();
+    if (scope) {
+      func(std::move(receiver_));
+      record_done(scope);
+    }
+  }
+
+  auto get_token() noexcept { return stopSource_.get_token(); }
+
+  const auto& get_receiver() const noexcept { return receiver_; }
 
   void deregister_callbacks() noexcept {
-    stopSource_.deregister_callbacks();
+    receiverCallback_.destruct();
+    scopeCallback_.destruct();
+  }
+
+  void register_callbacks() noexcept {
+    receiverCallback_.construct(
+        get_stop_token(receiver_), stop_callback{*this});
+    scopeCallback_.construct(
+        scope_ref()->get_stop_token(), stop_callback{*this});
   }
 
   friend void tag_invoke(tag_t<start>, type& op) noexcept {
     if (op.scope_ref()) {
-      op.set_started();
-      op.stopSource_.register_callbacks(
-          op.receiverToken_, op.scope_ref()->get_stop_token());
+      // TODO: callback constructor may throw
+      // 1. catch and propagate with `set_error`
+      // 2. careful when destroying callbacks (0, 1, 2?)
+      op.register_callbacks();
       unifex::start(op.op_.get());
     } else {
-      unifex::set_done(std::move(op).receiver_.get());
+      unifex::set_done(std::move(op).receiver_);
     }
   }
 
-  async_scope* scope_ref() const noexcept {
-    return reinterpret_cast<async_scope*>(scope_ & started_mask);
-  }
-
 private:
-  static constexpr std::uintptr_t started_bit{1};
-  static constexpr std::uintptr_t started_mask = ~started_bit;
-  // async_scope* stored as integer, so LSB can be used to signal start
-  std::uintptr_t scope_;
+  static constexpr std::uintptr_t mask = ~(1u | std::uintptr_t{1u << 1});
+  // async_scope* stored as integer: low 2 bits for ref count
+  std::atomic_uintptr_t scope_;
   using receiver_stop_token_t = stop_token_type_t<Receiver>;
   using scope_stop_token_t = inplace_stop_token;
-  fused_stop_source<receiver_stop_token_t, scope_stop_token_t> stopSource_;
-  receiver_stop_token_t receiverToken_;
-  union {
-    manual_lifetime<nested_operation_t> op_;
-    manual_lifetime<Receiver> receiver_;
-  };
+  template <typename StopToken>
+  using stop_callback_t = manual_lifetime<
+      typename StopToken::template callback_type<stop_callback>>;
+  UNIFEX_NO_UNIQUE_ADDRESS inplace_stop_source stopSource_;
+  UNIFEX_NO_UNIQUE_ADDRESS stop_callback_t<receiver_stop_token_t>
+      receiverCallback_;
+  UNIFEX_NO_UNIQUE_ADDRESS stop_callback_t<scope_stop_token_t> scopeCallback_;
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<nested_operation_t> op_;
 
-  bool has_started() const noexcept { return scope_ & started_bit; }
-  void set_started() noexcept { scope_ |= started_bit; }
+  async_scope* scope_ref() const noexcept {
+    return scope_ptr(scope_.load(std::memory_order_relaxed));
+  }
+
+  // ref count in low 2 bits: 1 unless scope is null
+  static std::uintptr_t init_refcount(async_scope* scope) noexcept {
+    return reinterpret_cast<std::uintptr_t>(scope) |
+        static_cast<std::uintptr_t>(static_cast<bool>(scope));
+  }
+
+  static async_scope* scope_ptr(std::uintptr_t scope) noexcept {
+    return reinterpret_cast<async_scope*>(scope & mask);
+  }
+
+  static std::uintptr_t ref_count(std::uintptr_t scope) noexcept {
+    return scope & ~mask;
+  }
 };
 
 template <typename Sender>
@@ -1052,6 +1105,8 @@ private:
 }  // namespace _async_scope
 
 using _async_scope::async_scope;
+// use low 2 bits of async_scope* as ref count
+static_assert(alignof(async_scope) > 2);
 
 template <typename... Ts>
 using future = typename _async_scope::future<Ts...>::type;
