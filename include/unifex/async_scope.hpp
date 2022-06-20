@@ -784,11 +784,13 @@ public:
       std::is_nothrow_constructible_v<Sender, Sender2>)
     : scope_(scope)
     , sender_(static_cast<Sender2&&>(sender)) {
-    if (scope_) {
-      if (!try_record_start(scope_)) {
-        scope_ = nullptr;
-      }
-    }
+    try_attach();
+  }
+
+  type(const type& t) noexcept(std::is_nothrow_copy_constructible_v<Sender>)
+    : scope_(t.scope_)
+    , sender_(t.sender_) {
+    try_attach();
   }
 
   type(type&& t) noexcept(std::is_nothrow_move_constructible_v<Sender>)
@@ -822,6 +824,14 @@ public:
 private:
   async_scope* scope_;
   UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
+
+  void try_attach() noexcept {
+    if (scope_) {
+      if (!try_record_start(scope_)) {
+        scope_ = nullptr;
+      }
+    }
+  }
 };
 
 template <typename Sender>

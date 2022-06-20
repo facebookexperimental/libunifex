@@ -479,21 +479,60 @@ TEST_F(async_scope_test, attach) {
   sync_wait(scope.cleanup());
 }
 
-TEST_F(async_scope_test, attach_move_only) {
+TEST_F(async_scope_test, attach_copy) {
   mock_receiver<void()> receiver;
-  auto sender = scope.attach(just());
-  static_assert(!std::is_copy_constructible_v<decltype(sender)>);
-  // connect(sender, receiver); is not permitted
-  {
-    // the outstanding operation is "transferred" from sender to operation
-    auto operation = connect(std::move(sender), receiver);
-    static_assert(!std::is_copy_constructible_v<decltype(operation)>);
-    static_assert(!std::is_move_constructible_v<decltype(operation)>);
-    // auto copy = operation; is not permitted
-    // auto moved = std::move(operation); is not permitted
-  }
+  EXPECT_CALL(*receiver, set_value()).Times(2);
+  auto sender1 = scope.attach(just());
+  // both senders are attached
+  auto sender2 = sender1;
+
+  // the outstanding operation is "transferred" from sender to operation
+  auto op1 = connect(std::move(sender1), receiver);
+  auto op2 = connect(std::move(sender2), receiver);
+  static_assert(!std::is_copy_constructible_v<decltype(op1)>);
+  static_assert(!std::is_move_constructible_v<decltype(op1)>);
+  // auto copy = op1; is not permitted
+  // auto moved = std::move(op1); is not permitted
+
+  start(op1);
+  start(op2);
+
   // this will hang if the transfer doesn't happen
   sync_wait(scope.cleanup());
+}
+
+TEST_F(async_scope_test, attach_copy_done) {
+  mock_receiver<void()> receiver;
+  EXPECT_CALL(*receiver, set_done()).Times(2);
+  scope.request_stop();
+  auto sender1 = scope.attach(just());
+  // no more work can start on the scope
+  sync_wait(when_all(scope.complete(), just_from([&]() noexcept {
+                       // both senders complete as done
+                       auto sender2 = sender1;
+                       auto op1 = connect(std::move(sender1), receiver);
+                       auto op2 = connect(std::move(sender2), receiver);
+
+                       start(op1);
+                       start(op2);
+                     })));
+}
+
+TEST_F(async_scope_test, attach_copy_done2) {
+  mock_receiver<void()> receiver;
+  EXPECT_CALL(*receiver, set_done()).Times(2);
+  auto sender1 = scope.attach(just_void_or_done(false));
+  scope.request_stop();
+  // no more work can start on the scope
+  sync_wait(when_all(scope.complete(), just_from([&]() noexcept {
+                       // both senders complete as done
+                       auto sender2 = sender1;
+                       auto op1 = connect(std::move(sender1), receiver);
+                       auto op2 = connect(std::move(sender2), receiver);
+
+                       start(op1);
+                       start(op2);
+                     })));
 }
 
 TEST_F(async_scope_test, attach_move_connect_start_just_void) {
