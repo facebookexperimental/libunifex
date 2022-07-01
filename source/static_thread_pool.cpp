@@ -122,12 +122,15 @@ namespace _static_thread_pool {
   }
 
   bool context::thread_state::try_push(task_base* task) {
-    std::unique_lock lk{mut_, std::try_to_lock};
-    if (!lk) {
-      return false;
+    bool wasEmpty;
+    {
+      std::unique_lock lk{mut_, std::try_to_lock};
+      if (!lk) {
+        return false;
+      }
+      wasEmpty = queue_.empty();
+      queue_.push_back(task);
     }
-    const bool wasEmpty = queue_.empty();
-    queue_.push_back(task);
     if (wasEmpty) {
       cv_.notify_one();
     }
@@ -135,17 +138,22 @@ namespace _static_thread_pool {
   }
 
   void context::thread_state::push(task_base* task) {
-    std::lock_guard lk{mut_};
-    const bool wasEmpty = queue_.empty();
-    queue_.push_back(task);
+    bool wasEmpty;
+    {
+      std::lock_guard lk{mut_};
+      wasEmpty = queue_.empty();
+      queue_.push_back(task);
+    }
     if (wasEmpty) {
       cv_.notify_one();
     }
   }
 
   void context::thread_state::request_stop() {
-    std::lock_guard lk{mut_};
-    stopRequested_ = true;
+    {
+      std::lock_guard lk{mut_};
+      stopRequested_ = true;
+    }
     cv_.notify_one();
   }
 
