@@ -247,6 +247,10 @@ namespace _connect {
 } // namespace _connect
 inline const _connect::_cpo::_fn connect {};
 
+template <typename Sender, typename Receiver>
+using connect_result_t =
+  decltype(connect(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Receiver)));
+
 #if UNIFEX_CXX_CONCEPTS
 // Define the sender_to concept without macros for
 // improved diagnostics:
@@ -272,10 +276,6 @@ UNIFEX_CONCEPT //
     receiver<Receiver> &&
     UNIFEX_FRAGMENT(_sender_to, Sender, Receiver);
 #endif
-
-template <typename Sender, typename Receiver>
-using connect_result_t =
-  decltype(connect(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Receiver)));
 
 /// \cond
 template <typename Sender, typename Receiver>

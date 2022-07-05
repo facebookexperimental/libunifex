@@ -96,7 +96,16 @@ public:
     unifex::set_done(std::move(op_->receiver_));
   }
 
+#if defined(_MSC_VER) && !defined(__clang__) // cl.exe
   template <typename ErrorValue>
+#else
+  template (typename ErrorValue)
+    (requires callable<Func, ErrorValue> AND
+      // For some reason, MSVC chokes on this when compiling with real concepts
+      sender_to<
+          callable_result_t<Func, ErrorValue>,
+          final_receiver<ErrorValue>>)
+#endif
   void set_error(ErrorValue e) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_;  // preserve pointer value.
@@ -305,6 +314,10 @@ class _sndr<Source, Func>::type {
   using final_senders_list =
       map_type_list_t<sender_error_type_list_t<Source>, final_sender>;
 
+  template <typename Sender, typename Receiver>
+  using source_receiver =
+      receiver_type<member_t<Sender, Source>, Func, Receiver>;
+
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
 
@@ -344,18 +357,16 @@ public:
     , func_((Func2&&)func)
   {}
 
-  template(
-    typename Sender,
-    typename Receiver,
-    typename...,
-    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Func, Receiver>)
+  template(typename Sender, typename Receiver)
       (requires same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Func, member_t<Sender, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          sender_to<Source, SourceReceiver>)
+          sender_to<Source, source_receiver<Sender, Receiver>>)
   friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
        noexcept(
-        is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
+        is_nothrow_connectable_v<
+            member_t<Sender, Source>,
+            source_receiver<Sender, Receiver>> &&
         std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
       -> operation_type<Source, Func, Receiver> {
