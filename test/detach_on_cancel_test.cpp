@@ -1,4 +1,5 @@
 #include <unifex/async_manual_reset_event.hpp>
+#include <unifex/async_scope.hpp>
 #include <unifex/detach_on_cancel.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/detail/unifex_fwd.hpp>
@@ -7,20 +8,25 @@
 #include <memory>
 #include <stdexcept>
 
+#include <unifex/allocate.hpp>
+#include <unifex/finally.hpp>
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/just_from.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/single_thread_context.hpp>
+#include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/variant.hpp>
 #include <unifex/with_query_value.hpp>
+
 #include <gtest/gtest.h>
 
 namespace {
@@ -67,6 +73,12 @@ struct mock_receiver_with_count {
     return r.stop_source->get_token();
   }
 };
+
+template <typename Sender, typename Scheduler>
+auto with_scheduler(Sender&& sender, Scheduler&& sched) {
+  return unifex::with_query_value(
+      std::move(sender), unifex::get_scheduler, sched);
+}
 }  // namespace
 
 struct detach_on_cancel_test : testing::Test {
@@ -167,8 +179,60 @@ TEST_F(detach_on_cancel_test, cancellation_and_completion_race) {
 TEST_F(detach_on_cancel_test, error_types_propagate) {
   using namespace unifex;
   using error_types =
-    sender_error_types_t<decltype(detach_on_cancel(just())), type_list>;
+      sender_error_types_t<decltype(detach_on_cancel(just())), type_list>;
   using v = typename error_types::template apply<unifex::variant>;
 
   EXPECT_GE(unifex::variant_size<v>::value, 1);
+}
+
+TEST_F(detach_on_cancel_test, cancel_inline) {
+  unifex::async_manual_reset_event e1, e2;
+  unifex::async_scope scope;
+  unifex::single_thread_context main;
+  // detached 1
+  scope.detached_spawn_on(
+      main.get_scheduler(),
+      // finally() and allocate() to trigger ASAN
+      unifex::finally(
+          unifex::detach_on_cancel(unifex::allocate(unifex::detach_on_cancel(
+              with_scheduler(e1.async_wait(), main.get_scheduler())))),
+          unifex::just()));
+  // detached 2
+  scope.detached_spawn_on(
+      main.get_scheduler(), unifex::allocate(unifex::just_from([&]() noexcept {
+        e2.set();  // allow scope to cleanup()
+      })));
+
+  unifex::sync_wait(unifex::sequence(
+      e2.async_wait(),
+      // cancel attached work
+      scope.cleanup(),
+      // allow detached sender completion
+      unifex::just_from([&]() noexcept { e1.set(); })));
+}
+
+TEST_F(detach_on_cancel_test, async_wait) {
+  unifex::async_manual_reset_event e1, e2;
+  unifex::async_scope scope;
+  unifex::single_thread_context main;
+
+  // spawn eagerly
+  scope.detached_spawn_on(
+      main.get_scheduler(),
+      // finally() and allocate() to trigger ASAN
+      unifex::finally(
+          unifex::allocate(unifex::let_done(
+              unifex::stop_when(
+                  unifex::detach_on_cancel(
+                      with_scheduler(e1.async_wait(), main.get_scheduler())),
+                  unifex::detach_on_cancel(unifex::detach_on_cancel(
+                      with_scheduler(e2.async_wait(), main.get_scheduler())))),
+              []() noexcept { return unifex::just(); })),
+          unifex::just()));
+
+  // allow spawned future completion
+  e1.set();
+  unifex::sync_wait(scope.complete());
+  // allow detached sender completion
+  e2.set();
 }
