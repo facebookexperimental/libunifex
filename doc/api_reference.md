@@ -1244,6 +1244,26 @@ namespace unifex
 
     // Implemented as spawn_on(scheduler, just_from(invocable)).
     future spawn_call_on(scheduler, invocable);
+
+    // Returns a new sender that, when connected and started, connects and starts
+    // the given sender.
+    //
+    // Returned sender owns a reference to this async_scope. Discarding the sender
+    // prior to connecting it or discarding the operation prior to starting it
+    // discards the reference to this async_scope.
+    //
+    // The receiver to which the sender is connected responds to get_stop_token
+    // with a stoppable token that becomes stopped when clean-up begins.
+    [[nodiscard]] sender auto attach(sender);
+
+    // Implemented as attach(just_from(fun))
+    [[nodiscard]] sender auto attach_call(fun);
+
+    // Implemented as attach(on(scheduler, sender))
+    [[nodiscard]] sender auto attach_on(scheduler, sender);
+
+    // Implemented as attach_on(scheduler, just_from(fun))
+    [[nodiscard]] sender auto attach_call_on(scheduler, fun);
   };
 }
 ```
