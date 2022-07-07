@@ -12,6 +12,7 @@
   * `just_error()`
   * `stop_if_requested()`
 * Sender Algorithms
+  * `detach_on_cancel()`
   * `then()`
   * `finally()`
   * `via()`
@@ -235,6 +236,13 @@ caught and passed to the receiver's `set_error` with `std::current_exception()`.
 `defer(callable)` is synonymous with `let_value(just(), callable)`.
 
 # Sender Algorithms
+
+### `detach_on_cancel(Sender sender) -> Sender`
+
+Takes a Sender and produces a new Sender that will heap-allocate its operation
+state for the purpose of detaching a slow operation upon request to stop.
+
+Completion of the `sender` is otherwise delegated to the new Sender.
 
 ### `then(Sender predecessor, Func func) -> Sender`
 
