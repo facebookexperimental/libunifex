@@ -249,6 +249,21 @@ Completion of the `sender` is otherwise delegated to the new Sender.
 Returns a sender that transforms the value of the `predecessor` by calling
 `func(value)`.
 
+For example:
+```c++
+then(some_operation(),
+    [](auto& x) {
+      return func(x);
+    });
+```
+is roughly equivalent to the following coroutine code:
+```c++
+{
+  auto x = co_await some_operation();
+  func(x);
+}
+```
+
 ### `let_value(Sender pred, Invocable func) -> Sender`
 
 The `let_value()` algorithm accepts a predecessor task that produces a value that
