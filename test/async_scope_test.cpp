@@ -668,7 +668,9 @@ TEST_F(async_scope_test, attach_record_done) {
 
     void set_done() noexcept {
       auto& localEvt = evt;
-      sync_wait(localEvt.async_wait());
+      sync_wait(when_all(localEvt.async_wait(), just_from([&]() noexcept {
+                           localEvt.set();
+                         })));
     }
   };
 
