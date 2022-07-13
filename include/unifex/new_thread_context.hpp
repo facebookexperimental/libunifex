@@ -42,17 +42,18 @@ using operation = typename _op<remove_cvref_t<Receiver>>::type;
 
 template <typename Receiver>
 class _op<Receiver>::type final {
-public:
+ public:
   template <typename Receiver2>
   explicit type(context* ctx, Receiver2&& r)
-    : ctx_(ctx)
-    , receiver_((Receiver2 &&) r) {}
+    : ctx_(ctx), receiver_((Receiver2 &&) r) {}
 
-  ~type() { UNIFEX_ASSERT(!thread_.joinable()); }
+  ~type() {
+    UNIFEX_ASSERT(!thread_.joinable()); 
+  }
 
   void start() & noexcept;
 
-private:
+ private:
   void run() noexcept;
 
   context* ctx_;
@@ -71,11 +72,8 @@ private:
 
   class schedule_sender {
   public:
-    template <
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple>
+    template <template <typename...> class Variant,
+              template <typename...> class Tuple>
     using value_types = Variant<Tuple<>>;
 
     template <template <typename...> class Variant>
@@ -83,11 +81,12 @@ private:
 
     static constexpr bool sends_done = true;
 
-    explicit schedule_sender(context* ctx) noexcept : context_(ctx) {}
+    explicit schedule_sender(context* ctx) noexcept 
+      : context_(ctx) {}
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const {
-      return operation<Receiver>{context_, (Receiver &&) r};
+      return operation<Receiver>{context_, (Receiver&&) r};
     }
 
     template <typename CPO>
@@ -123,11 +122,9 @@ public:
   context() = default;
 
   ~context() {
-    // The activeThreadCount_ counter is initialised to 1 so it will never get
-    // to zero until after enter the destructor and decrement the last count
-    // here. We do this so that the retire_thread() call doesn't end up calling
-    // into the cv_.notify_one() until we are about to start waiting on the
-    // cv.
+    // The activeThreadCount_ counter is initialised to 1 so it will never get to
+    // zero until after enter the destructor and decrement the last count here.
+    // We do this so that the retire_thread() call doesn't end up calling
     activeThreadCount_.fetch_sub(1, std::memory_order_relaxed);
 
     std::unique_lock lk{mut_};
@@ -139,7 +136,9 @@ public:
     }
   }
 
-  scheduler get_scheduler() noexcept { return scheduler{this}; }
+  scheduler get_scheduler() noexcept {
+    return scheduler{this}; 
+  }
 
 private:
   void retire_thread(std::thread t) noexcept {
@@ -181,8 +180,7 @@ inline void _op<Receiver>::type::start() & noexcept {
     // we ensure the count increment happens before the count decrement that
     // is performed when the thread is being retired.
     ctx_->activeThreadCount_.fetch_add(1, std::memory_order_relaxed);
-  }
-  UNIFEX_CATCH(...) {
+  } UNIFEX_CATCH(...) {
     unifex::set_error(std::move(receiver_), std::current_exception());
   }
 }
@@ -212,8 +210,9 @@ inline void _op<Receiver>::type::run() noexcept {
   if (get_stop_token(receiver_).stop_requested()) {
     unifex::set_done(std::move(receiver_));
   } else {
-    UNIFEX_TRY { unifex::set_value(std::move(receiver_)); }
-    UNIFEX_CATCH(...) {
+    UNIFEX_TRY {
+      unifex::set_value(std::move(receiver_)); 
+    } UNIFEX_CATCH(...) {
       unifex::set_error(std::move(receiver_), std::current_exception());
     }
   }
