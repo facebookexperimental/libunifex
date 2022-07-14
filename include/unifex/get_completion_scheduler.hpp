@@ -71,7 +71,7 @@ struct _fn<decltype(set_done)> {
 }  // namespace _get_completion_scheduler
 
 template <typename CPO>
-inline _get_completion_scheduler::_fn<CPO> get_completion_scheduler{};
+inline constexpr _get_completion_scheduler::_fn<CPO> get_completion_scheduler{};
 
 }  // namespace unifex
 
