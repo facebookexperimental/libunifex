@@ -17,7 +17,7 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/completion_channels.hpp>
+#include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
@@ -34,22 +34,22 @@ template <typename CPO>
 struct _fn;
 
 template <>
-struct _fn<set_value_t> {
+struct _fn<decltype(set_value)> {
   template (typename Sender)
   (requires sender<Sender> AND
             is_nothrow_tag_invocable_v<_fn, Sender const&> AND
-            scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
+            scheduler<tag_invoke_result_t<_fn, Sender const&>>)
   constexpr auto operator()(const Sender& s) const noexcept {
     return tag_invoke(*this, s);
   }
 };
 
 template <>
-struct _fn<set_error_t> {
+struct _fn<decltype(set_error)> {
   template (typename Sender)
   (requires sender<Sender> AND
             is_nothrow_tag_invocable_v<_fn, Sender const&> AND
-            scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
+            scheduler<tag_invoke_result_t<_fn, Sender const&>>)
   constexpr auto operator()(Sender const& sender) const noexcept
       -> tag_invoke_result_t<_fn, Sender const&> {
     return tag_invoke(*this, sender);
@@ -57,11 +57,11 @@ struct _fn<set_error_t> {
 };
 
 template <>
-struct _fn<set_done_t> {
+struct _fn<decltype(set_done)> {
   template (typename Sender)
   (requires sender<Sender> AND
             is_nothrow_tag_invocable_v<_fn, Sender const&> AND
-            scheduler<tag_invoke_result_t<_fn, Sender const&>>) 
+            scheduler<tag_invoke_result_t<_fn, Sender const&>>)
   constexpr auto operator()(Sender const& sender) const noexcept
       -> tag_invoke_result_t<_fn, Sender const&> {
     return tag_invoke(*this, sender);

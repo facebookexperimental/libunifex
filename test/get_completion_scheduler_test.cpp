@@ -17,6 +17,7 @@
 #include <unifex/get_completion_scheduler.hpp>
 #include <unifex/new_thread_context.hpp>
 #include <unifex/type_traits.hpp>
+#include "unifex/receiver_concepts.hpp"
 
 #include <gtest/gtest.h>
 
@@ -24,7 +25,7 @@ TEST(GetCompletionScheduler, NewThreadScheduler) {
   unifex::new_thread_context ctx;
   auto sch = ctx.get_scheduler();
   auto sender = unifex::schedule(sch);
-  static_assert(unifex::same_as<decltype(sch), decltype(unifex::get_completion_scheduler<unifex::set_value_t>(sender))>);
-  static_assert(unifex::same_as<decltype(sch), decltype(unifex::get_completion_scheduler<unifex::set_error_t>(sender))>);
-  static_assert(unifex::same_as<decltype(sch), decltype(unifex::get_completion_scheduler<unifex::set_done_t>(sender))>);
+  static_assert(unifex::same_as<decltype(sch), decltype(unifex::get_completion_scheduler<decltype(unifex::set_value)>(sender))>);
+  static_assert(unifex::same_as<decltype(sch), decltype(unifex::get_completion_scheduler<decltype(unifex::set_error)>(sender))>);
+  static_assert(unifex::same_as<decltype(sch), decltype(unifex::get_completion_scheduler<decltype(unifex::set_done)>(sender))>);
 }

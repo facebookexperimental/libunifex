@@ -15,7 +15,6 @@
  */
 #pragma once
 
-#include <unifex/completion_channels.hpp>
 #include <unifex/get_completion_scheduler.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
