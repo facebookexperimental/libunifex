@@ -45,10 +45,10 @@ class _op<Receiver>::type final {
  public:
   template <typename Receiver2>
   explicit type(context* ctx, Receiver2&& r)
-    : ctx_(ctx), receiver_((Receiver2&&) r) {}
+    : ctx_(ctx), receiver_((Receiver2&&)r) {}
 
   ~type() {
-      UNIFEX_ASSERT(!thread_.joinable()); 
+      UNIFEX_ASSERT(!thread_.joinable());
   }
 
   void start() & noexcept;
@@ -81,7 +81,7 @@ private:
 
     static constexpr bool sends_done = true;
 
-    explicit schedule_sender(context* ctx) noexcept 
+    explicit schedule_sender(context* ctx) noexcept
       : context_(ctx) {}
 
     template <typename Receiver>
@@ -139,7 +139,7 @@ public:
   }
 
   scheduler get_scheduler() noexcept {
-    return scheduler{this}; 
+    return scheduler{this};
   }
 
 private:
@@ -213,7 +213,7 @@ inline void _op<Receiver>::type::run() noexcept {
     unifex::set_done(std::move(receiver_));
   } else {
     UNIFEX_TRY {
-      unifex::set_value(std::move(receiver_)); 
+      unifex::set_value(std::move(receiver_));
     } UNIFEX_CATCH (...) {
       unifex::set_error(std::move(receiver_), std::current_exception());
     }
@@ -226,6 +226,6 @@ inline void _op<Receiver>::type::run() noexcept {
 
 using new_thread_context = _new_thread::context;
 
-}  // namespace unifex
+} // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
