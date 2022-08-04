@@ -92,20 +92,20 @@ struct _operation_tuple<Index, Receiver>::type {
   void start() noexcept {}
 };
 
-struct cancel_operation {
-  inplace_stop_source& stopSource_;
-
-  void operator()() noexcept {
-    stopSource_.request_stop();
-  }
-};
-
 template <typename Receiver, typename... Senders>
 struct _op {
   struct type;
 };
 template <typename Receiver, typename... Senders>
 using operation = typename _op<remove_cvref_t<Receiver>, Senders...>::type;
+
+template <typename Receiver, typename... Senders>
+struct cancel_operation {
+  operation<Receiver, Senders...>& op_;
+  void operator()() noexcept {
+    op_.request_stop();
+  }
+};
 
 template <typename... Errors>
 using unique_decayed_error_types = concat_type_lists_unique_t<
@@ -211,8 +211,20 @@ struct _op<Receiver, Senders...>::type {
 
   void start() noexcept {
     stopCallback_.construct(
-        get_stop_token(receiver_), cancel_operation{stopSource_});
+        get_stop_token(receiver_),
+        cancel_operation<Receiver, Senders...>{*this});
     ops_.start();
+  }
+
+  void request_stop() noexcept {
+    // mark callback as running (own deliver_result)
+    if (refCount_.fetch_add(1, std::memory_order_relaxed) == 0) {
+      // deliver_result already called
+      return;
+    }
+    stopSource_.request_stop();
+    // unmark (deliver_result back to operation)
+    element_complete();
   }
 
   private:
@@ -255,11 +267,13 @@ struct _op<Receiver, Senders...>::type {
 
   std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
   std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
+  // a running cancel_operation increments refCount
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
   inplace_stop_source stopSource_;
-  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<typename stop_token_type_t<
-      Receiver&>::template callback_type<cancel_operation>>
+  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<
+      typename stop_token_type_t<Receiver&>::template callback_type<
+          cancel_operation<Receiver, Senders...>>>
       stopCallback_;
   Receiver receiver_;
   template <std::size_t Index>
