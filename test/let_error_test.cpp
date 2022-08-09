@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_error.hpp>
-#include <unifex/on.hpp>
-#include <unifex/then.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_error.hpp>
+#include <unifex/on.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/just_from.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -42,15 +42,14 @@ TEST(TransformError, Smoke) {
 
   int count = 0;
 
-  sync_wait(
-    stop_when(
+  sync_wait(stop_when(
       sequence(
-        let_error(
-          let_done(
-            schedule_after(scheduler, 200ms), 
-            []{ return just_error(-1); }),
-          [](auto&&){ return just(); }),
-        just_from([&]{ ++count; })),
+          let_error(
+              let_done(
+                  schedule_after(scheduler, 200ms),
+                  [] { return just_error(-1); }),
+              [](auto&&) { return just(); }),
+          just_from([&] { ++count; })),
       schedule_after(scheduler, 100ms)));
 
   EXPECT_EQ(count, 1);
@@ -64,8 +63,8 @@ TEST(TransformError, StayError) {
   int count = 0;
 
   auto op = sequence(
-    on(scheduler, just_error(42) | let_error([](auto&&){ return just(); })),
-    just_from([&]{ ++count; }));
+      on(scheduler, just_error(42) | let_error([](auto&&) { return just(); })),
+      just_from([&] { ++count; }));
   sync_wait(std::move(op));
 
   EXPECT_EQ(count, 1);
@@ -79,30 +78,57 @@ TEST(TransformError, Pipeable) {
   int count = 0;
 
   sequence(
-    schedule_after(scheduler, 200ms)
-      | let_done([]{ return just_error(-1); })
-      | let_error([](auto&&){ return just(); }), 
-    just_from([&]{ ++count; }))
-    | stop_when(schedule_after(scheduler, 100ms))
-    | sync_wait();
+      schedule_after(scheduler, 200ms)               //
+          | let_done([] { return just_error(-1); })  //
+          | let_error([](auto&&) { return just(); }),
+      just_from([&] { ++count; }))                   //
+      | stop_when(schedule_after(scheduler, 100ms))  //
+      | sync_wait();
 
   EXPECT_EQ(count, 1);
 }
 
 TEST(TransformError, WithValue) {
-  auto one = 
-    just_error(-1)
-    | let_error([](auto&&){ return just(42); })
-    | sync_wait();
+  auto one = just_error(-1) |                     //
+      let_error([](auto&&) { return just(42); })  //
+      | sync_wait();
 
-  EXPECT_TRUE(one.has_value());
+  ASSERT_TRUE(one.has_value());
   EXPECT_EQ(*one, 42);
 
-  auto multiple = 
-    just_error(-1)
-    | let_error([](auto&&){ return just(42, 1, 2); })
-    | sync_wait();
+  auto multiple = just_error(-1)                          //
+      | let_error([](auto&&) { return just(42, 1, 2); })  //
+      | sync_wait();
 
-  EXPECT_TRUE(multiple.has_value());
+  ASSERT_TRUE(multiple.has_value());
   EXPECT_EQ(*multiple, std::tuple(42, 1, 2));
+}
+
+TEST(TransformError, Throw) {
+  auto one = just_from([]() -> int { throw -1; })   //
+      | let_error([](auto&&) { return just(42); })  //
+      | sync_wait();
+
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
+
+namespace {
+struct just_int {
+  template <typename Unused>
+  auto operator()(Unused&&) {
+    return just(0);
+  }
+  auto operator()(int val) { return just(val); }
+};
+}  // namespace
+
+TEST(TransformError, JustError) {
+  auto one = just_error(-1)                               //
+      | let_error([](auto&&) { return just_error(42); })  //
+      | let_error(just_int{})                             //
+      | sync_wait();
+
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
 }
