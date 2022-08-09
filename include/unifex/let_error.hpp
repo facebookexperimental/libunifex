@@ -74,7 +74,7 @@ public:
   explicit type(operation* op) noexcept : op_(op) {}
   type(type&& other) noexcept : op_(std::exchange(other.op_, {})) {}
 
-  // Taking by value here to force a move/copy on the offchange the value
+  // Taking by value here to force a move/copy on the offchance the value
   // objects live in the operation state, in which case destroying the
   // predecessor operation state would invalidate it.
   //
@@ -85,21 +85,26 @@ public:
     (requires receiver_of<Receiver, Values...>)
   void set_value(Values... values) noexcept(
       is_nothrow_receiver_of_v<Receiver, Values...>) {
-    UNIFEX_ASSERT(op_ != nullptr);
-    unifex::deactivate_union_member(op_->sourceOp_);
-    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
+    // local copy, b/c deactivate_union_member deletes this
+    auto op = op_;
+    UNIFEX_ASSERT(op != nullptr);
+    unifex::deactivate_union_member(op->sourceOp_);
+    unifex::set_value(std::move(op->receiver_), std::move(values)...);
   }
 
   void set_done() noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);
-    unifex::deactivate_union_member(op_->sourceOp_);
-    unifex::set_done(std::move(op_->receiver_));
+    // local copy, b/c deactivate_union_member deletes this
+    auto op = op_;
+    UNIFEX_ASSERT(op != nullptr);
+    unifex::deactivate_union_member(op->sourceOp_);
+    unifex::set_done(std::move(op->receiver_));
   }
 
   template <typename ErrorValue>
   void set_error(ErrorValue e) noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);
-    auto op = op_;  // preserve pointer value.
+    // local copy, b/c deactivate_union_member deletes this
+    auto op = op_;
+    UNIFEX_ASSERT(op != nullptr);
 
     using final_sender_t = callable_result_t<Func, ErrorValue>;
     using final_op_t =
@@ -166,31 +171,47 @@ public:
 
   template(typename... Values)
     (requires receiver_of<Receiver, Values...>)
-  void set_value(Values&&... values) noexcept(
+  // Taking by value here to force a move/copy on the offchance the value
+  // objects live in the operation state, in which case destroying the
+  // predecessor operation state would invalidate it.
+  void set_value(Values... values) noexcept(
       is_nothrow_receiver_of_v<Receiver, Values...>) {
-    UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
+    // local copy, b/c cleanup deletes this
+    auto op = op_;
+    cleanup(op);
+    UNIFEX_TRY {
+      unifex::set_value(std::move(op->receiver_), std::move(values)...);
+    } UNIFEX_CATCH (...) {
+      unifex::set_error(std::move(op->receiver_), std::current_exception());
+    }
   }
 
   void set_done() noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_done(std::move(op_->receiver_));
+    // local copy, b/c cleanup deletes this
+    auto op = op_;
+    cleanup(op);
+    unifex::set_done(std::move(op->receiver_));
   }
 
   template(typename ErrorValue)
     (requires receiver<Receiver, ErrorValue>)
-  void set_error(ErrorValue&& error) noexcept {
-    UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (ErrorValue&&)error);
+  // Taking by value here to force a copy on the offchance the error
+  // object lives in the operation state, in which
+  // case the call to cleanup() would invalidate them.
+  void set_error(ErrorValue error) noexcept {
+    // local copy, b/c cleanup deletes this
+    auto op = op_;
+    cleanup(op);
+    unifex::set_error(std::move(op->receiver_), std::move(error));
   }
 
 private:
-  void cleanup() noexcept {
+  static void cleanup(operation* op) noexcept {
     using final_sender_t = callable_result_t<Func, Error>;
     using final_op_t = unifex::connect_result_t<final_sender_t, type>;
-
-    unifex::deactivate_union_member<final_op_t>(op_->finalOp_);
-    op_->error_.template destruct<Error>();
+    UNIFEX_ASSERT(op != nullptr);
+    unifex::deactivate_union_member<final_op_t>(op->finalOp_);
+    op->error_.template destruct<Error>();
   }
 
   template(typename CPO)
