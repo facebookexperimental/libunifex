@@ -30,23 +30,12 @@
 #include <unifex/let_done.hpp>
 #include <unifex/then.hpp>
 #include <unifex/just.hpp>
-#include <unifex/optional.hpp>
+#include <unifex/done_as_optional.hpp>
 
 #include <chrono>
 #include <cstdio>
 
 using namespace unifex;
-
-template<typename Sender>
-auto done_as_optional(Sender&& sender) {
-  using value_type = unifex::sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
-  return unifex::let_done(
-    unifex::then((Sender&&)sender, [](auto&&... values) {
-      return optional<value_type>{in_place, static_cast<decltype(values)>(values)...};
-    }), []() {
-      return unifex::just(optional<value_type>(nullopt));
-    });
-}
 
 template<typename Sender>
 auto done_as_void(Sender&& sender) {

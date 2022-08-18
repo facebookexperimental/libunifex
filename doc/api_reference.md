@@ -10,6 +10,7 @@
   * `just()`
   * `just_done()` / `stop()`
   * `just_error()`
+  * `just_void_or_done()`
   * `stop_if_requested()`
 * Sender Algorithms
   * `detach_on_cancel()`
@@ -36,6 +37,7 @@
   * `allocate()`
   * `with_query_value()`
   * `with_allocator()`
+  * `done_as_optional()`
 * Sender Types
   * `async_trace_sender`
 * Sender Queries
@@ -205,6 +207,11 @@ Returns a sender that completes synchronously by calling `set_done()`.
 ### `just_error(e)`
 
 Returns a sender that completes synchronously by calling `set_error()` with `e`.
+
+### `just_void_or_done(isVoid)`
+
+Returns a sender that completes synchronously by calling `set_value(void)` if
+`isVoid == true` or calling `set_done()` otherwise.
 
 ### `just_from(callable)`
 
@@ -679,6 +686,30 @@ Wraps `sender` in a new sender that will injects `allocator` as the
 result of `get_allocator()` query on receivers passed to child operations.
 
 Child operations should use this allocator to perform heap allocations.
+
+### `done_as_optional(Sender sender) -> Sender`
+
+`done_as_optional` is used to handle a done signal by mapping it into the
+value channel as an empty `std::optional`. The value channel is also converted
+into an optional. The result is a sender that never completes with done,
+reporting cancellation by completing with an empty optional.
+
+This function only accepts `typed_sender`s that complete with either
+`void` or a single type.
+
+For example:
+```c++
+task<int> f();
+
+task<void> g() {
+  std::optional<int> i = co_await done_as_optional(f());
+  if (i) {
+    // OK, f() completed successfully and wasn't cancelled
+  } else {
+    // f() was cancelled before it finished.
+  }
+}
+```
 
 ## Sender Types
 
@@ -1266,4 +1297,22 @@ namespace unifex
     [[nodiscard]] sender auto attach_call_on(scheduler, fun);
   };
 }
+```
+
+### `variant_sender`
+
+Non-type erased sender that is parameterized on multiple sender types.
+Receivers must implement `set_value` for all value types produced by all
+senders.
+
+```
+defer(
+  [condition]()
+      -> variant_sender<decltype(just(42)), decltype(just(true))> {
+    if (condition) {
+      return just(42);
+    } else {
+      return just(true);
+    }
+  });
 ```
