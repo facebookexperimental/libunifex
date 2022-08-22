@@ -2,7 +2,6 @@
 #include <unifex/async_scope.hpp>
 #include <unifex/detach_on_cancel.hpp>
 #include <unifex/get_stop_token.hpp>
-#include <unifex/detail/unifex_fwd.hpp>
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -10,7 +9,6 @@
 
 #include <unifex/allocate.hpp>
 #include <unifex/finally.hpp>
-#include <unifex/inline_scheduler.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
@@ -25,6 +23,7 @@
 #include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/variant.hpp>
+#include <unifex/when_all.hpp>
 #include <unifex/with_query_value.hpp>
 
 #include <gtest/gtest.h>
@@ -32,46 +31,18 @@
 namespace {
 
 struct mock_receiver_with_exception {
-  mock_receiver_with_exception(){};
-
   template <typename... Values>
   void set_value(Values&&...) {
     throw std::runtime_error("Test error");
   }
 
   void set_error(std::exception_ptr) noexcept {
-    set_error_called->store(true, std::memory_order_relaxed);
+    error_called->store(true, std::memory_order_relaxed);
   }
 
   void set_done() noexcept {}
 
-  std::unique_ptr<std::atomic<bool>> set_error_called =
-      std::make_unique<std::atomic<bool>>(false);
-};
-
-struct mock_receiver_with_count {
-  mock_receiver_with_count(
-      std::atomic<uint16_t>* count, unifex::inplace_stop_source* stop_source)
-    : count(count)
-    , stop_source(stop_source){};
-
-  template <typename... Values>
-  void set_value(Values&&...) {
-    count->fetch_add(1, std::memory_order_relaxed);
-  }
-
-  void set_error(std::exception_ptr) noexcept {}
-
-  void set_done() noexcept { count->fetch_add(1, std::memory_order_relaxed); }
-
-  std::atomic<uint16_t>* count;
-  unifex::inplace_stop_source* stop_source;
-
-  friend unifex::inplace_stop_token tag_invoke(
-      unifex::tag_t<unifex::get_stop_token>,
-      const mock_receiver_with_count& r) noexcept {
-    return r.stop_source->get_token();
-  }
+  std::atomic<bool>* error_called;
 };
 
 template <typename Sender, typename Scheduler>
@@ -81,15 +52,7 @@ auto with_scheduler(Sender&& sender, Scheduler&& sched) {
 }
 }  // namespace
 
-struct detach_on_cancel_test : testing::Test {
-  mock_receiver_with_exception receiver_with_exception;
-  std::atomic<bool>& mock_receiver_with_exception_set_error_called =
-      *receiver_with_exception.set_error_called;
-
-  std::atomic<uint16_t> count = 0;
-  unifex::inplace_stop_source stop_source;
-  mock_receiver_with_count receiver_with_count{&count, &stop_source};
-};
+struct detach_on_cancel_test : testing::Test {};
 
 TEST_F(detach_on_cancel_test, set_value) {
   auto result = unifex::sync_wait(unifex::detach_on_cancel(unifex::just(42)));
@@ -149,31 +112,37 @@ TEST_F(detach_on_cancel_test, set_value_during_cancellation) {
 }
 
 TEST_F(detach_on_cancel_test, set_value_sets_error) {
+  std::atomic<bool> error_called{false};
   auto opState = unifex::connect(
       unifex::detach_on_cancel(unifex::just(42)),
-      std::move(receiver_with_exception));
+      mock_receiver_with_exception{&error_called});
   unifex::start(opState);
-  EXPECT_TRUE(mock_receiver_with_exception_set_error_called.load());
+  EXPECT_TRUE(error_called.load(std::memory_order_relaxed));
 }
 
 TEST_F(detach_on_cancel_test, cancellation_and_completion_race) {
-  uint16_t max_iterations = 10000;
+  static constexpr uint16_t max_iterations{10000};
+  std::atomic<uint16_t> count{0};
   unifex::single_thread_context set_value_context;
-  auto set_value_scheduler = set_value_context.get_scheduler();
   unifex::single_thread_context cancel_context;
-  auto cancel_scheduler = cancel_context.get_scheduler();
-  for (uint16_t i = 0; i < max_iterations; i++) {
-    auto opState = unifex::connect(
-        unifex::detach_on_cancel(
-            unifex::on(set_value_scheduler, unifex::just(42))),
-        std::move(receiver_with_count));
-    unifex::start(opState);
-    unifex::sync_wait(unifex::on(cancel_scheduler, unifex::just_from([&]() {
-                                   stop_source.request_stop();
-                                 })));
+  for (uint16_t i{0}; i < max_iterations; ++i) {
+    unifex::sync_wait(
+        unifex::let_value_with_stop_source([&](auto& source) noexcept {
+          return unifex::when_all(
+              unifex::finally(
+                  unifex::on(
+                      set_value_context.get_scheduler(), unifex::just(42)),
+                  unifex::just_from([&]() noexcept {
+                    count.fetch_add(1, std::memory_order_relaxed);
+                  })),
+              unifex::on(
+                  cancel_context.get_scheduler(),
+                  unifex::just_from(
+                      [&]() noexcept { source.request_stop(); })));
+        }));
+    EXPECT_EQ(i + 1, count.load(std::memory_order_relaxed));
   }
-
-  EXPECT_EQ(max_iterations, count.load());
+  EXPECT_EQ(max_iterations, count.load(std::memory_order_relaxed));
 }
 
 TEST_F(detach_on_cancel_test, error_types_propagate) {

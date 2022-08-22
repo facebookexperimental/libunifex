@@ -977,7 +977,7 @@ public:
   /**
    * Equivalent to attach(just_from((Fun&&)fun)).
    */
-  template(typename Scheduler, typename Fun)  //
+  template(typename Fun)  //
       (requires callable<Fun>)                //
       [[nodiscard]] auto attach_call(Fun&& fun) noexcept(
           noexcept(attach(just_from((Fun &&) fun)))) {
