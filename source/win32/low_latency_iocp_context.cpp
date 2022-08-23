@@ -20,8 +20,6 @@
 #include <unifex/exception.hpp>
 
 #include <atomic>
-#include <cstddef>
-#include <cstring>
 #include <random>
 #include <system_error>
 

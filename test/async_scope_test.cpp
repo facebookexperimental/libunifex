@@ -479,6 +479,19 @@ TEST_F(async_scope_test, attach) {
   sync_wait(scope.cleanup());
 }
 
+TEST_F(async_scope_test, attach_connect) {
+  mock_receiver<void()> receiver;
+  auto sender = scope.attach(just());
+
+  // the outstanding operation is "transferred" from sender to operation
+  {
+    auto op = connect(std::move(sender), receiver);
+    // the operation is dropped w/o starting
+  }
+  // this will hang if record done on async_scope doesn't happen
+  sync_wait(scope.cleanup());
+}
+
 TEST_F(async_scope_test, attach_copy) {
   mock_receiver<void()> receiver;
   EXPECT_CALL(*receiver, set_value()).Times(2);
@@ -655,7 +668,9 @@ TEST_F(async_scope_test, attach_record_done) {
 
     void set_done() noexcept {
       auto& localEvt = evt;
-      sync_wait(localEvt.async_wait());
+      sync_wait(when_all(localEvt.async_wait(), just_from([&]() noexcept {
+                           localEvt.set();
+                         })));
     }
   };
 
