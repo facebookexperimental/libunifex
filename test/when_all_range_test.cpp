@@ -27,7 +27,6 @@ constexpr auto times_three = [](int x) noexcept {
 }  // namespace
 
 TEST_F(WhenAllRangeTests, givenReceiver_whenAllValue_thenReceivedValue) {
-  // ----- WHEN -----
   std::vector<decltype(times_three(0))> works;
 
   for (int i = 0; i < 10; i++) {
@@ -36,7 +35,6 @@ TEST_F(WhenAllRangeTests, givenReceiver_whenAllValue_thenReceivedValue) {
 
   auto result = sync_wait(when_all_range(std::move(works)));
 
-  // ----- THEN ----- (convential)
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result.value().size(), 10);
   for (int i = 0; i < 10; i++) {
@@ -66,14 +64,12 @@ TEST_F(WhenAllRangeTests, givenReceiver_whenError_thenReceivedError) {
 
 TEST_F(
     WhenAllRangeTests, givenReceiver_whenZeroSender_thenImmediatelyReceives) {
-  // ----- WHEN -----
   auto make_work = [] {
     return then(just(), [] {});
   };
   std::vector<decltype(make_work())> works;  // empty
   // Start the structured `operation`
   auto result = sync_wait(when_all_range(std::move(works)));
-  // ----- THEN ----- (convential)
   ASSERT_TRUE(result.has_value());
   EXPECT_TRUE(result->empty());
 }
@@ -108,6 +104,7 @@ TEST_F(WhenAllRangeTests, noCopy) {
   }
 }
 
+// TODO: Fix MSVC compilation error with any_unique
 #ifndef _MSC_VER
 TEST_F(WhenAllRangeTests, ErrorCancelsRest) {
   try {

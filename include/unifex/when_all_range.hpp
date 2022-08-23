@@ -41,12 +41,12 @@ namespace unifex {
 namespace _when_all_range {
 
 template <typename Receiver, typename Sender>
-struct _operation {
+struct _operation final {
   struct type;
 };
 
 template <typename Receiver, typename Sender>
-struct _element_receiver {
+struct _element_receiver final {
   struct type;
 };
 
@@ -96,7 +96,9 @@ public:
         ++numHolders_;
       }
     } catch (...) {
-      std::destroy(holders_, holders_ + numHolders_);
+      std::destroy(
+          std::make_reverse_iterator(holders_ + numHolders_),
+          std::make_reverse_iterator(holders_));
       allocator.deallocate(holders_, senders.size());
       holders_ = nullptr;
       throw;
@@ -108,7 +110,9 @@ public:
   // does not run when constructor throws, numHolders_ is the correct size
   ~type() {
     std::allocator<_operation_holder> allocator;
-    std::destroy(holders_, holders_ + numHolders_);
+    std::destroy(
+        std::make_reverse_iterator(holders_ + numHolders_),
+        std::make_reverse_iterator(holders_));
     allocator.deallocate(holders_, numHolders_);
   }
 
@@ -145,9 +149,9 @@ public:
       if (doneOrError_.load(std::memory_order_relaxed)) {
         if (error_.has_value()) {
           unifex::visit(
-              [receiver = std::move(receiver_)](auto&& error) mutable {
+              [this](auto&& error) {
                 unifex::set_error(
-                    std::move(receiver), std::forward<decltype(error)>(error));
+                    std::move(receiver_), std::forward<decltype(error)>(error));
               },
               std::move(error_.value()));
         } else {
@@ -156,6 +160,7 @@ public:
       } else {
         UNIFEX_TRY {
           std::vector<sender_nonvoid_value_type> values;
+          values.reserve(numHolders_);
           std::transform(
               holders_,
               holders_ + numHolders_,
@@ -192,7 +197,7 @@ struct _element_receiver<Receiver, Sender>::type final {
   operation<Receiver, Sender>& op_;
   size_t index_;
 
-  type(operation<Receiver, Sender>& op, size_t index)
+  type(operation<Receiver, Sender>& op, size_t index) noexcept
     : op_(op)
     , index_(index){};
 
@@ -259,7 +264,7 @@ struct _element_receiver<Receiver, Sender>::type final {
 
 // Sender adapter for vector<Sender>
 template <typename Sender>
-struct _sender {
+struct _sender final {
   struct type;
 };
 
@@ -289,8 +294,9 @@ public:
   static constexpr bool sends_done = true;
 
 private:
-  template(typename Sender2, typename Receiver)                          //
-      (requires unifex::same_as<unifex::remove_cvref_t<Sender2>, type>)  //
+  template(typename Sender2, typename Receiver)  //
+      (requires unifex::same_as<unifex::remove_cvref_t<Sender2>, type> AND
+           unifex::receiver<Receiver>)  //
       friend auto tag_invoke(
           unifex::tag_t<unifex::connect> /* unused */,
           Sender2&& sender,
@@ -305,8 +311,9 @@ private:
   friend constexpr auto tag_invoke(
       unifex::tag_t<unifex::blocking> /* unused */, const type&) noexcept {
     if constexpr (
-        unifex::cblocking<Sender>() == unifex::blocking_kind::always_inline) {
-      return unifex::blocking_kind::always_inline;
+        unifex::cblocking<Sender>() == unifex::blocking_kind::always_inline ||
+        unifex::cblocking<Sender>() == unifex::blocking_kind::always) {
+      return unifex::cblocking<Sender>();
     } else {
       // we complete inline if the input is empty so every other case is "maybe"
       return unifex::blocking_kind::maybe;
