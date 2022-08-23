@@ -125,5 +125,5 @@ TEST_F(WhenAllRangeTests, ErrorCancelsRest) {
     sync_wait(when_all_range(std::move(work)));
   } catch (...) {
   }
-#endif
 }
+#endif

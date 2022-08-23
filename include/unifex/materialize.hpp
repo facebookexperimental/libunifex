@@ -152,9 +152,9 @@ namespace unifex
       using value_tuple = Tuple<decltype(set_value), Values...>;
 
       template <typename... ValueTuples>
-      using value_variant = typename Source::template error_types<
-          error_variant<Variant, Tuple, ValueTuples...>::
-              template apply>;
+      using value_variant = sender_error_types_t<
+          Source,
+          error_variant<Variant, Tuple, ValueTuples...>::template apply>;
 
       using type =
           sender_value_types_t<Source, value_variant, value_tuple>;
