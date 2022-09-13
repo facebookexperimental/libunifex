@@ -20,6 +20,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/manual_lifetime.hpp>
 
 #include <exception>
 #include <tuple>
@@ -41,13 +42,34 @@ using operation = typename _op<Ops...>::type;
 
 template <typename... Ops>
 struct _op<Ops...>::type {
-  void start() & noexcept {
-    std::visit([](auto& op) noexcept { unifex::start(op); }, variantOp_);
+  template <typename Sender, typename Receiver>
+  type(Sender&& sender, Receiver&& receiver) noexcept(
+      is_nothrow_connectable_v<Sender, Receiver>)
+    : variantOp_(std::in_place_type_t<
+                 manual_lifetime<connect_result_t<Sender, Receiver>>>{}) {
+    using op_t = connect_result_t<Sender, Receiver>;
+    std::get<manual_lifetime<op_t>>(variantOp_)
+        .construct_with([&]() noexcept(
+                            is_nothrow_connectable_v<Sender, Receiver>) {
+          return unifex::connect(
+              static_cast<Sender&&>(sender), static_cast<Receiver&&>(receiver));
+        });
   }
 
-  std::variant<Ops...> variantOp_;
-};
+  type(type&&) = delete;
 
+  ~type() {
+    std::visit([](auto& op){
+      op.destruct();
+    }, variantOp_);
+  }
+
+  void start() & noexcept {
+    std::visit([](auto& op) noexcept { unifex::start(op.get()); }, variantOp_);
+  }
+
+  std::variant<manual_lifetime<Ops>...> variantOp_;
+};
 
 template <_block::_enum First, _block::_enum... Rest>
 struct max_blocking_kind {
@@ -107,11 +129,13 @@ class _sender<Senders...>::type {
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
     noexcept(std::conjunction_v<unifex::is_nothrow_connectable<match_reference_t<This, Senders>, Receiver>...>)
   {
-    return operation<connect_result_t<Senders, Receiver>...>{
-        std::visit([&r](auto&& sender) noexcept(unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
-            return std::variant<connect_result_t<Senders, Receiver>...>{unifex::connect(std::move(sender), static_cast<Receiver&&>(r))};
-        }, std::move(static_cast<decltype(that)>(that).senderVariant_))
-    };
+    return std::visit(
+        [&r](auto&& sender) noexcept(
+            unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
+          return operation<connect_result_t<Senders, Receiver>...>{
+             static_cast<decltype(sender)&&>(sender), static_cast<Receiver&&>(r)};
+        },
+        std::move(static_cast<decltype(that)>(that).senderVariant_));
   }
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const type&) noexcept {

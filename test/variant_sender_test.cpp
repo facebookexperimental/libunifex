@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/any_sender_of.hpp>
 #include <unifex/defer.hpp>
 #include <unifex/dematerialize.hpp>
 #include <unifex/just.hpp>
@@ -22,6 +23,7 @@
 #include <unifex/variant_sender.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 
 #include <chrono>
@@ -140,6 +142,29 @@ TEST(Variant, CombineJustAndJust) {
 
   auto materialized_variant_sender = func(false);
   auto result2 = sync_wait(materialized_variant_sender);
+  EXPECT_TRUE(!!result2);
+  EXPECT_EQ(*result2, 42);
+
+  std::cout << "variant_sender done " << *result << "\n";
+}
+
+TEST(Variant, CombineFunctors) {
+  auto f1 = [&]() noexcept -> any_sender_of<int> {
+    return just(5);
+  };
+  auto f2 = [&]() noexcept {
+    return just() | then([]() { return 42; });
+  };
+  using sender_type = variant_sender<decltype(f1()), decltype(f2())>;
+
+  auto f1_sender = sender_type{f1()};
+  auto result = sync_wait(std::move(f1_sender));
+
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(*result, 5);
+
+  auto f2_sender = sender_type{f2()};
+  auto result2 = sync_wait(std::move(f2_sender));
   EXPECT_TRUE(!!result2);
   EXPECT_EQ(*result2, 42);
 
