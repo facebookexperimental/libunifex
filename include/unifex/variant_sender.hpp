@@ -21,12 +21,12 @@
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/variant.hpp>
 
 #include <exception>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -45,10 +45,10 @@ struct _op<Ops...>::type {
   template <typename Sender, typename Receiver>
   type(Sender&& sender, Receiver&& receiver) noexcept(
       is_nothrow_connectable_v<Sender, Receiver>)
-    : variantOp_(std::in_place_type_t<
+    : variantOp_(in_place_type_t<
                  manual_lifetime<connect_result_t<Sender, Receiver>>>{}) {
     using op_t = connect_result_t<Sender, Receiver>;
-    std::get<manual_lifetime<op_t>>(variantOp_)
+    var::get<manual_lifetime<op_t>>(variantOp_)
         .construct_with([&]() noexcept(
                             is_nothrow_connectable_v<Sender, Receiver>) {
           return unifex::connect(
@@ -59,16 +59,16 @@ struct _op<Ops...>::type {
   type(type&&) = delete;
 
   ~type() {
-    std::visit([](auto& op){
+    visit([](auto& op){
       op.destruct();
     }, variantOp_);
   }
 
   void start() & noexcept {
-    std::visit([](auto& op) noexcept { unifex::start(op.get()); }, variantOp_);
+    visit([](auto& op) noexcept { unifex::start(op.get()); }, variantOp_);
   }
 
-  std::variant<manual_lifetime<Ops>...> variantOp_;
+  variant<manual_lifetime<Ops>...> variantOp_;
 };
 
 template <_block::_enum First, _block::_enum... Rest>
@@ -102,7 +102,7 @@ using sender = typename _sender<remove_cvref_t<Senders>...>::type;
 
 template <typename... Senders>
 class _sender<Senders...>::type {
-  std::variant<Senders...> senderVariant_;
+  variant<Senders...> senderVariant_;
 
  public:
 
@@ -118,7 +118,7 @@ class _sender<Senders...>::type {
 
   template<typename ConcreteSender>
   type(ConcreteSender&& concreteSender)
-    noexcept(std::is_nothrow_constructible_v<std::variant<Senders...>, decltype(concreteSender)>)
+    noexcept(std::is_nothrow_constructible_v<variant<Senders...>, decltype(concreteSender)>)
     : senderVariant_(std::forward<ConcreteSender>(concreteSender)) {}
 
   template<typename Base, typename Matchee>
@@ -129,7 +129,7 @@ class _sender<Senders...>::type {
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
     noexcept(std::conjunction_v<unifex::is_nothrow_connectable<match_reference_t<This, Senders>, Receiver>...>)
   {
-    return std::visit(
+    return visit(
         [&r](auto&& sender) noexcept(
             unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
           return operation<connect_result_t<Senders, Receiver>...>{
