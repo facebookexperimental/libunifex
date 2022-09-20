@@ -25,6 +25,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
+#include <unifex/continuations.hpp>
 
 #include <exception>
 #include <atomic>

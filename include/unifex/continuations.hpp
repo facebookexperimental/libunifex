@@ -21,6 +21,8 @@
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_index.hpp>
 
+#include <exception>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {

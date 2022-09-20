@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/let_error.hpp>
+
 #include <unifex/just.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
-#include <unifex/let_error.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>

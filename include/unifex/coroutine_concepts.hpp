@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/coroutine.hpp>
+#include <unifex/std_concepts.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use <unifex/coroutine_concepts.hpp>"

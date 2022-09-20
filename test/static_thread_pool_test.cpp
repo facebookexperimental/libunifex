@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/static_thread_pool.hpp>
 
 #include <unifex/just.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/static_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/when_all.hpp>

@@ -13,10 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/single.hpp>
+
 #include <unifex/delay.hpp>
 #include <unifex/for_each.hpp>
 #include <unifex/range_stream.hpp>
-#include <unifex/single.hpp>
 #include <unifex/stop_immediately.hpp>
 #include <unifex/take_until.hpp>
 #include <unifex/thread_unsafe_event_loop.hpp>

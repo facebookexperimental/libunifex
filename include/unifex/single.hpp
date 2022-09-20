@@ -21,6 +21,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/ready_done_sender.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <optional>
 #include <type_traits>
