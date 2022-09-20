@@ -43,26 +43,11 @@ namespace _get_stop_token {
           return (StopToken&&) stoken_;
         }
       };
-#if !defined(__GNUC__) || defined(__clang__)
-      // gcc bug 79501 - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79501
-      //
-      // GCC currently does not permit member deduction guides unless they
-      // are at a namespace scope and fails with error:
-      //    deduction guide '...' must be declared at namespace scope
-      // This deduction guide is probably not necessary, per P0091, and
-      // compiles on GCC without it, but clang-12 on macOS requires it.
-      //
-      // The above compile guard will ensure clang has the guide and GCC
-      // does not until 79501 is solved.
-      template <typename StopToken>
-      _awaiter(StopToken) -> _awaiter<StopToken>;
-
-#endif // !defined(__GNUC__) || defined(__clang__)
 
       template (typename Tag, typename Promise)
         (requires same_as<Tag, tag_t<await_transform>>)
       friend auto tag_invoke(Tag, Promise& promise, _awaitable) noexcept {
-        return _awaiter{_fn{}(promise)};
+        return _awaiter<callable_result_t<_fn, Promise&>>{_fn{}(promise)};
       }
     };
 
