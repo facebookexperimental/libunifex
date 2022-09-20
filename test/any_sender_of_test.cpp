@@ -55,14 +55,14 @@ namespace {
 //    receiver pairs are also noexcept when the same pair is connected through
 //    an any_sender_of/any_receiver_of pair
 
-template <bool Noexcept, typename... T>
+template <bool NoExcept, typename... T>
 struct AnySenderOfTestImpl : Test {
   using any_sender = any_sender_of<T...>;
 
   static constexpr size_t value_count = sizeof...(T);
 
   static_assert(typed_sender<any_sender>);
-  static_assert(sender_to<any_sender, mock_receiver<void(T...)>>);
+  static_assert(sender_to<any_sender, mock_receiver<void(T...) noexcept(NoExcept)>>);
   static_assert(std::is_same_v<std::variant<std::tuple<T...>>,
                                sender_value_types_t<any_sender, std::variant, std::tuple>>);
   static_assert(std::is_same_v<std::variant<std::exception_ptr>,

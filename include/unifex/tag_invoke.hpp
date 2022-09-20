@@ -41,12 +41,12 @@ namespace unifex {
     using yes_type = char;
     using no_type = char(&)[2];
 
-    template <typename CPO, typename... Args>
-    auto try_tag_invoke(int) //
+    template <typename CPO,
+              typename... Args,
+              typename = tag_invoke_result_t<CPO, Args...>>
+    yes_type try_tag_invoke(int) //
         noexcept(noexcept(tag_invoke(
-            UNIFEX_DECLVAL(CPO &&), UNIFEX_DECLVAL(Args &&)...)))
-        -> decltype(static_cast<void>(tag_invoke(
-            UNIFEX_DECLVAL(CPO &&), UNIFEX_DECLVAL(Args &&)...)), yes_type{});
+            UNIFEX_DECLVAL(CPO &&), UNIFEX_DECLVAL(Args &&)...)));
 
     template <typename CPO, typename... Args>
     no_type try_tag_invoke(...) noexcept(false);

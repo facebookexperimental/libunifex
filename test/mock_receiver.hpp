@@ -23,53 +23,58 @@
 
 namespace unifex_test {
 
+template <typename Sig, bool NoExcept>
+struct mock_receiver_body_base_impl;
+
+template <bool NoExcept>
+struct mock_receiver_body_base_impl<void(), NoExcept> {
+  MOCK_METHOD(void, set_value, (), (noexcept(NoExcept)));
+};
+
+template <typename T, bool NoExcept>
+struct mock_receiver_body_base_impl<void(T), NoExcept> {
+  MOCK_METHOD(void, set_value, (T), (noexcept(NoExcept)));
+};
+
+template <typename T, typename U, bool NoExcept>
+struct mock_receiver_body_base_impl<void(T, U), NoExcept> {
+  MOCK_METHOD(void, set_value, (T, U), (noexcept(NoExcept)));
+};
+
+template <typename T, typename U, typename V, bool NoExcept>
+struct mock_receiver_body_base_impl<void(T, U, V), NoExcept> {
+  MOCK_METHOD(void, set_value, (T, U, V), (noexcept(NoExcept)));
+};
+
 template <typename Sig>
 struct mock_receiver_body_base;
 
-template <>
-struct mock_receiver_body_base<void()> {
-  MOCK_METHOD(void, set_value, (), ());
-};
-template <>
-struct mock_receiver_body_base<void() noexcept> {
-  MOCK_METHOD(void, set_value, (), (noexcept));
+template <typename R, typename... As>
+struct mock_receiver_body_base<R(As...)> {
+    using type = mock_receiver_body_base_impl<R(As...), false>;
 };
 
-template <typename T>
-struct mock_receiver_body_base<void(T)> {
-  MOCK_METHOD(void, set_value, (T), ());
-};
-template <typename T>
-struct mock_receiver_body_base<void(T) noexcept> {
-  MOCK_METHOD(void, set_value, (T), (noexcept));
+template <typename R, typename... As>
+struct mock_receiver_body_base<R(As...) noexcept> {
+    using type = mock_receiver_body_base_impl<R(As...), true>;
 };
 
-template <typename T, typename U>
-struct mock_receiver_body_base<void(T, U)> {
-  MOCK_METHOD(void, set_value, (T, U), ());
-};
-template <typename T, typename U>
-struct mock_receiver_body_base<void(T, U) noexcept> {
-  MOCK_METHOD(void, set_value, (T, U), (noexcept));
-};
+template <typename Sig>
+using mock_receiver_body_base_t =
+    typename mock_receiver_body_base<Sig>::type;
 
-template <typename T, typename U, typename V>
-struct mock_receiver_body_base<void(T, U, V)> {
-  MOCK_METHOD(void, set_value, (T, U, V), ());
-};
-template <typename T, typename U, typename V>
-struct mock_receiver_body_base<void(T, U, V) noexcept> {
-  MOCK_METHOD(void, set_value, (T, U, V), (noexcept));
-};
-
-template <typename... Sigs>
-struct mock_receiver_body : mock_receiver_body_base<Sigs>... {
-  using mock_receiver_body_base<Sigs>::gmock_set_value...;
-  using mock_receiver_body_base<Sigs>::set_value...;
+template <typename... Bases>
+struct mock_receiver_body_impl : Bases... {
+  using Bases::gmock_set_value...;
+  using Bases::set_value...;
 
   MOCK_METHOD(void, set_error, (std::exception_ptr), (noexcept));
   MOCK_METHOD(void, set_done, (), (noexcept));
 };
+
+template <typename... Sigs>
+using mock_receiver_body =
+    mock_receiver_body_impl<mock_receiver_body_base_t<Sigs>...>;
 
 template <typename... Sigs>
 struct mock_receiver {
@@ -92,11 +97,11 @@ struct mock_receiver {
     body_->set_done();
   }
 
-  auto& operator*() noexcept {
+  mock_receiver_body<Sigs...>& operator*() noexcept {
     return *body_;
   }
 
-  const auto& operator*() const noexcept {
+  const mock_receiver_body<Sigs...>& operator*() const noexcept {
     return *body_;
   }
 };

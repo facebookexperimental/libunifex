@@ -60,7 +60,8 @@
 #  if __has_include(<coroutine>) && defined(__cpp_lib_coroutine)
 #    define UNIFEX_COROUTINES_HEADER <coroutine>
 #    define UNIFEX_COROUTINES_NAMESPACE std
-#  elif __has_include(<experimental/coroutine>)
+#  elif __has_include(<experimental/coroutine>) && \
+        !(defined(_MSC_VER) && defined(__clang__)) // clang-cl.exe
 #    define UNIFEX_COROUTINES_HEADER <experimental/coroutine>
 #    define UNIFEX_COROUTINES_NAMESPACE std::experimental
 #  else
@@ -129,7 +130,7 @@
 
 #if defined(_MSC_VER)
 # define UNIFEX_DECLARE_NON_DEDUCED_TYPE(NAME, ...) \
-  typename NAME, \
+  typename NAME = void, \
   std::enable_if_t<std::is_same_v<NAME, __VA_ARGS__>, int> = 0
  # define UNIFEX_USE_NON_DEDUCED_TYPE(NAME, ...) NAME
 #else
