@@ -21,6 +21,7 @@
 #include <unifex/execution_policy.hpp>
 #include <unifex/get_execution_policy.hpp>
 #include <unifex/type_list.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 

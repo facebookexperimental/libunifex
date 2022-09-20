@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/materialize.hpp>
 
 #include <unifex/when_all.hpp>
 #include <unifex/just_error.hpp>
-#include <unifex/materialize.hpp>
 #include <unifex/dematerialize.hpp>
 #include <unifex/then.hpp>
 #include <unifex/sync_wait.hpp>

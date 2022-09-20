@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
+
+#include <unifex/just.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>

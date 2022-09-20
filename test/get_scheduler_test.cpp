@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+#include <unifex/scheduler_concepts.hpp>
+
 #include <unifex/for_each.hpp>
 #include <unifex/range_stream.hpp>
-#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform_stream.hpp>

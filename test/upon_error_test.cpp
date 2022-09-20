@@ -1,7 +1,8 @@
+#include <unifex/upon_error.hpp>
+
 #include <unifex/just.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/upon_error.hpp>
 
 #include <gtest/gtest.h>
 #include <type_traits>

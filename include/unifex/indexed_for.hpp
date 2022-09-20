@@ -24,6 +24,7 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/std_concepts.hpp>
+#include <unifex/bind_back.hpp>
 
 #include <functional>
 #include <type_traits>

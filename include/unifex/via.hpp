@@ -23,6 +23,7 @@
 #include <unifex/submit.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/get_stop_token.hpp>
+#include <unifex/scheduler_concepts.hpp>
 
 #include <tuple>
 #include <utility>

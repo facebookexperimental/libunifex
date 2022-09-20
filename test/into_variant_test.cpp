@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/into_variant.hpp>
+
 #include <unifex/let_done.hpp>
 #include <unifex/then.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/just_error.hpp>
 #include <unifex/just.hpp>
-#include <unifex/into_variant.hpp>
 #include <unifex/just_done.hpp>
 #include <exception>
 #include <variant>

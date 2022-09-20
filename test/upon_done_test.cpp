@@ -1,9 +1,10 @@
+#include <unifex/upon_done.hpp>
+
 #include <unifex/when_all.hpp>
 #include <unifex/then.hpp>
 #include <unifex/just.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/just_done.hpp>
-#include <unifex/upon_done.hpp>
 #include "unifex/let_done.hpp"
 #include "unifex/timed_single_thread_context.hpp"
 

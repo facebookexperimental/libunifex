@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/reduce_stream.hpp>
+
 #include <unifex/sync_wait.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/reduce_stream.hpp>
 #include <unifex/then.hpp>
 #include <unifex/range_stream.hpp>
 

@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/type_erased_stream.hpp>
+
 #include <unifex/for_each.hpp>
 #include <unifex/on_stream.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/single_thread_context.hpp>
-#include <unifex/type_erased_stream.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
