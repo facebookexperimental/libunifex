@@ -379,7 +379,8 @@ public:
   {}
 
   template(typename Sender, typename Receiver)
-      (requires same_as<remove_cvref_t<Sender>, type> AND
+      (requires receiver<Receiver> AND
+          same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Func, member_t<Sender, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
           sender_to<Source, source_receiver<Sender, Receiver>>)
