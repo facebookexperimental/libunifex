@@ -141,7 +141,7 @@ TEST(TransformError, JustError) {
 TEST(TransformError, WithTask) {
   auto value =
     let_error(
-      []() -> task<int> { co_return 42; }(),
+      then([]() -> task<int> { co_return 41; }(), [](auto) { return 42; }),
       [](auto&&) { return just(-1); }
     )
     | let_done([]() { return just(-2); })
@@ -153,7 +153,7 @@ TEST(TransformError, WithTask) {
 #if !UNIFEX_NO_EXCEPTIONS
   auto error =
     let_error(
-      []() -> task<int> { throw std::runtime_error(""); co_return 42; }(),
+      then([]() -> task<int> { throw std::runtime_error(""); co_return 41; }(), [](auto) { return 42; }),
       [](auto&&) { return just(-1); }
     )
     | let_done([]() { return just(-2); })
@@ -165,7 +165,7 @@ TEST(TransformError, WithTask) {
 
   auto done =
     let_error(
-      []() -> task<int> { co_await just_done(); co_return 42; }(),
+      then([]() -> task<int> { co_await just_done(); co_return 41; }(), [](auto) { return 42; }),
       [](auto&&) { return just(-1); }
     )
     | let_done([]() { return just(-2); })
