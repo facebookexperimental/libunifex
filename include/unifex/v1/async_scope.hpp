@@ -602,7 +602,7 @@ struct _cleaning_receiver<Operation, Receiver>::type final {
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
           is_nothrow_callable_v<CPO, const Receiver&>)
           -> callable_result_t<CPO, const Receiver&> {
-    return static_cast<CPO&&>(cpo)(r.get_receiver());
+    return static_cast<CPO&&>(cpo)(r.op_->get_receiver());
   }
 
   friend inplace_stop_token

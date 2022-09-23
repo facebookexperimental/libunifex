@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <unifex/allocate.hpp>
 #include <unifex/any_sender_of.hpp>
 #include <unifex/async_scope.hpp>
 #include <unifex/just.hpp>
@@ -23,6 +24,7 @@
 #include <unifex/let_value_with.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
 #include <unifex/let_value_with_stop_token.hpp>
+#include <unifex/never.hpp>
 #include <unifex/on.hpp>
 #include <unifex/optional.hpp>
 #include <unifex/scope_guard.hpp>
@@ -750,4 +752,18 @@ TEST_F(async_scope_test, attach_non_inplace_stoppable_stop_token) {
 
   sync_wait(scope.cleanup());
   EXPECT_EQ(external_context, 42);
+}
+
+TEST_F(async_scope_test, attach_forward_cpo) {
+  bool executed{false};
+
+  auto sender = scope.attach_on(
+      thread.get_scheduler(),
+      allocate(then(never_sender(), [&]() noexcept { executed = true; })));
+
+  sync_wait(sequence(
+      just_from([&]() noexcept { scope.request_stop(); }),
+      std::move(sender),
+      scope.complete()));
+  ASSERT_FALSE(executed);
 }
