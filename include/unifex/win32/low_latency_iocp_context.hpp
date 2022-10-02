@@ -365,7 +365,7 @@ namespace unifex::win32
       }
 
       if constexpr (is_nothrow_callable_v<
-                        decltype(unifex::set_value),
+                        tag_t<unifex::set_value>,
                         Receiver>) {
         unifex::set_value(std::move(self.receiver_));
       } else {
@@ -511,7 +511,7 @@ namespace unifex::win32
       // instead?
       if (!ec || totalBytesTransferred > 0) {
         if constexpr (is_nothrow_callable_v<
-                          decltype(set_value),
+                          tag_t<set_value>,
                           Receiver,
                           std::size_t>) {
           unifex::set_value(std::move(self.receiver_), totalBytesTransferred);
@@ -686,7 +686,7 @@ namespace unifex::win32
       // instead?
       if (!ec || totalBytesTransferred > 0) {
         if constexpr (is_nothrow_callable_v<
-                          decltype(set_value),
+                          tag_t<set_value>,
                           Receiver,
                           std::size_t>) {
           unifex::set_value(std::move(self.receiver_), totalBytesTransferred);

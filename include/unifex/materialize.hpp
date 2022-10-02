@@ -49,10 +49,10 @@ namespace unifex
         : receiver_(static_cast<Receiver2&&>(receiver)) {}
 
       template(typename... Values)
-          (requires receiver_of<Receiver, decltype(unifex::set_value), Values...>)
+          (requires receiver_of<Receiver, tag_t<unifex::set_value>, Values...>)
       void
       set_value(Values&&... values) && noexcept(
-          is_nothrow_receiver_of_v<Receiver, decltype(unifex::set_value), Values...>) {
+          is_nothrow_receiver_of_v<Receiver, tag_t<unifex::set_value>, Values...>) {
         unifex::set_value(
             static_cast<Receiver&&>(receiver_),
             unifex::set_value,
@@ -60,11 +60,11 @@ namespace unifex
       }
 
       template(typename Error)
-          (requires receiver_of<Receiver, decltype(unifex::set_error), Error>)
+          (requires receiver_of<Receiver, tag_t<unifex::set_error>, Error>)
       void set_error(Error&& error) && noexcept {
         if constexpr (is_nothrow_receiver_of_v<
                           Receiver,
-                          decltype(unifex::set_error),
+                          tag_t<unifex::set_error>,
                           Error>) {
           unifex::set_value(
               static_cast<Receiver&&>(receiver_),
@@ -84,9 +84,9 @@ namespace unifex
       }
 
       template(typename R = Receiver)
-          (requires receiver_of<R, decltype(unifex::set_done)>)
+          (requires receiver_of<R, tag_t<unifex::set_done>>)
       void set_done() && noexcept {
-        if constexpr (is_nothrow_receiver_of_v<Receiver, decltype(unifex::set_done)>) {
+        if constexpr (is_nothrow_receiver_of_v<Receiver, tag_t<unifex::set_done>>) {
           unifex::set_value(
               static_cast<Receiver&&>(receiver_), unifex::set_done);
         } else {
@@ -137,8 +137,8 @@ namespace unifex
       template <typename... Errors>
       using apply = Variant<
           ValueTuples...,
-          Tuple<decltype(set_error), Errors>...,
-          Tuple<decltype(set_done)>>;
+          Tuple<tag_t<set_error>, Errors>...,
+          Tuple<tag_t<set_done>>>;
     };
 
     template <
@@ -147,7 +147,7 @@ namespace unifex
         template <typename...> class Tuple>
     struct value_types {
       template <typename... Values>
-      using value_tuple = Tuple<decltype(set_value), Values...>;
+      using value_tuple = Tuple<tag_t<set_value>, Values...>;
 
       template <typename... ValueTuples>
       using value_variant = sender_error_types_t<

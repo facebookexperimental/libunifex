@@ -106,7 +106,7 @@
 // class foo_sender {
 //    template<
 //      typename Receiver,
-//      std::enable_if_t<is_callable_v<decltype(set_value), Receiver, foo>, int> = 0>
+//      std::enable_if_t<is_callable_v<tag_t<set_value>, Receiver, foo>, int> = 0>
 //    friend auto tag_invoke(tag_t<connect>, foo_sender&& s, Receiver&& r) -> foo_operation<Receiver> {
 //      return ...;
 //    }
@@ -119,7 +119,7 @@
 //     typename Receiver,
 //     UNIFEX_DECLARE_NON_DEDUCED_TYPE(CPO, tag_t<connect>),
 //     UNIFEX_DECLARE_NON_DEDUCED_TYPE(S, foo_sender),
-//     std::enable_if_t<is_callable_v<decltype(set_value), Receiver, foo>, int> = 0?
+//     std::enable_if_t<is_callable_v<tag_t<set_value>, Receiver, foo>, int> = 0?
 //   friend auto tag_invoke(
 //        UNIFEX_USE_NON_DEDUCED_TYPE(CPO, tag_t<connect>),
 //        UNIFEX_USE_NON_DEDUCED_TYPE(S, foo_sender)&& s,
