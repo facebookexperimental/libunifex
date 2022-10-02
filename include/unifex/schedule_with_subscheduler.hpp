@@ -53,7 +53,7 @@ namespace _subschedule {
 
     template <typename Scheduler>
     using _default_result_t = _then::sender<
-        callable_result_t<decltype(schedule), Scheduler&>,
+        callable_result_t<tag_t<schedule>, Scheduler&>,
         _return_value<Scheduler>>;
     template <typename Scheduler>
     using _result_t =

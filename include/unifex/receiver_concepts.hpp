@@ -246,7 +246,7 @@ UNIFEX_CONCEPT //
 template <typename R, typename... An>
   inline constexpr bool is_nothrow_receiver_of_v =
     receiver_of<R, An...> &&
-    is_nothrow_callable_v<decltype(set_value), R, An...>;
+    is_nothrow_callable_v<tag_t<set_value>, R, An...>;
 
 //////////////////
 // Metafunctions for checking callability of specific receiver methods

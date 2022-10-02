@@ -285,19 +285,19 @@ using operation_t [[deprecated("Use connect_result_t instead of operation_t")]] 
 template <typename Sender, typename Receiver>
 [[deprecated("Use sender_to instead of is_connectable_v")]]
 inline constexpr bool is_connectable_v =
-  is_callable_v<decltype(connect), Sender, Receiver>;
+  is_callable_v<tag_t<connect>, Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
 using is_connectable [[deprecated]] =
-  is_callable<decltype(connect), Sender, Receiver>;
+  is_callable<tag_t<connect>, Sender, Receiver>;
 /// \endcond
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =
-  is_nothrow_callable_v<decltype(connect), Sender, Receiver>;
+  is_nothrow_callable_v<tag_t<connect>, Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
-using is_nothrow_connectable = is_nothrow_callable<decltype(connect), Sender, Receiver>;
+using is_nothrow_connectable = is_nothrow_callable<tag_t<connect>, Sender, Receiver>;
 
 template <
     typename Sender,
