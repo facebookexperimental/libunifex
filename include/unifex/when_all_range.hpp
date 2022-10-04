@@ -24,6 +24,7 @@
 #include <vector>
 
 #include <unifex/blocking.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
@@ -207,9 +208,7 @@ struct _element_receiver<Receiver, Sender>::type final {
       op_.holders_[index_].value.emplace(std::forward<Value>(value)...);
       op_.element_complete();
     }
-    UNIFEX_CATCH(...) {
-      this->set_error(std::current_exception());
-    }
+    UNIFEX_CATCH(...) { this->set_error(std::current_exception()); }
   }
 
   template <typename Error>
