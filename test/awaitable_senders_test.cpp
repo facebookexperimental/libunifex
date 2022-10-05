@@ -23,8 +23,11 @@
 #include <unifex/task.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/timed_single_thread_context.hpp>
+#include <unifex/let_value.hpp>
+#include <unifex/let_value_with.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/scheduler_concepts.hpp>
+#include <unifex/async_scope.hpp>
 
 #include <chrono>
 
@@ -80,6 +83,30 @@ TEST(awaitable_senders, await_multi_value_sender) {
   }());
 
   EXPECT_EQ(52, result);
+}
+
+TEST(awaitable_senders, spawn_awaitable_on_async_scope) {
+    // This test exercises connect_awatable's promise_type
+    // constructor which accepts reference arguments that are
+    // passed to the coroutine function call. Compilers that
+    // implement the standard correctly will pass references to
+    // the function arguments after they've been copied to the
+    // coroutine frame.
+    auto sndr = let_value_with(
+        []() { return async_scope{};},
+        [](async_scope& scope) {
+            scope.spawn(
+                let_value(
+                    []() -> task<void> { co_return; }(),
+                    []() { return just(); }
+                )
+            );
+            return scope.complete();
+        }
+    );
+
+    auto results = sync_wait(std::move(sndr));
+    EXPECT_TRUE(results.has_value());
 }
 
 #endif  // UNIFEX_NO_COROUTINES

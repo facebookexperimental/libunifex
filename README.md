@@ -40,7 +40,13 @@ with the following compilers:
 
 This library also supports C++20 coroutines. You will need to compile with
 coroutine support enabled if you want to use the coroutine integrations.
-This generally means adding `-std=c++2a` or `-fcoroutines-ts` on Clang (see "Configuring" below).
+This generally means adding `-std=c++2a`, `-fcoroutines-ts` on Clang, or
+`-fcoroutines` for GCC (see "Configuring" below). Compilers with stable
+coroutine support are required:
+
+* GCC, 10.3 and later
+* Clang, 10.x and later
+* MSVC not currently supported
 
 ## Linux
 
@@ -74,13 +80,19 @@ cmake -G Ninja -H. -Bbuild \
 ```
 
 By default, this builds libunifex in C++17 without coroutines. If you want
-to turn on coroutines with clang, add:
+to turn on coroutines with Clang, add:
 
 ```sh
       -DCMAKE_CXX_FLAGS:STRING=-fcoroutines-ts
 ```
 
-To use libc++ with clang, which has coroutine support, you should also add:
+To enable coroutines with GCC, add:
+
+```sh
+      -DCMAKE_CXX_FLAGS:STRING=-fcoroutines
+```
+
+To use libc++ with Clang, which has coroutine support, you should also add:
 
 ```sh
       -DCMAKE_CXX_FLAGS:STRING=-stdlib=libc++ \
