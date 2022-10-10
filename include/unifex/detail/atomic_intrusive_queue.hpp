@@ -45,7 +45,7 @@ public:
       : head_(initiallyActive ? nullptr : producer_inactive_value()) {}
 
   ~atomic_intrusive_queue() {
-    // Check that all items in this queue have beel dequeued.
+    // Check that all items in this queue have been dequeued.
     // Not doing so is likely a bug in the code.
     UNIFEX_ASSERT(
         head_.load(std::memory_order_relaxed) == nullptr ||
