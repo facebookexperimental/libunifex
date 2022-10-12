@@ -63,7 +63,7 @@ TEST(spawn_detached_test, spawn_detached_increments_use_count) {
   bool lambdaHasExecuted{false};
 
   unifex::spawn_detached(
-      unifex::just_from([&, this]() noexcept {
+      unifex::just_from([&]() noexcept {
         EXPECT_EQ(1, scope.use_count());
         lambdaHasExecuted = true;
       }),
