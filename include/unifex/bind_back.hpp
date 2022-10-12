@@ -16,6 +16,8 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/std_concepts.hpp>
+#include <unifex/type_traits.hpp>
 
 #include <tuple>
 #include <type_traits>

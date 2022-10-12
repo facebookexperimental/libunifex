@@ -38,6 +38,7 @@
   * `with_query_value()`
   * `with_allocator()`
   * `done_as_optional()`
+  * `nest()`
 * Sender Types
   * `async_trace_sender`
 * Sender Queries
@@ -710,6 +711,13 @@ task<void> g() {
   }
 }
 ```
+
+### `nest(Sender sender, Scope& scope) -> Sender`
+
+`nest` registers the given *Sender* with the given "scope", which should be of a
+type that works like `v1::async_scope` or `v2::async_scope`. A *Sender* that has
+been registered with a scope will prevent that scope from being joined until the
+*Sender* has either been discarded or executed.
 
 ## Sender Types
 
