@@ -47,6 +47,26 @@ struct member_invocable_scope {
   bool invoked{false};
 };
 
+struct scope_with_member_and_tag_invoke final {
+  template <typename Sender>
+  friend auto tag_invoke(
+      unifex::tag_t<unifex::nest>,
+      Sender&& sender,
+      scope_with_member_and_tag_invoke& scope) noexcept {
+    scope.tagInvokeInvoked = true;
+    return static_cast<Sender&&>(sender);
+  }
+
+  template <typename Sender>
+  auto nest(Sender&& sender) noexcept {
+    memberNestInvoked = true;
+    return static_cast<Sender&&>(sender);
+  }
+
+  bool tagInvokeInvoked{false};
+  bool memberNestInvoked{false};
+};
+
 TEST(nest_test, nest_of_tag_invocable_scope_invokes_tag_invoke) {
   tag_invocable_scope scope;
 
@@ -102,6 +122,15 @@ TEST(nest_test, nest_of_v1_scope_invokes_member) {
   }
 
   unifex::sync_wait(scope.complete());
+}
+
+TEST(nest_test, tag_invoke_is_preferred_over_member_nest) {
+  scope_with_member_and_tag_invoke scope;
+
+  unifex::sync_wait(unifex::nest(unifex::just(), scope));
+
+  EXPECT_TRUE(scope.tagInvokeInvoked);
+  EXPECT_FALSE(scope.memberNestInvoked);
 }
 
 // gcc 9 fails to compute all the noexcept assertions in
