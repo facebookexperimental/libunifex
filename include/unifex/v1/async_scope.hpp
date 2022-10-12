@@ -1114,13 +1114,15 @@ private:
     }
   }
 
-  // clang-format off
   template(typename Sender, typename Scope)     //
       (requires same_as<async_scope&, Scope&>)  //
-  friend auto tag_invoke(tag_t<nest>, Sender&& sender, Scope& scope) noexcept(
-      noexcept(scope.attach(static_cast<Sender&&>(sender))))
-      -> decltype(scope.attach(static_cast<Sender&&>(sender))) {
-    // clang-format on
+      friend auto tag_invoke(
+          tag_t<nest>,
+          Sender&& sender,
+          Scope& scope) noexcept(noexcept(scope
+                                              .attach(static_cast<Sender&&>(
+                                                  sender))))
+          -> decltype(scope.attach(static_cast<Sender&&>(sender))) {
     return scope.attach(static_cast<Sender&&>(sender));
   }
 };
