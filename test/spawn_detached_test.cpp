@@ -97,6 +97,7 @@ TEST(spawn_detached_test, spawn_detached_accepts_allocators_of_non_bytes) {
   unifex::spawn_detached(unifex::just(), idscope, std::allocator<int>{});
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 template <typename T>
 struct throwing_allocator final {
   using value_type = T;
@@ -184,5 +185,6 @@ TEST(
 
   unifex::sync_wait(scope.join());
 }
+#endif
 
 }  // namespace
