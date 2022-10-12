@@ -23,6 +23,7 @@
 #include <unifex/let_value_with.hpp>
 #include <unifex/let_value_with_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/nest.hpp>
 #include <unifex/on.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -979,8 +980,8 @@ public:
   /**
    * Equivalent to attach(just_from((Fun&&)fun)).
    */
-  template(typename Fun)  //
-      (requires callable<Fun>)                //
+  template(typename Fun)        //
+      (requires callable<Fun>)  //
       [[nodiscard]] auto attach_call(Fun&& fun) noexcept(
           noexcept(attach(just_from((Fun &&) fun)))) {
     return attach(just_from((Fun &&) fun));
@@ -1111,6 +1112,16 @@ private:
       // there are no outstanding operations to wait for
       evt_.set();
     }
+  }
+
+  // clang-format off
+  template(typename Sender, typename Scope)     //
+      (requires same_as<async_scope&, Scope&>)  //
+  friend auto tag_invoke(tag_t<nest>, Sender&& sender, Scope& scope) noexcept(
+      noexcept(scope.attach(static_cast<Sender&&>(sender))))
+      -> decltype(scope.attach(static_cast<Sender&&>(sender))) {
+    // clang-format on
+    return scope.attach(static_cast<Sender&&>(sender));
   }
 };
 
