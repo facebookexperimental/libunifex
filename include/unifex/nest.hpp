@@ -39,26 +39,24 @@ private:
   struct deref;
 
 public:
-  // clang-format off
   template(typename Sender, typename Scope)  //
       (requires typed_sender<Sender> AND tag_invocable<_nest_fn, Sender, Scope&>
            AND typed_sender<tag_invoke_result_t<_nest_fn, Sender, Scope&>>)  //
-  auto operator()(Sender&& sender, Scope& scope) const
+      auto
+      operator()(Sender&& sender, Scope& scope) const
       noexcept(is_nothrow_tag_invocable_v<_nest_fn, Sender, Scope&>)
           -> tag_invoke_result_t<_nest_fn, Sender, Scope&> {
-    // clang-format on
     return tag_invoke(_nest_fn{}, static_cast<Sender&&>(sender), scope);
   }
 
-  // clang-format off
   template(typename Sender, typename Scope)  //
       (requires typed_sender<Sender> AND(
           !tag_invocable<_nest_fn, Sender, Scope&>)
            AND typed_sender<nest_member_result_t<Scope, Sender>>)  //
-  auto operator()(Sender&& sender, Scope& scope) const
+      auto
+      operator()(Sender&& sender, Scope& scope) const
       noexcept(is_nest_member_nothrow_v<Scope, Sender>)
           -> nest_member_result_t<Scope, Sender> {
-    // clang-format on
     return scope.nest(static_cast<Sender&&>(sender));
   }
 
