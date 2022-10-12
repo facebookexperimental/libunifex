@@ -104,6 +104,9 @@ TEST(nest_test, nest_of_v1_scope_invokes_member) {
   unifex::sync_wait(scope.complete());
 }
 
+// gcc 9 fails to compute all the noexcept assertions in
+// nest_has_the_expected_noexcept_clause
+#if !defined(__GNUC__) || __GNUC__ > 9
 struct throwing_sender final {
   template <
       template <typename...>
@@ -159,5 +162,6 @@ TEST(nest_test, nest_has_the_expected_noexcept_clause) {
 
   unifex::sync_wait(v2scope.join());
 }
+#endif  // !defined(__GNUC__) || __GNUC__ > 9
 
 }  // namespace
