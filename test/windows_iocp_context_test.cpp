@@ -36,6 +36,7 @@
 #include <unifex/just_from.hpp>
 
 #include <chrono>
+#include <vector>
 #include <cstring>
 #include <thread>
 
@@ -217,6 +218,111 @@ TEST(low_latency_iocp_context, loop_read_write_pipe) {
 
     stopSource.request_stop();
     ioThread.join();
+}
+
+auto write_new_file(
+    unifex::win32::low_latency_iocp_context::scheduler s,
+    const char* path,
+    const std::vector<std::uint8_t>& buffer) {
+    using namespace unifex;
+    return let_value_with(
+        [s, path]() { return open_file_write_only(s, path); },
+        [&](win32::low_latency_iocp_context::async_write_only_file& file) {
+          return discard_value(when_all(
+              async_write_some_at(
+                  file, 0 * 6, as_bytes(span{buffer.data() + 0 * 6, 6})),
+              async_write_some_at(
+                  file, 1 * 6, as_bytes(span{buffer.data() + 1 * 6, 6})),
+              async_write_some_at(
+                  file, 2 * 6, as_bytes(span{buffer.data() + 2 * 6, 6})),
+              async_write_some_at(
+                  file, 3 * 6, as_bytes(span{buffer.data() + 3 * 6, 6})),
+              async_write_some_at(
+                  file, 4 * 6, as_bytes(span{buffer.data() + 4 * 6, 6})),
+              async_write_some_at(
+                  file, 5 * 6, as_bytes(span{buffer.data() + 5 * 6, 6})),
+              async_write_some_at(
+                  file, 6 * 6, as_bytes(span{buffer.data() + 6 * 6, 6})),
+              async_write_some_at(
+                  file, 7 * 6, as_bytes(span{buffer.data() + 7 * 6, 6}))));
+        });
+}
+
+auto read_ro_file(
+    unifex::win32::low_latency_iocp_context::scheduler s,
+    const char* path,
+    std::vector<std::uint8_t>& buffer) {
+    using namespace unifex;
+    return let_value_with(
+        [s, path]() { return open_file_read_only(s, path); },
+        [&buffer](win32::low_latency_iocp_context::async_read_only_file& file) {
+          buffer.resize(128);
+          return then(
+              async_read_some_at(
+                  file,
+                  0,
+                  as_writable_bytes(span{buffer.data(), buffer.size()})),
+              [&buffer](std::size_t bytesRead) { buffer.resize(bytesRead); });
+        });
+}
+
+auto read_rw_file(
+    unifex::win32::low_latency_iocp_context::scheduler s,
+    const char* path,
+    std::vector<std::uint8_t>& buffer) {
+    using namespace unifex;
+    return let_value_with(
+        [s, path]() { return open_file_read_write(s, path); },
+        [&buffer](win32::low_latency_iocp_context::async_read_write_file& file) {
+          buffer.resize(128);
+          return then(
+              async_read_some_at(
+                  file,
+                  0,
+                  as_writable_bytes(span{buffer.data(), buffer.size()})),
+              [&buffer](std::size_t bytesRead) { buffer.resize(bytesRead); });
+        });
+}
+
+TEST(low_latency_iocp_context, read_write_file) {
+    using namespace unifex;
+
+    win32::low_latency_iocp_context context{100};
+
+    inplace_stop_source stopSource;
+
+    std::thread ioThread{[&]() {
+      context.run(stopSource.get_token());
+    }};
+
+    auto s = context.get_scheduler();
+
+    const auto data = std::vector<std::uint8_t> {
+        '0', '1', '2', '3', '4', '\n',
+        '5', '6', '7', '8', '9', '\n',
+        'a', 'b', 'c', 'd', 'e', '\n',
+        'f', 'g', 'h', 'i', 'j', '\n',
+        'k', 'l', 'm', 'n', 'o', '\n',
+        'p', 'q', 'r', 's', 't', '\n',
+        'u', 'v', 'w', 'x', 'y', '\n',
+        'z', '+', '-', '*', '/', '\n'};
+
+    const auto filepath = "low_latency_iocp_context.read_write_file.txt";
+
+    std::vector<std::uint8_t> roFileBuffer;
+    std::vector<std::uint8_t> rwFileBuffer;
+    sync_wait(sequence(
+        write_new_file(s, filepath, data),
+        just_from([]() { std::this_thread::sleep_for(1s); }),
+        when_all(
+            read_ro_file(s, filepath, roFileBuffer),
+            read_rw_file(s, filepath, rwFileBuffer))));
+
+    stopSource.request_stop();
+    ioThread.join();
+
+    EXPECT_EQ(data, roFileBuffer);
+    EXPECT_EQ(data, rwFileBuffer);
 }
 
 #endif // _WIN32

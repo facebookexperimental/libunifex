@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#if __cplusplus >= 201703L
+#if __cplusplus >= 201703L || defined(_MSVC_LANG) && _MSVC_LANG >= 201703L
 # ifdef __has_include
 #  if __has_include(<version>)
 #   include <version>

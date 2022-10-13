@@ -515,6 +515,11 @@ get_iocp_entries:
         chunkSize = truncatedChunkSize;
       }
 
+      ntapi::LARGE_INTEGER totalOffset{};
+      if (fileOffset) {
+        totalOffset.QuadPart = *fileOffset + offset;
+      }
+
       ntapi::NTSTATUS status = ntapi::NtReadFile(
           fileHandle,
           NULL,                                  // Event
@@ -523,7 +528,7 @@ get_iocp_entries:
           &iosb,                                 // IoStatusBlock
           buffer.data() + offset,                // Buffer
           static_cast<ntapi::ULONG>(chunkSize),  // Length
-          nullptr,                               // ByteOffset
+          fileOffset ? &totalOffset : nullptr,  // ByteOffset
           nullptr);                              // Key
       if (status == STATUS_PENDING) {
         ++ioState->pendingCompletionNotifications;
@@ -580,6 +585,11 @@ get_iocp_entries:
         chunkSize = truncatedChunkSize;
       }
 
+      ntapi::LARGE_INTEGER totalOffset{};
+      if (fileOffset) {
+        totalOffset.QuadPart = *fileOffset + offset;
+      }
+
       ntapi::NTSTATUS status = ntapi::NtWriteFile(
           fileHandle,
           NULL,                                            // Event
@@ -588,7 +598,7 @@ get_iocp_entries:
           &iosb,                                           // IoStatusBlock
           const_cast<std::byte*>(buffer.data()) + offset,  // Buffer
           static_cast<ntapi::ULONG>(chunkSize),            // Length
-          nullptr,                                         // ByteOffset
+          fileOffset ? &totalOffset : nullptr,            // ByteOffset
           nullptr);                                        // Key
       if (status == STATUS_PENDING) {
         ++ioState->pendingCompletionNotifications;
@@ -639,6 +649,84 @@ get_iocp_entries:
     }
 
     return totalBytesTransferred;
+  }
+
+  low_latency_iocp_context::async_read_only_file
+      low_latency_iocp_context::scheduler::open_file_read_only_impl(
+          low_latency_iocp_context& ctx, const filesystem::path& path) {
+    HANDLE handle = CreateFileW(
+        path.wstring().c_str(),              // lpFileName
+        GENERIC_READ,                        // dwDesiredAccess
+        FILE_SHARE_READ | FILE_SHARE_WRITE,  // dwShareMode
+        nullptr,                             // lpSecurityAttributes
+        OPEN_EXISTING,                       // dwCreationDisposition
+        FILE_FLAG_OVERLAPPED,                // dwFlagsAndAttributes
+        nullptr);                            // hTemplateFile
+    if (handle == INVALID_HANDLE_VALUE) {
+      DWORD error = GetLastError();
+      throw_(std::system_error{
+          static_cast<int>(error),
+          std::system_category(),
+          "open_file_read_only: CreateFileW"});
+    }
+
+    safe_handle fileHandle{handle};
+
+    ctx.associate_file_handle(fileHandle.get());
+
+    return async_read_only_file(ctx, std::move(fileHandle));
+  }
+
+  low_latency_iocp_context::async_write_only_file
+      low_latency_iocp_context::scheduler::open_file_write_only_impl(
+          low_latency_iocp_context& ctx, const filesystem::path& path) {
+    HANDLE handle = CreateFileW(
+        path.wstring().c_str(),              // lpFileName
+        GENERIC_WRITE,                       // dwDesiredAccess
+        FILE_SHARE_READ | FILE_SHARE_WRITE,  // dwShareMode
+        nullptr,                             // lpSecurityAttributes
+        OPEN_ALWAYS,                         // dwCreationDisposition
+        FILE_FLAG_OVERLAPPED,                // dwFlagsAndAttributes
+        nullptr);                            // hTemplateFile
+    if (handle == INVALID_HANDLE_VALUE) {
+      DWORD error = GetLastError();
+      throw_(std::system_error{
+          static_cast<int>(error),
+          std::system_category(),
+          "open_file_write_only: CreateFileW"});
+    }
+
+    safe_handle fileHandle{handle};
+
+    ctx.associate_file_handle(fileHandle.get());
+
+    return async_write_only_file(ctx, std::move(fileHandle));
+  }
+
+  low_latency_iocp_context::async_read_write_file
+      low_latency_iocp_context::scheduler::open_file_read_write_impl(
+          low_latency_iocp_context& ctx, const filesystem::path& path) {
+    HANDLE handle = CreateFileW(
+        path.wstring().c_str(),              // lpFileName
+        GENERIC_READ | GENERIC_WRITE,        // dwDesiredAccess
+        FILE_SHARE_READ | FILE_SHARE_WRITE,  // dwShareMode
+        nullptr,                             // lpSecurityAttributes
+        OPEN_ALWAYS,                         // dwCreationDisposition
+        FILE_FLAG_OVERLAPPED,                // dwFlagsAndAttributes
+        nullptr);                            // hTemplateFile
+    if (handle == INVALID_HANDLE_VALUE) {
+      DWORD error = GetLastError();
+      throw_(std::system_error{
+          static_cast<int>(error),
+          std::system_category(),
+          "open_file_read_write: CreateFileW"});
+    }
+
+    safe_handle fileHandle{handle};
+
+    ctx.associate_file_handle(fileHandle.get());
+
+    return async_read_write_file(ctx, std::move(fileHandle));
   }
 
   std::tuple<

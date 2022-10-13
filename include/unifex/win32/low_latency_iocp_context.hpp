@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include <unifex/io_concepts.hpp>
+#include <unifex/file_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/pipe_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -35,17 +35,21 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <system_error>
 #include <thread>
 #include <tuple>
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex::win32
-{
+namespace unifex::win32 {
   class low_latency_iocp_context {
+  public:
     class scheduler;
 
+    class async_read_only_file;
+    class async_write_only_file;
+    class async_read_write_file;
     class readable_byte_stream;
     class writable_byte_stream;
 
@@ -86,7 +90,6 @@ namespace unifex::win32
     template <typename Buffer, typename Receiver>
     using write_file_op = typename _write_file_op<Buffer, Receiver>::type;
 
-  public:
     // Initialise the IOCP context and pre-allocate storage for I/O
     // state needed to support at most 'maxIoOperations' concurrent I/O
     // operations.
@@ -133,16 +136,21 @@ namespace unifex::win32
         &operation_base::prev>;
 
     struct io_operation : operation_base {
+      using offset_t = std::int64_t;
+
       explicit io_operation(
           low_latency_iocp_context& context,
           handle_t fileHandle,
+          std::optional<offset_t> fileOffset,
           bool skipNotificationOnSuccess) noexcept
         : operation_base(context)
         , fileHandle(fileHandle)
+        , fileOffset(std::move(fileOffset))
         , skipNotificationOnSuccess(skipNotificationOnSuccess)
         , ioState(nullptr) {}
 
       const handle_t fileHandle;
+      const std::optional<offset_t> fileOffset;
       const bool skipNotificationOnSuccess;
       vectored_io_state* ioState;
 
@@ -426,10 +434,11 @@ namespace unifex::win32
     explicit type(
         low_latency_iocp_context& ctx,
         handle_t fileHandle,
+        std::optional<offset_t> offset,
         bool skipNotificationOnSuccess,
         Buffer2&& buffer,
         Receiver2&& r)
-      : io_operation(ctx, fileHandle, skipNotificationOnSuccess)
+      : io_operation(ctx, fileHandle, std::move(offset), skipNotificationOnSuccess)
       , receiver_((Receiver2 &&) r)
       , buffer_((Buffer2 &&) buffer) {}
 
@@ -540,6 +549,8 @@ namespace unifex::win32
   template <typename Buffer>
   class low_latency_iocp_context::_read_file_sender<Buffer>::type {
   public:
+    using offset_t = std::int64_t;
+
     template <
         template <typename...>
         class Variant,
@@ -556,10 +567,12 @@ namespace unifex::win32
     explicit type(
         low_latency_iocp_context& context,
         handle_t fileHandle,
+        std::optional<offset_t> offset,
         bool skipNotificationsOnSuccess,
         Buffer2&& buffer)
       : context_(context)
       , fileHandle_(fileHandle)
+      , offset_(std::move(offset))
       , skipNotificationsOnSuccess_(skipNotificationsOnSuccess)
       , buffer_((Buffer2 &&) buffer) {}
 
@@ -574,6 +587,7 @@ namespace unifex::win32
       return read_file_op<Buffer, remove_cvref_t<Receiver>>{
           self.context_,
           self.fileHandle_,
+          std::move(self.offset_),
           self.skipNotificationsOnSuccess_,
           std::move(self.buffer_),
           (Receiver &&) r};
@@ -584,6 +598,7 @@ namespace unifex::win32
     using read_file_op = read_file_op<Buf, Receiver>;
     low_latency_iocp_context& context_;
     handle_t fileHandle_;
+    std::optional<offset_t> offset_;
     bool skipNotificationsOnSuccess_;
     Buffer buffer_;
   };
@@ -599,10 +614,11 @@ namespace unifex::win32
     explicit type(
         low_latency_iocp_context& ctx,
         handle_t fileHandle,
+        std::optional<offset_t> offset,
         bool skipNotificationOnSuccess,
         Buffer2&& buffer,
         Receiver2&& r)
-      : io_operation(ctx, fileHandle, skipNotificationOnSuccess)
+      : io_operation(ctx, fileHandle, std::move(offset), skipNotificationOnSuccess)
       , receiver_((Receiver2 &&) r)
       , buffer_((Buffer2 &&) buffer) {}
 
@@ -715,6 +731,8 @@ namespace unifex::win32
   template <typename Buffer>
   class low_latency_iocp_context::_write_file_sender<Buffer>::type {
   public:
+    using offset_t = std::int64_t;
+    
     template <
         template <typename...>
         class Variant,
@@ -731,10 +749,12 @@ namespace unifex::win32
     explicit type(
         low_latency_iocp_context& context,
         handle_t fileHandle,
+        std::optional<offset_t> offset,
         bool skipNotificationsOnSuccess,
         Buffer2&& buffer)
       : context_(context)
       , fileHandle_(fileHandle)
+      , offset_(std::move(offset))
       , skipNotificationsOnSuccess_(skipNotificationsOnSuccess)
       , buffer_((Buffer2 &&) buffer) {}
 
@@ -749,6 +769,7 @@ namespace unifex::win32
       return write_file_op<Buffer, remove_cvref_t<Receiver>>{
           self.context_,
           self.fileHandle_,
+          std::move(self.offset_),
           self.skipNotificationsOnSuccess_,
           std::move(self.buffer_),
           (Receiver &&) r};
@@ -759,6 +780,7 @@ namespace unifex::win32
     using write_file_op = write_file_op<Buf, Receiver>;
     low_latency_iocp_context& context_;
     handle_t fileHandle_;
+    std::optional<offset_t> offset_;
     bool skipNotificationsOnSuccess_;
     Buffer buffer_;
   };
@@ -774,7 +796,7 @@ namespace unifex::win32
         remove_cvref_t<
             Buffer>> tag_invoke(tag_t<async_read_some>, readable_byte_stream& stream, Buffer&& buffer) {
       return read_file_sender<remove_cvref_t<Buffer>>{
-          stream.context_, stream.fileHandle_.get(), true, (Buffer &&) buffer};
+          stream.context_, stream.fileHandle_.get(), std::nullopt, true, (Buffer &&) buffer};
     }
 
   private:
@@ -796,10 +818,92 @@ namespace unifex::win32
         remove_cvref_t<
             Buffer>> tag_invoke(tag_t<async_write_some>, writable_byte_stream& stream, Buffer&& buffer) {
       return write_file_sender<remove_cvref_t<Buffer>>{
-          stream.context_, stream.fileHandle_.get(), true, (Buffer &&) buffer};
+          stream.context_, stream.fileHandle_.get(), std::nullopt, true, (Buffer &&) buffer};
     }
 
   private:
+    template <typename Buffer>
+    using write_file_sender = write_file_sender<Buffer>;
+
+    low_latency_iocp_context& context_;
+    safe_handle fileHandle_;
+  };
+
+  class low_latency_iocp_context::async_read_only_file {
+  public:
+    using offset_t = std::int64_t;
+
+    explicit async_read_only_file(
+        low_latency_iocp_context& context, safe_handle fileHandle) noexcept
+      : context_(context)
+      , fileHandle_(std::move(fileHandle)) {}
+
+    template(typename Buffer)(requires convertible_to<Buffer, span<std::byte>>) friend read_file_sender<
+        remove_cvref_t<
+            Buffer>> tag_invoke(tag_t<async_read_some_at>, async_read_only_file& file, offset_t offset, Buffer&& buffer) {
+      return read_file_sender<remove_cvref_t<Buffer>>{
+          file.context_, file.fileHandle_.get(), offset, true, (Buffer &&) buffer};
+    }
+
+  private:
+    template <typename Buffer>
+    using read_file_sender = read_file_sender<Buffer>;
+
+    low_latency_iocp_context& context_;
+    safe_handle fileHandle_;
+  };
+
+  class low_latency_iocp_context::async_write_only_file {
+  public:
+    using offset_t = std::int64_t;
+
+    explicit async_write_only_file(
+        low_latency_iocp_context& context, safe_handle fileHandle) noexcept
+      : context_(context)
+      , fileHandle_(std::move(fileHandle)) {}
+
+    template(typename Buffer)(requires convertible_to<Buffer, span<const std::byte>>) friend write_file_sender<
+        remove_cvref_t<
+            Buffer>> tag_invoke(tag_t<async_write_some_at>, async_write_only_file& file, offset_t offset, Buffer&& buffer) {
+      return write_file_sender<remove_cvref_t<Buffer>>{
+          file.context_, file.fileHandle_.get(), offset, true, (Buffer &&) buffer};
+    }
+
+  private:
+    template <typename Buffer>
+    using write_file_sender = write_file_sender<Buffer>;
+
+    low_latency_iocp_context& context_;
+    safe_handle fileHandle_;
+  };
+
+  class low_latency_iocp_context::async_read_write_file {
+  public:
+    using offset_t = std::int64_t;
+
+    explicit async_read_write_file(
+        low_latency_iocp_context& context, safe_handle fileHandle) noexcept
+      : context_(context)
+      , fileHandle_(std::move(fileHandle)) {}
+
+    template(typename Buffer)(requires convertible_to<Buffer, span<std::byte>>) friend read_file_sender<
+        remove_cvref_t<
+            Buffer>> tag_invoke(tag_t<async_read_some_at>, async_read_write_file& file, offset_t offset, Buffer&& buffer) {
+      return read_file_sender<remove_cvref_t<Buffer>>{
+          file.context_, file.fileHandle_.get(), offset, true, (Buffer &&) buffer};
+    }    
+
+    template(typename Buffer)(requires convertible_to<Buffer, span<const std::byte>>) friend write_file_sender<
+        remove_cvref_t<
+            Buffer>> tag_invoke(tag_t<async_write_some_at>, async_read_write_file& file, offset_t offset, Buffer&& buffer) {
+      return write_file_sender<remove_cvref_t<Buffer>>{
+          file.context_, file.fileHandle_.get(), offset, true, (Buffer &&) buffer};
+    }
+
+  private:
+    template <typename Buffer>
+    using read_file_sender = read_file_sender<Buffer>;
+    
     template <typename Buffer>
     using write_file_sender = write_file_sender<Buffer>;
 
@@ -816,6 +920,27 @@ namespace unifex::win32
       return schedule_sender{*context_};
     }
 
+    friend async_read_only_file tag_invoke(
+        tag_t<open_file_read_only>,
+        scheduler s,
+        const filesystem::path& path) {
+      return open_file_read_only_impl(*s.context_, path);
+    }
+
+    friend async_write_only_file tag_invoke(
+        tag_t<open_file_write_only>,
+        scheduler s,
+        const filesystem::path& path) {
+      return open_file_write_only_impl(*s.context_, path);
+    }
+
+    friend async_read_write_file tag_invoke(
+        tag_t<open_file_read_write>,
+        scheduler s,
+        const filesystem::path& path) {
+      return open_file_read_write_impl(*s.context_, path);
+    }
+
     friend std::tuple<readable_byte_stream, writable_byte_stream>
     tag_invoke(tag_t<unifex::open_pipe>, scheduler s) {
       return open_pipe_impl(*s.context_);
@@ -830,6 +955,12 @@ namespace unifex::win32
     }
 
   private:
+    static async_read_only_file open_file_read_only_impl(
+        low_latency_iocp_context& ctx, const filesystem::path& path);
+    static async_write_only_file open_file_write_only_impl(
+        low_latency_iocp_context& ctx, const filesystem::path& path);
+    static async_read_write_file open_file_read_write_impl(
+        low_latency_iocp_context& ctx, const filesystem::path& path);
     static std::tuple<readable_byte_stream, writable_byte_stream>
     open_pipe_impl(low_latency_iocp_context& ctx);
 
