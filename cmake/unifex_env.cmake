@@ -19,7 +19,7 @@ else()
   message(WARNING "[unifex warning]: unknown compiler ${CMAKE_CXX_COMPILER_ID} !")
 endif()
 
-if (UNIFEX_CXX_COMPILER_MSVC)
+if (UNIFEX_CXX_COMPILER_MSVC OR UNIFEX_CXX_COMPILER_CLANGCL)
     # warning level 3 and all warnings as errors
     add_compile_options(/W3 /WX)
 else()
