@@ -71,22 +71,27 @@ struct _op<Ops...>::type {
   variant<manual_lifetime<Ops>...> variantOp_;
 };
 
-template <_block::_enum First, _block::_enum... Rest>
+template <typename Sender, typename... Rest>
 struct max_blocking_kind {
-  constexpr auto operator()() noexcept { return First; }
+  constexpr auto operator()() noexcept { return cblocking<Sender>(); }
 };
 
-template <_block::_enum First, _block::_enum Second, _block::_enum... Rest>
+template <typename First, typename Second, typename... Rest>
 struct max_blocking_kind<First, Second, Rest...> {
   constexpr auto operator()() noexcept {
-    if constexpr (First == Second) {
+    constexpr blocking_kind first = cblocking<First>();
+    constexpr blocking_kind second = cblocking<Second>();
+
+    if constexpr (first == second) {
       return max_blocking_kind<First, Rest...>{}();
     } else if constexpr (
-        (First == blocking_kind::always &&
-        Second == blocking_kind::always_inline) ||
-        (Second == blocking_kind::always &&
-        First == blocking_kind::always_inline)) {
-      return max_blocking_kind<blocking_kind::always, Rest...>{}();
+        first == blocking_kind::always &&
+        second == blocking_kind::always_inline) {
+      return max_blocking_kind<First, Rest...>{}();
+    } else if constexpr (
+        first == blocking_kind::always_inline &&
+        second == blocking_kind::always) {
+      return max_blocking_kind<Second, Rest...>{}();
     } else {
       return blocking_kind::maybe;
     }
@@ -139,7 +144,7 @@ class _sender<Senders...>::type {
   }
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const type&) noexcept {
-    return _variant_sender::max_blocking_kind<cblocking<Senders>...>{}();
+    return _variant_sender::max_blocking_kind<Senders...>{}();
   }
 };
 } // namespace _variant_sender
