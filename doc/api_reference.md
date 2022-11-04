@@ -1194,6 +1194,20 @@ pass the state in as additional arguments.
 
 ## Other
 
+### `async_resource`
+
+Provides _async RAII_ programming idiom. `async_resource_ptr<T>` is like
+a `std::unique_ptr<T>` except that `async_resource_ptr<>`'s destructor destroys
+its `T` asynchronously, in constrast to `unique_ptr<>`'s destructor's
+synchronous invocation of `delete p_`. `async_resource` removes the need for
+manual lifetime management of a `Resource` protected by an `async_scope` and
+should be preferred over `async_scope`, if there is a need for one.
+
+1. explicitly supports parent / child relationship modeled as a tree
+2. allows for subtree removal / swap
+3. each `Resource` managed by `async_resource` has an associated, managed _inner_
+   `async_scope` without an explicit option to `join()`
+
 ### `async_scope`
 
 A place to safely spawn work such that it can be joined later.
