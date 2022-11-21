@@ -105,6 +105,7 @@ private:
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
+#if ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -112,6 +113,7 @@ private:
       Func&& f) {
     std::invoke(f, r.get_receiver());
   }
+#endif
 };
 
 template <typename Operation>
@@ -186,6 +188,7 @@ struct _predecessor_receiver<Operation>::type {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
+#if ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -193,6 +196,7 @@ struct _predecessor_receiver<Operation>::type {
       Func&& f) {
     std::invoke(f, r.get_receiver());
   }
+#endif
 };
 
 template <typename Predecessor, typename SuccessorFactory, typename Receiver>

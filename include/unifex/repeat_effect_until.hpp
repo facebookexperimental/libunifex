@@ -124,6 +124,7 @@ private:
     return std::move(cpo)(r.get_rcvr());
   }
 
+#if ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -133,6 +134,7 @@ private:
                                 const Receiver&>) {
     std::invoke(func, r.get_rcvr());
   }
+#endif
 
   const Receiver& get_rcvr() const noexcept {
     UNIFEX_ASSERT(op_ != nullptr);

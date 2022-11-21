@@ -96,11 +96,13 @@ struct _promise_base {
     return continuation_.done();
   }
 
+#ifdef UNIFEX_DEBUG
   template <typename Func>
   friend void
   tag_invoke(tag_t<visit_continuations>, const _promise_base& p, Func&& func) {
     visit_continuations(p.continuation_, (Func &&) func);
   }
+#endif
 
   friend inplace_stop_token tag_invoke(tag_t<get_stop_token>, const _promise_base& p) noexcept {
     return p.stoken_;

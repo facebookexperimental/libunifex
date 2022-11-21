@@ -120,6 +120,7 @@ namespace unifex
         return static_cast<CPO&&>(cpo)(r.get_const_receiver());
       }
 
+    #if ENABLE_CONTINUATION_VISITATIONS
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>,
@@ -127,6 +128,7 @@ namespace unifex
           Func&& func) {
         std::invoke(func, r.get_const_receiver());
       }
+    #endif
 
       Receiver&& get_receiver_rvalue() noexcept {
         return static_cast<Receiver&&>(op_->receiver_);
@@ -220,6 +222,7 @@ namespace unifex
         return static_cast<CPO&&>(cpo)(r.get_const_receiver());
       }
 
+    #if ENABLE_CONTINUATION_VISITATIONS
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>,
@@ -227,6 +230,7 @@ namespace unifex
           Func&& func) {
         std::invoke(func, r.get_const_receiver());
       }
+    #endif
 
       const Receiver& get_const_receiver() const noexcept {
         return op_->receiver_;
