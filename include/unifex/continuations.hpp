@@ -146,7 +146,7 @@ class continuation_info {
   explicit continuation_info(
       const void* address,
       const _continuation_info_vtable* vtable) noexcept
-    : address_(address), vtable_(vtable) {}
+    : vtable_(vtable), address_(address) {}
 
   inline static constexpr _continuation_info_vtable default_vtable_ {
     &_default_type_index_getter,
