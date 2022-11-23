@@ -96,7 +96,7 @@ struct _receiver<Receiver, Func>::type {
     return (CPO &&)(cpo)(std::as_const(r.receiver_));
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Visit>
   friend void tag_invoke(tag_t<visit_continuations>, const type& self, Visit&& visit) {
     std::invoke(visit, self.receiver_);

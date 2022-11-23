@@ -124,7 +124,7 @@ private:
     return std::move(cpo)(r.get_rcvr());
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,

@@ -50,7 +50,7 @@ struct _stream<Values...>::type final {
     using visitor_t = void(const continuation_info&, void*);
 
    private:
-  #if ENABLE_CONTINUATION_VISITATIONS
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -76,7 +76,7 @@ struct _stream<Values...>::type final {
 
    private:
 
-  #if ENABLE_CONTINUATION_VISITATIONS
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -217,7 +217,7 @@ struct _stream<Values...>::type final {
           return r.stopToken_;
         }
 
-      #if ENABLE_CONTINUATION_VISITATIONS
+      #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         template <typename Func>
         friend void tag_invoke(
             tag_t<visit_continuations>,
@@ -254,7 +254,7 @@ struct _stream<Values...>::type final {
           std::move(*this).set_error(make_exception_ptr((Error&)error));
         }
 
-      #if ENABLE_CONTINUATION_VISITATIONS
+      #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         template <typename Func>
         friend void tag_invoke(
             tag_t<visit_continuations>,

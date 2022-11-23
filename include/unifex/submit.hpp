@@ -95,7 +95,7 @@ class _op<Sender, Receiver>::type {
       return std::move(cpo)(std::as_const(r.get_receiver()));
     }
 
-  #if ENABLE_CONTINUATION_VISITATIONS
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,

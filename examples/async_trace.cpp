@@ -47,8 +47,12 @@ auto dump_async_trace(std::string tag = {}) {
       [tag = std::move(tag)](const std::vector<async_trace_entry> &entries) {
         std::cout << "Async Trace (" << tag << "):\n";
         for (auto &entry : entries) {
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           std::cout << " " << entry.depth << " [-> " << entry.parentIndex
                     << "]: " << entry.continuation.type().name() << " @ 0x";
+        #else
+          std::cout << "Continuation visitations must be enabled to see types in dump async trace\n";
+        #endif
           std::cout.setf(std::ios::hex, std::ios::basefield);
           std::cout << entry.continuation.address();
           std::cout.unsetf(std::ios::hex);

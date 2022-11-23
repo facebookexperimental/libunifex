@@ -98,7 +98,7 @@ public:
       return unifex::await_transform(*this, (Value&&) value);
     }
 
-  #if ENABLE_CONTINUATION_VISITATIONS
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const promise_type& p, Func&& func) {

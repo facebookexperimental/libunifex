@@ -96,7 +96,7 @@ struct _promise_base {
     return continuation_.done();
   }
 
-#ifdef UNIFEX_DEBUG
+#ifdef UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void
   tag_invoke(tag_t<visit_continuations>, const _promise_base& p, Func&& func) {

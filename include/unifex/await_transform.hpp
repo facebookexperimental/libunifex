@@ -124,7 +124,7 @@ struct _awaitable_base<Promise, Value>::type {
       return std::move(cpo)(p);
     }
 
-  #if ENABLE_CONTINUATION_VISITATIONS
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const _rec& r, Func&& func) {

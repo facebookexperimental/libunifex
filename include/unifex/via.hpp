@@ -94,7 +94,7 @@ struct _value_receiver<Receiver, Values...>::type {
     return std::move(cpo)(std::as_const(r.receiver_));
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -140,7 +140,7 @@ struct _error_receiver<Receiver, Error>::type {
     return std::move(cpo)(std::as_const(r.receiver_));
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -185,7 +185,7 @@ struct _done_receiver<Receiver>::type {
     return std::move(cpo)(std::as_const(r.receiver_));
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -255,7 +255,7 @@ struct _predecessor_receiver<Successor, Receiver>::type {
     return std::move(cpo)(std::as_const(r.receiver_));
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,

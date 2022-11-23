@@ -95,7 +95,7 @@ struct _error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type
     return {};
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
     std::invoke(func, r.op_.receiver_);
@@ -146,7 +146,7 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type 
     return {};
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
     std::invoke(func, r.op_.receiver_);
@@ -181,7 +181,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,

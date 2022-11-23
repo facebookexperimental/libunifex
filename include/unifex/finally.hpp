@@ -182,7 +182,7 @@ namespace unifex
         return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
-    #if ENABLE_CONTINUATION_VISITATIONS
+    #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>,
@@ -290,7 +290,7 @@ namespace unifex
         return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
-    #if ENABLE_CONTINUATION_VISITATIONS
+    #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>,
@@ -362,7 +362,7 @@ namespace unifex
         return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
-    #if ENABLE_CONTINUATION_VISITATIONS
+    #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>,
@@ -505,7 +505,7 @@ namespace unifex
         return static_cast<CPO&&>(cpo)(r.get_receiver());
       }
 
-    #if ENABLE_CONTINUATION_VISITATIONS
+    #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
       template <typename Func>
       friend void tag_invoke(
           tag_t<visit_continuations>, const type& r, Func&& func) {

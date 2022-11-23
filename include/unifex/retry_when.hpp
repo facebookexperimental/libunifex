@@ -132,7 +132,7 @@ private:
     return std::move(cpo)(r.get_receiver());
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -228,7 +228,7 @@ private:
     return std::move(cpo)(r.get_receiver());
   }
 
-#if ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename VisitFunc>
   friend void tag_invoke(
       tag_t<visit_continuations>,
