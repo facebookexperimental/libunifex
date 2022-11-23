@@ -142,21 +142,24 @@ class continuation_info {
 #endif
 
  private:
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   explicit continuation_info(
       const void* address,
       const _continuation_info_vtable* vtable) noexcept
-    : address_(address)
-    , vtable_(vtable) {}
+    : address_(address), vtable_(vtable) {}
 
   inline static constexpr _continuation_info_vtable default_vtable_ {
-  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     &_default_type_index_getter,
     &_default_visit
-  #endif
   };
 
-  const void* address_{nullptr};
   const _continuation_info_vtable* vtable_{&default_vtable_};
+#else
+  explicit continuation_info(const void* address, const _continuation_info_vtable*) noexcept
+  : address_(address) {}
+#endif
+
+  const void* address_{nullptr};
 };
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
