@@ -50,6 +50,7 @@ struct _stream<Values...>::type final {
     using visitor_t = void(const continuation_info&, void*);
 
    private:
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -57,6 +58,7 @@ struct _stream<Values...>::type final {
         Func&& func) {
       visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
+  #endif
 
     friend auto
     tag_invoke(tag_t<get_scheduler>, const next_receiver_base& receiver) noexcept {
@@ -73,6 +75,8 @@ struct _stream<Values...>::type final {
     virtual void set_error(std::exception_ptr ex) noexcept = 0;
 
    private:
+
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -80,6 +84,7 @@ struct _stream<Values...>::type final {
         Func&& func) {
       visit_continuations(receiver.get_continuation_info(), (Func &&) func);
     }
+  #endif
 
     friend auto
     tag_invoke(tag_t<get_scheduler>, const cleanup_receiver_base& receiver) noexcept {
@@ -212,6 +217,7 @@ struct _stream<Values...>::type final {
           return r.stopToken_;
         }
 
+      #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         template <typename Func>
         friend void tag_invoke(
             tag_t<visit_continuations>,
@@ -219,6 +225,7 @@ struct _stream<Values...>::type final {
             Func&& func) {
           visit_continuations(receiver.receiver_, (Func &&) func);
         }
+      #endif
 
         friend any_scheduler tag_invoke(
             tag_t<get_scheduler>,
@@ -247,6 +254,7 @@ struct _stream<Values...>::type final {
           std::move(*this).set_error(make_exception_ptr((Error&)error));
         }
 
+      #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
         template <typename Func>
         friend void tag_invoke(
             tag_t<visit_continuations>,
@@ -254,6 +262,7 @@ struct _stream<Values...>::type final {
             Func&& func) {
           visit_continuations(receiver.receiver_, (Func &&) func);
         }
+      #endif
 
         friend any_scheduler tag_invoke(
             tag_t<get_scheduler>,

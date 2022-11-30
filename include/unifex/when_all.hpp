@@ -190,6 +190,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
     return r.get_stop_source().get_token();
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void tag_invoke(
       tag_t<visit_continuations>,
@@ -197,6 +198,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
       Func&& func) {
     std::invoke(func, r.get_receiver());
   }
+#endif
 };
 
 template <typename Receiver, typename... Senders>

@@ -190,6 +190,7 @@ struct _stream<SourceStream, Values...>::type {
       return r.get_stop_source().get_token();
     }
 
+  #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void tag_invoke(
         tag_t<visit_continuations>,
@@ -197,6 +198,7 @@ struct _stream<SourceStream, Values...>::type {
         Func&& func) {
       std::invoke(func, r.op_->receiver_);
     }
+  #endif
   };
 
   struct next_sender {

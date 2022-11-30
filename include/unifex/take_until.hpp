@@ -147,6 +147,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -154,6 +155,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               Func&& func) {
             std::invoke(func, r.op_.receiver_);
           }
+        #endif
         };
 
         take_until_stream& stream_;
@@ -252,6 +254,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -259,6 +262,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               Func&& func) {
             std::invoke(func, r.op_.receiver_);
           }
+        #endif
         };
 
         struct trigger_receiver {
@@ -289,6 +293,7 @@ struct _stream<SourceStream, TriggerStream>::type {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
+        #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
           template <typename Func>
           friend void tag_invoke(
               tag_t<visit_continuations>,
@@ -296,6 +301,7 @@ struct _stream<SourceStream, TriggerStream>::type {
               Func&& func) {
             std::invoke(func, r.op_.receiver_);
           }
+        #endif
         };
 
         take_until_stream& stream_;

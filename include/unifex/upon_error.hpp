@@ -84,8 +84,8 @@ struct _receiver<Receiver, Func>::type {
     }
   }
 
-  void set_done() && noexcept { 
-    unifex::set_done((Receiver &&)(receiver_)); 
+  void set_done() && noexcept {
+    unifex::set_done((Receiver &&)(receiver_));
   }
 
   template(typename CPO)
@@ -96,10 +96,12 @@ struct _receiver<Receiver, Func>::type {
     return (CPO &&)(cpo)(std::as_const(r.receiver_));
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Visit>
   friend void tag_invoke(tag_t<visit_continuations>, const type& self, Visit&& visit) {
     std::invoke(visit, self.receiver_);
   }
+#endif
 };
 
 template <typename Predecessor, typename Func>
@@ -151,8 +153,8 @@ public:
 
   template(typename Sender, typename Receiver)
     (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver> AND
-     sender_to<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>) 
-    friend auto tag_invoke( tag_t<unifex::connect>, Sender&& s, Receiver&& r) 
+     sender_to<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
+    friend auto tag_invoke( tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>&&
         std::is_nothrow_constructible_v<Func, member_t<Sender, Func>>&&

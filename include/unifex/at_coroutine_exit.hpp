@@ -110,12 +110,14 @@ struct _cleanup_promise_base {
     return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
   }
 
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void
   tag_invoke(tag_t<visit_continuations>, const _cleanup_promise_base& p, Func&& func) {
     // Skip cleanup actions when visiting continuations:
     visit_continuations(p.continuation_, (Func &&) func);
   }
+#endif
 
   friend unstoppable_token
   tag_invoke(tag_t<get_stop_token>, const _cleanup_promise_base&) noexcept {
