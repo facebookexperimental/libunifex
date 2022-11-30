@@ -27,8 +27,6 @@
 
 namespace unifex {
 
-#define UNIFEX_ENABLE_CONTINUATION_VISITATIONS false
-
 namespace _visit_continuations_cpo {
   inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
