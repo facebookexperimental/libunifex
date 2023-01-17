@@ -19,6 +19,7 @@
 #if !UNIFEX_NO_COROUTINES
 
 #include <atomic>
+#include <optional>
 
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
@@ -101,32 +102,32 @@ auto done_as_optional(Sender&& sender) {
   using value_type = sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
   return let_done(
     then((Sender&&)sender, [](auto&&... values) {
-      return optional<value_type>{in_place, static_cast<decltype(values)>(values)...};
+      return std::optional<value_type>{std::in_place, static_cast<decltype(values)>(values)...};
     }), []() {
-      return just(optional<value_type>(nullopt));
+      return just(std::optional<value_type>(std::nullopt));
     });
 }
 } // <anonymous namespace>
 
 TEST(TaskCancel, Cancel) {
-  optional<int> j = sync_wait(bar());
+  std::optional<int> j = sync_wait(bar());
   EXPECT_TRUE(!j);
 }
 
 TEST(TaskCancel, DoneAsOptional) {
-  optional<optional<int>> i = sync_wait(done_as_optional(bar()));
+  std::optional<std::optional<int>> i = sync_wait(done_as_optional(bar()));
   EXPECT_TRUE(i);
   EXPECT_TRUE(!*i);
 }
 
 TEST(TaskCancel, VoidTask) {
-  optional<unit> i = sync_wait(void_test());
+  std::optional<unit> i = sync_wait(void_test());
   EXPECT_TRUE(!i);
 }
 
 TEST(TaskCancel, PropagatesStopToken) {
   inplace_stop_source stopSource;
-  optional<inplace_stop_token> i =
+  std::optional<inplace_stop_token> i =
     sync_wait(
       with_query_value(
         get_token_outer(),
@@ -138,7 +139,7 @@ TEST(TaskCancel, PropagatesStopToken) {
 
 TEST(TaskCancel, StopIfRequested) {
   inplace_stop_source stopSource;
-  optional<int> i =
+  std::optional<int> i =
     sync_wait(
       with_query_value(
         test_stop_if_requested(stopSource),
@@ -151,7 +152,7 @@ TEST(TaskCancel, StopIfRequested) {
 // Test that the inplace_stop_token_adaptor is properly
 // unsubscribed on cancellation:
 TEST(TaskCancel, UnsubscribeStopTokenAdaptor) {
-  optional<int> i =
+  std::optional<int> i =
     sync_wait(
       with_query_value(
         bar(),

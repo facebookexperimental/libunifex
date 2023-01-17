@@ -24,13 +24,13 @@
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/optional.hpp>
 
 #include <atomic>
 #include <functional>
+#include <optional>
 #include <tuple>
 #include <type_traits>
-#include <unifex/variant.hpp>
+#include <variant>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -218,7 +218,7 @@ namespace unifex
 
       void deliver_result() noexcept {
         UNIFEX_TRY {
-          unifex::visit(
+          std::visit(
               [this](auto&& tuple) {
                 if constexpr (
                     std::tuple_size<
@@ -254,12 +254,12 @@ namespace unifex
               type_list<std::tuple<>, std::tuple<tag_t<unifex::set_done>>>,
               sender_value_types_t<remove_cvref_t<Source>, type_list, value_decayed_tuple>,
               sender_error_types_t<remove_cvref_t<Source>, error_tuples>>::template
-                  apply<variant>;
+                  apply<std::variant>;
 
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
       std::atomic<int> activeOpCount_ = 2;
       inplace_stop_source stopSource_;
-      optional<typename stop_token_type_t<
+      std::optional<typename stop_token_type_t<
           Receiver>::template callback_type<cancel_callback>>
           stopCallback_;
       UNIFEX_NO_UNIQUE_ADDRESS result_variant result_;

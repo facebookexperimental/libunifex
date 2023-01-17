@@ -26,7 +26,6 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/utility.hpp>
 
 #include <memory>
 

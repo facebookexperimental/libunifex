@@ -21,10 +21,10 @@
 #include <unifex/take_until.hpp>
 #include <unifex/thread_unsafe_event_loop.hpp>
 #include <unifex/typed_via_stream.hpp>
-#include <unifex/optional.hpp>
 
 #include <chrono>
 #include <cstdio>
+#include <optional>
 
 using namespace unifex;
 using namespace std::chrono;
@@ -36,7 +36,7 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  [[maybe_unused]] optional<unit> result =
+  [[maybe_unused]] std::optional<unit> result =
       eventLoop.sync_wait(for_each(
           take_until(
               stop_immediately<int>(

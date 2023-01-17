@@ -2,39 +2,39 @@
 #include <unifex/just_error.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/upon_error.hpp>
-#include <unifex/variant.hpp>
 
 #include <gtest/gtest.h>
 #include <type_traits>
+#include <variant>
 
 using namespace unifex;
 
 TEST(UponError, StaticTypeCheck) {
   auto res1 = just(42)
     | upon_error([](auto){return 42;});
-  static_assert(std::is_same_v<decltype(res1)::value_types<variant, std::tuple>,
-      variant<std::tuple<int>>>);
+  static_assert(std::is_same_v<decltype(res1)::value_types<std::variant, std::tuple>,
+      std::variant<std::tuple<int>>>);
 
   auto res2 = just()
     | upon_error([](auto){
         return 2;
       });
-  static_assert(std::is_same_v<decltype(res2)::value_types<variant, std::tuple>,
-      variant<std::tuple<>, std::tuple<int>>>);
+  static_assert(std::is_same_v<decltype(res2)::value_types<std::variant, std::tuple>,
+      std::variant<std::tuple<>, std::tuple<int>>>);
 
   auto res3 = just(42)
     | upon_error([](auto){
         return;
       });
-  static_assert(std::is_same_v<decltype(res3)::value_types<variant, std::tuple>,
-      variant<std::tuple<int>, std::tuple<>>>);
+  static_assert(std::is_same_v<decltype(res3)::value_types<std::variant, std::tuple>,
+      std::variant<std::tuple<int>, std::tuple<>>>);
 
   auto res4 = just(42)
     | upon_error([](auto){
         return 2.0;
       });
-  static_assert(std::is_same_v<decltype(res4)::value_types<variant, std::tuple>,
-      variant<std::tuple<int>, std::tuple<double>>>);
+  static_assert(std::is_same_v<decltype(res4)::value_types<std::variant, std::tuple>,
+      std::variant<std::tuple<int>, std::tuple<double>>>);
 }
 
 TEST(UponError, Working) {

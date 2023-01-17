@@ -20,7 +20,6 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/optional.hpp>
 
 #include <exception>
 #include <tuple>
@@ -72,7 +71,7 @@ class _sender<Error>::type {
   static constexpr bool sends_done = false;
 
   template<typename Error2>
-  explicit type(in_place_t, Error2&& error)
+  explicit type(std::in_place_t, Error2&& error)
     noexcept(std::is_nothrow_constructible_v<Error, Error2>)
     : error_((Error2 &&) error) {}
 
@@ -98,7 +97,7 @@ namespace _just_error_cpo {
     constexpr auto operator()(Error&& error) const
       noexcept(std::is_nothrow_constructible_v<std::decay_t<Error>, Error>)
       -> _just_error::sender<Error> {
-      return _just_error::sender<Error>{in_place, (Error&&) error};
+      return _just_error::sender<Error>{std::in_place, (Error&&) error};
     }
   } just_error{};
 } // namespace _just_error_cpo

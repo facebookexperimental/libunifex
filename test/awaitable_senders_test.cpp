@@ -27,6 +27,7 @@
 #include <unifex/scheduler_concepts.hpp>
 
 #include <chrono>
+#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -38,7 +39,7 @@ TEST(awaitable_senders, non_void) {
     co_return co_await just(42);
   };
 
-  optional<int> answer =
+  std::optional<int> answer =
       sync_wait(makeTask());
 
   EXPECT_TRUE(answer.has_value());
@@ -52,7 +53,7 @@ TEST(awaitable_senders, void) {
     co_return unifex::unit{};
   };
 
-  optional<unifex::unit> answer =
+  std::optional<unifex::unit> answer =
       sync_wait(makeTask());
 
   EXPECT_TRUE(answer.has_value());
@@ -72,7 +73,7 @@ TEST(awaitable_senders, task_cancellation) {
 }
 
 TEST(awaitable_senders, await_multi_value_sender) {
-  optional<int> result = sync_wait([]() -> task<int> {
+  std::optional<int> result = sync_wait([]() -> task<int> {
     auto [a, b] = co_await just(10, 42);
     EXPECT_EQ(10, a);
     EXPECT_EQ(42, b);

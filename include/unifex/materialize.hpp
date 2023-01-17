@@ -23,9 +23,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/utility.hpp>
 
-#include <functional>
 #include <type_traits>
 
 #include <unifex/detail/prologue.hpp>

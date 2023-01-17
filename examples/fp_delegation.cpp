@@ -23,12 +23,11 @@
 #include <unifex/transform_stream.hpp>
 #include <unifex/via_stream.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/utility.hpp>
-#include <unifex/variant.hpp>
 
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <variant>
 
 using namespace unifex;
 using namespace std::chrono_literals;
@@ -83,24 +82,24 @@ class delegating_operation final {
   template<class InitFunc>
   delegating_operation(InitFunc&& func, delegating_context* context) :
     op_{
-      in_place_type_t<remove_cvref_t<decltype(func())>>{},
+      std::in_place_type_t<remove_cvref_t<decltype(func())>>{},
       FuncWrapper<InitFunc>{std::forward<InitFunc>(func)}},
     context_{context} {
   }
 
 
   inline void start() noexcept {
-    if(unifex::holds_alternative<DelegatedOperationState>(op_)) {
+    if(std::holds_alternative<DelegatedOperationState>(op_)) {
       // Start a delegated operation
-      var::get<DelegatedOperationState>(op_).start();
+      std::get<DelegatedOperationState>(op_).start();
     } else {
       // Start immediately on the local context
       context_->run();
-      var::get<LocalOperationState>(op_).start();
+      std::get<LocalOperationState>(op_).start();
     }
   }
 
-  variant<DelegatedOperationState, LocalOperationState> op_;
+  std::variant<DelegatedOperationState, LocalOperationState> op_;
   delegating_context* context_ = nullptr;
 };
 

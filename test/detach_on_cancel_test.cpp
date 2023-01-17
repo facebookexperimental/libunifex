@@ -2,10 +2,12 @@
 #include <unifex/async_scope.hpp>
 #include <unifex/detach_on_cancel.hpp>
 #include <unifex/get_stop_token.hpp>
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
 #include <stdexcept>
+#include <variant>
 
 #include <unifex/allocate.hpp>
 #include <unifex/finally.hpp>
@@ -22,7 +24,6 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/variant.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/with_query_value.hpp>
 
@@ -149,9 +150,9 @@ TEST_F(detach_on_cancel_test, error_types_propagate) {
   using namespace unifex;
   using error_types =
       sender_error_types_t<decltype(detach_on_cancel(just())), type_list>;
-  using v = typename error_types::template apply<unifex::variant>;
+  using v = typename error_types::template apply<std::variant>;
 
-  EXPECT_GE(unifex::variant_size<v>::value, 1);
+  EXPECT_GE(std::variant_size<v>::value, 1);
 }
 
 TEST_F(detach_on_cancel_test, cancel_inline) {

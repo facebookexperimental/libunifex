@@ -21,8 +21,9 @@
 #include <unifex/just.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/optional.hpp>
 #include <unifex/sender_concepts.hpp>
+
+#include <optional>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -33,7 +34,7 @@ inline const struct _fn {
   template(typename Sender) //
     (requires _single_typed_sender<Sender>) //
   auto operator()(Sender&& predecessor) const {
-    using optional_t = optional<
+    using optional_t = std::optional<
         non_void_t<std::decay_t<sender_single_value_return_type_t<Sender>>>>;
     return let_done(
         then(

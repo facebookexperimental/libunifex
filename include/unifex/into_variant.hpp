@@ -23,7 +23,7 @@
 #include <unifex/type_list.hpp>
 
 #include <tuple>
-#include <unifex/variant.hpp>
+#include <variant>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -89,7 +89,7 @@ struct _sender<Predecessor>::type {
       template <typename...> class Variant,
       template <typename...> class Tuple>
   using value_types = Variant<Tuple<
-      sender_value_types_t<Predecessor, variant, std::tuple>>>;
+      sender_value_types_t<Predecessor, std::variant, std::tuple>>>;
 
   template <template <typename...> class Variant>
   using error_types = sender_error_types_t<Predecessor, Variant>;
@@ -97,7 +97,7 @@ struct _sender<Predecessor>::type {
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
   template <typename Receiver>
-  using receiver_t = receiver_t<Receiver, sender_value_types_t<Predecessor, variant, std::tuple>>;
+  using receiver_t = receiver_t<Receiver, sender_value_types_t<Predecessor, std::variant, std::tuple>>;
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
     return blocking(sender.pred_);

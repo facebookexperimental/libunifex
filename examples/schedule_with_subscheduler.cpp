@@ -18,13 +18,15 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
 
+#include <optional>
+
 using namespace unifex;
 
 int main() {
   timed_single_thread_context context;
   auto schedr = context.get_scheduler();
 
-  optional<bool> result = sync_wait(then(
+  std::optional<bool> result = sync_wait(then(
       schedule_with_subscheduler(schedr),
       [&](auto subScheduler) noexcept { return subScheduler == schedr; }));
 

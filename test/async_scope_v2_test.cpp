@@ -24,6 +24,7 @@
 
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -337,7 +338,7 @@ TEST_F(
     nest_sender_copy_constructor_produces_ready_done_sender_when_scope_is_closed) {
   EXPECT_EQ(0, scope.use_count());
 
-  unifex::optional sender = scope.nest(unifex::just());
+  std::optional sender = scope.nest(unifex::just());
 
   EXPECT_EQ(1, scope.use_count());
 
@@ -402,7 +403,7 @@ TEST_F(
     connect_of_lvalue_nest_sender_leaves_refcount_unchanged_when_scope_is_closed) {
   EXPECT_EQ(0, scope.use_count());
 
-  unifex::optional sender = scope.nest(unifex::just());
+  std::optional sender = scope.nest(unifex::just());
 
   EXPECT_EQ(1, scope.use_count());
 
