@@ -18,73 +18,73 @@ jobs:
         config:
         - {
             name: "Linux GCC 9 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "gcc-9", cxx: "g++-9"
           }
         - {
             name: "Linux GCC 9 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "gcc-9", cxx: "g++-9"
           }
         - {
             name: "Linux GCC 9 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "gcc-9", cxx: "g++-9",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
             name: "Linux GCC 9 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "gcc-9", cxx: "g++-9",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
             name: "Linux GCC 10 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "gcc-10", cxx: "g++-10"
           }
         - {
             name: "Linux GCC 10 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "gcc-10", cxx: "g++-10"
           }
         - {
             name: "Linux GCC 10 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "gcc-10", cxx: "g++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
             name: "Linux GCC 10 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "gcc-10", cxx: "g++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
             name: "Linux GCC 10 Debug (C++20) w/coroutines", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "gcc-10", cxx: "g++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
           }
         - {
             name: "Linux GCC 10 Optimised (C++20) w/coroutines", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "gcc-10", cxx: "g++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
           }
         - {
             name: "Linux GCC 10 Debug (C++20) w/coroutines w/liburing", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             io_sys: io_uring,            
             cc: "gcc-10", cxx: "g++-10",
@@ -92,7 +92,7 @@ jobs:
           }
         - {
             name: "Linux GCC 10 Optimised (C++20) w/coroutines w/liburing", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             io_sys: io_uring,
             cc: "gcc-10", cxx: "g++-10",
@@ -100,84 +100,84 @@ jobs:
           }          
         - {
             name: "Linux Clang 10 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "clang-10", cxx: "clang++-10",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 10 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "clang-10", cxx: "clang++-10",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 10 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "clang-10", cxx: "clang++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 10 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "clang-10", cxx: "clang++-10",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 11 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "clang-11", cxx: "clang++-11",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 11 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "clang-11", cxx: "clang++-11",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 11 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "clang-11", cxx: "clang++-11",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 11 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "clang-11", cxx: "clang++-11",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 12 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "clang-12", cxx: "clang++-12",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 12 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "clang-12", cxx: "clang++-12",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 12 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: Debug,
             cc: "clang-12", cxx: "clang++-12",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 12 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-latest,
+            os: ubuntu-20.04,
             build_type: RelWithDebInfo,
             cc: "clang-12", cxx: "clang++-12",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
