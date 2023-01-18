@@ -19,6 +19,8 @@
 #include <unifex/async_scope.hpp>
 #include <unifex/sync_wait.hpp>
 
+#include <optional>
+
 #include <gtest/gtest.h>
 
 #if !UNIFEX_NO_COROUTINES
@@ -65,7 +67,7 @@ TEST_F(CreateTest, BasicTest) {
     });
   }(1, 2);
 
-  optional<int> res = sync_wait(std::move(snd));
+  std::optional<int> res = sync_wait(std::move(snd));
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(*res, 3);
 }
@@ -84,7 +86,7 @@ TEST_F(CreateTest, VoidWithContextTest) {
     std::ref(called));
   }();
 
-  optional<unit> res = sync_wait(std::move(snd));
+  std::optional<unit> res = sync_wait(std::move(snd));
   ASSERT_TRUE(res.has_value());
   EXPECT_TRUE(called);
 }
@@ -99,7 +101,7 @@ TEST_F(CreateTest, AwaitTest) {
       });
     });
   }(1, 2, this);
-  optional<int> res = sync_wait(std::move(tsk));
+  std::optional<int> res = sync_wait(std::move(tsk));
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(*res, 3);
 }

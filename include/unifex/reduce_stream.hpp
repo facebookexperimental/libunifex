@@ -28,7 +28,6 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
-#include <unifex/utility.hpp>
 
 #include <exception>
 #include <functional>

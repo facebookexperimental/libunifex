@@ -18,7 +18,6 @@
 
 #include <unifex/sender_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
-#include <unifex/utility.hpp>
 #include <unifex/sender_for.hpp>
 #include <unifex/blocking.hpp>
 

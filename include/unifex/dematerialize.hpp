@@ -24,7 +24,6 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/utility.hpp>
 #include <unifex/blocking.hpp>
 
 #include <functional>

@@ -35,7 +35,6 @@
 #include <unifex/bulk_transform.hpp>
 #include <unifex/bulk_schedule.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/utility.hpp>
 
 #include <exception>
 #include <functional>

@@ -20,7 +20,9 @@
 #include <atomic>
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 #include <unifex/blocking.hpp>
@@ -28,13 +30,10 @@
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/optional.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/type_list.hpp>
-#include <unifex/utility.hpp>
-#include <unifex/variant.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -74,7 +73,7 @@ private:
   };
 
   struct _operation_holder final {
-    unifex::optional<sender_nonvoid_value_type> value;
+    std::optional<sender_nonvoid_value_type> value;
     unifex::connect_result_t<Sender, element_receiver_t> connection;
 
     _operation_holder(Sender&& sender, type& op, std::size_t index) noexcept(
@@ -149,7 +148,7 @@ public:
 
       if (doneOrError_.load(std::memory_order_relaxed)) {
         if (error_.has_value()) {
-          unifex::visit(
+          std::visit(
               [this](auto&& error) {
                 unifex::set_error(
                     std::move(receiver_), std::forward<decltype(error)>(error));
@@ -181,7 +180,7 @@ public:
   _operation_holder* holders_;
   std::size_t numHolders_{0};
   UNIFEX_NO_UNIQUE_ADDRESS
-  unifex::optional<unifex::sender_error_types_t<Sender, unifex::variant>>
+  std::optional<unifex::sender_error_types_t<Sender, std::variant>>
       error_;
   UNIFEX_NO_UNIQUE_ADDRESS
   unifex::manual_lifetime<typename unifex::stop_token_type_t<
@@ -215,7 +214,7 @@ struct _element_receiver<Receiver, Sender>::type final {
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
       op_.error_.emplace(
-          unifex::in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
+          std::in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();

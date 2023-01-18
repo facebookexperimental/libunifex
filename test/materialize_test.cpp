@@ -22,9 +22,9 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/optional.hpp>
 
 #include <cassert>
+#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -33,7 +33,7 @@ using namespace unifex;
 TEST(Materialize, Smoke) {
     single_thread_context ctx;
 
-    optional<int> result = sync_wait(
+    std::optional<int> result = sync_wait(
         dematerialize(
             materialize(
                 then(
@@ -47,7 +47,7 @@ TEST(Materialize, Smoke) {
 TEST(Materialize, Pipeable) {
     single_thread_context ctx;
 
-    optional<int> result = schedule(ctx.get_scheduler())
+    std::optional<int> result = schedule(ctx.get_scheduler())
       | then(
         []() { return 42; })
       | materialize()
@@ -62,7 +62,7 @@ TEST(Materialize, Pipeable) {
 TEST(Materialize, Failure) {
     EXPECT_THROW({
       try {
-        optional<unit> result = just_error(std::make_exception_ptr(std::runtime_error{"failure"}))
+        std::optional<unit> result = just_error(std::make_exception_ptr(std::runtime_error{"failure"}))
           | materialize()
           | dematerialize()
           | sync_wait();

@@ -22,7 +22,8 @@
 #include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/on.hpp>
-#include <unifex/optional.hpp>
+
+#include <optional>
 
 #include <gtest/gtest.h>
 
@@ -37,7 +38,7 @@ TEST(find_if, find_if_sequential) {
     // onwards to the result.
     // Precise API shape for the data being passed through is TBD, this is
     // one option only.
-    optional<std::vector<int>::iterator> result = sync_wait(then(
+    std::optional<std::vector<int>::iterator> result = sync_wait(then(
         find_if(
             just(begin(input), end(input), 3),
             [&](const int& v, int another_parameter) noexcept {
@@ -65,7 +66,7 @@ TEST(find_if, find_if_parallel) {
       input.push_back(i);
     }
     static_thread_pool ctx;
-    optional<std::vector<int>::iterator> result = sync_wait(
+    std::optional<std::vector<int>::iterator> result = sync_wait(
       unifex::on(
         ctx.get_scheduler(),
         then(
@@ -125,7 +126,7 @@ TEST(find_if, Pipeable) {
             UNIFEX_ASSERT(another_parameter == 3);
             return v;
           });
-    optional<std::vector<int>::iterator> result =
+    std::optional<std::vector<int>::iterator> result =
         sync_wait(on(ctx.get_scheduler(), std::move(op)));
 
     EXPECT_EQ(**result, 3);

@@ -24,7 +24,8 @@
 
 #include <chrono>
 #include <iostream>
-#include <unifex/variant.hpp>
+#include <optional>
+#include <variant>
 
 using namespace unifex;
 using namespace std::chrono;
@@ -42,7 +43,7 @@ int main() {
   // Simple usage of 'let_value()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  optional<int> result =
+  std::optional<int> result =
       sync_wait(let_value(async([] { return 42; }), [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
@@ -80,9 +81,9 @@ int main() {
                   return async([&] { return x + y; });
                 });
               })),
-      [](variant<std::tuple<>> a, variant<std::tuple<int>> b) {
+      [](std::variant<std::tuple<>> a, std::variant<std::tuple<int>> b) {
         std::cout << "when_all finished - [" << a.index() << ", "
-                  << std::get<0>(var::get<0>(b)) << "]\n";
+                  << std::get<0>(std::get<0>(b)) << "]\n";
       }));
 
   std::cout << "let_value done " << *result << "\n";
@@ -90,7 +91,7 @@ int main() {
   // Simple usage of 'let_value_with()'
   // - defines an async scope in which the result of a passed invocable
   //   is in-scope for the duration of an operation.
-  optional<int> let_with_result =
+  std::optional<int> let_with_result =
       sync_wait(let_value_with([] { return 42; }, [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
@@ -104,7 +105,7 @@ int main() {
 
    // let_value_with example showing use with a non-moveable type and
    // in-place construction.
-  optional<int> let_with_atomic_result =
+  std::optional<int> let_with_atomic_result =
       sync_wait(let_value_with([] { return std::atomic<int>{42}; },
         [&](std::atomic<int>& x) {
           ++x;

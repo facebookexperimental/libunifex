@@ -25,9 +25,9 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
 
-#include <unifex/variant.hpp>
 #include <chrono>
 #include <iostream>
+#include <optional>
 
 #include "stoppable_receiver.hpp"
 
@@ -76,7 +76,7 @@ TEST_F(LetWithStopToken, Simple) {
   // Simple usage of 'let_value_with_stop_token()'
   // - Sets up some work to execute when receiver is cancelled
   int external_context = 0;
-  optional<int> result =
+  std::optional<int> result =
       sync_wait(let_value_with_stop_source([&](auto& stopSource) {
         return let_value_with_stop_token([&](inplace_stop_token stopToken) {
           // Needs to pass the stop token by value into the capture list

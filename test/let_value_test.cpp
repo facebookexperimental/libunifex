@@ -27,7 +27,8 @@
 
 #include <chrono>
 #include <iostream>
-#include <unifex/variant.hpp>
+#include <optional>
+#include <variant>
 
 #include <gtest/gtest.h>
 
@@ -105,7 +106,7 @@ TEST(Let, Simple) {
   // Simple usage of 'let_value()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  optional<int> result =
+  std::optional<int> result =
       sync_wait(let_value(async(context, [] { return 42; }), [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async(context, [&]() -> int {
@@ -143,12 +144,12 @@ TEST(Let, Nested) {
                   return async(context, [&] { return x + y; });
                 });
               })),
-      [](variant<std::tuple<>> a, variant<std::tuple<int>> b) {
+      [](std::variant<std::tuple<>> a, std::variant<std::tuple<int>> b) {
         std::cout << "when_all finished - [" << a.index() << ", "
-                  << std::get<0>(var::get<0>(b)) << "]\n";
+                  << std::get<0>(std::get<0>(b)) << "]\n";
         EXPECT_EQ(a.index(), 0);
         EXPECT_EQ(b.index(), 0);
-        EXPECT_EQ(std::get<0>(var::get<0>(b)), 63);
+        EXPECT_EQ(std::get<0>(std::get<0>(b)), 63);
       }));
 }
 
@@ -158,7 +159,7 @@ TEST(Let, Pipeable) {
   // Simple usage of 'let_value()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  optional<int> result = async(context, [] { return 42; })
+  std::optional<int> result = async(context, [] { return 42; })
     | let_value(
         [&](int& x) {
           printf("addressof x = %p, val = %i\n", (void*)&x, x);
@@ -240,7 +241,7 @@ TEST(Let, PipeNeverBlockingKind) {
 }
 
 TEST(Let, SimpleLetValueWithAllocate) {
-  optional<int> result =
+  std::optional<int> result =
       sync_wait(let_value(unifex::just(42), [](int num) {
         return unifex::allocate(unifex::just(num));
     }));

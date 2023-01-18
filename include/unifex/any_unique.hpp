@@ -21,9 +21,9 @@
 #include <unifex/this.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/utility.hpp>
 
 #include <memory>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -332,7 +332,7 @@ template <typename T>
 inline constexpr bool is_in_place_type_tag = false;
 
 template <typename T>
-inline constexpr bool is_in_place_type_tag<in_place_type_t<T>> = true;
+inline constexpr bool is_in_place_type_tag<std::in_place_type_t<T>> = true;
 
 template <typename... CPOs>
 struct _byval {
@@ -347,7 +347,7 @@ class _byval<CPOs...>::type
   explicit type(
       std::allocator_arg_t,
       Allocator alloc,
-      unifex::in_place_type_t<Concrete>,
+      std::in_place_type_t<Concrete>,
       Args&&... args)
     : vtable_(vtable_holder_t::template create<
               concrete_impl<Concrete, Allocator, CPOs...>>()) {
@@ -381,11 +381,11 @@ class _byval<CPOs...>::type
     : type(
           std::allocator_arg,
           std::move(alloc),
-          unifex::in_place_type_t<remove_cvref_t<Concrete>>{},
+          std::in_place_type_t<remove_cvref_t<Concrete>>{},
           (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
-  explicit type([[maybe_unused]] unifex::in_place_type_t<Concrete> tag, Args&&... args)
+  explicit type([[maybe_unused]] std::in_place_type_t<Concrete> tag, Args&&... args)
     : impl_(new Concrete((Args&&) args...))
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 

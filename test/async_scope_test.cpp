@@ -26,7 +26,6 @@
 #include <unifex/let_value_with_stop_token.hpp>
 #include <unifex/never.hpp>
 #include <unifex/on.hpp>
-#include <unifex/optional.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/single_thread_context.hpp>
@@ -41,6 +40,7 @@
 
 #include <array>
 #include <atomic>
+#include <optional>
 
 using namespace unifex;
 using namespace unifex_test;
@@ -301,7 +301,7 @@ TEST_F(async_scope_test, discarding_a_future_requests_cancellation) {
 
   std::atomic<bool> wasStopped{false};
 
-  optional<future<>> optFuture = scope.spawn_on(
+  std::optional<future<>> optFuture = scope.spawn_on(
       thread.get_scheduler(),
       let_value_with_stop_token([&](auto stoken) noexcept {
         return let_value_with(

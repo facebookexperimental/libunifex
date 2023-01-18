@@ -20,7 +20,6 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/optional.hpp>
 
 #include <exception>
 #include <tuple>
@@ -82,7 +81,7 @@ class _sender<Values...>::type {
   template(typename... Values2)
     (requires (sizeof...(Values2) == sizeof...(Values)) AND
       constructible_from<std::tuple<Values...>, Values2...>)
-  explicit type(in_place_t, Values2&&... values)
+  explicit type(std::in_place_t, Values2&&... values)
     noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
@@ -106,9 +105,9 @@ namespace _just_cpo {
   inline const struct just_fn {
     template <typename... Values>
     constexpr auto operator()(Values&&... values) const
-      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, in_place_t, Values...>)
+      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, std::in_place_t, Values...>)
       -> _just::sender<Values...> {
-      return _just::sender<Values...>{in_place, (Values&&)values...};
+      return _just::sender<Values...>{std::in_place, (Values&&)values...};
     }
   } just{};
 } // namespace _just_cpo

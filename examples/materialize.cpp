@@ -23,13 +23,14 @@
 #include <unifex/scheduler_concepts.hpp>
 
 #include <cassert>
+#include <optional>
 
 using namespace unifex;
 
 int main() {
     single_thread_context ctx;
 
-    [[maybe_unused]] optional<int> result = sync_wait(
+    [[maybe_unused]] std::optional<int> result = sync_wait(
         dematerialize(
             materialize(
                 then(

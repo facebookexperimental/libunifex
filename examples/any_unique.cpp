@@ -102,7 +102,7 @@ int main() {
   {
     bool hasDestructorRun = false;
     {
-      const A a{unifex::in_place_type_t<destructor>{}, hasDestructorRun};
+      const A a{std::in_place_type_t<destructor>{}, hasDestructorRun};
       UNIFEX_ASSERT(get_typeid(a) == unifex::type_id<destructor>());
       UNIFEX_ASSERT(!hasDestructorRun);
     }
@@ -116,7 +116,7 @@ int main() {
     {
       A a1{std::string("hello"), alloc};
       UNIFEX_ASSERT(res.total_allocated_bytes() >= sizeof(std::string));
-      A a2{std::allocator_arg, alloc, unifex::in_place_type_t<std::string>{}, "hello"};
+      A a2{std::allocator_arg, alloc, std::in_place_type_t<std::string>{}, "hello"};
       UNIFEX_ASSERT(res.total_allocated_bytes() >= 2 * sizeof(std::string));
     }
     UNIFEX_ASSERT(res.total_allocated_bytes() == 0);

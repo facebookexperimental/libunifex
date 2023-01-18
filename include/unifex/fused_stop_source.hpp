@@ -16,7 +16,8 @@
 #pragma once
 
 #include <unifex/inplace_stop_token.hpp>
-#include <unifex/optional.hpp>
+
+#include <optional>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -73,7 +74,7 @@ struct fused_stop_source : unifex::inplace_stop_source {
   void deregister_callbacks() noexcept { callbacks_.reset(); }
 
 private:
-  UNIFEX_NO_UNIQUE_ADDRESS unifex::optional<fused_callback_type> callbacks_;
+  UNIFEX_NO_UNIQUE_ADDRESS std::optional<fused_callback_type> callbacks_;
 };
 }  // namespace _fss
 

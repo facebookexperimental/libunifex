@@ -18,6 +18,8 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
 
+#include <optional>
+
 #include <gtest/gtest.h>
 
 using namespace unifex;
@@ -26,7 +28,7 @@ TEST(schedule_with_subscheduler, Smoke) {
   timed_single_thread_context context;
   auto scheduler = context.get_scheduler();
 
-  optional<bool> result = sync_wait(then(
+  std::optional<bool> result = sync_wait(then(
       schedule_with_subscheduler(scheduler),
       [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
 
@@ -38,7 +40,7 @@ TEST(schedule_with_subscheduler, Pipeable) {
   timed_single_thread_context context;
   auto scheduler = context.get_scheduler();
 
-  optional<bool> result = scheduler
+  std::optional<bool> result = scheduler
     | schedule_with_subscheduler()
     | then([&](auto subScheduler) noexcept {
         return subScheduler == scheduler;

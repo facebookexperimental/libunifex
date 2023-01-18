@@ -25,14 +25,13 @@
 #include <unifex/type_list.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/optional.hpp>
-#include <unifex/utility.hpp>
-#include <unifex/variant.hpp>
 
 #include <atomic>
 #include <cstddef>
+#include <optional>
 #include <tuple>
 #include <type_traits>
+#include <variant>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -124,7 +123,7 @@ using decayed_value_tuple = type_list<std::tuple<std::decay_t<Values>...>>;
 template <typename Sender>
 using value_variant_for_sender =
   typename sender_value_types_t<Sender, concat_type_lists_unique_t, decayed_value_tuple>
-      ::template apply<variant>;
+      ::template apply<std::variant>;
 
 template <size_t Index, typename Receiver, typename... Senders>
 struct _element_receiver {
@@ -144,7 +143,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
     UNIFEX_TRY {
       std::get<Index>(op_.values_)
           .emplace(
-              in_place_type_t<std::tuple<std::decay_t<Values>...>>{},
+              std::in_place_type_t<std::tuple<std::decay_t<Values>...>>{},
               (Values &&) values...);
       op_.element_complete();
     } UNIFEX_CATCH (...) {
@@ -155,7 +154,7 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
-      op_.error_.emplace(in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
+      op_.error_.emplace(std::in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
@@ -245,7 +244,7 @@ private:
       unifex::set_done(std::move(receiver_));
     } else if (doneOrError_.load(std::memory_order_relaxed)) {
       if (error_.has_value()) {
-        unifex::visit(
+        std::visit(
             [this](auto&& error) {
               unifex::set_error(std::move(receiver_), (decltype(error))error);
             },
@@ -269,8 +268,8 @@ private:
     }
   }
 
-  std::tuple<optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
-  optional<error_types<variant, remove_cvref_t<Senders>...>> error_;
+  std::tuple<std::optional<value_variant_for_sender<remove_cvref_t<Senders>>>...> values_;
+  std::optional<error_types<std::variant, remove_cvref_t<Senders>...>> error_;
   // a running cancel_operation increments refCount
   std::atomic<std::size_t> refCount_{sizeof...(Senders)};
   std::atomic<bool> doneOrError_{false};
