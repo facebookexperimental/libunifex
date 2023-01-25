@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 #include <unifex/any_sender_of.hpp>
+#include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/let_value.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
 #include <unifex/let_value_with_stop_token.hpp>
+#include <unifex/nest.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
+#include <unifex/v2/async_scope.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
@@ -371,4 +374,18 @@ TEST_F(LetWithStopToken, PreserveOperationStateNonInPlaceStoppable) {
         destructionCountingLetValueWithStopToken(stopSource),
         NonInplaceStoppableIntReceiver{stopSource});
   });
+}
+
+TEST_F(LetWithStopToken, NestingWithAMutableFactoryWorks) {
+  unifex::v2::async_scope scope;
+
+  auto result = unifex::sync_wait(unifex::nest(
+      unifex::let_value_with_stop_token(
+          [](auto) mutable noexcept { return unifex::just(1); }),
+      scope));
+
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 1);
+
+  unifex::sync_wait(scope.join());
 }
