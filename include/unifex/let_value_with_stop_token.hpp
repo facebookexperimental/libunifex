@@ -52,13 +52,15 @@ using stop_token_receiver =
 template <typename Operation, typename Receiver>
 class _stop_token_receiver<Operation, Receiver>::type {
 public:
+  template <typename Receiver2>
   explicit type(
       Operation* op,
       inplace_stop_token stop_token,
-      Receiver&& r) noexcept(std::is_nothrow_move_constructible_v<Receiver>)
+      Receiver2&&
+          r) noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2>)
     : op_(op)
     , stop_token_(stop_token)
-    , receiver_{(Receiver &&) r} {}
+    , receiver_{static_cast<Receiver2&&>(r)} {}
 
   template(typename... Values)                     //
       (requires receiver_of<Receiver, Values...>)  //
@@ -200,13 +202,17 @@ struct _stop_token_operation<
         is_nothrow_connectable_v<inner_sender_t, receiver_t>;
 
   private:
+    template <typename Receiver2>
     auto connect_inner_op(
         SuccessorFactory& func,
         inplace_stop_token st,
-        Receiver r) noexcept(successor_is_nothrow&&
-                                 inner_receiver_nothrow_constructible&&
-                                     nothrow_connectable) {
-      return unifex::connect(func(st), receiver_t{this, st, std::move(r)});
+        // we need to take r by reference to avoid problems at the call site
+        // related to unsequenced function argument evaluation
+        Receiver2&& r) noexcept(successor_is_nothrow&&
+                                    inner_receiver_nothrow_constructible&&
+                                        nothrow_connectable) {
+      return unifex::connect(
+          func(st), receiver_t{this, st, static_cast<Receiver2&&>(r)});
     }
 
     SuccessorFactory func_;
@@ -271,13 +277,15 @@ struct _stop_token_operation<SuccessorFactory, Receiver, AlwaysVoid>::type {
       unifex::is_nothrow_connectable_v<inner_sender_t, receiver_t>;
 
 private:
+  template <typename Receiver2>
   auto connect_inner_op(
       SuccessorFactory& func,
       inplace_stop_token st,
-      Receiver r) noexcept(successor_is_nothrow&&
-                               inner_receiver_nothrow_constructible&&
-                                   nothrow_connectable) {
-    return unifex::connect(func(st), receiver_t{this, st, std::move(r)});
+      Receiver2&& r) noexcept(successor_is_nothrow&&
+                                  inner_receiver_nothrow_constructible&&
+                                      nothrow_connectable) {
+    return unifex::connect(
+        func(st), receiver_t{this, st, static_cast<Receiver2&&>(r)});
   }
 
   SuccessorFactory func_;
