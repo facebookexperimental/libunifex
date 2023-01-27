@@ -193,4 +193,27 @@ TEST(nest_test, nest_has_the_expected_noexcept_clause) {
 }
 #endif  // !defined(__GNUC__) || __GNUC__ > 9
 
+TEST(nest_test, nest_operation_drops_scope_reference_on_completion) {
+  struct receiver {
+    void set_value() noexcept {}
+    void set_error(std::exception_ptr) noexcept {}
+    void set_done() noexcept {}
+  };
+
+  unifex::v2::async_scope scope;
+
+  {
+    auto op = unifex::connect(unifex::nest(unifex::just(), scope), receiver{});
+
+    EXPECT_EQ(scope.use_count(), 1);
+
+    unifex::start(op);
+
+    // the operation is fully synchronous so it's done by now
+    EXPECT_EQ(scope.use_count(), 0);
+  }
+
+  unifex::sync_wait(scope.join());
+}
+
 }  // namespace

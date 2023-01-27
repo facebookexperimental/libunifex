@@ -192,54 +192,101 @@ template <typename Sender, typename Receiver>
 using nest_op = typename _nest_op<Sender, Receiver>::type;
 
 template <typename Sender, typename Receiver>
+struct _nest_receiver final {
+  struct type;
+};
+
+template <typename Sender, typename Receiver>
+using nest_receiver = typename _nest_receiver<Sender, Receiver>::type;
+
+template <typename Sender, typename Receiver>
 struct _nest_op<Sender, Receiver>::type final {
   template <typename Sender2, typename Receiver2>
   explicit type(Sender2&& s, Receiver2&& r, scope_reference&& scope) noexcept(
-      is_nothrow_connectable_v<Sender2, Receiver2>)
-    : scope_(std::move(scope)) {
+      is_nothrow_connectable_v<Sender2, nest_receiver<Sender, Receiver>>)
+    : scope_(std::move(scope))
+    , receiver_(static_cast<Receiver2&&>(r)) {
     UNIFEX_ASSERT(scope_);
     activate_union_member_with(op_, [&]() {
       return unifex::connect(
-          static_cast<Sender2&&>(s), static_cast<Receiver2&&>(r));
+          static_cast<Sender2&&>(s), nest_receiver<Sender, Receiver>{this});
     });
   }
 
   explicit type(Receiver&& r) noexcept(
-      std::is_nothrow_move_constructible_v<Receiver>) {
-    activate_union_member(receiver_, std::move(r));
-  }
+      std::is_nothrow_move_constructible_v<Receiver>)
+    : receiver_(std::move(r)) {}
 
   explicit type(const Receiver& r) noexcept(
-      std::is_nothrow_copy_constructible_v<Receiver>) {
-    activate_union_member(receiver_, r);
-  }
+      std::is_nothrow_copy_constructible_v<Receiver>)
+    : receiver_(r) {}
 
   type(type&& op) = delete;
 
-  ~type() {
-    if (scope_) {
-      deactivate_union_member(op_);
-    } else {
-      deactivate_union_member(receiver_);
-    }
-  }
+  ~type() { cleanup(); }
 
   friend void tag_invoke(tag_t<start>, type& op) noexcept {
     if (op.scope_) {
       unifex::start(op.op_.get());
     } else {
-      unifex::set_done(std::move(op).receiver_.get());
+      unifex::set_done(std::move(op).receiver_);
     }
   }
 
-private:
-  using op_t = connect_result_t<Sender, Receiver>;
+  void cleanup() noexcept {
+    if (auto scope = std::move(scope_)) {
+      op_.destruct();
+    }
+  }
+
+  using op_t = connect_result_t<Sender, nest_receiver<Sender, Receiver>>;
 
   scope_reference scope_;
-  union {
-    UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<Receiver> receiver_;
-    UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<op_t> op_;
-  };
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS manual_lifetime<op_t> op_;
+};
+
+template <typename Sender, typename Receiver>
+struct _nest_receiver<Sender, Receiver>::type final {
+  nest_op<Sender, Receiver>* op_;
+
+  template <typename... T>
+  void set_value(T... values) noexcept {
+    auto op = op_;
+
+    op->cleanup();
+
+    UNIFEX_TRY {
+      unifex::set_value(std::move(op->receiver_), std::move(values)...);
+    }
+    UNIFEX_CATCH(...) {
+      unifex::set_error(std::move(op->receiver_), std::current_exception());
+    }
+  }
+
+  template <typename E>
+  void set_error(E e) noexcept {
+    auto op = op_;
+
+    op->cleanup();
+
+    unifex::set_error(std::move(op->receiver_), std::move(e));
+  }
+
+  void set_done() noexcept {
+    auto op = op_;
+
+    op->cleanup();
+
+    unifex::set_done(std::move(op->receiver_));
+  }
+
+  template(typename CPO)                       //
+      (requires is_receiver_query_cpo_v<CPO>)  //
+      friend auto tag_invoke(CPO&& cpo, const type& r) noexcept
+      -> decltype(std::move(cpo)(std::declval<const Receiver&>())) {
+    return std::move(cpo)(r.op_->receiver_);
+  }
 };
 
 template <typename Sender>
@@ -251,8 +298,18 @@ struct _nest_sender<Sender>::type final {
       class Tuple>
   using value_types = sender_value_types_t<Sender, Variant, Tuple>;
 
+  // we add exception_ptr to our predecessor's error_types because our
+  // set_value() catches exceptions thrown by our receiver's set_value() and
+  // passes them to our receiver's set_error.
+  //
+  // TODO: not all predecessors invoke our set_value() (e.g. just_error() and
+  //       just_done()) so we actually only need this when our predecessor's
+  //       value_types is non-empty but I don't know how to do that computation
+  //       right now.
   template <template <typename...> class Variant>
-  using error_types = sender_error_types_t<Sender, Variant>;
+  using error_types = typename concat_type_lists_unique_t<
+      sender_error_types_t<Sender, type_list>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done = true;
 
