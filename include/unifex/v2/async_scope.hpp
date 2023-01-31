@@ -203,7 +203,8 @@ template <typename Sender, typename Receiver>
 struct _nest_op<Sender, Receiver>::type final {
   template <typename Sender2, typename Receiver2>
   explicit type(Sender2&& s, Receiver2&& r, scope_reference&& scope) noexcept(
-      is_nothrow_connectable_v<Sender2, nest_receiver<Sender, Receiver>>)
+      std::is_nothrow_constructible_v<Receiver, Receiver2>&&
+          is_nothrow_connectable_v<Sender2, nest_receiver<Sender, Receiver>>)
     : scope_(std::move(scope))
     , receiver_(static_cast<Receiver2&&>(r)) {
     UNIFEX_ASSERT(scope_);
@@ -223,19 +224,17 @@ struct _nest_op<Sender, Receiver>::type final {
 
   type(type&& op) = delete;
 
-  ~type() { cleanup(); }
+  ~type() {
+    if (scope_) {
+      op_.destruct();
+    }
+  }
 
   friend void tag_invoke(tag_t<start>, type& op) noexcept {
     if (op.scope_) {
       unifex::start(op.op_.get());
     } else {
       unifex::set_done(std::move(op).receiver_);
-    }
-  }
-
-  void cleanup() noexcept {
-    if (auto scope = std::move(scope_)) {
-      op_.destruct();
     }
   }
 
@@ -252,33 +251,35 @@ struct _nest_receiver<Sender, Receiver>::type final {
 
   template <typename... T>
   void set_value(T... values) noexcept {
-    auto op = op_;
-
-    op->cleanup();
-
-    UNIFEX_TRY {
-      unifex::set_value(std::move(op->receiver_), std::move(values)...);
-    }
-    UNIFEX_CATCH(...) {
-      unifex::set_error(std::move(op->receiver_), std::current_exception());
-    }
+    complete([&](auto&& receiver) noexcept {
+      UNIFEX_TRY {
+        unifex::set_value(std::move(receiver), std::move(values)...);
+      }
+      UNIFEX_CATCH(...) {
+        unifex::set_error(std::move(receiver), std::current_exception());
+      }
+    });
   }
 
   template <typename E>
   void set_error(E e) noexcept {
-    auto op = op_;
-
-    op->cleanup();
-
-    unifex::set_error(std::move(op->receiver_), std::move(e));
+    complete([&](auto&& receiver) noexcept {
+      unifex::set_error(std::move(receiver), std::move(e));
+    });
   }
 
-  void set_done() noexcept {
-    auto op = op_;
+  void set_done() noexcept { complete(unifex::set_done); }
 
-    op->cleanup();
+  template <typename Func>
+  void complete(Func func) noexcept {
+    // keep a strong reference on the scope until this function returns
+    auto scope = std::move(op_->scope_);
 
-    unifex::set_done(std::move(op->receiver_));
+    // we're done with the inner operation
+    op_->op_.destruct();
+
+    // from here the current object may be destroyed
+    func(std::move(op_->receiver_));
   }
 
   template(typename CPO)                       //
