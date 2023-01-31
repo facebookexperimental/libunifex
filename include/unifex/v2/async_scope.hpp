@@ -272,14 +272,19 @@ struct _nest_receiver<Sender, Receiver>::type final {
 
   template <typename Func>
   void complete(Func func) noexcept {
-    // keep a strong reference on the scope until this function returns
-    auto scope = std::move(op_->scope_);
+    // save this->op_ into a local because we're about to destroy the current
+    // object, invalidating the this pointer
+    auto op = op_;
 
-    // we're done with the inner operation
-    op_->op_.destruct();
+    // keep a strong reference on the scope until this function returns
+    auto scope = std::move(op->scope_);
+
+    // we're done with the inner operation; note: this call destroys the current
+    // object, which is why we've saved this->op_ into a local
+    op->op_.destruct();
 
     // from here the current object may be destroyed
-    func(std::move(op_->receiver_));
+    func(std::move(op->receiver_));
   }
 
   template(typename CPO)                       //

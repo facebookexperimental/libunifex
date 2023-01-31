@@ -15,6 +15,7 @@
  */
 #include <unifex/v2/async_scope.hpp>
 
+#include <unifex/allocate.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
@@ -440,7 +441,8 @@ TEST_F(
   // TODO: factor this in terms of let_error so we can check this logic even
   //       when exceptions are disabled
   try {
-    unifex::sync_wait(scope.nest(unifex::just_error(42)));
+    // allocate the nested sender to help catch lifetime bugs with ASAN
+    unifex::sync_wait(scope.nest(unifex::allocate(unifex::just_error(42))));
   } catch (int i) {
     EXPECT_EQ(42, i);
   } catch (...) {
