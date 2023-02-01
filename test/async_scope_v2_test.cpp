@@ -15,6 +15,7 @@
  */
 #include <unifex/v2/async_scope.hpp>
 
+#include <unifex/allocate.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
@@ -184,8 +185,11 @@ TEST_F(
 
   // values_types is just the nested sender's value_types
   static_assert(std::is_same_v<value_types, variant<>>);
-  // error_types is the nested sender's error_types
-  static_assert(std::is_same_v<error_types, variant<int>>);
+  // error_types is the nested sender's error_types + std::exception_ptr
+  //
+  // TODO: we don't actually need std::exception_ptr here (see TODO in
+  //       v2/async_scope.hpp)
+  static_assert(std::is_same_v<error_types, variant<int, std::exception_ptr>>);
   // sends_done is always true because the sender completes with done if nesting
   // fails
   static_assert(sender_t::sends_done);
@@ -208,8 +212,11 @@ TEST_F(async_scope_v2_test, nest_of_just_done_has_expected_static_properties) {
 
   // values_types is just the nested sender's value_types
   static_assert(std::is_same_v<value_types, variant<>>);
-  // error_types is the nested sender's error_types
-  static_assert(std::is_same_v<error_types, variant<>>);
+  // error_types is the nested sender's error_types + std::exception_ptr
+  //
+  // TODO: we don't actually need std::exception_ptr here (see TODO in
+  //       v2/async_scope.hpp)
+  static_assert(std::is_same_v<error_types, variant<std::exception_ptr>>);
   // sends_done is always true because the sender completes with done if nesting
   // fails
   static_assert(sender_t::sends_done);
@@ -233,13 +240,13 @@ TEST_F(
   using just_sender_t = decltype(unifex::just(newtype{}));
 
 // MSVC incorrectly fails these assertions
-#ifndef _MSC_VER
+#  ifndef _MSC_VER
   // just_sender_t has a throwing move constructor...
   static_assert(!noexcept(scope.nest(std::declval<just_sender_t>())));
 
   // ...and a throwing copy constructor
   static_assert(!noexcept(scope.nest(std::declval<just_sender_t&>())));
-#endif
+#  endif
   auto sender = scope.nest(unifex::just(newtype{}));
 
   using sender_t = decltype(sender);
@@ -254,10 +261,10 @@ TEST_F(
   // fails
   static_assert(sender_t::sends_done);
 // MSVC incorrectly fails these assertions
-#ifndef _MSC_VER
+#  ifndef _MSC_VER
   static_assert(!std::is_nothrow_move_constructible_v<sender_t>);
   static_assert(!std::is_nothrow_copy_constructible_v<sender_t>);
-#endif
+#  endif
 }
 #endif
 
@@ -434,7 +441,8 @@ TEST_F(
   // TODO: factor this in terms of let_error so we can check this logic even
   //       when exceptions are disabled
   try {
-    unifex::sync_wait(scope.nest(unifex::just_error(42)));
+    // allocate the nested sender to help catch lifetime bugs with ASAN
+    unifex::sync_wait(scope.nest(unifex::allocate(unifex::just_error(42))));
   } catch (int i) {
     EXPECT_EQ(42, i);
   } catch (...) {
