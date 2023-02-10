@@ -132,3 +132,37 @@ TEST(TransformError, JustError) {
   ASSERT_TRUE(one.has_value());
   EXPECT_EQ(*one, 42);
 }
+
+TEST(TransformError, SequenceRef) {
+  auto one = just_error(42)  //
+      | let_error([](auto& e) mutable {
+               return sequence(just_from([] {}), just_error(std::move(e)));
+             })                //
+      | let_error(just_int{})  //
+      | sync_wait();
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
+
+TEST(TransformError, SequenceVal) {
+  auto one = just_error(42)  //
+      | let_error([](auto e) mutable {
+               return sequence(just_from([] {}), just_error(std::move(e)));
+             })                //
+      | let_error(just_int{})  //
+      | sync_wait();
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
+
+TEST(TransformError, SequenceFwd) {
+  auto one = just_error(42)  //
+      | let_error([](auto&& e) mutable {
+               return sequence(
+                   just_from([] {}), just_error(static_cast<decltype(e)&&>(e)));
+             })                //
+      | let_error(just_int{})  //
+      | sync_wait();
+  ASSERT_TRUE(one.has_value());
+  EXPECT_EQ(*one, 42);
+}
