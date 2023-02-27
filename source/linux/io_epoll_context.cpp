@@ -230,7 +230,7 @@ void io_epoll_context::execute_pending_local() noexcept {
 
   LOG("processing local queue items");
 
-  size_t count = 0;
+  size_t count [[maybe_unused]] = 0;
   auto pending = std::move(localQueue_);
   while (!pending.empty()) {
     auto* item = pending.pop_front();
