@@ -401,13 +401,13 @@ struct _spawn_future_op<T...>::type : _spawn_future_op_base {
   // returns a Sender that produces the values produced by the spawned
   // operation
   auto
-  get_value_sender() noexcept(noexcept(apply(just, std::move(values_).get()))) {
+  get_value_sender() noexcept(noexcept(apply(just, std::move(this->values_).get()))) {
     return apply(just, std::move(values_).get());
   }
 
   // returns a Sender that produces the error produced by the spawned operation
   auto
-  get_error_sender() noexcept(noexcept(just_error(std::move(error_).get()))) {
+  get_error_sender() noexcept(noexcept(just_error(std::move(this->error_).get()))) {
     return just_error(std::move(error_).get());
   }
 
@@ -606,6 +606,13 @@ struct _spawn_future_op_impl<Sender, Scope, Alloc>::type final
   // instantiations
   static_assert(same_as<std::byte, typename Alloc::value_type>);
 
+  using nest_sender_t =
+      decltype(nest(std::declval<Sender>(), std::declval<Scope&>()));
+
+  using receiver_t = spawn_future_receiver_for<Sender, Alloc>;
+
+  using op_t = connect_result_t<nest_sender_t, receiver_t>;
+
   explicit type(const Alloc& alloc) noexcept
     : _spawn_future_op_alloc<Alloc>::type{alloc}
     , spawn_future_op_for<Sender>{&destroy_operation, &deleter} {}
@@ -652,13 +659,6 @@ struct _spawn_future_op_impl<Sender, Scope, Alloc>::type final
   friend void tag_invoke(tag_t<start>, type& op) noexcept {
     start(op.op_.get());
   }
-
-  using nest_sender_t =
-      decltype(nest(std::declval<Sender>(), std::declval<Scope&>()));
-
-  using receiver_t = spawn_future_receiver_for<Sender, Alloc>;
-
-  using op_t = connect_result_t<nest_sender_t, receiver_t>;
 
   manual_lifetime<op_t> op_;
 
@@ -788,7 +788,7 @@ struct _future_sender_from_stop_token<T...>::type final {
 // successfully nested then the future<> holds a reference on its associated
 // scope until it is either discarded or completed.
 template <typename Scope, typename... T>
-struct [[nodiscard]] _future<Scope, T...>::type final {
+struct _future<Scope, T...>::type final {
 private:
   using spawn_future_op_t = typename _spawn_future_op<T...>::type;
 
@@ -865,7 +865,7 @@ public:
       (requires typed_sender<remove_cvref_t<Sender>> AND
            std::is_invocable_v<tag_t<nest>, Sender, Scope&> AND
                is_allocator_v<Alloc>)  //
-      auto
+      [[nodiscard]] auto
       operator()(Sender&& sender, Scope& scope, const Alloc& alloc = {}) const {
     // We need to do several things here and the ordering is nuanced:
     //  - We should provide the Strong Exception Guarantee: if an exception is
