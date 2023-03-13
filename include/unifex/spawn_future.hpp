@@ -788,7 +788,7 @@ struct _future_sender_from_stop_token<T...>::type final {
 // successfully nested then the future<> holds a reference on its associated
 // scope until it is either discarded or completed.
 template <typename Scope, typename... T>
-struct _future<Scope, T...>::type final {
+struct [[nodiscard]] _future<Scope, T...>::type final {
 private:
   using spawn_future_op_t = typename _spawn_future_op<T...>::type;
 
@@ -865,7 +865,7 @@ public:
       (requires typed_sender<remove_cvref_t<Sender>> AND
            std::is_invocable_v<tag_t<nest>, Sender, Scope&> AND
                is_allocator_v<Alloc>)  //
-      [[nodiscard]] auto
+      auto
       operator()(Sender&& sender, Scope& scope, const Alloc& alloc = {}) const {
     // We need to do several things here and the ordering is nuanced:
     //  - We should provide the Strong Exception Guarantee: if an exception is
