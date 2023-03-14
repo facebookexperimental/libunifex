@@ -116,7 +116,7 @@ public:
   template <typename Sender2, typename Value2>
   explicit type(Sender2&& sender, Value2&& value)
     : sender_((Sender2 &&) sender)
-    , value_((Value &&) value) {}
+    , value_((Value2 &&) value) {}
 
   template(typename Self, typename Receiver)  //
       (requires same_as<remove_cvref_t<Self>, type> AND
