@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 #include <unifex/any_sender_of.hpp>
+#include <unifex/async_manual_reset_event.hpp>
 #include <unifex/defer.hpp>
 #include <unifex/dematerialize.hpp>
 #include <unifex/just.hpp>
-#include <unifex/just_error.hpp>
 #include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
+#include <unifex/let_value.hpp>
 #include <unifex/materialize.hpp>
-#include <unifex/variant_sender.hpp>
+#include <unifex/nest.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
+#include <unifex/v2/async_scope.hpp>
+#include <unifex/variant_sender.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -239,4 +243,22 @@ TEST(Variant, TestNoexcept_RvalueRef) {
 
   auto rvalue_no_except = is_noexcept<false, true, false>::value;
   EXPECT_TRUE(rvalue_no_except);
+}
+
+TEST(Variant, TestMSVCCpp20RegressionScenario) {
+  unifex::v2::async_scope scope;
+  unifex::async_manual_reset_event evt{true};
+
+  auto ret = unifex::sync_wait(unifex::nest(
+      unifex::let_value(
+          evt.async_wait(),
+          []() noexcept {
+            return unifex::variant_sender<decltype(unifex::just())>{
+                unifex::just()};
+          }),
+      scope));
+
+  unifex::sync_wait(scope.join());
+
+  ASSERT_TRUE(ret.has_value());
 }
