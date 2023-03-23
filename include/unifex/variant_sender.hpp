@@ -107,13 +107,19 @@ class _sender<Senders...>::type {
   friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
     noexcept(std::conjunction_v<unifex::is_nothrow_connectable<match_reference_t<This, Senders>, Receiver>...>)
   {
+    // MSVC needs this type alias declared outside the lambda below to reliably compile
+    // the visit() expression as C++20
+    using op_t = operation<connect_result_t<Senders, Receiver>...>;
     return std::visit(
         [&r](auto&& sender) noexcept(
             unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
-          return operation<connect_result_t<Senders, Receiver>...>{
-             static_cast<decltype(sender)&&>(sender), static_cast<Receiver&&>(r)};
+          // MSVC doesn't like static_cast<Receiver&&>(r) in some cases when compiling
+          // as C++20, but seems to reliably do the right thing with
+          // static_cast<decltype(r)>(r)
+          return op_t{
+             static_cast<decltype(sender)&&>(sender), static_cast<decltype(r)>(r)};
         },
-        std::move(static_cast<decltype(that)>(that).senderVariant_));
+        static_cast<decltype(that)>(that).senderVariant_);
   }
 };
 } // namespace _variant_sender
