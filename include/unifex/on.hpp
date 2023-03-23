@@ -31,7 +31,7 @@ namespace _on {
   inline const struct _fn {
     template(typename Scheduler, typename Sender)
         (requires sender<Sender> AND scheduler<Scheduler> AND //
-          tag_invocable<_fn, Sender, Scheduler>)
+          tag_invocable<_fn, Scheduler, Sender>)
     auto operator()(Scheduler&& scheduler, Sender&& sender) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Scheduler, Sender>)
         -> tag_invoke_result_t<_fn, Scheduler, Sender> {
