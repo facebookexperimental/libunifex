@@ -22,16 +22,64 @@
 
 namespace unifex {
 namespace _unstoppable {
-inline const struct _fn {
-  template <typename Sender>
-  constexpr auto operator()(Sender&& sender) const noexcept {
-    return with_query_value(
-        (Sender &&) sender, get_stop_token, unstoppable_token{});
+
+template <typename Sender>
+struct _sender final {
+  struct type;
+};
+
+template <typename Sender>
+using sender = typename _sender<remove_cvref_t<Sender>>::type;
+
+template <typename Sender>
+struct _sender<Sender>::type final {
+  UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
+
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = sender_value_types_t<Sender, Variant, Tuple>;
+
+  template <template <typename...> class Variant>
+  using error_types = sender_error_types_t<Sender, Variant>;
+
+  static constexpr bool sends_done = sender_traits<Sender>::sends_done;
+
+  template(typename Self, typename Receiver)  //
+      (requires same_as<type, remove_cvref_t<Self>> AND
+           sender_to<member_t<Self, Sender>, Receiver>)  //
+      friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
+          is_nothrow_connectable_v<
+              member_t<Self, Sender>,
+              remove_cvref_t<Receiver>>) {
+    return connect(
+        with_query_value(
+            static_cast<Self&&>(self).sender_,
+            get_stop_token,
+            unstoppable_token{}),
+        static_cast<Receiver&&>(r));
   }
-} unstoppable{};
+
+  friend auto tag_invoke(tag_t<blocking>, const type& s) noexcept {
+    return blocking(s.sender_);
+  }
+};
+
 }  // namespace _unstoppable
 
-using _unstoppable::unstoppable;
+namespace _unstoppable_cpo {
+inline const struct _fn {
+  template <typename Sender>
+  constexpr auto operator()(Sender&& sender) const noexcept(
+      std::is_nothrow_constructible_v<_unstoppable::sender<Sender>, Sender>) {
+    return _unstoppable::sender<Sender>{static_cast<Sender&&>(sender)};
+  }
+} unstoppable{};
+}  // namespace _unstoppable_cpo
+
+using _unstoppable_cpo::unstoppable;
 
 }  // namespace unifex
 
