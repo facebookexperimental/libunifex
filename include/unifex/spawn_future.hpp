@@ -181,6 +181,10 @@ struct _spawn_future_op_base {
 
       // publish the result
       evt_.set();
+    } else {
+      UNIFEX_ASSERT(
+          expected == _future_state::value ||
+          expected == _future_state::error || expected == _future_state::done);
     }
   }
 
@@ -353,11 +357,11 @@ struct _spawn_future_op_base {
     // right after the _spawn_future_op_alloc sub-object, so we can move
     // backwards from this by the size of a _spawn_future_op_alloc<Alloc> to get
     // to our allocator
-    const std::byte* bytePtr_ = reinterpret_cast<const std::byte*>(this);
+    const std::byte* bytePtr = reinterpret_cast<const std::byte*>(this);
 
-    bytePtr_ -= sizeof(op_alloc_t);
+    bytePtr -= sizeof(op_alloc_t);
 
-    const op_alloc_t* op = reinterpret_cast<const op_alloc_t*>(bytePtr_);
+    const op_alloc_t* op = reinterpret_cast<const op_alloc_t*>(bytePtr);
 
     return op->alloc_;
   }
@@ -371,7 +375,7 @@ struct _spawn_future_op_base {
   void (*deleter_)(_spawn_future_op_base*, _future_state) noexcept;
   // the stop source from which the spawned operation gets stop tokens
   inplace_stop_source stopSource_;
-  // the operations current state; see the comments on the _future_state enum
+  // the operation's current state; see the comments on the _future_state enum
   // for an explanation of the state machine
   std::atomic<_future_state> state_{_future_state::init};
 };
@@ -400,14 +404,14 @@ struct _spawn_future_op<T...>::type : _spawn_future_op_base {
 
   // returns a Sender that produces the values produced by the spawned
   // operation
-  auto
-  get_value_sender() noexcept(noexcept(apply(just, std::move(this->values_).get()))) {
+  auto get_value_sender() noexcept(
+      noexcept(apply(just, std::move(this->values_).get()))) {
     return apply(just, std::move(values_).get());
   }
 
   // returns a Sender that produces the error produced by the spawned operation
-  auto
-  get_error_sender() noexcept(noexcept(just_error(std::move(this->error_).get()))) {
+  auto get_error_sender() noexcept(
+      noexcept(just_error(std::move(this->error_).get()))) {
     return just_error(std::move(error_).get());
   }
 
@@ -607,7 +611,7 @@ struct _spawn_future_op_impl<Sender, Scope, Alloc>::type final
   static_assert(same_as<std::byte, typename Alloc::value_type>);
 
   using nest_sender_t =
-      decltype(nest(std::declval<Sender>(), std::declval<Scope&>()));
+      decltype(nest(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Scope&)));
 
   using receiver_t = spawn_future_receiver_for<Sender, Alloc>;
 
@@ -783,7 +787,7 @@ struct _future_sender_from_stop_token<T...>::type final {
 // Scope.
 //
 // A future<> is nested within its associated scope, which means that a) it may
-// have *failed* to nest, which case there is no associated spawned operation
+// have *failed* to nest, in which case there is no associated spawned operation
 // and the future<> can only complete with set_done(), and b) if it was
 // successfully nested then the future<> holds a reference on its associated
 // scope until it is either discarded or completed.
@@ -799,7 +803,7 @@ private:
     return let_value_with_stop_token(callable{op});
   }
 
-  using sender_t = decltype(nest(make_sender(nullptr), std::declval<Scope&>()));
+  using sender_t = decltype(nest(make_sender(nullptr), UNIFEX_DECLVAL(Scope&)));
 
   sender_t sender_;
 
