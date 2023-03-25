@@ -35,10 +35,10 @@ int main() {
               trampoline_scheduler{},
               transform_stream(
                   range_stream{0, 100'000},
-                  [](int value) { return value * value; })),
+                  [](unsigned value) { return value * value; })),
           0,
-          [](int state, int value) { return state + 10 * value; }),
-      [&](int result) { std::printf("result: %i\n", result); }));
+          [](unsigned state, unsigned value) { return state + 10 * value; }),
+      [&](unsigned result) { std::printf("result: %i\n", result); }));
 
   return 0;
 }
