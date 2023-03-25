@@ -20,13 +20,15 @@
 
 #include <thread>
 
+#include <unifex/just.hpp>
+#include <unifex/let_done.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/never.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/stop_if_requested.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
 #include <unifex/then.hpp>
-#include <unifex/stop_if_requested.hpp>
-#include <unifex/single_thread_context.hpp>
-#include <unifex/just.hpp>
-#include <unifex/let_done.hpp>
 
 #include <gtest/gtest.h>
 
@@ -192,6 +194,102 @@ TEST_F(TaskSchedulerAffinityTest, ContextRestoredOnErrrorTest) {
   } else {
     ADD_FAILURE() << "child coroutine completed unexpectedly";
   }
+}
+
+namespace {
+
+unifex::task<void>
+awaitSenderThatIgnoresDone(unifex::inplace_stop_source& stopSource) {
+  stopSource.request_stop();
+
+  // swallowing a done signal here should be effective
+  co_await unifex::let_done(unifex::never_sender{}, unifex::just);
+}
+
+}  // namespace
+
+TEST_F(
+    TaskSchedulerAffinityTest,
+    LetDoneCanSwallowCancellationSignalsFromAsyncSenders) {
+  auto ret = unifex::sync_wait(
+      unifex::let_value_with_stop_source(awaitSenderThatIgnoresDone));
+
+  EXPECT_TRUE(ret.has_value());
+}
+
+namespace {
+
+// a custom awaitable that is, effectively, let_done(never_sender{}, just)
+struct awaitable final {
+  struct receiver final {
+    awaitable* awaitable_;
+    unifex::inplace_stop_token stoken_;
+    coro::coroutine_handle<> continuation_;
+
+    // never invoked, but necessary to model unifex::receiver
+    void set_value() noexcept { std::terminate(); }
+
+    // never invoked, but necessary to model unifex::receiver
+    void set_error(std::exception_ptr) noexcept { std::terminate(); }
+
+    void set_done() noexcept {
+      auto continuation = continuation_;
+      awaitable_->op_.destruct();
+
+      // "swallow" the done signal by resuming and returning void
+      continuation.resume();
+    }
+
+    friend inplace_stop_token tag_invoke(
+        unifex::tag_t<unifex::get_stop_token>, const receiver& r) noexcept {
+      return r.stoken_;
+    }
+  };
+
+  using op_t = unifex::connect_result_t<unifex::never_sender, receiver>;
+
+  unifex::manual_lifetime<op_t> op_;
+
+  awaitable() noexcept = default;
+
+  // we get copied before being awaited so we can just ignore op_
+  awaitable(const awaitable&) noexcept {}
+
+  constexpr bool await_ready() const noexcept { return false; }
+
+  template <typename Promise>
+  void await_suspend(coro::coroutine_handle<Promise> h) noexcept {
+    unifex::inplace_stop_token stoken = unifex::get_stop_token(h.promise());
+
+    op_.construct_with([&]() noexcept {
+      return unifex::connect(unifex::never_sender{}, receiver{this, stoken, h});
+    });
+
+    unifex::start(op_.get());
+  }
+
+  constexpr void await_resume() const noexcept {}
+};
+
+unifex::task<void>
+awaitAwaitableThatIgnoresDone(unifex::inplace_stop_source& stopSource) {
+  stopSource.request_stop();
+
+  // this expression only completes because the current stop token has had stop
+  // requested, however, awaitable swallows the resulting done signal and
+  // returns void so this coroutine should return normally
+  co_await awaitable{};
+}
+
+}  // namespace
+
+TEST_F(
+    TaskSchedulerAffinityTest,
+    DoneSwallowingAwaitableCanSwallowCancellationSignals) {
+  auto ret = unifex::sync_wait(
+      unifex::let_value_with_stop_source(awaitAwaitableThatIgnoresDone));
+
+  EXPECT_TRUE(ret.has_value());
 }
 
 #endif // !UNIFEX_NO_COROUTINES
