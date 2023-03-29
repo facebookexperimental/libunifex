@@ -379,7 +379,8 @@ public:
     typename Receiver,
     typename...,
     typename SourceReceiver = receiver_type<member_t<Sender, Source>, Func, Receiver>)
-      (requires same_as<remove_cvref_t<Sender>, type> AND
+      (requires receiver<Receiver> AND
+          same_as<remove_cvref_t<Sender>, type> AND
           constructible_from<Func, member_t<Sender, Func>> AND
           constructible_from<remove_cvref_t<Receiver>, Receiver> AND
           sender_to<Source, SourceReceiver>)
