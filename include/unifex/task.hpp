@@ -15,24 +15,25 @@
  */
 #pragma once
 
+#include <unifex/any_scheduler.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/await_transform.hpp>
+#include <unifex/blocking.hpp>
 #include <unifex/connect_awaitable.hpp>
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/inline_scheduler.hpp>
-#include <unifex/manual_lifetime.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/coroutine_concepts.hpp>
+#include <unifex/finally.hpp>
+#include <unifex/inline_scheduler.hpp>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/invoke.hpp>
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/scope_guard.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
-#include <unifex/scope_guard.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/invoke.hpp>
-#include <unifex/continuations.hpp>
-#include <unifex/any_scheduler.hpp>
-#include <unifex/typed_via.hpp>
-#include <unifex/blocking.hpp>
+#include <unifex/unstoppable.hpp>
 
 #if UNIFEX_NO_COROUTINES
 # error "Coroutine support is required to use this header"
@@ -216,7 +217,7 @@ struct _promise {
       } else {
         return unifex::await_transform(
             *this,
-            typed_via(as_sender((Awaitable&&) awaitable), this->sched_));
+            finally(as_sender((Awaitable&&) awaitable), unstoppable(schedule(this->sched_))));
       }
     }
 
@@ -231,7 +232,8 @@ struct _promise {
       } else {
         // Otherwise, append a transition to the correct execution context and wrap the
         // result in an awaiter:
-        return unifex::await_transform(*this, typed_via((Sender&&) sndr, this->sched_));
+        return unifex::await_transform(*this,
+            finally((Sender&&) sndr, unstoppable(schedule(this->sched_))));
       }
     }
 
