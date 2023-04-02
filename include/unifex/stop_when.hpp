@@ -195,7 +195,24 @@ private:
   public:
     explicit cancel_callback(type* op) noexcept : op_(op) {}
 
-    void operator()() noexcept { op_->stopSource_.request_stop(); }
+    void operator()() noexcept {
+      // save this on the stack; it's likely this callback object will be
+      // destroyed as a side effect of requesting stop on the operation's stop
+      // source so we can't use this->op_ after request_stop() returns
+      auto op = op_;
+
+      if (op->activeOpCount_.fetch_add(1, std::memory_order_relaxed) == 0) {
+        // someone's already invoked deliver_result() so we should bail out
+        return;
+      }
+
+      op->stopSource_.request_stop();
+
+      if (op->activeOpCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        // we're the last owner of the operation so deliver its result now
+        op->deliver_result();
+      }
+    }
 
   private:
     type* op_;
@@ -359,7 +376,7 @@ struct _fn {
   }
 
   template(typename Source, typename Trigger)           //
-      (requires(!tag_invocable<_fn, Source, Trigger>))  ////
+      (requires(!tag_invocable<_fn, Source, Trigger>))  //
       auto
       operator()(Source&& source, Trigger&& trigger) const noexcept(
           std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>&&
