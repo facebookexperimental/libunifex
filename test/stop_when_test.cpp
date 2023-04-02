@@ -15,11 +15,19 @@
  */
 #include <unifex/stop_when.hpp>
 
+#include <unifex/just_from.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/never.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
+#include <unifex/when_all.hpp>
+
+#if !UNIFEX_NO_COROUTINES
+#include <unifex/task.hpp>
+#endif
 
 #include <chrono>
 #include <optional>
@@ -127,3 +135,17 @@ TEST(StopWhen, Pipeable) {
   EXPECT_FALSE(sourceExecuted);
   EXPECT_TRUE(triggerExecuted);
 }
+
+#if !UNIFEX_NO_COROUTINES
+TEST(StopWhen, SynchronousCompletionFromReceiverStopRequestIsASANSafe) {
+  unifex::sync_wait(
+      unifex::let_value_with_stop_source([](auto& stopSource) noexcept {
+        return unifex::when_all(
+            []() -> unifex::task<void> {
+              co_await unifex::stop_when(
+                  unifex::never_sender{}, unifex::never_sender{});
+            }(),
+            unifex::just_from([&]() noexcept { stopSource.request_stop(); }));
+      }));
+}
+#endif
