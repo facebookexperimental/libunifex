@@ -352,19 +352,17 @@ struct _nest_sender<Sender>::type final {
   }
 
   type& operator=(type rhs) noexcept {
-    if (scope_ && rhs.scope_) {
-      // both sides have a scope so move the sender
-      sender_.get() = std::move(rhs).sender_.get();
-      rhs.sender_.destruct();
-    } else if (scope_ && !rhs.scope_) {
-      // lhs has a scope but rhs doesn't so destruct lhs's
+    if (scope_) {
+      // lhs has a scope so we need to destroy its sender
+      static_assert(noexcept(sender_.destruct()));
       sender_.destruct();
-    } else if (!scope_ && rhs.scope_) {
-      // lhs has no scope so if rhs *does*, we need to move-construct
+    }
+
+    if (rhs.scope_) {
+      // rhs has a scope so move its sender to lhs
+      static_assert(noexcept(sender_.construct(std::move(rhs).sender_.get())));
       sender_.construct(std::move(rhs).sender_.get());
       rhs.sender_.destruct();
-    } else {
-      // no scope on either side
     }
 
     scope_ = std::move(rhs).scope_;
