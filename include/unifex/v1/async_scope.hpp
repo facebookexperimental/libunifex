@@ -30,6 +30,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/spawn_detached.hpp>
+#include <unifex/spawn_future.hpp>
 #include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
 
@@ -52,512 +53,6 @@ void record_done(async_scope*) noexcept;
 [[nodiscard]] bool try_record_start(async_scope* scope) noexcept;
 
 inplace_stop_token get_stop_token_from_scope(async_scope*) noexcept;
-
-enum class op_state : unsigned int {
-  incomplete,
-  done,
-  value,
-  error,
-  abandoned
-};
-
-struct _spawn_op_base {
-  struct owning_stop_callback final {
-    explicit owning_stop_callback(_spawn_op_base* self) noexcept
-      : self_(self) {}
-
-    owning_stop_callback(owning_stop_callback&& other) noexcept
-      : self_(std::exchange(other.self_, nullptr)) {}
-
-    ~owning_stop_callback() {
-      if (self_) {
-        self_->decref();
-      }
-    }
-
-    void operator()() noexcept {
-      auto self = std::exchange(self_, nullptr);
-      self->request_stop();
-      self->decref();
-    }
-
-  private:
-    _spawn_op_base* self_;
-  };
-
-  struct stop_callback final {
-    _spawn_op_base* self;
-
-    void operator()() noexcept { self->request_stop(); }
-  };
-
-  using owning_stop_callback_t =
-      typename inplace_stop_token::template callback_type<owning_stop_callback>;
-
-  using stop_callback_t =
-      typename inplace_stop_token::template callback_type<stop_callback>;
-
-  using cleanup_t = void (*)(void*) noexcept;
-
-  explicit _spawn_op_base(async_scope* scope, cleanup_t cleanup) noexcept
-    : scope_(scope)
-    , cleanup_(cleanup)
-    , state_{op_state::incomplete}
-    , refCount_{3u} {}
-
-  /**
-   * Invoked by the attached future<> when it goes out of scope without having
-   * been connected and started.
-   */
-  void abandon() noexcept {
-    if (try_set_state(op_state::abandoned)) {
-      // if we succeeded in marking the promise as abandoned then the upstream
-      // operation is still running; request that it stop soon.
-      stopSource_.request_stop();
-
-      // we don't bother setting the event here because no one's going to
-      // connect to it
-    }
-
-    decref();
-  }
-
-  auto async_wait() noexcept { return evt_.async_wait(); }
-
-  inplace_stop_token get_stop_token() noexcept {
-    return stopSource_.get_token();
-  }
-
-  /**
-   * Invoked by stop callbacks to request that this operation stop.
-   *
-   * This method is called in two scenarios:
-   *  - the attached future<> is cancelled, or
-   *  - the associated async_scope is cancelled.
-   */
-  void request_stop() noexcept {
-    // fulfill the request by requesting stop on the operation's stop source
-    stopSource_.request_stop();
-
-    // now, try to complete the attached future<> promptly; this will allow the
-    // future<> to complete in parallel with an operation that's slow to cancel
-    if (try_set_state(op_state::done)) {
-      evt_.set();
-    }
-
-    // don't call decref() here; the caller may not be an owning reference
-  }
-
-  /**
-   * Invoked by unifex::set_done when the operation completes with done.
-   *
-   * Wakes up the attached future<> if it's still there.
-   */
-  void set_done() noexcept {
-    destroy_stop_callback();
-
-    // only bother to notify the waiting future<> if it's still there
-    if (try_set_state(op_state::done)) {
-      evt_.set();
-    }
-
-    decref();
-  }
-
-  /**
-   * Invoked when the attempt to spawn this operation fails because the
-   * associated async_scope has already ended.  Puts this operation in the done
-   * and signalled state so that the attached future<> can complete immediately
-   * with done.
-   */
-  void start_failed() noexcept {
-    // mark the operation as not started
-    scope_ = nullptr;
-
-    // drop the reference that *would* have been held by the stop callback we're
-    // not going to construct
-    decref();
-
-    // ensure an attached future<> is immediately ready
-    set_done();
-  }
-
-protected:
-  // the async_scope that spawned this operation; set to null if the spawn fails
-  async_scope* scope_;
-  // a type-erased deleter to clean up this operation when its refcount hits 0
-  cleanup_t cleanup_;
-  // where this operation is in its lifecycle
-  std::atomic<op_state> state_;
-  // this operation's reference count; the operation deletes itself when its
-  // refcount hits zero.  The refcount starts at three:
-  //  - one for the attached future<>,
-  //  - one for the stop callback registered on the scope's stop source, and
-  //  - one for the operation itself.
-  std::atomic<unsigned int> refCount_;
-  // an event that starts unset and becomes set when the operation completes
-  async_manual_reset_event evt_;
-  // a stop source for the spawned operation that we can use to cancel it from
-  // either the associated scope or the attached future<>
-  inplace_stop_source stopSource_;
-  // a stop callback that listens for stop requests from the associated scope
-  manual_lifetime<owning_stop_callback_t> stopCallback_;
-
-  /**
-   * Decrements the refcount and cleans up if the caller is the last owner.
-   *
-   * Cleaning up means destroying the operations state and then notifying the
-   * associated scope (if there is one) that the operation has completed.
-   */
-  void decref() noexcept {
-    if (1u == refCount_.fetch_sub(1u, std::memory_order_acq_rel)) {
-      // save the scope in a local because we're about to delete this
-      auto scope = scope_;
-
-      // destroy the operation state
-      cleanup_(this);
-
-      if (scope) {
-        record_done(scope);
-      }
-    }
-  }
-
-  void destroy_stop_callback() noexcept {
-    // if scope_ is nullptr here then the operation failed to start, which means
-    // we didn't construct the stop callback and thus must not destruct it.
-    if (scope_) {
-      stopCallback_.destruct();
-    }
-  }
-
-  /**
-   * Invoked when the operation completes with an error.
-   *
-   * The consequences depend on the observed state:
-   *  - if the attached future<> is still waiting, it'll be woken up to complete
-   *    with the given exception; otherwise
-   *  - if the attached future<> abandoned this operation's result, the error is
-   *    ignored.
-   */
-  void set_error(
-      manual_lifetime<std::exception_ptr>& exception,
-      std::exception_ptr e) noexcept {
-    destroy_stop_callback();
-
-    if (try_set_state(op_state::error)) {
-      unifex::activate_union_member(exception, std::move(e));
-      evt_.set();
-    }
-
-    decref();
-  }
-
-  void start() noexcept {
-    stopCallback_.construct(
-        get_stop_token_from_scope(scope_), owning_stop_callback{this});
-  }
-
-  bool try_set_state(op_state newState) noexcept {
-    op_state expected = op_state::incomplete;
-    if (!state_.compare_exchange_strong(
-            expected, newState, std::memory_order_relaxed)) {
-      return false;
-    }
-
-    return true;
-  }
-};
-
-template <typename... Ts>
-struct _spawn_op_promise final {
-  struct type : _spawn_op_base {
-    explicit type(async_scope* scope, cleanup_t cleanup) noexcept
-      : _spawn_op_base{scope, cleanup} {}
-
-    ~type() {
-      // since we're in the destructor, we've called decref() since storing
-      // either a value or an exception; therefore, the state of the value or
-      // exception has synchronized because of the memory order of the fetch_sub
-      // in decref(), which makes it safe to inspect the state with a relaxed
-      // load here.
-      auto state = state_.load(std::memory_order_relaxed);
-
-      if (state == op_state::value) {
-        unifex::deactivate_union_member(value_);
-      } else if (state == op_state::error) {
-        unifex::deactivate_union_member(exception_);
-      }
-    }
-
-    /**
-     * Invoked when the operation completes with a value.
-     *
-     * Wakes up the attached future<> if it's still there.
-     */
-    template(typename... Values)                                       //
-        (requires constructible_from<std::tuple<Ts...>, Values&&...>)  //
-        void set_value(Values&&... values) noexcept {
-      destroy_stop_callback();
-
-      if (try_set_state(op_state::value)) {
-        UNIFEX_TRY {
-          unifex::activate_union_member(value_, (Values &&) values...);
-        }
-        UNIFEX_CATCH(...) {
-          state_.store(op_state::error, std::memory_order_relaxed);
-          unifex::activate_union_member(exception_, std::current_exception());
-        }
-
-        evt_.set();
-      }
-
-      decref();
-    }
-
-    /**
-     * Invoked when the operation completes with an error.
-     *
-     * Wakes up the attached future<> if it's still there.
-     */
-    void set_error(std::exception_ptr e) noexcept {
-      _spawn_op_base::set_error(exception_, std::move(e));
-    }
-
-    /**
-     * Consumes the result of this operation by completing the given receiver.
-     */
-    template(typename Receiver)                    //
-        (requires receiver_of<Receiver, Ts&&...>)  //
-        void consume(Receiver&& receiver) noexcept {
-      // we're being invoked by the attached future<>, which means we've
-      // synchronized with it by virtue of setting our event so this relaxed
-      // load is safe
-      switch (state_.load(std::memory_order_relaxed)) {
-        case op_state::value:
-          UNIFEX_TRY {
-            std::apply(
-                [&](auto&&... values) {
-                  unifex::set_value(
-                      (Receiver &&) receiver,
-                      static_cast<decltype(values)>(values)...);
-                },
-                std::move(value_).get());
-          }
-          UNIFEX_CATCH(...) {
-            unifex::set_error((Receiver &&) receiver, std::current_exception());
-          }
-          break;
-
-        case op_state::error:
-          unifex::set_error(
-              (Receiver &&) receiver, std::move(exception_).get());
-          break;
-
-        case op_state::done: unifex::set_done((Receiver &&) receiver); break;
-
-        default:
-          // the other possible states are incomplete and abandoned, neither of
-          // which should be observable here
-          std::terminate();
-      }
-
-      decref();
-    }
-
-    union {
-      manual_lifetime<std::tuple<Ts...>> value_;
-      manual_lifetime<std::exception_ptr> exception_;
-    };
-  };
-};
-
-template <typename Sender>
-using spawn_op_promise_t =
-    typename sender_value_types_t<Sender, single_overload, _spawn_op_promise>::
-        type::type;
-
-/**
- * A receiver that delegates all operations to a spawn_op_promise.
- */
-template <typename... Ts>
-struct _delegate_receiver final {
-  struct type final {
-    template(typename... Values)                                       //
-        (requires constructible_from<std::tuple<Ts...>, Values&&...>)  //
-        void set_value(Values&&... values) noexcept {
-      op_->set_value((Values &&) values...);
-    }
-
-    void set_error(std::exception_ptr e) noexcept {
-      op_->set_error(std::move(e));
-    }
-
-    void set_done() noexcept { op_->set_done(); }
-
-    friend inplace_stop_token
-    tag_invoke(tag_t<get_stop_token>, const type& receiver) noexcept {
-      return receiver.op_->get_stop_token();
-    }
-
-    typename _spawn_op_promise<Ts...>::type* op_;
-  };
-};
-
-template <typename Sender>
-using delegate_receiver_t =
-    typename sender_value_types_t<Sender, single_overload, _delegate_receiver>::
-        type::type;
-
-template <typename Sender>
-struct _spawn_op final {
-  struct type final : spawn_op_promise_t<Sender> {
-    explicit type(Sender&& sender, async_scope* scope) noexcept(
-        is_nothrow_connectable_v<Sender, delegate_receiver_t<Sender>>)
-      : spawn_op_promise_t<Sender>(scope, &cleanup)
-      , op_(unifex::connect(
-            std::move(sender), delegate_receiver_t<Sender>{this})) {}
-
-    explicit type(const Sender& sender, async_scope* scope) noexcept(
-        is_nothrow_connectable_v<const Sender&, delegate_receiver_t<Sender>>)
-      : spawn_op_promise_t<Sender>(scope, &cleanup)
-      , op_(unifex::connect(sender, delegate_receiver_t<Sender>{this})) {}
-
-    void start() & noexcept {
-      _spawn_op_base::start();
-      unifex::start(op_);
-    }
-
-  private:
-    static void cleanup(void* self) noexcept {
-      delete static_cast<type*>(self);
-    }
-
-    using op_t = connect_result_t<Sender, delegate_receiver_t<Sender>>;
-    op_t op_;
-  };
-};
-
-template <typename... Ts>
-struct future final {
-  using promise_t = typename _spawn_op_promise<Ts...>::type;
-
-  /**
-   * An owning handle to a spawn_op_promise.
-   *
-   * Abandons the promise on destruction if ownership hasn't been transferred
-   * elsewhere first.
-   */
-  struct promise_handle {
-    explicit promise_handle(promise_t* p) noexcept : promise_(p) {}
-
-    promise_handle(promise_handle&& other) noexcept
-      : promise_(std::exchange(other.promise_, nullptr)) {}
-
-    ~promise_handle() {
-      if (promise_) {
-        promise_->abandon();
-      }
-    }
-
-    promise_handle& operator=(promise_handle rhs) noexcept {
-      std::swap(promise_, rhs.promise_);
-      return *this;
-    }
-
-    promise_t* promise_;
-  };
-
-  /**
-   * A Receiver that future<> connects to a promise's async_manual_reset_event
-   * to be notified when the promise is complete.
-   */
-  template <typename Receiver>
-  struct _receiver final {
-    struct type final : promise_handle {
-      explicit type(promise_handle&& p, Receiver&& r) noexcept(
-          std::is_nothrow_move_constructible_v<Receiver>)
-        : promise_handle(std::move(p))
-        , receiver_(std::move(r)) {}
-
-      explicit type(promise_handle&& p, const Receiver& r) noexcept(
-          std::is_nothrow_copy_constructible_v<Receiver>)
-        : promise_handle(std::move(p))
-        , receiver_(r) {}
-
-      void set_value() noexcept {
-        auto p = std::exchange(this->promise_, nullptr);
-        p->consume(std::move(receiver_));
-      }
-
-      void set_error(std::exception_ptr e) noexcept {
-        unifex::set_error(std::move(receiver_), std::move(e));
-      }
-
-      void set_done() noexcept { unifex::set_done(std::move(receiver_)); }
-
-      template(typename CPO)                       //
-          (requires is_receiver_query_cpo_v<CPO>)  //
-          friend auto tag_invoke(CPO&& cpo, const type& r) noexcept {
-        return static_cast<CPO&&>(cpo)(r.receiver_);
-      }
-
-      UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-    };
-  };
-
-  /**
-   * A future<T...>::type is a handle to an eagerly-started operation; it is
-   * also a Sender so you retrieve the result by connecting it to an appropriate
-   * Receiver and starting the resulting Operation.
-   *
-   * Discarding a future without connecting or starting it requests cancellation
-   * of the associated operation and discards the operation's result when it
-   * ultimately completes.
-   *
-   * Requesting cancellation of a connected-and-started future will also request
-   * cancellation of the associated operation.
-   */
-  struct type final : promise_handle {
-    template <
-        template <class...>
-        class Variant,
-        template <class...>
-        class Tuple>
-    using value_types = Variant<Tuple<Ts...>>;
-
-    template <template <class...> class Variant>
-    using error_types = Variant<std::exception_ptr>;
-
-    static constexpr bool sends_done = true;
-
-    template(typename Receiver)  //
-        (requires receiver_of<Receiver, Ts...> AND
-             scheduler_provider<Receiver>)  //
-        auto connect(Receiver&& receiver) && noexcept {
-      using future_receiver_t =
-          typename _receiver<remove_cvref_t<Receiver>>::type;
-
-      auto promise = this->promise_;
-      return unifex::connect(
-          let_value_with_stop_token([promise](auto stoken) noexcept {
-            return let_value_with(
-                [promise, stoken = std::move(stoken)]() mutable noexcept {
-                  return _spawn_op_base::stop_callback_t{
-                      std::move(stoken),
-                      _spawn_op_base::stop_callback{promise}};
-                },
-                [promise](auto&) noexcept { return promise->async_wait(); });
-          }),
-          future_receiver_t{std::move(*this), (Receiver &&) receiver});
-    }
-
-  private:
-    friend struct async_scope;
-
-    explicit type(promise_t* p) noexcept : promise_handle(p) {}
-  };
-};
 
 template <typename Operation, typename Receiver>
 struct _cleaning_receiver final {
@@ -836,10 +331,6 @@ private:
   }
 };
 
-template <typename Sender>
-using future_t =
-    typename sender_value_types_t<Sender, single_overload, future>::type::type;
-
 struct async_scope {
 private:
   template <typename Scheduler, typename Sender>
@@ -860,25 +351,6 @@ private:
     });
   }
 
-  template(typename Sender)                                      //
-      (requires sender_to<Sender, delegate_receiver_t<Sender>>)  //
-      auto do_spawn(Sender&& sender) {
-    using spawn_op_t = typename _spawn_op<remove_cvref_t<Sender>>::type;
-
-    // this could throw; if it does, there's nothing to clean up
-    auto opToStart = new spawn_op_t((Sender &&) sender, this);
-
-    // At this point, the rest of the function is noexcept.
-
-    if (try_record_start(this)) {
-      unifex::start(*opToStart);
-    } else {
-      opToStart->start_failed();
-    }
-
-    return opToStart;
-  }
-
 public:
   async_scope() noexcept = default;
 
@@ -893,22 +365,19 @@ public:
    * Connects and starts the given Sender, returning a future<> with which you
    * can observe the result.
    */
-  template(typename Sender)                                      //
-      (requires sender_to<Sender, delegate_receiver_t<Sender>>)  //
-      future_t<Sender> spawn(Sender&& sender) {
-    return future_t<Sender>{do_spawn((Sender &&) sender)};
+  template <typename Sender>
+  auto spawn(Sender&& sender)
+      -> decltype(spawn_future(static_cast<Sender&&>(sender), *this)) {
+    return spawn_future(static_cast<Sender&&>(sender), *this);
   }
 
   /**
    * Equivalent to spawn(on((Scheduler&&) scheduler, (Sender&&)sender)).
    */
   template(typename Sender, typename Scheduler)  //
-      (requires scheduler<Scheduler> AND         //
-           sender_to<
-               _on_result_t<Scheduler, Sender>,
-               delegate_receiver_t<_on_result_t<Scheduler, Sender>>>)  //
-      future_t<_on_result_t<Scheduler, Sender>> spawn_on(
-          Scheduler&& scheduler, Sender&& sender) {
+      (requires scheduler<Scheduler>)            //
+      auto spawn_on(Scheduler&& scheduler, Sender&& sender)
+          -> decltype(spawn(on((Scheduler &&) scheduler, (Sender &&) sender))) {
     return spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
   }
 
@@ -938,11 +407,10 @@ public:
    * (Sender&&)sender)).
    */
   template(typename Sender, typename Scheduler)  //
-      (requires scheduler<Scheduler> AND         //
-           sender_to<
-               _on_result_t<Scheduler, Sender>,
-               delegate_receiver_t<_on_result_t<Scheduler, Sender>>>)  //
-      void detached_spawn_on(Scheduler&& scheduler, Sender&& sender) {
+      (requires scheduler<Scheduler>)            //
+      auto detached_spawn_on(Scheduler&& scheduler, Sender&& sender)
+          -> decltype(detached_spawn(
+              on((Scheduler &&) scheduler, (Sender &&) sender))) {
     detached_spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
   }
 
@@ -1132,7 +600,7 @@ using _async_scope::async_scope;
 static_assert(alignof(async_scope) > 2);
 
 template <typename... Ts>
-using future = typename _async_scope::future<Ts...>::type;
+using future = unifex::v2::future<unifex::v1::async_scope, Ts...>;
 
 }  // namespace v1
 
