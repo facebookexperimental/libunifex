@@ -52,39 +52,32 @@ namespace _spawn_future {
 // future deletes the spawned operation as a side effect of completing.
 //
 // There are several other paths through the state machine:
-//  1. The future is dropped (i.e. destroyed beforing being connected, or
-//     destroyed after connect but before start) before the spawned operation
-//     completes;
-//  2. The future is dropped after the spawned operation completes;
-//  3. The future is connected and started, but then receives a stop request
-//     before the operation completes; or
-//  4. The future is connected and started, but then receives a stop request
-//     after the operation completes.
 //
-// If the future is dropped before the spawned operation completes (case 1), we
-// request stop on the spawned operation and then move to the complete state;
-// when the operation ultimately completes, it observes the complete state and
-// cleans up.
+// 1. The future is dropped (i.e. destroyed beforing being connected, or
+//    destroyed after connect but before start) before the spawned operation
+//    completes.  In this scenario, we request stop on the spawned operation and
+//    then move to the complete state; when the operation ultimately completes,
+//    it observes the complete state and cleans up.
 //
-// If the future is dropped after the spawned operation completes (case 2),
-// we'll observe that the operation is in the value, error, or done state and
-// clean up as a side effect of dropping the future.
+// 2. The future is dropped after the spawned operation completes.  In this
+//    scenario, we'll observe that the operation is in the value, error, or done
+//    state and clean up as a side effect of dropping the future.
 //
-// If the started-and-connected future receives a stop request before the
-// operation is complete (case 3), we need to signal the operation and then
-// complete the future with set_done().  To do this, we request stop on the
-// spawned operation and then move the operation to the abandoned state; as the
-// future completes with done in this scenario, we need to negotiate who will
-// delete the spawned operation: the now-completed future or the spawned
-// operation?  We resolve this negotiation by having both sides race to see who
-// can move the state from abandoned to complete; whoever *fails* to update the
-// state is deemed responsible for cleaning up.
+// 3. The future is connected and started, but then receives a stop request
+//    before the operation completes.  In this scenario,  we need to signal the
+//    operation and then complete the future with set_done().  To do this, we
+//    request stop on the spawned operation and then move the operation to the
+//    abandoned state; as the future completes with done in this scenario, we
+//    need to negotiate who will delete the spawned operation: the now-completed
+//    future or the spawned operation?  We resolve this negotiation by having
+//    both sides race to see who can move the state from abandoned to complete;
+//    whoever *fails* to update the state is deemed responsible for cleaning up.
 //
-// In the final case, where the future receives a stop request after the
-// operation completes (case 4), the stop request is effectively ignored.  The
-// operation will move the state from init to one of value, error, or done, and
-// then the future will complete with the appropriate result as if the stop
-// request was never received.
+// 4. The future is connected and started, but then receives a stop request
+//    after the operation completes.  In this final scenario, the stop request
+//    is effectively ignored.  The operation will move the state from init to
+//    one of value, error, or done, and then the future will complete with the
+//    appropriate result as if the stop request was never received.
 //
 // All of the above-described state transitions happen with atomic updates to
 // the operation's state_ field so any "happens-before" relationships are as
