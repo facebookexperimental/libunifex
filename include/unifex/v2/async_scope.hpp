@@ -27,6 +27,7 @@
 #include <atomic>
 #include <cstddef>
 #include <memory>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -348,6 +349,25 @@ struct _nest_sender<Sender>::type final {
     if (scope_) {
       sender_.destruct();
     }
+  }
+
+  type& operator=(type rhs) noexcept {
+    if (scope_) {
+      // lhs has a scope so we need to destroy its sender
+      static_assert(noexcept(sender_.destruct()));
+      sender_.destruct();
+    }
+
+    if (rhs.scope_) {
+      // rhs has a scope so move its sender to lhs
+      static_assert(noexcept(sender_.construct(std::move(rhs).sender_.get())));
+      sender_.construct(std::move(rhs).sender_.get());
+      rhs.sender_.destruct();
+    }
+
+    scope_ = std::move(rhs).scope_;
+
+    return *this;
   }
 
   // helper to compute the noexcept clause for connect

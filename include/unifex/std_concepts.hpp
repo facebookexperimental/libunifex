@@ -32,6 +32,10 @@ namespace unifex {
       UNIFEX_IS_SAME(A, B) &&
       UNIFEX_IS_SAME(B, A);
 
+  // GCC doesn't like that we're ignoring the result of the static cast
+  UNIFEX_DIAGNOSTIC_PUSH
+  UNIFEX_DIAGNOSTIC_IGNORE_UNUSED_RESULT
+
   template <typename From, typename To>
   UNIFEX_CONCEPT_FRAGMENT(
     _explicitly_convertible_to,
@@ -39,6 +43,9 @@ namespace unifex {
       (
         static_cast<To>(from())
       ));
+
+  UNIFEX_DIAGNOSTIC_POP
+
   template <typename From, typename To>
   UNIFEX_CONCEPT
     convertible_to =

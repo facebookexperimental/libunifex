@@ -799,6 +799,12 @@ public:
     }
   }
 
+  type& operator=(type rhs) noexcept {
+    std::swap(scope_, rhs.scope_);
+    sender_ = std::move(rhs.sender_);
+    return *this;
+  }
+
   template(typename Receiver)        //
       (requires receiver<Receiver>)  //
       friend auto tag_invoke(tag_t<connect>, type&& s, Receiver&& r) noexcept(
