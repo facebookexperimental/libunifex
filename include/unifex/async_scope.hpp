@@ -15,4 +15,4 @@
  */
 #pragma once
 
-#include <unifex/v0/async_scope.hpp>
+#include <unifex/v1/async_scope.hpp>

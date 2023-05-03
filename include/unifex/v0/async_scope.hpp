@@ -36,7 +36,7 @@
 
 namespace unifex {
 
-inline namespace v0 {
+namespace v0 {
 
 namespace _async_scope {
 
@@ -259,7 +259,7 @@ public:
 
 } // namespace _async_scope
 
-using _async_scope::async_scope;
+using v0::_async_scope::async_scope;
 
 } // namespace v0
 

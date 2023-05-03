@@ -41,7 +41,7 @@ struct CreateTest : testing::Test {
   void anIntAPI(int a, int b, void* context, void (*completed)(void* context, int result)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
+    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
       auto result = a + b;
       completed(context, result);
     });
@@ -50,7 +50,7 @@ struct CreateTest : testing::Test {
   void aVoidAPI(void* context, void (*completed)(void* context)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
+    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
       completed(context);
     });
   }

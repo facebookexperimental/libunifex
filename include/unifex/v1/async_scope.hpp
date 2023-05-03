@@ -42,7 +42,7 @@
 
 namespace unifex {
 
-namespace v1 {
+inline namespace v1 {
 
 namespace _async_scope {
 

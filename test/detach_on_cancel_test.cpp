@@ -159,7 +159,7 @@ TEST_F(detach_on_cancel_test, cancel_inline) {
   unifex::async_scope scope;
   unifex::single_thread_context main;
   // detached 1
-  scope.spawn_on(
+  scope.detached_spawn_on(
       main.get_scheduler(),
       // finally() and allocate() to trigger ASAN
       unifex::finally(
@@ -167,7 +167,7 @@ TEST_F(detach_on_cancel_test, cancel_inline) {
               with_scheduler(e1.async_wait(), main.get_scheduler())))),
           unifex::just()));
   // detached 2
-  scope.spawn_on(
+  scope.detached_spawn_on(
       main.get_scheduler(), unifex::allocate(unifex::just_from([&]() noexcept {
         e2.set();  // allow scope to cleanup()
       })));
@@ -186,7 +186,7 @@ TEST_F(detach_on_cancel_test, async_wait) {
   unifex::single_thread_context main;
 
   // spawn eagerly
-  scope.spawn_on(
+  scope.detached_spawn_on(
       main.get_scheduler(),
       // finally() and allocate() to trigger ASAN
       unifex::finally(
