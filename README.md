@@ -122,5 +122,5 @@ See also:
 # References
 
 C++ standardisation papers:
-* [P2300r1](https://wg21.link/P2300r1) "`std::execution`"
-* ...
+* [P2300](https://wg21.link/P2300) "`std::execution`"
+* [P0443](https://wg21.link/P0443) "`std::execution`"
