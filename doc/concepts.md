@@ -211,7 +211,7 @@ to callee via the receiver is an open-set. Applications can extend this set with
 additional application-specific contextual information that can be passed through
 via the receiver.
 
-TODO: Link to `cancellation.md` file.
+See more detail behind [The need for cancellation](cancellation.md).
 
 ## Sender Concept
 
@@ -242,10 +242,6 @@ namespace unifex
     };
 }
 ```
-
-TODO: Consider adding some kind of `sender_traits` class or an `is_sender<T>` CPO
-that can be specialised to allow a type to opt-in to being classified as a sender
-independently of a concrete receiver type.
 
 ## TypedSender Concept
 
