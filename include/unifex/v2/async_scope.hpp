@@ -31,6 +31,14 @@
 
 #include <unifex/detail/prologue.hpp>
 
+namespace unifex {
+inline namespace v1 {
+namespace _async_scope {
+struct async_scope;
+}
+}  // namespace v1
+}  // namespace unifex
+
 namespace unifex::v2 {
 
 namespace _async_scope {
@@ -141,6 +149,7 @@ private:
   std::atomic<std::size_t> opState_{1u};
   async_manual_reset_event evt_;
 
+  friend struct unifex::v1::_async_scope::async_scope;
   /**
    * Marks the scope to prevent nest from starting any new work.
    */
