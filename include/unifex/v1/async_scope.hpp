@@ -184,6 +184,9 @@ struct _attach_op<Sender, Receiver>::type final
   : _attach_op_base<Receiver>::type {
   using base_t = typename _attach_op_base<Receiver>::type;
 
+  using receiver_t = typename _attach_receiver<Receiver>::type;
+  using op_t = connect_result_t<Sender, receiver_t>;
+
   template <typename Sender2, typename Receiver2>
   explicit type(
       inplace_stop_token stoken,
@@ -207,9 +210,6 @@ struct _attach_op<Sender, Receiver>::type final
     op.construct_stop_callbacks();
     unifex::start(op.op_);
   }
-
-  using receiver_t = typename _attach_receiver<Receiver>::type;
-  using op_t = connect_result_t<Sender, receiver_t>;
 
   op_t op_;
 };
@@ -244,14 +244,8 @@ struct _attach_sender<Sender>::type final {
   template <typename Receiver>
   using op_t = typename _attach_op<Sender, remove_cvref_t<Receiver>>::type;
 
-  template <typename Receiver>
-  using receiver_t = typename _attach_receiver<remove_cvref_t<Receiver>>::type;
-
-  template(typename Sender2, typename Receiver)             //
-      (requires same_as<remove_cvref_t<Sender2>, type> AND  //
-           sender_to<
-               member_t<Sender2, Sender>,
-               receiver_t<remove_cvref_t<Receiver>>>)  //
+  template(typename Sender2, typename Receiver)          //
+      (requires same_as<remove_cvref_t<Sender2>, type>)  //
       friend auto tag_invoke(
           tag_t<connect>,
           Sender2&& sender,

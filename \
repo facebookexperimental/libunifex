@@ -1,0 +1,4 @@
+Reimplement v1::async_scope in terms of v2
+
+This diff reimplements `unifex::v1::async_scope` as a combination of a
+`unifex::v2::async_scope` and a `unifex::inline_stop_source`.
