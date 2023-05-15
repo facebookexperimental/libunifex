@@ -85,6 +85,7 @@
 
 #if !defined(UNIFEX_NO_LIBURING)
 #cmakedefine01 UNIFEX_NO_LIBURING
+#cmakedefine01 HAVE_LINUX_TIME_TYPES_H
 #endif
 
 #if !defined(UNIFEX_ENABLE_CONTINUATION_VISITATIONS)
