@@ -55,11 +55,14 @@ struct _attach_op_base final {
 
 template <typename Receiver>
 struct _attach_op_base<Receiver>::type {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
   template <typename Receiver2>
   explicit type(inplace_stop_token stoken, Receiver2&& receiver) noexcept(
       std::is_nothrow_constructible_v<Receiver, Receiver2>)
     : stoken_(stoken)
     , receiver_(static_cast<Receiver2&&>(receiver)) {}
+#pragma GCC diagnostic pop
 
   type(type&&) = delete;
 
