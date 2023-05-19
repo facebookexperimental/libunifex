@@ -20,6 +20,7 @@
 #include <unifex/just.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/never.hpp>
+#include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/v1/async_scope.hpp>
 #include <unifex/v2/async_scope.hpp>
@@ -27,6 +28,9 @@
 
 #include <gtest/gtest.h>
 
+#include <condition_variable>
+#include <mutex>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -623,6 +627,125 @@ TEST(spawn_future_test, blocking_kind_returns_maybe) {
   }
 
   unifex::sync_wait(scope.join());
+}
+
+template <typename Sender>
+struct slow_sender final {
+  template <typename Receiver>
+  struct slow_op final {
+    std::mutex& m;
+    std::condition_variable (&cv)[2];
+    bool (&stopNow)[2];
+    using op_t = unifex::connect_result_t<Sender, Receiver>;
+    op_t op;
+
+    template <typename Sender2, typename Receiver2>
+    slow_op(
+        std::mutex& m,
+        std::condition_variable (&cv)[2],
+        bool (&stopNow)[2],
+        Sender2&& sender,
+        Receiver2&& receiver) noexcept
+      : m(m)
+      , cv(cv)
+      , stopNow(stopNow)
+      , op{unifex::connect(
+            static_cast<Sender2&&>(sender),
+            static_cast<Receiver2&&>(receiver))} {}
+
+    slow_op(slow_op&&) = delete;
+
+    ~slow_op() {
+      std::unique_lock l(m);
+      stopNow[0] = true;
+      cv[0].notify_one();
+      cv[1].wait(l, [this]() { return stopNow[1]; });
+    }
+
+    void start() & noexcept { unifex::start(op); }
+  };
+
+  template <
+      template <typename...>
+      typename Variant,
+      template <typename...>
+      typename Tuple>
+  using value_types = unifex::sender_value_types_t<Sender, Variant, Tuple>;
+
+  template <template <typename...> typename Variant>
+  using error_types = unifex::sender_error_types_t<Sender, Variant>;
+
+  static constexpr bool sends_done = unifex::sender_traits<Sender>::sends_done;
+
+  std::mutex* m;
+  std::condition_variable (*cv)[2];
+  bool (*stopNow)[2];
+  Sender sender;
+
+  template <typename Sender2>
+  slow_sender(
+      std::mutex& m,
+      std::condition_variable (&cv)[2],
+      bool (&stopNow)[2],
+      Sender2&& sender) noexcept
+    : m(&m)
+    , cv(&cv)
+    , stopNow(&stopNow)
+    , sender(static_cast<Sender2&&>(sender)) {}
+
+  template <typename Receiver>
+  slow_op<unifex::remove_cvref_t<Receiver>>
+  connect(Receiver&& receiver) noexcept {
+    return {
+        *m,
+        *cv,
+        *stopNow,
+        std::move(sender),
+        static_cast<Receiver&&>(receiver)};
+  }
+};
+
+struct slow_scope final {
+  std::mutex& m;
+  std::condition_variable (&cv)[2];
+  bool (&stopNow)[2];
+
+  template <typename Sender>
+  auto nest(Sender&& sender) noexcept {
+    return slow_sender<unifex::remove_cvref_t<Sender>>{
+        m, cv, stopNow, static_cast<Sender&&>(sender)};
+  }
+};
+
+TEST(spawn_future_test, racing_to_complete_and_drop_is_safe) {
+  std::mutex m;
+  std::condition_variable cv[2]{};
+  bool stopNow[2]{false, false};
+
+  slow_scope scope{m, cv, stopNow};
+
+  unifex::single_thread_context ctx;
+
+  std::optional fut =
+      unifex::spawn_future(unifex::schedule(ctx.get_scheduler()), scope);
+
+  std::unique_lock l{m};
+
+  // wait until we're in the destrutor of the spawned operation
+  cv[0].wait(l, [&]() noexcept { return stopNow[0]; });
+
+  std::thread t{[&fut]() {
+    // then drop the future
+    fut.reset();
+  }};
+
+  // then allow the spawned operation's destructor to finish
+  stopNow[1] = true;
+  cv[1].notify_one();
+
+  l.unlock();
+
+  t.join();
 }
 
 }  // namespace

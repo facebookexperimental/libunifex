@@ -323,7 +323,8 @@ struct _spawn_future_op_base {
 
         // reading evt_.ready() performs a load-acquire on the event so this is
         // how we consume the operation's last writes
-        (void)evt_.ready();
+        while (!evt_.ready())
+          ;
 
         // having synchronized with evt_, we can now clean up
         deleter_(this, state);
