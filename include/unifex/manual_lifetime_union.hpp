@@ -18,6 +18,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/scope_guard.hpp>
 
+#include <algorithm>
 #include <utility>
 #include <type_traits>
 
@@ -69,7 +70,7 @@ class manual_lifetime_union {
   }
 
  private:
-  std::aligned_union_t<0, manual_lifetime<Ts>...> storage_;
+  alignas(Ts...) unsigned char storage_[std::max({ sizeof(manual_lifetime<Ts>)... })];
 };
 
 template <>
