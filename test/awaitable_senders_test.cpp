@@ -19,6 +19,7 @@
 #if !UNIFEX_NO_COROUTINES
 
 #include <unifex/just.hpp>
+#include <unifex/just_error.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
 #include <unifex/stop_when.hpp>
@@ -44,6 +45,22 @@ TEST(awaitable_senders, non_void) {
   EXPECT_TRUE(answer.has_value());
   EXPECT_EQ(42, *answer);
 }
+
+#if !UNIFEX_NO_EXCEPTIONS
+TEST(awaitable_senders, error_code) {
+  const std::error_code ec{42, std::system_category()};
+  auto makeTask = [&]() -> task<int> {
+    co_await just_error(ec);
+    co_return 0;
+  };
+  try {
+    sync_wait(makeTask());
+    FAIL();
+  } catch (const std::system_error& e) {
+    ASSERT_EQ(ec, e.code());
+  }
+}
+#endif // !UNIFEX_NO_EXCEPTIONS
 
 TEST(awaitable_senders, void) {
   // HACK: ideally would be task<void> once that specialisation has been added.
