@@ -531,16 +531,12 @@ void io_uring_context::execute_pending_local() noexcept {
 
   LOG("processing local queue items");
 
-#ifdef LOGGING_ENABLED // prevent -Wunused-but-set-variable
-  size_t count = 0;
-#endif
+  [[maybe_unused]] size_t count = 0;
   auto pending = std::move(localQueue_);
   while (!pending.empty()) {
     auto* item = pending.pop_front();
     item->execute_(item);
-#ifdef LOGGING_ENABLED
     ++count;
-#endif
   }
 
   LOGX("processed %zu local queue items\n", count);
