@@ -835,6 +835,12 @@ io_uring_context::async_read_write_file tag_invoke(
   return io_uring_context::async_read_write_file{*scheduler.context_, result};
 }
 
+io_uring_context::accept_stream tag_invoke(
+    tag_t<open_listening_socket>,
+    io_uring_context::scheduler scheduler,
+    port_t port) {
+  return io_uring_context::accept_stream{*scheduler.context_, port};
+}
 } // namespace unifex::linuxos
 
 #endif // UNIFEX_NO_LIBURING

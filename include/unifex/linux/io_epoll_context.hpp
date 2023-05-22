@@ -21,6 +21,7 @@
 #include <unifex/detail/atomic_intrusive_queue.hpp>
 #include <unifex/detail/intrusive_heap.hpp>
 #include <unifex/detail/intrusive_queue.hpp>
+#include <unifex/io_concepts.hpp>
 #include <unifex/pipe_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>

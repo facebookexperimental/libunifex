@@ -17,8 +17,6 @@
 
 #include <unifex/tag_invoke.hpp>
 
-#include <unifex/io_concepts.hpp>
-
 #include <unifex/filesystem.hpp>
 
 #include <unifex/detail/prologue.hpp>
