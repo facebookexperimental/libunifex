@@ -31,6 +31,7 @@
 #include <exception>
 #include <optional>
 #include <type_traits>
+#include <system_error>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -109,6 +110,10 @@ struct _awaitable_base<Promise, Value>::type {
       unifex::activate_union_member(result_->exception_, std::move(eptr));
       result_->state_ = _state::exception;
       continuation_.resume();
+    }
+
+    void set_error(std::error_code code) && noexcept {
+      std::move(*this).set_error(std::make_exception_ptr(std::system_error{code}));
     }
     
     void set_done() && noexcept {
