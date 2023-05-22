@@ -20,22 +20,21 @@
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
-namespace _pipe_cpo {
-inline const struct open_pipe_cpo {
-  template <typename Executor>
-  auto operator()(Executor&& executor) const
-      noexcept(is_nothrow_tag_invocable_v<
-               open_pipe_cpo,
-               Executor>)
-          -> tag_invoke_result_t<
-              open_pipe_cpo,
-              Executor> {
-    return unifex::tag_invoke(*this, (Executor &&) executor);
-  }
-} open_pipe{};
-} // namespace _pipe_cpo
+namespace _socket {
+using port_t = std::uint16_t;
 
-using _pipe_cpo::open_pipe;
-} // namespace unifex
+inline constexpr struct open_listening_socket_cpo final {
+  template <typename Scheduler>
+  constexpr auto operator()(Scheduler&& sched, port_t port) const noexcept(
+      is_nothrow_tag_invocable_v<open_listening_socket_cpo, Scheduler, port_t>)
+      -> tag_invoke_result_t<open_listening_socket_cpo, Scheduler, port_t> {
+    return tag_invoke(*this, static_cast<Scheduler&&>(sched), port);
+  }
+} open_listening_socket{};
+}  // namespace _socket
+
+using _socket::open_listening_socket;
+using _socket::port_t;
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
