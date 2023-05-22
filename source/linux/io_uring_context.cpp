@@ -531,7 +531,7 @@ void io_uring_context::execute_pending_local() noexcept {
 
   LOG("processing local queue items");
 
-  size_t count = 0;
+  [[maybe_unused]] size_t count = 0;
   auto pending = std::move(localQueue_);
   while (!pending.empty()) {
     auto* item = pending.pop_front();
