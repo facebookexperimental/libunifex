@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-find_path(LIBURING_INCLUDE_DIR NAMES liburing/io_uring.h)
+find_path(LIBURING_INCLUDE_DIR NAMES liburing/io_uring.h linux/io_uring.h)
 mark_as_advanced(LIBURING_INCLUDE_DIR)
 
 #find_library(LIBURING_LIBRARY NAMES uring)

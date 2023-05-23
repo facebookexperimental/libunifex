@@ -16,7 +16,7 @@
 #pragma once
 
 #include <signal.h>
-#include <linux/io_uring.h>
+#include UNIFEX_LIBURING_HEADER
 
 namespace unifex::linuxos
 {
