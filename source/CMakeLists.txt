@@ -35,7 +35,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
       pthread)
 
 if (NOT UNIFEX_NO_LIBURING)
-  check_include_file_cxx("linux/time_types.h" HAVE_LINUX_TIME_TYPES_H)
 
   target_sources(unifex
     PRIVATE

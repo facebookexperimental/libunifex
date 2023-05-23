@@ -84,8 +84,23 @@
 #endif
 
 #if !defined(UNIFEX_NO_LIBURING)
-#cmakedefine01 UNIFEX_NO_LIBURING
-#cmakedefine01 HAVE_LINUX_TIME_TYPES_H
+#  if __has_include(<liburing/io_uring.h>)
+#    define UNIFEX_LIBURING_HEADER <liburing/io_uring.h>
+#  elif __has_include(<linux/io_uring.h>)
+// some versions of gcc and clang: #define linux 1
+#    if defined(linux)
+#      undef linux
+#    endif
+#    define UNIFEX_LIBURING_HEADER <linux/io_uring.h>
+#  else
+#    undef UNIFEX_NO_LIBURING
+#    define UNIFEX_NO_LIBURING 1
+#  endif
+#  if __has_include(<linux/time_types.h>)
+#    define HAVE_LINUX_TIME_TYPES_H 1
+#  else
+#    define HAVE_LINUX_TIME_TYPES_H 0
+#  endif
 #endif
 
 #if !defined(UNIFEX_ENABLE_CONTINUATION_VISITATIONS)

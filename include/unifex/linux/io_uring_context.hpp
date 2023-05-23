@@ -41,7 +41,7 @@
 #include <system_error>
 #include <utility>
 
-#include <liburing/io_uring.h>
+#include UNIFEX_LIBURING_HEADER
 
 #include <sys/uio.h>
 
