@@ -168,6 +168,9 @@ public:
 
     static constexpr blocking_kind blocking = sender_traits<schedule_sender_t>::blocking;
 
+    static constexpr bool is_always_scheduler_affine
+        = sender_traits<schedule_sender_t>::is_always_scheduler_affine;
+
     template<typename Scheduler2>
     explicit type(Scheduler2&& s, Integral count)
     : scheduler_(static_cast<Scheduler2&&>(s))

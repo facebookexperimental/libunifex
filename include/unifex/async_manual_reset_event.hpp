@@ -58,6 +58,8 @@ struct _sender {
 
   static constexpr blocking_kind blocking = blocking_kind::never;
 
+  static constexpr bool is_always_scheduler_affine = true;
+
   explicit _sender(async_manual_reset_event& evt) noexcept
     : evt_(&evt) {}
 

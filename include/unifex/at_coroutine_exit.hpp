@@ -190,6 +190,9 @@ struct _die_on_done {
 
     static constexpr blocking_kind blocking = sender_traits<Sender>::blocking;
 
+    static constexpr bool is_always_scheduler_affine
+        = sender_traits<Sender>::is_always_scheduler_affine;
+
     template (typename Receiver)
       (requires sender_to<Sender, _die_on_done_rec_t<Receiver>>)
     auto connect(Receiver&& rec) &&

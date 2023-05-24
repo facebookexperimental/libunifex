@@ -59,6 +59,25 @@ namespace detail {
   struct _blocking<Sender, true>
     : blocking_kind::constant<Sender::blocking> {};
 
+  template <typename Sender, typename = void>
+  struct _has_is_always_scheduler_affine : std::false_type {};
+
+  template <typename Sender>
+  struct _has_is_always_scheduler_affine<
+      Sender,
+      std::void_t<decltype(Sender::is_always_scheduler_affine)>>
+    : std::true_type {};
+
+  template <
+      typename Sender,
+      bool = _has_is_always_scheduler_affine<Sender>::value>
+  struct _is_always_scheduler_affine
+    : std::bool_constant<blocking_kind::always_inline == _blocking<Sender>::value> {};
+
+  template <typename Sender>
+  struct _is_always_scheduler_affine<Sender, true>
+    : std::bool_constant<Sender::is_always_scheduler_affine> {};
+
   template <typename S>
   UNIFEX_CONCEPT_FRAGMENT(  //
     _has_sender_types_impl, //
@@ -109,6 +128,8 @@ namespace detail {
     using error_types = typename S::template error_types<Variant>;
 
     static constexpr bool sends_done = S::sends_done;
+
+    static constexpr bool is_always_scheduler_affine = _is_always_scheduler_affine<S>::value;
 
     static constexpr blocking_kind blocking = _blocking<S>::value;
   };

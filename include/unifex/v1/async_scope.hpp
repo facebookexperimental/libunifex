@@ -245,6 +245,9 @@ struct _attach_sender<Sender>::type final {
       blocking_kind::maybe(),
       sender_traits<Sender>::blocking());
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Sender>::is_always_scheduler_affine;
+
   template <typename Sender2>
   explicit type(inplace_stop_token stoken, Sender2&& sender) noexcept(
       std::is_nothrow_constructible_v<Sender, Sender2>)

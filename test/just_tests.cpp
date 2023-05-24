@@ -30,6 +30,7 @@ TEST(just_tests, just_void) {
   using just_t = decltype(just());
 
   static_assert(blocking_kind::always_inline == sender_traits<just_t>::blocking);
+  static_assert(sender_traits<just_t>::is_always_scheduler_affine);
 }
 
 }  // namespace

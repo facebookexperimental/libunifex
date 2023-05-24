@@ -204,6 +204,9 @@ public:
 
   static constexpr blocking_kind blocking = sender_traits<Source>::blocking;
 
+  static constexpr bool is_always_scheduler_affine
+      = sender_traits<Source>::is_always_scheduler_affine;
+
   template <typename Source2, typename Predicate2>
   explicit type(Source2&& source, Predicate2&& predicate)
     noexcept(

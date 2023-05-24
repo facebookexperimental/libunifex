@@ -322,6 +322,10 @@ namespace unifex
               sender_traits<Successor>::blocking(),
               blocking_kind::maybe()));
 
+      static constexpr bool is_always_scheduler_affine =
+        sender_traits<Predecessor>::is_always_scheduler_affine &&
+        sender_traits<Successor>::is_always_scheduler_affine;
+
       template(typename Predecessor2, typename Successor2)
           (requires constructible_from<Predecessor, Predecessor2> AND
               constructible_from<Successor, Successor2>)

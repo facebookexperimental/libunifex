@@ -115,6 +115,9 @@ public:
 
   static constexpr blocking_kind blocking = sender_traits<Sender>::blocking;
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Sender>::is_always_scheduler_affine;
+
   template <typename Sender2, typename Value2>
   explicit type(Sender2&& sender, Value2&& value)
     : sender_((Sender2 &&) sender)

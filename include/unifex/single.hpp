@@ -106,6 +106,9 @@ struct _stream<Sender>::type {
         sender_traits<Sender>::blocking(),
         blocking_kind::maybe());
 
+    static constexpr bool is_always_scheduler_affine
+        = sender_traits<Sender>::is_always_scheduler_affine;
+
     friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const next_sender& s) noexcept {
       if (s.sender_) {
         return unifex::blocking(*s.sender_);

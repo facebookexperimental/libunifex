@@ -95,6 +95,9 @@ namespace _alloc {
 
     static constexpr blocking_kind blocking = sender_traits<Sender>::blocking;
 
+    static constexpr bool is_always_scheduler_affine
+        = sender_traits<Sender>::is_always_scheduler_affine;
+
     template(typename Self, typename Receiver)
       (requires same_as<remove_cvref_t<Self>, type> AND
                 receiver<Receiver>)

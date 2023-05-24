@@ -821,6 +821,9 @@ public:
 
   static constexpr blocking_kind blocking = sender_traits<sender_t>::blocking;
 
+  static constexpr bool is_always_scheduler_affine
+      = sender_traits<sender_t>::is_always_scheduler_affine;
+
   explicit type(
       Scope& scope,
       typename _spawn_future_op<T...>::type*

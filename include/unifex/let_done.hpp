@@ -292,6 +292,10 @@ public:
           sender_traits<final_sender_t>::blocking(),
           blocking_kind::maybe()));
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Source>::is_always_scheduler_affine &&
+      sender_traits<final_sender_t>::is_always_scheduler_affine;
+
   template <typename Source2, typename Done2>
   explicit type(Source2&& source, Done2&& done)
     noexcept(
