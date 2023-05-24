@@ -68,6 +68,8 @@ namespace _static_thread_pool {
 
         static constexpr bool sends_done = true;
 
+        static constexpr blocking_kind blocking = blocking_kind::never;
+
       private:
         template <typename Receiver>
         operation<Receiver> make_operation_(Receiver&& r) const {

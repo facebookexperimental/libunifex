@@ -77,15 +77,13 @@ private:
 
     static constexpr bool sends_done = true;
 
+    static constexpr blocking_kind blocking = blocking_kind::always_inline;
+
     template (typename Receiver)
       (requires receiver_of<Receiver>)
     auto connect(Receiver&& rec) const
       -> typename _op<remove_cvref_t<Receiver>>::type {
       return typename _op<remove_cvref_t<Receiver>>::type{(Receiver&&) rec};
-    }
-
-    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _sender&) noexcept {
-      return blocking_kind::always_inline;
     }
   };
 

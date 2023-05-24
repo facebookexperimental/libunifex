@@ -96,17 +96,19 @@ struct _sender<Predecessor>::type {
 
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
+  static constexpr blocking_kind blocking = sender_traits<Predecessor>::blocking;
+
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, sender_value_types_t<Predecessor, std::variant, std::tuple>>;
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
-    return blocking(sender.pred_);
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) {
+    return unifex::blocking(sender.pred_);
   }
 
   template(typename Sender, typename Receiver)
     (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver> AND
         sender_to<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t< Receiver>>>)
-  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) 
+  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
     noexcept(
       std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
       is_nothrow_connectable_v<member_t< Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
@@ -127,7 +129,7 @@ namespace _cpo {
         tag_invocable<_fn, Sender>,
         meta_tag_invoke_result<_fn>,
         meta_quote1<_into_variant::sender>>::template apply<Sender>;
-  
+
   public:
     template(typename Sender)
       (requires tag_invocable<_fn, Sender>)
@@ -136,10 +138,10 @@ namespace _cpo {
         -> _result_t<Sender> {
       return unifex::tag_invoke(_fn{}, (Sender &&)(predecessor));
     }
-  
+
     template(typename Sender)
       (requires(!tag_invocable<_fn, Sender>))
-    auto operator()(Sender&& predecessor) const 
+    auto operator()(Sender&& predecessor) const
         noexcept(std::is_nothrow_constructible_v<
           _into_variant::sender<Sender>, Sender>)
         -> _result_t<Sender> {

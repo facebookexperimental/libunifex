@@ -27,6 +27,7 @@
 #include <unifex/type_list.hpp>
 #include <unifex/std_concepts.hpp>
 
+#include <algorithm>
 #include <exception>
 #include <type_traits>
 #include <utility>
@@ -37,25 +38,6 @@ namespace unifex
 {
   namespace _seq
   {
-    constexpr blocking_kind _blocking_kind(
-        blocking_kind predBlocking, blocking_kind succBlocking) noexcept {
-      if (predBlocking == blocking_kind::never) {
-        return blocking_kind::never;
-      } else if (
-          predBlocking == blocking_kind::always_inline &&
-          succBlocking == blocking_kind::always_inline) {
-        return blocking_kind::always_inline;
-      } else if (
-          (predBlocking == blocking_kind::always_inline ||
-          predBlocking == blocking_kind::always) &&
-          (succBlocking == blocking_kind::always_inline ||
-          succBlocking == blocking_kind::always)) {
-        return blocking_kind::always;
-      } else {
-        return blocking_kind::maybe;
-      }
-    }
-
     template <typename Predecessor, typename Successor, typename Receiver>
     struct _op {
       class type;
@@ -333,6 +315,13 @@ namespace unifex
         sender_traits<Predecessor>::sends_done ||
         sender_traits<Successor>::sends_done;
 
+      static constexpr blocking_kind blocking = std::max(
+          sender_traits<Predecessor>::blocking(),
+          std::min(
+              // TODO: we only need the min(, maybe) if pred can throw or cancel
+              sender_traits<Successor>::blocking(),
+              blocking_kind::maybe()));
+
       template(typename Predecessor2, typename Successor2)
           (requires constructible_from<Predecessor, Predecessor2> AND
               constructible_from<Successor, Successor2>)
@@ -342,17 +331,12 @@ namespace unifex
         : predecessor_(static_cast<Predecessor&&>(predecessor))
         , successor_(static_cast<Successor&&>(successor)) {}
 
-      friend auto tag_invoke(tag_t<blocking>, const type& self) {
-        if constexpr (
-            blocking_kind::maybe != cblocking<Predecessor>() &&
-            blocking_kind::maybe != cblocking<Successor>()) {
-          return blocking_kind::constant<
-              _seq::_blocking_kind(cblocking<Predecessor>(), cblocking<Successor>())>();
-        } else {
-          return _seq::_blocking_kind(
-              blocking(self.predecessor_),
-              blocking(self.successor_));
-        }
+      friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& self) {
+        blocking_kind pred = blocking(self.predecessor_);
+        blocking_kind succ = blocking(self.successor_);
+
+        // TODO: we only need the min(, maybe) if pred can throw or cancel
+        return std::max(pred(), std::min(succ(), blocking_kind::maybe()));
       }
 
       template(typename Receiver, typename Sender)

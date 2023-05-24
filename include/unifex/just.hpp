@@ -78,6 +78,8 @@ class _sender<Values...>::type {
 
   static constexpr bool sends_done = false;
 
+  static constexpr auto blocking = blocking_kind::always_inline;
+
   template(typename... Values2)
     (requires (sizeof...(Values2) == sizeof...(Values)) AND
       constructible_from<std::tuple<Values...>, Values2...>)
@@ -93,10 +95,6 @@ class _sender<Values...>::type {
       noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
       -> operation<Receiver, Values...> {
     return {static_cast<This&&>(that).values_, static_cast<Receiver&&>(r)};
-  }
-
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type&) noexcept {
-    return blocking_kind::always_inline;
   }
 };
 } // namespace _just

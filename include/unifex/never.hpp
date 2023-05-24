@@ -84,6 +84,9 @@ struct sender {
 
   static constexpr bool sends_done = true;
 
+  // we'll complete inline if started with a stopped stop token
+  static constexpr blocking_kind blocking = blocking_kind::maybe;
+
   template <typename Receiver>
   operation<Receiver> connect(Receiver&& receiver) {
     return operation<Receiver>{(Receiver &&) receiver};

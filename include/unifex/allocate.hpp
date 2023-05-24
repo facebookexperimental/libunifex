@@ -93,6 +93,8 @@ namespace _alloc {
 
     static constexpr bool sends_done = sender_traits<Sender>::sends_done;
 
+    static constexpr blocking_kind blocking = sender_traits<Sender>::blocking;
+
     template(typename Self, typename Receiver)
       (requires same_as<remove_cvref_t<Self>, type> AND
                 receiver<Receiver>)
@@ -106,8 +108,8 @@ namespace _alloc {
           static_cast<Self&&>(s).sender_, (Receiver &&) r};
     }
 
-    friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
-      return blocking(self.sender_);
+    friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+      return unifex::blocking(self.sender_);
     }
 
     Sender sender_;

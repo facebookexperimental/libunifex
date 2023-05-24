@@ -383,8 +383,9 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
   template <typename Receiver>
   using receiver_type = receiver_t<Predecessor, Receiver, Func, FuncPolicy>;
 
+  // TODO: it's unclear whether this implementation is accurate
   friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
-    return blocking(sender.pred_);
+    return unifex::blocking(sender.pred_);
   }
 
   template(typename Sender, typename Receiver)

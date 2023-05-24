@@ -59,6 +59,8 @@ class sender {
 
   static constexpr bool sends_done = true;
 
+  static constexpr auto blocking = blocking_kind::always_inline;
+
   template(typename This, typename Receiver)
       (requires same_as<remove_cvref_t<This>, sender> AND
         receiver<Receiver>)
@@ -66,10 +68,6 @@ class sender {
       noexcept
       -> operation<Receiver> {
     return {static_cast<Receiver&&>(r)};
-  }
-
-  friend constexpr auto tag_invoke(tag_t<blocking>, const sender&) noexcept {
-    return blocking_kind::always_inline;
   }
 };
 } // namespace _just_done

@@ -70,6 +70,8 @@ class _sender<Error>::type {
 
   static constexpr bool sends_done = false;
 
+  static constexpr auto blocking =  blocking_kind::always_inline;
+
   template<typename Error2>
   explicit type(std::in_place_t, Error2&& error)
     noexcept(std::is_nothrow_constructible_v<Error, Error2>)
@@ -83,10 +85,6 @@ class _sender<Error>::type {
       noexcept(std::is_nothrow_constructible_v<Error, member_t<This, Error>>)
       -> operation<Receiver, Error> {
     return {static_cast<This&&>(that).error_, static_cast<Receiver&&>(r)};
-  }
-
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type&) noexcept {
-    return blocking_kind::always_inline;
   }
 };
 } // namespace _just_error

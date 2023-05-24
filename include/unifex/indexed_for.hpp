@@ -147,10 +147,12 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
 
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
-  friend constexpr auto tag_invoke(
+  static constexpr blocking_kind blocking = sender_traits<Predecessor>::blocking;
+
+  friend constexpr blocking_kind tag_invoke(
       tag_t<blocking>,
       const sender& sender) {
-    return blocking(sender.pred_);
+    return unifex::blocking(sender.pred_);
   }
 
   template <typename Receiver>

@@ -59,6 +59,8 @@ public:
 
   static constexpr bool sends_done = sender_traits<InnerOp>::sends_done;
 
+  static constexpr blocking_kind blocking = sender_traits<InnerOp>::blocking;
+
   template<typename StateFactory2, typename SuccessorFactory2>
   explicit type(StateFactory2&& stateFactory, SuccessorFactory2&& func) :
     stateFactory_((StateFactory2&&)stateFactory),

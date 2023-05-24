@@ -36,6 +36,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/v2/async_scope.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <tuple>
@@ -240,6 +241,10 @@ struct _attach_sender<Sender>::type final {
 
   static constexpr bool sends_done = sender_traits<Sender>::sends_done;
 
+  static constexpr blocking_kind blocking = std::min(
+      blocking_kind::maybe(),
+      sender_traits<Sender>::blocking());
+
   template <typename Sender2>
   explicit type(inplace_stop_token stoken, Sender2&& sender) noexcept(
       std::is_nothrow_constructible_v<Sender, Sender2>)
@@ -266,13 +271,19 @@ struct _attach_sender<Sender>::type final {
         static_cast<Receiver&&>(receiver)};
   }
 
-  friend constexpr auto
-  tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
-    if constexpr (blocking_kind::never == cblocking<Sender>()) {
-      // we might return synchronously from start() so we're at most maybe
-      return blocking_kind::maybe;
-    } else {
-      return blocking(s.sender_);
+  friend constexpr blocking_kind
+  tag_invoke(tag_t<unifex::blocking>, [[maybe_unused]] const type& self) noexcept {
+    if constexpr (sender_traits<Sender>::blocking == blocking_kind::always_inline) {
+      // we can be constexpr in this case
+      return blocking_kind::always_inline;
+    }
+    else {
+      if (self.scope_) {
+        return unifex::blocking(self.sender_);
+      } else {
+        // we complete inline with done when there's no scope
+        return blocking_kind::always_inline;
+      }
     }
   }
 

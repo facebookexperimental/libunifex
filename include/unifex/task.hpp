@@ -210,7 +210,9 @@ struct _promise {
 
     template <typename Awaitable>
     decltype(auto) transform_awaitable_(Awaitable&& awaitable) {
-      if constexpr (blocking_kind::always_inline == cblocking<Awaitable>()) {
+      using blocking_t = decltype(blocking(awaitable));
+
+      if constexpr (!same_as<blocking_kind, blocking_t> && (blocking_kind::always_inline == blocking_t{})) {
         return Awaitable{(Awaitable&&) awaitable};
       } else {
         return unifex::await_transform(
@@ -221,7 +223,7 @@ struct _promise {
 
     template <typename Sender>
     decltype(auto) transform_sender_(Sender&& sndr) {
-      if constexpr (blocking_kind::always_inline == cblocking<Sender>()) {
+      if constexpr (blocking_kind::always_inline == sender_traits<remove_cvref_t<Sender>>::blocking) {
         return unifex::await_transform(*this, (Sender&&) sndr);
       } else if constexpr (is_sender_for_v<remove_cvref_t<Sender>, schedule>) {
         // If we are co_await'ing a sender that is the result of calling schedule,
@@ -389,6 +391,11 @@ struct _task<T>::type : _task_base, coro_holder {
   using error_types = Variant<std::exception_ptr>;
 
   static constexpr bool sends_done = true;
+
+  // we can't tell whether the coroutine has any suspend points beyond the
+  // initial one and, even if we could, we wouldn't know if any of those suspend
+  // points are async
+  static constexpr blocking_kind blocking = blocking_kind::maybe;
 
   type(type&& t) noexcept = default;
 

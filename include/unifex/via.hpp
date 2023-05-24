@@ -306,10 +306,10 @@ struct _sender<Predecessor, Successor>::type {
 
   friend constexpr auto tag_invoke(tag_t<blocking>, const sender& self) noexcept {
     if constexpr (
-        blocking_kind::maybe != cblocking<Predecessor>() &&
-        blocking_kind::maybe != cblocking<Successor>()) {
+        blocking_kind::maybe != sender_traits<Predecessor>::blocking &&
+        blocking_kind::maybe != sender_traits<Successor>::blocking) {
       return blocking_kind::constant<
-          _via::_blocking_kind(cblocking<Predecessor>(), cblocking<Successor>())>();
+          _via::_blocking_kind(sender_traits<Predecessor>::blocking, sender_traits<Successor>::blocking)>();
     } else {
       return _via::_blocking_kind(blocking(self.pred_), blocking(self.succ_));
     }

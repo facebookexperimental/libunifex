@@ -90,6 +90,10 @@ struct _snd_base {
 
     static constexpr bool sends_done = true;
 
+    // there's no way to know; maybe create() should have a way for the user to
+    // specify
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
+
     template (typename Self, typename Receiver)
       (requires derived_from<remove_cvref_t<Self>, type> AND
         constructible_from<Fn, member_t<Self, Fn>> AND
@@ -157,7 +161,7 @@ struct _fn {
  * \fn template <class... ValueTypes> auto create(auto fn [, auto ctx])
  * \brief A utility for building a sender-based API out of a C-style API that
  *        accepts a void* context and a function pointer continuation.
- * 
+ *
  * \em Example:
  * \code
  *  // A void-returning C-style async API that accepts a context and a continuation:

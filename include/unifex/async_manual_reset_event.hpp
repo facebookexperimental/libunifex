@@ -16,6 +16,8 @@
 #pragma once
 
 #include <unifex/config.hpp>
+
+#include <unifex/blocking.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -53,6 +55,8 @@ struct _sender {
   using error_types = Variant<std::exception_ptr>;
 
   static constexpr bool sends_done = false;
+
+  static constexpr blocking_kind blocking = blocking_kind::never;
 
   explicit _sender(async_manual_reset_event& evt) noexcept
     : evt_(&evt) {}

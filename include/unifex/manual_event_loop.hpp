@@ -89,12 +89,6 @@ class context {
  public:
   class scheduler {
     class schedule_task {
-      friend constexpr auto tag_invoke(
-          tag_t<blocking>,
-          const schedule_task&) noexcept {
-        return blocking_kind::never;
-      }
-
      public:
       template <
           template <typename...> class Variant,
@@ -105,6 +99,8 @@ class context {
       using error_types = Variant<>;
 
       static constexpr bool sends_done = true;
+
+      static constexpr blocking_kind blocking = blocking_kind::never;
 
       template <typename Receiver>
       operation<Receiver> connect(Receiver&& receiver) const {

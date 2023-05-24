@@ -23,6 +23,7 @@
 #include <unifex/scope_guard.hpp>
 #include <unifex/bind_back.hpp>
 
+#include <algorithm>
 #include <optional>
 #include <type_traits>
 
@@ -100,6 +101,19 @@ struct _stream<Sender>::type {
     using error_types = sender_error_types_t<Sender, Variant>;
 
     static constexpr bool sends_done = true;
+
+    static constexpr blocking_kind blocking = std::min(
+        sender_traits<Sender>::blocking(),
+        blocking_kind::maybe());
+
+    friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const next_sender& s) noexcept {
+      if (s.sender_) {
+        return unifex::blocking(*s.sender_);
+      }
+      else {
+        return blocking_kind::always_inline;
+      }
+    }
 
     template <typename Receiver>
     auto connect(Receiver&& receiver) {

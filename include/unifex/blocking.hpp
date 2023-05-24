@@ -23,10 +23,19 @@
 namespace unifex {
 
 namespace _block {
-enum class _enum {
+enum class _enum : unsigned char {
+  // Caller guarantees that the receiver will be called inline on the
+  // current thread that called .start() before .start() returns.
+  always_inline = 0,
+
+  // Guarantees that the receiver will be called strongly-happens-before
+  // .start() returns. Does not guarantee the call to the receiver happens
+  // on the same thread that called .start(), however.
+  always,
+
   // No guarantees about the timing and context on which the receiver will
   // be called.
-  maybe = 0,
+  maybe,
 
   // Always completes asynchronously.
   // Guarantees that the receiver will not be called on the current thread
@@ -34,16 +43,23 @@ enum class _enum {
   // before .start() returns, however, or may be called on the current thread
   // some time after .start() returns.
   never,
-
-  // Guarantees that the receiver will be called strongly-happens-before
-  // .start() returns. Does not guarantee the call to the receiver happens
-  // on the same thread that called .start(), however.
-  always,
-
-  // Caller guarantees that the receiver will be called inline on the
-  // current thread that called .start() before .start() returns.
-  always_inline
 };
+
+constexpr bool operator<(_enum lhs, _enum rhs) noexcept {
+  return static_cast<unsigned char>(lhs) < static_cast<unsigned char>(rhs);
+}
+
+constexpr bool operator>(_enum lhs, _enum rhs) noexcept {
+  return rhs < lhs;
+}
+
+constexpr bool operator<=(_enum lhs, _enum rhs) noexcept {
+  return !(lhs > rhs);
+}
+
+constexpr bool operator>=(_enum lhs, _enum rhs) noexcept {
+  return !(lhs < rhs);
+}
 
 struct blocking_kind {
   template <_enum Kind>
@@ -68,21 +84,22 @@ struct blocking_kind {
     return value;
   }
 
-  friend constexpr bool operator==(blocking_kind a, blocking_kind b) noexcept {
-    return a.value == b.value;
-  }
-
-  friend constexpr bool operator!=(blocking_kind a, blocking_kind b) noexcept {
-    return a.value != b.value;
-  }
-
   static constexpr constant<_enum::maybe> maybe {};
   static constexpr constant<_enum::never> never {};
   static constexpr constant<_enum::always> always {};
   static constexpr constant<_enum::always_inline> always_inline {};
 
-  _enum value{};
+  _enum value{_enum::maybe};
 };
+
+template <typename Sender, typename = void>
+struct _has_blocking : std::false_type {};
+
+template <typename Sender>
+struct _has_blocking<
+    Sender,
+    std::void_t<decltype(Sender::blocking)>>
+  : std::true_type {};
 
 struct _fn {
   template(typename Sender)
@@ -95,30 +112,18 @@ struct _fn {
   template(typename Sender)
     (requires (!tag_invocable<_fn, const Sender&>))
   constexpr auto operator()(const Sender&) const noexcept {
-    return blocking_kind::maybe;
+    if constexpr (_has_blocking<Sender>::value) {
+      return blocking_kind::constant<Sender::blocking>{};
+    }
+    else {
+      return blocking_kind::maybe;
+    }
   }
 };
-
-namespace _cfn {
-  template <_enum Kind>
-  static constexpr auto _kind(blocking_kind::constant<Kind> kind) noexcept {
-    return kind;
-  }
-  static constexpr auto _kind(blocking_kind) noexcept {
-    return blocking_kind::maybe;
-  }
-
-  template <typename T>
-  constexpr auto cblocking() noexcept {
-    using blocking_t = remove_cvref_t<decltype(_fn{}(UNIFEX_DECLVAL(T&)))>;
-    return _cfn::_kind(blocking_t{});
-  }
-}
 
 } // namespace _block
 
 inline constexpr _block::_fn blocking {};
-using _block::_cfn::cblocking;
 using _block::blocking_kind;
 
 } // namespace unifex

@@ -819,6 +819,8 @@ public:
 
   static constexpr bool sends_done = true;
 
+  static constexpr blocking_kind blocking = sender_traits<sender_t>::blocking;
+
   explicit type(
       Scope& scope,
       typename _spawn_future_op<T...>::type*
@@ -838,9 +840,8 @@ public:
     return connect(std::move(self).sender_, static_cast<Receiver&&>(receiver));
   }
 
-  friend auto tag_invoke(tag_t<blocking>, const type&) noexcept {
-    // we're never when nest succeeds and always_inline when it fails
-    return blocking_kind::maybe;
+  friend blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+    return unifex::blocking(sender.sender_);
   }
 };
 

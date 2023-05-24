@@ -76,6 +76,10 @@ private:
 
     static constexpr bool sends_done = true;
 
+    // we report failure to construct a thread inline; maybe we should
+    // terminate in that case and change this to never
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
+
     explicit schedule_sender(context* ctx) noexcept
       : context_(ctx) {}
 

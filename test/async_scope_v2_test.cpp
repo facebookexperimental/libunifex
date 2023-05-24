@@ -87,6 +87,9 @@ struct throwing_sender final {
 
   static constexpr bool sends_done = false;
 
+  static constexpr unifex::blocking_kind blocking
+      = unifex::blocking_kind::always_inline;
+
   UNIFEX_TEMPLATE(typename Receiver)                                //
   (requires unifex::sender_to<decltype(unifex::just()), Receiver>)  //
       friend auto tag_invoke(
@@ -299,6 +302,9 @@ TEST_F(
       !unifex::is_nothrow_connectable_v<throwing_sender_t&, nothrow_receiver>);
   static_assert(
       !unifex::is_nothrow_connectable_v<throwing_sender_t&, nothrow_receiver&>);
+  static_assert(
+      unifex::blocking_kind::always_inline ==
+      unifex::sender_traits<throwing_sender_t>::blocking);
 }
 
 TEST_F(async_scope_v2_test, nest_owns_one_refcount) {

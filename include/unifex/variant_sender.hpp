@@ -22,6 +22,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 
+#include <algorithm>
 #include <exception>
 #include <tuple>
 #include <type_traits>
@@ -71,33 +72,6 @@ struct _op<Ops...>::type {
   std::variant<manual_lifetime<Ops>...> variantOp_;
 };
 
-template <typename Sender, typename... Rest>
-struct max_blocking_kind {
-  constexpr auto operator()() noexcept { return cblocking<Sender>(); }
-};
-
-template <typename First, typename Second, typename... Rest>
-struct max_blocking_kind<First, Second, Rest...> {
-  constexpr auto operator()() noexcept {
-    constexpr blocking_kind first = cblocking<First>();
-    constexpr blocking_kind second = cblocking<Second>();
-
-    if constexpr (first == second) {
-      return max_blocking_kind<First, Rest...>{}();
-    } else if constexpr (
-        first == blocking_kind::always &&
-        second == blocking_kind::always_inline) {
-      return max_blocking_kind<First, Rest...>{}();
-    } else if constexpr (
-        first == blocking_kind::always_inline &&
-        second == blocking_kind::always) {
-      return max_blocking_kind<Second, Rest...>{}();
-    } else {
-      return blocking_kind::maybe;
-    }
-  }
-};
-
 template <typename... Senders>
 struct _sender {
   class type;
@@ -108,6 +82,21 @@ using sender = typename _sender<remove_cvref_t<Senders>...>::type;
 template <typename... Senders>
 class _sender<Senders...>::type {
   std::variant<Senders...> senderVariant_;
+
+  static_assert(sizeof...(Senders) > 0);
+
+  static constexpr blocking_kind compute_blocking() noexcept {
+    _block::_enum enums[]{sender_traits<Senders>::blocking...};
+
+    auto [min, max] = std::minmax_element(std::begin(enums), std::end(enums));
+
+    if (*min == *max) {
+      return *min;
+    }
+    else {
+      return std::min(*max, blocking_kind::maybe());
+    }
+  }
 
  public:
 
@@ -120,6 +109,8 @@ class _sender<Senders...>::type {
   using error_types = concat_type_lists_unique_t<sender_error_types_t<Senders, Variant>...>;
 
   static constexpr bool sends_done = std::disjunction_v<std::bool_constant<sender_traits<Senders>::sends_done>...>;
+
+  static constexpr blocking_kind blocking = compute_blocking();
 
   template<typename ConcreteSender>
   type(ConcreteSender&& concreteSender)
@@ -149,8 +140,8 @@ class _sender<Senders...>::type {
         static_cast<decltype(that)>(that).senderVariant_);
   }
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type&) noexcept {
-    return _variant_sender::max_blocking_kind<Senders...>{}();
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+    return std::visit(unifex::blocking, sender.senderVariant_);
   }
 };
 } // namespace _variant_sender

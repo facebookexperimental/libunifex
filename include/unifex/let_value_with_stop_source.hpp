@@ -116,6 +116,8 @@ public:
 
     static constexpr bool sends_done = sender_traits<InnerOp>::sends_done;
 
+    static constexpr blocking_kind blocking = sender_traits<InnerOp>::blocking;
+
     template<typename SuccessorFactory2>
     explicit type(SuccessorFactory2&& func) : func_((SuccessorFactory2&&)func)
     {}

@@ -182,6 +182,8 @@ namespace unifex
 
       static constexpr bool sends_done = false;
 
+      static constexpr blocking_kind blocking = sender_traits<Source>::blocking;
+
       template(typename Source2)
           (requires constructible_from<Source, Source2>)
       explicit type(Source2&& source) noexcept(
@@ -199,6 +201,10 @@ namespace unifex
         return unifex::connect(
             static_cast<Self&&>(self).source_,
             receiver_t<Receiver>{static_cast<Receiver&&>(r)});
+      }
+
+      friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+        return unifex::blocking(s.source_);
       }
 
     private:
