@@ -326,6 +326,14 @@ struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {
 template<typename... Senders>
 using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
 
+template <typename First, typename... Rest>
+struct max_blocking_kind {
+  constexpr _block::_enum operator()() const noexcept {
+    _block::_enum enums[]{sender_traits<First>::blocking, sender_traits<Rest>::blocking...};
+    return *std::max_element(std::begin(enums), std::end(enums));
+  }
+};
+
 template <typename Source, typename Func>
 class _sndr<Source, Func>::type final {
 
@@ -337,6 +345,9 @@ class _sndr<Source, Func>::type final {
 
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
+
+  template <typename... Errors>
+  using max_successor_blocking = max_blocking_kind<final_sender<Errors>...>;
 
 public:
   template <
@@ -364,6 +375,15 @@ public:
   static constexpr bool sends_done =
     sender_traits<Source>::sends_done ||
     sender_error_types_t<Source, sends_done_impl>::value;
+
+  // the successors' blocking trait only affects our blocking_kind if the
+  // predecessor fails so the successors can't raise our blocking_kind past
+  // maybe
+  static constexpr blocking_kind blocking = std::max(
+      sender_traits<Source>::blocking(),
+      std::min(
+          sender_error_types_t<Source, max_successor_blocking>{}(),
+          blocking_kind::maybe()));
 
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)
@@ -395,6 +415,16 @@ public:
       static_cast<Sender&&>(s).func_,
       static_cast<Receiver&&>(r)
     };
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+    // get the runtime blocking_kind for the predecessor
+    blocking_kind pred = blocking(s.source_);
+    // we have to go with the static result for the successors since we don't
+    // know how pred_ will complete
+    blocking_kind succ = sender_error_types_t<Source, max_successor_blocking>{}();
+
+    return std::max(pred(), std::min(succ(), blocking_kind::maybe()));
   }
 
 private:

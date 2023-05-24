@@ -26,6 +26,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 
+#include <algorithm>
 #include <exception>
 #include <functional>
 #include <tuple>
@@ -281,50 +282,14 @@ struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {
 template <typename... Successors>
 using any_sends_done = std::disjunction<sends_done_impl<Successors>...>;
 
-template <typename Sender, typename... Rest>
+
+template <typename First, typename... Rest>
 struct max_blocking_kind {
-  constexpr auto operator()() noexcept { return cblocking<Sender>(); }
-};
-
-template <typename First, typename Second, typename... Rest>
-struct max_blocking_kind<First, Second, Rest...> {
-  constexpr auto operator()() noexcept {
-    constexpr blocking_kind first = cblocking<First>();
-    constexpr blocking_kind second = cblocking<Second>();
-
-    if constexpr (first == second) {
-      return max_blocking_kind<First, Rest...>{}();
-    } else if constexpr (
-        first == blocking_kind::always &&
-        second == blocking_kind::always_inline) {
-      return max_blocking_kind<First, Rest...>{}();
-    } else if constexpr (
-        first == blocking_kind::always_inline &&
-        second == blocking_kind::always) {
-      return max_blocking_kind<Second, Rest...>{}();
-    } else {
-      return blocking_kind::maybe;
-    }
+  constexpr _block::_enum operator()() const noexcept {
+    _block::_enum enums[]{sender_traits<First>::blocking, sender_traits<Rest>::blocking...};
+    return *std::max_element(std::begin(enums), std::end(enums));
   }
 };
-
-constexpr blocking_kind _blocking_kind(blocking_kind source, blocking_kind completion) noexcept {
-  if (source == blocking_kind::never || completion == blocking_kind::never) {
-    return blocking_kind::never;
-  } else if (
-      source == blocking_kind::always_inline &&
-      completion == blocking_kind::always_inline) {
-    return blocking_kind::always_inline;
-  } else if (
-      (source == blocking_kind::always_inline ||
-       source == blocking_kind::always) &&
-      (completion == blocking_kind::always_inline ||
-       completion == blocking_kind::always)) {
-    return blocking_kind::always;
-  } else {
-    return blocking_kind::maybe;
-  }
-}
 
 template <typename Predecessor, typename SuccessorFactory>
 class _sender<Predecessor, SuccessorFactory>::type {
@@ -386,6 +351,12 @@ public:
     sender_traits<Predecessor>::sends_done ||
     successor_types<any_sends_done>::value;
 
+  static constexpr blocking_kind blocking = std::max(
+      sender_traits<Predecessor>::blocking(),
+      std::min(
+          successor_types<_let_v::max_blocking_kind>{}(),
+          blocking_kind::maybe()));
+
  public:
   template <typename Predecessor2, typename SuccessorFactory2>
   explicit type(Predecessor2&& pred, SuccessorFactory2&& func)
@@ -404,17 +375,14 @@ public:
         static_cast<Receiver&&>(receiver)};
   }
 
-  friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type&) noexcept {
-    constexpr blocking_kind succ = successor_types<_let_v::max_blocking_kind>{}();
-    if constexpr (
-        blocking_kind::never == cblocking<Predecessor>() || blocking_kind::never == succ) {
-      return blocking_kind::never;
-    } else if constexpr (
-        blocking_kind::maybe != cblocking<Predecessor>() && blocking_kind::maybe != succ) {
-      return blocking_kind::constant<_let_v::_blocking_kind(cblocking<Predecessor>(), succ)>{};
-    } else {
-      return _let_v::_blocking_kind(cblocking<Predecessor>(), succ);
-    }
+  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& sender) noexcept {
+    // get the runtime blocking_kind for the predecessor
+    blocking_kind pred = blocking(sender.pred_);
+    // we have to go with the static result for the successors since we don't
+    // know how pred_ will complete
+    blocking_kind succ = successor_types<_let_v::max_blocking_kind>{}();
+
+    return std::max(pred(), std::min(succ(), blocking_kind::maybe()));
   }
 };
 

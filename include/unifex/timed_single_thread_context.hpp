@@ -142,6 +142,9 @@ namespace _timed_single_thread_context {
 
     static constexpr bool sends_done = true;
 
+    // stop requests are always delivered on the context's thread
+    static constexpr blocking_kind blocking = blocking_kind::never;
+
     template <typename Receiver>
     after_operation<Duration, Receiver> connect(Receiver&& receiver) const {
       return after_operation<Duration, Receiver>{
@@ -212,6 +215,9 @@ namespace _timed_single_thread_context {
     using error_types = Variant<>;
 
     static constexpr bool sends_done = true;
+
+    // stop requests are always delivered on the context's thread
+    static constexpr blocking_kind blocking = blocking_kind::never;
 
     template <typename Receiver>
     at_operation<remove_cvref_t<Receiver>> connect(Receiver&& receiver) {

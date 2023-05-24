@@ -26,6 +26,7 @@
 #include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <optional>
@@ -306,6 +307,13 @@ inline constexpr bool when_all_connectable_v =
 template <typename... Senders>
 class _sender<Senders...>::type {
   using sender = type;
+
+  static constexpr blocking_kind compute_blocking() noexcept {
+    const _block::_enum enums[]{sender_traits<Senders>::blocking...};
+
+    return *std::max_element(std::begin(enums), std::end(enums));
+  }
+
 public:
   static_assert(sizeof...(Senders) > 0);
 
@@ -318,6 +326,8 @@ public:
   using error_types = error_types<Variant, Senders...>;
 
   static constexpr bool sends_done = true;
+
+  static constexpr blocking_kind blocking = compute_blocking();
 
   template <typename... Senders2>
   explicit type(Senders2&&... senders)
@@ -335,47 +345,17 @@ public:
     }, static_cast<Sender &&>(sender).senders_);
   }
 
-private:
-
   // Customise the 'blocking' CPO to combine the blocking-nature
   // of each of the child operations.
-  friend blocking_kind tag_invoke(tag_t<blocking>, const sender& s) noexcept {
-    bool alwaysInline = true;
-    bool alwaysBlocking = true;
-    bool neverBlocking =  false;
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const sender& s) noexcept {
+    return std::apply([](const auto&... senders) noexcept {
+      const _block::_enum enums[]{blocking(senders)...};
 
-    auto handleBlockingStatus = [&](blocking_kind kind) noexcept {
-      switch (kind) {
-        case blocking_kind::never:
-          neverBlocking = true;
-          [[fallthrough]];
-        case blocking_kind::maybe:
-          alwaysBlocking = false;
-          [[fallthrough]];
-        case blocking_kind::always:
-          alwaysInline = false;
-          [[fallthrough]];
-        case blocking_kind::always_inline:
-          break;
-      }
-    };
-
-    std::apply([&](const auto&... senders) {
-      (void)std::initializer_list<int>{
-        (handleBlockingStatus(blocking(senders)), 0)... };
+      return *std::max_element(std::begin(enums), std::end(enums));
     }, s.senders_);
-
-    if (neverBlocking) {
-      return blocking_kind::never;
-    } else if (alwaysInline) {
-      return blocking_kind::always_inline;
-    } else if (alwaysBlocking) {
-      return blocking_kind::always;
-    } else {
-      return blocking_kind::maybe;
-    }
   }
 
+private:
   std::tuple<Senders...> senders_;
 };
 

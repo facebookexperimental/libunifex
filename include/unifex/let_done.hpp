@@ -286,6 +286,12 @@ public:
 
   static constexpr bool sends_done = sender_traits<final_sender_t>::sends_done;
 
+  static constexpr blocking_kind blocking = std::max(
+      sender_traits<Source>::blocking(),
+      std::min(
+          sender_traits<final_sender_t>::blocking(),
+          blocking_kind::maybe()));
+
   template <typename Source2, typename Done2>
   explicit type(Source2&& source, Done2&& done)
     noexcept(
@@ -316,6 +322,11 @@ public:
       static_cast<Sender&&>(s).done_,
       static_cast<Receiver&&>(r)
     };
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+    blocking_kind pred = unifex::blocking(s);
+    return std::max(pred(), std::min(sender_traits<final_sender_t>::blocking(), blocking_kind::maybe()));
   }
 
 private:

@@ -101,6 +101,8 @@ public:
 
     static constexpr bool sends_done = sender_traits<Source>::sends_done;
 
+    static constexpr blocking_kind blocking = sender_traits<Source>::blocking;
+
     template<typename Source2>
     explicit type(Source2&& s)
         noexcept(std::is_nothrow_constructible_v<Source, Source2>)
@@ -120,6 +122,10 @@ public:
         return unifex::connect(
             static_cast<Self&&>(self).source_,
             join_receiver<remove_cvref_t<Receiver>>{static_cast<Receiver&&>(r)});
+    }
+
+    friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+      return unifex::blocking(s.source_);
     }
 
 private:

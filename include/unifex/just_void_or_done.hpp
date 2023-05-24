@@ -64,6 +64,8 @@ struct _sender {
 
   static constexpr bool sends_done = true;
 
+  static constexpr auto blocking =  blocking_kind::always_inline;
+
   // clang-format off
   UNIFEX_TEMPLATE(typename Receiver)
       (requires receiver<Receiver>)
@@ -72,10 +74,6 @@ struct _sender {
     return operation<Receiver>{static_cast<Receiver&&>(r), s.isVoid_};
   }
   // clang-format on
-
-  friend constexpr auto tag_invoke(tag_t<blocking>, const _sender&) noexcept {
-    return blocking_kind::always_inline;
-  }
 };
 
 inline constexpr struct just_void_or_done_fn {

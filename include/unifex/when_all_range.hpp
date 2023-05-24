@@ -20,6 +20,7 @@
 #include <atomic>
 #include <cstddef>
 #include <functional>
+#include <numeric>
 #include <optional>
 #include <type_traits>
 #include <variant>
@@ -291,6 +292,10 @@ public:
 
   static constexpr bool sends_done = true;
 
+  static constexpr blocking_kind blocking = std::min(
+      blocking_kind::maybe(),
+      sender_traits<Sender>::blocking());
+
 private:
   template(typename Sender2, typename Receiver)  //
       (requires unifex::same_as<unifex::remove_cvref_t<Sender2>, type> AND
@@ -306,17 +311,25 @@ private:
   }
 
   // Combine the blocking-nature of each of the child operations.
-  friend constexpr auto tag_invoke(
-      unifex::tag_t<unifex::blocking> /* unused */, const type&) noexcept {
+  friend constexpr blocking_kind tag_invoke(
+      unifex::tag_t<unifex::blocking>,
+      [[maybe_unused]] const type& sender) noexcept {
     if constexpr (
-        unifex::cblocking<Sender>() == unifex::blocking_kind::always_inline ||
-        unifex::cblocking<Sender>() == unifex::blocking_kind::always) {
-      return unifex::cblocking<Sender>();
+        unifex::sender_traits<Sender>::blocking ==
+        unifex::blocking_kind::always_inline) {
+      // we can be constexpr in this case
+      return blocking_kind::always_inline;
     } else {
-      // we complete inline if the input is empty so every other case is "maybe"
-      return unifex::blocking_kind::maybe;
+      return std::accumulate(
+          std::begin(sender.senders_),
+          std::end(sender.senders_),
+          blocking_kind::always_inline(),
+          [](auto max, const auto& sender) noexcept {
+            blocking_kind next = unifex::blocking(sender);
+            return std::max(max, next());
+          });
     }
-  }
+}
 
   std::vector<Sender> senders_;
 };

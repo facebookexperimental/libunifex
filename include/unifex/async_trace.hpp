@@ -98,13 +98,11 @@ namespace _async_trace {
 
     static constexpr bool sends_done = false;
 
+    static constexpr blocking_kind blocking = blocking_kind::always_inline;
+
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const& {
       return operation<Receiver>{(Receiver &&) r};
-    }
-
-    friend auto tag_invoke(tag_t<blocking>, const sender&) noexcept {
-      return blocking_kind::always_inline;
     }
   };
 } // namespace _async_trace

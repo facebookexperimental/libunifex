@@ -60,6 +60,9 @@ private:
 
     static constexpr bool sends_done = false;
 
+    // we complete inline if we manage to grab the lock immediately
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
+
     lock_sender(const lock_sender &) = delete;
     lock_sender(lock_sender &&) = default;
 

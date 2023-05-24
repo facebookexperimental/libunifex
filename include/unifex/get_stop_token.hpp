@@ -44,6 +44,7 @@ namespace _get_stop_token {
           return (StopToken&&) stoken_;
         }
 
+        // TODO: how do we express always-inline awaitables?
         friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaiter&) noexcept {
           return blocking_kind::always_inline;
         }

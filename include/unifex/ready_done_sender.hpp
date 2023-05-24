@@ -52,11 +52,7 @@ namespace _ready_done {
 
     static constexpr bool sends_done = true;
 
-    friend constexpr auto tag_invoke(
-        tag_t<blocking>,
-        const sender&) {
-      return blocking_kind::always_inline;
-    }
+    static constexpr blocking_kind blocking =  blocking_kind::always_inline;
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) const& {

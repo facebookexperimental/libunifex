@@ -57,11 +57,7 @@ struct next_sender {
 
   static constexpr bool sends_done = true;
 
-  friend constexpr auto tag_invoke(
-      tag_t<blocking>,
-      const stream&) noexcept {
-    return blocking_kind::always_inline;
-  }
+  static constexpr blocking_kind blocking = blocking_kind::always_inline;
 
   template <typename Receiver>
   operation<Receiver> connect(Receiver&& receiver) && {

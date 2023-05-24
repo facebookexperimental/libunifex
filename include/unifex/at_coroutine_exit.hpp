@@ -188,6 +188,8 @@ struct _die_on_done {
 
     static constexpr bool sends_done = false;
 
+    static constexpr blocking_kind blocking = sender_traits<Sender>::blocking;
+
     template (typename Receiver)
       (requires sender_to<Sender, _die_on_done_rec_t<Receiver>>)
     auto connect(Receiver&& rec) &&
@@ -288,6 +290,7 @@ struct [[nodiscard]] _cleanup_task {
     return std::move(std::exchange(continuation_, {}).promise().args_);
   }
 
+  // TODO: how do we address always-inline awaitables
   friend constexpr auto tag_invoke(tag_t<blocking>, const _cleanup_task&) noexcept {
     return blocking_kind::always_inline;
   }

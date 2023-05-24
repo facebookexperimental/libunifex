@@ -206,6 +206,10 @@ struct sender {
 
   static constexpr bool sends_done = true;
 
+  // never is very likely, but we don't actually know because it depends on the
+  // receiver's scheduler's type, which we don't know
+  static constexpr blocking_kind blocking = blocking_kind::maybe;
+
   template(typename Receiver)
     (requires receiver<Receiver>)
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
@@ -280,6 +284,10 @@ namespace _schedule_after {
     using error_types = Variant<std::exception_ptr>;
 
     static constexpr bool sends_done = true;
+
+    // never is very likely, but we don't actually know because it depends on the
+    // receiver's scheduler's type, which we don't know
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
 
     explicit type(Duration d)
       : duration_(d)
@@ -365,6 +373,10 @@ namespace _schedule_at {
 
     static constexpr bool sends_done = true;
 
+    // never is very likely, but we don't actually know because it depends on the
+    // receiver's scheduler's type, which we don't know
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
+
     explicit type(TimePoint tp)
       : time_point_(tp)
     {}
@@ -435,6 +447,8 @@ namespace _current {
     Scheduler await_resume() {
       return (Scheduler&&) sched_;
     }
+
+    // TODO: we need to handle always-inline awaitables
     friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const _awaiter&) noexcept {
       return blocking_kind::always_inline;
     }

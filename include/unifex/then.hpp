@@ -158,12 +158,10 @@ public:
 
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
+  static constexpr auto blocking = sender_traits<Predecessor>::blocking;
+
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, Func>;
-
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
-    return blocking(sender.pred_);
-  }
 
   template(typename Sender, typename Receiver)
     (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver> AND
@@ -179,6 +177,10 @@ public:
       receiver_t<remove_cvref_t<Receiver>>{
         static_cast<Sender&&>(s).func_,
         static_cast<Receiver&&>(r)});
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+    return unifex::blocking(self.pred_);
   }
 };
 

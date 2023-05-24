@@ -26,6 +26,7 @@
 #include <unifex/never.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/stop_if_requested.hpp>
+#include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
 #include <unifex/then.hpp>
@@ -136,6 +137,7 @@ task<std::thread::id> test_context_restored_on_error(Scheduler s) {
   }
   co_return id;
 }
+
 } // anonymous namespace
 
 TEST_F(TaskSchedulerAffinityTest, TransformSenderOnSeparateThread) {

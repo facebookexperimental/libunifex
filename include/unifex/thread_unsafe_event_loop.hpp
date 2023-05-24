@@ -153,6 +153,8 @@ namespace _thread_unsafe_event_loop {
 
     static constexpr bool sends_done = true;
 
+    static constexpr blocking_kind blocking = blocking_kind::never;
+
     template <typename Receiver>
     after_operation<Duration, remove_cvref_t<Receiver>> connect(Receiver&& r) const& {
       return after_operation<Duration, remove_cvref_t<Receiver>>{

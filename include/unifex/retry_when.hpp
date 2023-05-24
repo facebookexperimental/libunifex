@@ -350,6 +350,8 @@ public:
   static constexpr bool sends_done =
     sender_error_types_t<Source, sends_done_impl>::value;
 
+  // TODO: blocking and is_always_scheduler_affine; I don't have the brains to figure them out right now
+
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)
     noexcept(std::is_nothrow_constructible_v<Source, Source2> &&

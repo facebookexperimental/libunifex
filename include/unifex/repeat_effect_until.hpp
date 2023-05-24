@@ -202,6 +202,8 @@ public:
 
   static constexpr bool sends_done = true;
 
+  static constexpr blocking_kind blocking = sender_traits<Source>::blocking;
+
   template <typename Source2, typename Predicate2>
   explicit type(Source2&& source, Predicate2&& predicate)
     noexcept(
@@ -229,6 +231,10 @@ public:
       static_cast<Sender&&>(s).predicate_,
       (Receiver&&)r
     };
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+    return unifex::blocking(self.source_);
   }
 
 private:

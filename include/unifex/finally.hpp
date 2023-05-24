@@ -26,6 +26,7 @@
 #include <unifex/std_concepts.hpp>
 #include <unifex/bind_back.hpp>
 
+#include <algorithm>
 #include <exception>
 #include <functional>
 #include <tuple>
@@ -71,26 +72,6 @@ namespace unifex
         CompletionSender,
         Receiver,
         std::decay_t<Values>...>::type;
-
-    constexpr blocking_kind _blocking_kind(
-        blocking_kind source,
-        blocking_kind completion) noexcept {
-      if (source == blocking_kind::never || completion == blocking_kind::never) {
-        return blocking_kind::never;
-      } else if (
-          source == blocking_kind::always_inline &&
-          completion == blocking_kind::always_inline) {
-        return blocking_kind::always_inline;
-      } else if (
-          (source == blocking_kind::always_inline ||
-          source == blocking_kind::always) &&
-          (completion == blocking_kind::always_inline ||
-          completion == blocking_kind::always)) {
-        return blocking_kind::always;
-      } else {
-        return blocking_kind::maybe;
-      }
-    }
 
     template <
         typename SourceSender,
@@ -684,6 +665,10 @@ namespace unifex
           sender_traits<SourceSender>::sends_done ||
           sender_traits<CompletionSender>::sends_done;
 
+      static constexpr blocking_kind blocking = std::max(
+          sender_traits<SourceSender>::blocking(),
+          sender_traits<CompletionSender>::blocking());
+
       template <typename SourceSender2, typename CompletionSender2>
       explicit type(
           SourceSender2&& source, CompletionSender2&& completion)
@@ -724,23 +709,10 @@ namespace unifex
                 static_cast<Receiver&&>(r)};
       }
 
-      friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
-        if constexpr (
-            blocking_kind::never == cblocking<SourceSender>() ||
-            blocking_kind::never == cblocking<CompletionSender>()) {
-          return blocking_kind::never;
-        } else if constexpr (
-            blocking_kind::maybe != cblocking<SourceSender>() &&
-            blocking_kind::maybe != cblocking<CompletionSender>()) {
-          return blocking_kind::constant<
-              _final::_blocking_kind(
-                  cblocking<SourceSender>(),
-                  cblocking<CompletionSender>())>{};
-        } else {
-          return _final::_blocking_kind(
-              blocking(self.source_),
-              blocking(self.completion_));
-        }
+      friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
+        blocking_kind source = blocking(self.source_);
+        blocking_kind completion = blocking(self.completion_);
+        return std::max(source(), completion());
       }
 
       SourceSender source_;

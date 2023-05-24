@@ -76,6 +76,7 @@ struct _cancel_only_sender {
     receiver_t receiver_;
     receiver_stop_token_t stoken_ = get_stop_token(receiver_);
     cancel_operation<receiver_t> cancel_{*this};
+    // TODO: this could invoke set_done before start is invoked
     decltype(make_stop_callback(stoken_, cancel_)) callback_ =
         make_stop_callback(stoken_, cancel_);
 

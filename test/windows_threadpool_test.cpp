@@ -16,6 +16,8 @@
 
 #ifdef _WIN32
 
+#define NOMINMAX
+
 #include <unifex/win32/windows_thread_pool.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>

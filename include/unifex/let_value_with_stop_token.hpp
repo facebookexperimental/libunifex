@@ -143,6 +143,8 @@ public:
 
   static constexpr bool sends_done = sender_traits<inner_sender_t>::sends_done;
 
+  static constexpr blocking_kind blocking = sender_traits<inner_sender_t>::blocking;
+
   template <typename SuccessorFactory2>
   explicit type(SuccessorFactory2&& func) noexcept(
       std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2&&>)

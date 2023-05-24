@@ -63,9 +63,7 @@ struct sender {
 
   static constexpr bool sends_done = false;
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const sender&) noexcept {
-    return blocking_kind::never;
-  }
+  static constexpr blocking_kind blocking = blocking_kind::never;
 };
 
 inline const struct _fn {
@@ -179,13 +177,13 @@ TEST(Let, Pipeable) {
 TEST(Let, InlineBlockingKind) {
   auto snd = let_value(just(), just);
   using Snd = decltype(snd);
-  static_assert(blocking_kind::always_inline == cblocking<Snd>());
+  static_assert(blocking_kind::always_inline == sender_traits<Snd>::blocking);
 }
 
 TEST(Let, PipeInlineBlockingKind) {
   auto snd = just() | let_value(just);
   using Snd = decltype(snd);
-  static_assert(blocking_kind::always_inline == cblocking<Snd>());
+  static_assert(blocking_kind::always_inline == sender_traits<Snd>::blocking);
 }
 
 TEST(Let, MaybeBlockingKind) {
@@ -193,11 +191,11 @@ TEST(Let, MaybeBlockingKind) {
 
   auto snd1 = let_value(schedule(context.get_scheduler()), just);
   using Snd1 = decltype(snd1);
-  static_assert(blocking_kind::maybe == cblocking<Snd1>());
+  static_assert(blocking_kind::never == sender_traits<Snd1>::blocking);
 
   auto snd2 = let_value(multi_sender(), just);
   using Snd2 = decltype(snd2);
-  static_assert(blocking_kind::maybe == cblocking<Snd2>());
+  static_assert(blocking_kind::maybe == sender_traits<Snd2>::blocking);
 }
 
 TEST(Let, PipeMaybeBlockingKind) {
@@ -207,37 +205,37 @@ TEST(Let, PipeMaybeBlockingKind) {
     return schedule(context.get_scheduler());
   });
   using Snd1 = decltype(snd1);
-  static_assert(blocking_kind::maybe == cblocking<Snd1>());
+  static_assert(blocking_kind::maybe == sender_traits<Snd1>::blocking);
 
   auto snd2 = just() | let_value(multi_sender);
   using Snd2 = decltype(snd2);
-  static_assert(blocking_kind::maybe == cblocking<Snd2>());
+  static_assert(blocking_kind::maybe == sender_traits<Snd2>::blocking);
 }
 
 TEST(Let, NeverBlockingKind) {
   auto snd1 = let_value(never_block(), never_block);
   using Snd1 = decltype(snd1);
-  static_assert(blocking_kind::never == cblocking<Snd1>());
+  static_assert(blocking_kind::never == sender_traits<Snd1>::blocking);
 
   timed_single_thread_context context;
 
   auto snd2 = let_value(schedule(context.get_scheduler()), never_block);
   using Snd2 = decltype(snd2);
-  static_assert(blocking_kind::never == cblocking<Snd2>());
+  static_assert(blocking_kind::never == sender_traits<Snd2>::blocking);
 
   auto snd3 = let_value(never_block(), multi_sender);
   using Snd3 = decltype(snd3);
-  static_assert(blocking_kind::never == cblocking<Snd3>());
+  static_assert(blocking_kind::never == sender_traits<Snd3>::blocking);
 }
 
 TEST(Let, PipeNeverBlockingKind) {
   auto snd1 = never_block() | let_value(never_block);
   using Snd1 = decltype(snd1);
-  static_assert(blocking_kind::never == cblocking<Snd1>());
+  static_assert(blocking_kind::never == sender_traits<Snd1>::blocking);
 
   auto snd2 = never_block() | let_value(multi_sender);
   using Snd2 = decltype(snd2);
-  static_assert(blocking_kind::never == cblocking<Snd2>());
+  static_assert(blocking_kind::never == sender_traits<Snd2>::blocking);
 }
 
 TEST(Let, SimpleLetValueWithAllocate) {

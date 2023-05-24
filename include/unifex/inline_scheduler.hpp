@@ -76,11 +76,7 @@ namespace _inline_sched {
 
       static constexpr bool sends_done = true;
 
-      friend constexpr auto tag_invoke(
-          tag_t<blocking>,
-          const schedule_task&) noexcept {
-        return blocking_kind::always_inline;
-      }
+      static constexpr blocking_kind blocking = blocking_kind::always_inline;
 
       template <typename Receiver>
       operation<Receiver> connect(Receiver&& receiver) {

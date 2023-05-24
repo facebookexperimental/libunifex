@@ -20,6 +20,8 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_list.hpp>
+
+#include <algorithm>
 #include <atomic>
 #include <exception>
 
@@ -204,21 +206,16 @@ struct _sender<Sender>::type {
 
   static constexpr bool sends_done = true;
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) noexcept {
-    if constexpr (same_as<blocking_kind,
-                      decltype(blocking(sender.upstreamSender_))>) {
-      // the sender returns a runtime-determined blocking_kind
-      blocking_kind blockValue = blocking(sender.upstreamSender_);
-      if (blockValue == blocking_kind::never) {
-        blockValue = blocking_kind::maybe;
-      }
-      return blockValue;
-    } else if constexpr (blocking_kind::never == cblocking<Sender>()) {
-      // the sender always returns never
-      return blocking_kind::maybe;
-    } else {
-      return cblocking<Sender>();
-    }
+  // We will complete inline if started with a stop token that has had stop
+  // requested. If Sender is maybe or never then we're maybe overall; if Sender is
+  // always then we can report always; otherwise Sender is always_inline and we
+  // can report that.
+  static constexpr blocking_kind blocking =
+      std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
+
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+    blocking_kind other{blocking(sender)};
+    return std::min(blocking_kind::maybe(), other());
   }
 
   template <typename This, typename Receiver>

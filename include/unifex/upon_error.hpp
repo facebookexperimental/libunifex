@@ -144,11 +144,13 @@ public:
 
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
+  static constexpr blocking_kind blocking = sender_traits<Predecessor>::blocking;
+
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, Func>;
 
-  friend constexpr auto tag_invoke(tag_t<blocking>, const type& sender) {
-    return blocking(sender.pred_);
+  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+    return unifex::blocking(sender.pred_);
   }
 
   template(typename Sender, typename Receiver)

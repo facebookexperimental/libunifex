@@ -325,6 +325,12 @@ public:
 
   static constexpr bool sends_done = true;
 
+  // TODO: if Source is always or always-inline, the trigger will never have a
+  //       chance to finish first; maybe we should do something about that
+  static constexpr blocking_kind blocking = std::max(
+      sender_traits<Source>::blocking(),
+      sender_traits<Trigger>::blocking());
+
   template <typename Source2, typename Trigger2>
   explicit type(Source2&& source, Trigger2&& trigger) noexcept(
       std::is_nothrow_constructible_v<Source, Source2>&&
@@ -356,6 +362,12 @@ public:
         member_t<Self, Trigger>,
         remove_cvref_t<Receiver>>{
         ((Self &&) self).source_, ((Self &&) self).trigger_, (Receiver &&) r};
+  }
+
+  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+    blocking_kind source = unifex::blocking(s.source_);
+    blocking_kind trigger = unifex::blocking(s.trigger_);
+    return std::max(source(), trigger());
   }
 
 private:

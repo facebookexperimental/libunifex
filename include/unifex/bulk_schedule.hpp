@@ -166,6 +166,8 @@ public:
 
     static constexpr bool sends_done = true;
 
+    static constexpr blocking_kind blocking = sender_traits<schedule_sender_t>::blocking;
+
     template<typename Scheduler2>
     explicit type(Scheduler2&& s, Integral count)
     : scheduler_(static_cast<Scheduler2&&>(s))
@@ -183,6 +185,10 @@ public:
             schedule_receiver<Integral, remove_cvref_t<BulkReceiver>>{
                 static_cast<Self&&>(s).count_,
                 static_cast<BulkReceiver&&>(r)});
+    }
+
+    friend blocking_kind tag_invoke(tag_t<blocking>, const type& self) noexcept {
+      return unifex::blocking(self.scheduler_);
     }
 
 private:

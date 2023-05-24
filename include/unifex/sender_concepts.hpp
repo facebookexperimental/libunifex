@@ -16,6 +16,8 @@
 #pragma once
 
 #include <unifex/config.hpp>
+
+#include <unifex/blocking.hpp>
 #include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/type_list.hpp>
@@ -42,11 +44,20 @@ struct sender_traits;
 
 /// \cond
 namespace detail {
+  using unifex::_block::_has_blocking;
+
   template <template <template <typename...> class, template <typename...> class> class>
   struct _has_value_types;
 
   template <template <template <typename...> class> class>
   struct _has_error_types;
+
+  template <typename Sender, bool = _has_blocking<Sender>::value>
+  struct _blocking : blocking_kind::constant<blocking_kind::maybe> {};
+
+  template <typename Sender>
+  struct _blocking<Sender, true>
+    : blocking_kind::constant<Sender::blocking> {};
 
   template <typename S>
   UNIFEX_CONCEPT_FRAGMENT(  //
@@ -98,6 +109,8 @@ namespace detail {
     using error_types = typename S::template error_types<Variant>;
 
     static constexpr bool sends_done = S::sends_done;
+
+    static constexpr blocking_kind blocking = _blocking<S>::value;
   };
 
   template <typename S>

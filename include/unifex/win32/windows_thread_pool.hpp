@@ -213,6 +213,8 @@ protected:
     void start_impl(const StopToken& stopToken) & noexcept {
         if (state_ != nullptr) {
             // Short-circuit all of this if stopToken.stop_requested() is already true.
+            //
+            // TODO: this means done can be delivered on "the wrong thread"
             if (stopToken.stop_requested()) {
                 set_done_impl();
                 return;
@@ -339,8 +341,8 @@ private:
         ::WaitForThreadpoolWorkCallbacks(work_, cancelPending);
 
         // Destruct the stop-callback before calling set_done() as the call
-        // to set_done() will invalidate the stop-token and we need to 
-        // make sure that 
+        // to set_done() will invalidate the stop-token and we need to
+        // make sure that
         stopCallback_.destruct();
 
         // Now that the work has been successfully cancelled we can
@@ -368,7 +370,7 @@ private:
     // Flag set once start() has finished calling ThreadpoolSubmitWork()
     static constexpr std::uint32_t submit_complete_flag = 1;
 
-    // Flag set by request_stop() 
+    // Flag set by request_stop()
     static constexpr std::uint32_t stop_requested_flag = 2;
 
     // Flag set by cancellable_work_callback() when it starts executing.
@@ -377,7 +379,7 @@ private:
 
     // Flag set by cancellable_work_callback() after having deregistered
     // the stop-callback, just before it calls the receiver.
-    static constexpr std::uint32_t running_flag = 8; 
+    static constexpr std::uint32_t running_flag = 8;
 
     PTP_WORK work_;
     TP_CALLBACK_ENVIRON environ_;
@@ -436,6 +438,10 @@ public:
     using error_types = Variant<std::exception_ptr>;
 
     static constexpr bool sends_done = true;
+
+    // it's *almost* never, but done is sometimes delivered inline, which should
+    // probably be fixed (see TODOs in start_impl())
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
 
     template(typename Receiver)
         (requires receiver_of<Receiver> AND
@@ -509,7 +515,7 @@ protected:
     void start_impl(const StopToken& stopToken, FILETIME dueTime) noexcept {
         auto startTimer = [&]() noexcept {
             const DWORD periodInMs = 0;   // Single-shot
-            const DWORD maxDelayInMs = 0; // Max delay to allow timer coalescing 
+            const DWORD maxDelayInMs = 0; // Max delay to allow timer coalescing
             ::SetThreadpoolTimer(timer_, &dueTime, periodInMs, maxDelayInMs);
         };
 
@@ -518,6 +524,8 @@ protected:
             if (state != nullptr) {
                 // Short-circuit extra work submitting the
                 // timer if stop has already been requested.
+                //
+                // TODO: this means done can be delivered on "the wrong thread"
                 if (stopToken.stop_requested()) {
                     set_done_impl();
                     return;
@@ -619,7 +627,7 @@ protected:
     // Flag set once start() has finished calling ThreadpoolSubmitWork()
     static constexpr std::uint32_t submit_complete_flag = 1;
 
-    // Flag set by request_stop() 
+    // Flag set by request_stop()
     static constexpr std::uint32_t stop_requested_flag = 2;
 
     // Flag set by cancellable_work_callback() when it starts executing.
@@ -628,7 +636,7 @@ protected:
 
     // Flag set by cancellable_work_callback() after having deregistered
     // the stop-callback, just before it calls the receiver.
-    static constexpr std::uint32_t running_flag = 8; 
+    static constexpr std::uint32_t running_flag = 8;
 
     PTP_TIMER timer_;
     TP_CALLBACK_ENVIRON environ_;
@@ -642,7 +650,7 @@ protected:
 template<typename Receiver>
 class windows_thread_pool::_schedule_at_op<Receiver>::type final
     : public windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>> {
-    using base = windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>>; 
+    using base = windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>>;
 public:
     template<typename Receiver2>
     explicit type(windows_thread_pool& pool, windows_thread_pool::clock_type::time_point dueTime, Receiver2&& r)
@@ -657,7 +665,7 @@ public:
         FILETIME ft;
         ft.dwLowDateTime = ticks.LowPart;
         ft.dwHighDateTime = ticks.HighPart;
-        
+
         this->start_impl(get_stop_token(receiver_), ft);
     }
 
@@ -692,6 +700,10 @@ public:
 
     static constexpr bool sends_done = true;
 
+    // it's *almost* never, but done is sometimes delivered inline, which should
+    // probably be fixed (see TODOs in start_impl())
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
+
     explicit schedule_at_sender(windows_thread_pool& pool, filetime_clock::time_point dueTime)
     : pool_(&pool)
     , dueTime_(dueTime)
@@ -718,7 +730,7 @@ private:
 template<typename Duration, typename Receiver>
 class windows_thread_pool::_schedule_after_op<Duration, Receiver>::type final
     : public windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>> {
-    using base = windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>>; 
+    using base = windows_thread_pool::time_schedule_op_base<stop_token_type_t<Receiver>>;
 public:
     template<typename Receiver2>
     explicit type(windows_thread_pool& pool, Duration duration, Receiver2&& r)
@@ -735,7 +747,7 @@ public:
         FILETIME ft;
         ft.dwLowDateTime = ticks.LowPart;
         ft.dwHighDateTime = ticks.HighPart;
-        
+
         this->start_impl(get_stop_token(receiver_), ft);
     }
 
@@ -771,6 +783,10 @@ public:
     using error_types = Variant<std::exception_ptr>;
 
     static constexpr bool sends_done = true;
+
+    // it's *almost* never, but done is sometimes delivered inline, which should
+    // probably be fixed (see TODOs in start_impl())
+    static constexpr blocking_kind blocking = blocking_kind::maybe;
 
     explicit type(windows_thread_pool& pool, Duration duration)
     : pool_(&pool)

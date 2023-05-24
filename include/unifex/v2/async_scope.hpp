@@ -24,6 +24,7 @@
 #include <unifex/sequence.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <memory>
@@ -329,6 +330,9 @@ struct _nest_sender<Sender>::type final {
 
   static constexpr bool sends_done = true;
 
+  static constexpr blocking_kind blocking =
+      std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
+
   type() noexcept = default;
 
   template <typename Sender2>
@@ -440,14 +444,18 @@ struct _nest_sender<Sender>::type final {
     }
   }
 
-  friend constexpr auto
-  tag_invoke(tag_t<unifex::blocking>, const type&) noexcept {
+  friend constexpr blocking_kind tag_invoke(
+      tag_t<unifex::blocking>, [[maybe_unused]] const type& self) noexcept {
     if constexpr (
-        cblocking<Sender>() == blocking_kind::always_inline ||
-        cblocking<Sender>() == blocking_kind::always) {
-      return cblocking<Sender>();
+        sender_traits<Sender>::blocking == blocking_kind::always_inline) {
+      // we can be constexpr in this case
+      return blocking_kind::always_inline;
     } else {
-      return blocking_kind::maybe;
+      if (self.scope_) {
+        return unifex::blocking(self.sender_.get());
+      } else {
+        return blocking_kind::always_inline;
+      }
     }
   }
 

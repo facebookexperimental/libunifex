@@ -235,6 +235,7 @@ namespace _as_sender {
         return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
       }
 
+      // TODO: how do we make this property statically discoverable?
       friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& t) noexcept {
         return unifex::blocking(t.awaitable_);
       }
@@ -267,6 +268,7 @@ namespace _as_sender {
         return unifex::connect_awaitable(((type&&) t).awaitable_, (Receiver&&) r);
       }
 
+      // TODO: how do we make this property statically discoverable?
       friend constexpr auto tag_invoke(tag_t<unifex::blocking>, const type& t) noexcept {
         return unifex::blocking(t.awaitable_);
       }
