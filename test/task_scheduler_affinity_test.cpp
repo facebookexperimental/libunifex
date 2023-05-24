@@ -294,4 +294,25 @@ TEST_F(
   EXPECT_TRUE(ret.has_value());
 }
 
+namespace {
+
+unifex::task<std::thread::id> reportCancellationThreadId() {
+  co_return co_await unifex::let_done(unifex::never_sender{}, []() {
+    return unifex::just(std::this_thread::get_id());
+  });
+}
+
+}  // namespace
+
+TEST_F(TaskSchedulerAffinityTest, StopRequestsDeliveredOnExpectedScheduler) {
+  unifex::single_thread_context ctx;
+
+  auto ret = unifex::sync_wait(unifex::stop_when(
+      reportCancellationThreadId(), unifex::schedule(ctx.get_scheduler())));
+
+  ASSERT_TRUE(ret.has_value());
+
+  EXPECT_EQ(std::this_thread::get_id(), *ret);
+}
+
 #endif // !UNIFEX_NO_COROUTINES

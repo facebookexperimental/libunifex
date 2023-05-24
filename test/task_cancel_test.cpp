@@ -26,6 +26,7 @@
 #include <unifex/let_done.hpp>
 #include <unifex/just.hpp>
 #include <unifex/stop_if_requested.hpp>
+#include <unifex/with_scheduler_affinity.hpp>
 
 #include <gtest/gtest.h>
 
@@ -129,7 +130,7 @@ TEST(TaskCancel, PropagatesStopToken) {
   std::optional<inplace_stop_token> i =
     sync_wait(
       with_query_value(
-        get_token_outer(),
+        with_scheduler_affinity(get_token_outer(), current_scheduler),
         get_stop_token,
         stopSource.get_token()));
   EXPECT_TRUE(i);
@@ -141,7 +142,7 @@ TEST(TaskCancel, StopIfRequested) {
   std::optional<int> i =
     sync_wait(
       with_query_value(
-        test_stop_if_requested(stopSource),
+        with_scheduler_affinity(test_stop_if_requested(stopSource), current_scheduler),
         get_stop_token,
         stopSource.get_token()));
   EXPECT_TRUE(!i);
