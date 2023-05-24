@@ -184,6 +184,9 @@ namespace unifex
 
       static constexpr blocking_kind blocking = sender_traits<Source>::blocking;
 
+      static constexpr bool is_always_scheduler_affine
+          = sender_traits<Source>::is_always_scheduler_affine;
+
       template(typename Source2)
           (requires constructible_from<Source, Source2>)
       explicit type(Source2&& source) noexcept(

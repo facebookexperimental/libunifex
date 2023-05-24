@@ -282,6 +282,8 @@ struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {
 template <typename... Successors>
 using any_sends_done = std::disjunction<sends_done_impl<Successors>...>;
 
+template <typename... Senders>
+using all_always_scheduler_affine = std::conjunction<detail::_is_always_scheduler_affine<Senders>...>;
 
 template <typename First, typename... Rest>
 struct max_blocking_kind {
@@ -356,6 +358,10 @@ public:
       std::min(
           successor_types<_let_v::max_blocking_kind>{}(),
           blocking_kind::maybe()));
+
+  static constexpr bool is_always_scheduler_affine =
+    sender_traits<Predecessor>::is_always_scheduler_affine &&
+    successor_types<all_always_scheduler_affine>::value;
 
  public:
   template <typename Predecessor2, typename SuccessorFactory2>

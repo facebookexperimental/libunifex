@@ -61,6 +61,9 @@ public:
 
   static constexpr blocking_kind blocking = sender_traits<InnerOp>::blocking;
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<InnerOp>::is_always_scheduler_affine;
+
   template<typename StateFactory2, typename SuccessorFactory2>
   explicit type(StateFactory2&& stateFactory, SuccessorFactory2&& func) :
     stateFactory_((StateFactory2&&)stateFactory),

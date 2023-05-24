@@ -112,6 +112,9 @@ class _sender<Senders...>::type {
 
   static constexpr blocking_kind blocking = compute_blocking();
 
+  static constexpr bool is_always_scheduler_affine
+      = (sender_traits<Senders>::is_always_scheduler_affine && ...);
+
   template<typename ConcreteSender>
   type(ConcreteSender&& concreteSender)
     noexcept(std::is_nothrow_constructible_v<std::variant<Senders...>, decltype(concreteSender)>)

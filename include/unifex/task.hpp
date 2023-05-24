@@ -397,6 +397,8 @@ struct _task<T>::type : _task_base, coro_holder {
   // points are async
   static constexpr blocking_kind blocking = blocking_kind::maybe;
 
+  static constexpr bool is_always_scheduler_affine = true;
+
   type(type&& t) noexcept = default;
 
   type& operator=(type&& t) noexcept = default;

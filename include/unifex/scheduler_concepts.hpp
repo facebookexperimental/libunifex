@@ -210,6 +210,10 @@ struct sender {
   // receiver's scheduler's type, which we don't know
   static constexpr blocking_kind blocking = blocking_kind::maybe;
 
+  // rescheduling on the current scheduler necessarily completes on the current
+  // scheduler
+  static constexpr bool is_always_scheduler_affine = true;
+
   template(typename Receiver)
     (requires receiver<Receiver>)
   friend auto tag_invoke(tag_t<connect>, sender, Receiver &&r)
@@ -288,6 +292,10 @@ namespace _schedule_after {
     // never is very likely, but we don't actually know because it depends on the
     // receiver's scheduler's type, which we don't know
     static constexpr blocking_kind blocking = blocking_kind::maybe;
+
+    // rescheduling on the current scheduler necessarily completes on the current
+    // scheduler
+    static constexpr bool is_always_scheduler_affine = true;
 
     explicit type(Duration d)
       : duration_(d)
@@ -376,6 +384,10 @@ namespace _schedule_at {
     // never is very likely, but we don't actually know because it depends on the
     // receiver's scheduler's type, which we don't know
     static constexpr blocking_kind blocking = blocking_kind::maybe;
+
+    // rescheduling on the current scheduler necessarily completes on the current
+    // scheduler
+    static constexpr bool is_always_scheduler_affine = true;
 
     explicit type(TimePoint tp)
       : time_point_(tp)

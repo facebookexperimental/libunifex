@@ -94,6 +94,9 @@ struct _snd_base {
     // specify
     static constexpr blocking_kind blocking = blocking_kind::maybe;
 
+    // no way to know, but maybe there should be
+    static constexpr bool is_always_scheduler_affine = false;
+
     template (typename Self, typename Receiver)
       (requires derived_from<remove_cvref_t<Self>, type> AND
         constructible_from<Fn, member_t<Self, Fn>> AND

@@ -326,6 +326,9 @@ struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {
 template<typename... Senders>
 using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
 
+template <typename... Senders>
+using all_always_scheduler_affine = std::conjunction<detail::_is_always_scheduler_affine<Senders>...>;
+
 template <typename First, typename... Rest>
 struct max_blocking_kind {
   constexpr _block::_enum operator()() const noexcept {
@@ -345,6 +348,9 @@ class _sndr<Source, Func>::type final {
 
   template <typename... Errors>
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
+
+  template <typename... Errors>
+  using scheduler_affine_impl = all_always_scheduler_affine<Source, final_sender<Errors>...>;
 
   template <typename... Errors>
   using max_successor_blocking = max_blocking_kind<final_sender<Errors>...>;
@@ -384,6 +390,9 @@ public:
       std::min(
           sender_error_types_t<Source, max_successor_blocking>{}(),
           blocking_kind::maybe()));
+
+  static constexpr bool is_always_scheduler_affine =
+    sender_error_types_t<Source, scheduler_affine_impl>::value;
 
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func)

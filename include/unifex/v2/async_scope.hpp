@@ -333,6 +333,9 @@ struct _nest_sender<Sender>::type final {
   static constexpr blocking_kind blocking =
       std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Sender>::is_always_scheduler_affine;
+
   type() noexcept = default;
 
   template <typename Sender2>

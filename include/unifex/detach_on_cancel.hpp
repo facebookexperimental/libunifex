@@ -213,6 +213,9 @@ struct _sender<Sender>::type {
   static constexpr blocking_kind blocking =
       std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
 
+  static constexpr bool is_always_scheduler_affine
+      = sender_traits<Sender>::is_always_scheduler_affine;
+
   friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
     blocking_kind other{blocking(sender)};
     return std::min(blocking_kind::maybe(), other());

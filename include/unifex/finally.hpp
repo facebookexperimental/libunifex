@@ -669,6 +669,10 @@ namespace unifex
           sender_traits<SourceSender>::blocking(),
           sender_traits<CompletionSender>::blocking());
 
+      static constexpr bool is_always_scheduler_affine
+          = sender_traits<SourceSender>::is_always_scheduler_affine &&
+          sender_traits<CompletionSender>::is_always_scheduler_affine;
+
       template <typename SourceSender2, typename CompletionSender2>
       explicit type(
           SourceSender2&& source, CompletionSender2&& completion)

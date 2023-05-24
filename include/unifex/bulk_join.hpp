@@ -103,6 +103,9 @@ public:
 
     static constexpr blocking_kind blocking = sender_traits<Source>::blocking;
 
+    static constexpr bool is_always_scheduler_affine =
+        sender_traits<Source>::is_always_scheduler_affine;
+
     template<typename Source2>
     explicit type(Source2&& s)
         noexcept(std::is_nothrow_constructible_v<Source, Source2>)

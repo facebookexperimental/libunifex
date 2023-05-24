@@ -160,6 +160,9 @@ public:
 
   static constexpr auto blocking = sender_traits<Predecessor>::blocking;
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Predecessor>::is_always_scheduler_affine;
+
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, Func>;
 

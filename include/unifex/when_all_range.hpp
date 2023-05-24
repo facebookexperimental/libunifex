@@ -296,6 +296,9 @@ public:
       blocking_kind::maybe(),
       sender_traits<Sender>::blocking());
 
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Sender>::is_always_scheduler_affine;
+
 private:
   template(typename Sender2, typename Receiver)  //
       (requires unifex::same_as<unifex::remove_cvref_t<Sender2>, type> AND
