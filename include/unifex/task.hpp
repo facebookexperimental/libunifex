@@ -322,7 +322,8 @@ struct _promise final {
         // schedule, do something special
         return transform_schedule_sender_(static_cast<Value&&>(value));
       } else if constexpr (unifex::sender<Value>) {
-        return unifex::await_transform(*this,
+        return unifex::await_transform(
+            *this,
             with_scheduler_affinity(static_cast<Value&&>(value), this->sched_));
       } else if constexpr (
           tag_invocable<tag_t<unifex::await_transform>, type&, Value> ||
@@ -363,7 +364,7 @@ struct _promise final {
 
 struct _sr_thunk_promise_base : _promise_base {
   coro::coroutine_handle<> unhandled_done() noexcept {
-    callback_.reset();
+    callback_.destruct();
 
     if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
       return continuation_.done();
@@ -426,12 +427,12 @@ struct _sr_thunk_promise_base : _promise_base {
   using stop_callback_t =
       typename inplace_stop_token::callback_type<stop_callback>;
 
-  std::optional<stop_callback_t> callback_;
+  manual_lifetime<stop_callback_t> callback_;
 
   std::atomic<uint8_t> refCount_{1};
 
   void register_stop_callback() noexcept {
-    callback_.emplace(stoken_, stop_callback{this});
+    callback_.construct(stoken_, stop_callback{this});
   }
 };
 
@@ -446,7 +447,7 @@ struct _sr_thunk_promise final {
    *    nested stop source on the correct scheduler; and
    *  - ensure that, if the async stop request is ever started, we wait for
    *    *both* the async stop request *and* the nested operation to complete
-   *    before continuating our continuation.
+   *    before continuing our continuation.
    *
    * The async stop request delivery is handled in _sr_thunk_promise_base (our
    * base class), and our final-awaiter handles coordinating who continues our
@@ -470,7 +471,7 @@ struct _sr_thunk_promise final {
         void await_suspend(coro::coroutine_handle<type> h) noexcept {
           auto& p = h.promise();
 
-          p.callback_.reset();
+          p.callback_.destruct();
 
           // if we're last to complete, continue our continuation; otherwise do
           // nothing and wait for the async stop request to do it
@@ -484,7 +485,7 @@ struct _sr_thunk_promise final {
         await_suspend(coro::coroutine_handle<type> h) noexcept {
           auto& p = h.promise();
 
-          p.callback_.reset();
+          p.callback_.destruct();
 
           // if we're last to complete, continue our continuation; otherwise do
           // nothing and wait for the async stop request to do it
@@ -665,7 +666,7 @@ struct _task<T>::type
   // points are async
   static constexpr blocking_kind blocking = blocking_kind::maybe;
 
-  static constexpr bool is_always_scheduler_affine = false;
+  static constexpr bool is_always_scheduler_affine = true;
 
   type(type&& t) noexcept = default;
 
@@ -682,8 +683,7 @@ private:
     : coro_holder(h) {}
 
   template <typename Promise>
-  friend auto
-  tag_invoke(tag_t<unifex::await_transform>, Promise& p, type&& t) noexcept {
+  friend auto tag_invoke(tag_t<unifex::await_transform>, Promise& p, type&& t) {
     // we don't know whether our consumer will enforce the scheduler-affinity
     // invariants so we need to ensure that stop requests are delivered on the
     // right scheduler
@@ -727,8 +727,6 @@ private:
 template <typename T>
 struct _sa_task<T>::type final : public _task<T>::type {
   using base = typename _task<T>::type;
-
-  friend base;
 
   type(base&& t) noexcept : base(std::move(t)) {}
 

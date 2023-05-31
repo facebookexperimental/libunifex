@@ -52,13 +52,6 @@ private:
     // Provide an awaiter interface in addition to the sender interface
     // because as an awaiter we can take advantage of symmetric transfer
     // to save stack space:
-    //
-    // TODO: the scheduler affinity changes have mooted this because we check
-    //       for sender-ness before awaitable-ness; two possible solutions:
-    //         - check for awaitable-ness first
-    //         - customize await_transform here to do something smarter than the
-    //           default implementation; perhaps just return *this, but perhaps
-    //           we could remove the branch in await_suspend
     bool await_ready() const noexcept {
       return false;
     }

@@ -89,19 +89,9 @@ public:
 };
 
 struct _fn final {
-  template(typename Sender, typename Scheduler)  //
-      (requires sender<Sender> AND sender_traits<
-          remove_cvref_t<Sender>>::is_always_scheduler_affine)  //
-      constexpr Sender&&
-      operator()(Sender&& s, Scheduler&&) const noexcept {
-    // this is the identity function for statically-affine senders
-    return static_cast<Sender&&>(s);
-  }
-
-  template(typename Sender, typename Scheduler)                              //
-      (requires sender<Sender> AND scheduler<Scheduler> AND                  //
-       (!sender_traits<remove_cvref_t<Sender>>::is_always_scheduler_affine)  //
-       AND tag_invocable<_fn, Sender, Scheduler>)                            //
+  template(typename Sender, typename Scheduler)          //
+      (requires sender<Sender> AND scheduler<Scheduler>  //
+           AND tag_invocable<_fn, Sender, Scheduler>)    //
       constexpr auto
       operator()(Sender&& s, Scheduler&& sched) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>)
@@ -109,6 +99,16 @@ struct _fn final {
     // allow customization
     return tag_invoke(
         _fn{}, static_cast<Sender&&>(s), static_cast<Scheduler&&>(sched));
+  }
+
+  template(typename Sender, typename Scheduler)                               //
+      (requires sender<Sender> AND scheduler<Scheduler> AND                   //
+           sender_traits<remove_cvref_t<Sender>>::is_always_scheduler_affine  //
+               AND(!tag_invocable<_fn, Sender, Scheduler>))                   //
+      constexpr Sender&&
+      operator()(Sender&& s, Scheduler&&) const noexcept {
+    // the default implementation for statically-affine senders is the identity
+    return static_cast<Sender&&>(s);
   }
 
   template(typename Sender, typename Scheduler)                              //
@@ -123,7 +123,8 @@ struct _fn final {
                    remove_cvref_t<Scheduler>>,
                Sender,
                Scheduler>) {
-    // fall back to assuming we need, effectively, a typed_via
+    // the default implementation for non-affine senders is a typed_via back to
+    // the given scheduler
     using sender_t =
         wsa_sender_wrapper<remove_cvref_t<Sender>, remove_cvref_t<Scheduler>>;
 
