@@ -1,0 +1,2 @@
+type summary add --summary-string "Open: ${var.opState_._M_i[0]%B} Ops: ${var.opState_._M_i[1-10]%u}" unifex::v2::_async_scope::async_scope
+type summary add --summary-string "${var.demangled}" unifex::detail::_debug_async_scope::op_base
