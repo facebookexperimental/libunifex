@@ -21,7 +21,7 @@
 #include <unifex/at_coroutine_exit.hpp>
 
 namespace unifex::_task {
-void _promise_base::transform_schedule_sender_impl_(any_scheduler newSched) {
+void _task_promise_base::transform_schedule_sender_impl_(any_scheduler newSched) {
   // If we haven't already inserted a cleanup action to take us back to the correct
   // scheduler, do so now:
   if (!std::exchange(this->rescheduled_, true)) {

@@ -318,6 +318,8 @@ namespace _at_coroutine_exit {
   } at_coroutine_exit{};
 } // namespace _at_coroutine_exit
 
+// TODO: verify that `at_coroutine_exit()` can't be used to break scheduler
+//       affinity by running an async task that reschedules
 using _at_coroutine_exit::at_coroutine_exit;
 
 } // namespace unifex
