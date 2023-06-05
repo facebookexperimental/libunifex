@@ -140,32 +140,23 @@ std::optional<Result> _impl(Sender&& sender) {
 }
 } // namespace _sync_wait
 
-namespace _sync_wait_cpo {
-  struct _fn {
-    template(typename Sender)
-      (requires typed_sender<Sender>)
-    auto operator()(Sender&& sender) const
-        -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
-      using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
-      return _sync_wait::_impl<Result>((Sender&&) sender);
-    }
-    constexpr auto operator()() const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn>)
-        -> bind_back_result_t<_fn> {
-      return bind_back(*this);
-    }
-  };
-} // namespace _sync_wait_cpo
-
-inline constexpr _sync_wait_cpo::_fn sync_wait {};
-
 namespace _sync_wait_r_cpo {
   template <typename Result>
   struct _fn {
     template(typename Sender)
       (requires sender<Sender>)
     decltype(auto) operator()(Sender&& sender) const {
+      return tag_invoke(_fn{}, (Sender &&) sender);
+    }
+    constexpr auto operator()() const
+        noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+            -> bind_back_result_t<_fn> {
+      return bind_back(*this);
+    }
+
+    template(typename Sender)
+      (requires sender<Sender>)
+    friend decltype(auto) tag_invoke(_fn, Sender&& sender) {
       using Result2 = non_void_t<wrap_reference_t<decay_rvalue_t<Result>>>;
       return _sync_wait::_impl<Result2>((Sender&&) sender);
     }
@@ -174,6 +165,33 @@ namespace _sync_wait_r_cpo {
 
 template <typename Result>
 inline constexpr _sync_wait_r_cpo::_fn<Result> sync_wait_r {};
+
+namespace _sync_wait_cpo {
+struct _fn {
+  template(typename Sender)
+      (requires typed_sender<Sender>)
+          auto operator()(Sender&& sender) const
+      -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
+    return tag_invoke(_fn{}, (Sender &&) sender);
+  }
+  constexpr auto operator()() const
+      noexcept(is_nothrow_callable_v<
+               tag_t<bind_back>, _fn>)
+          -> bind_back_result_t<_fn> {
+    return bind_back(*this);
+  }
+
+  template(typename Sender)
+    (requires typed_sender<Sender>)
+  friend auto tag_invoke(_fn, Sender&& sender)
+      -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
+    using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
+    return tag_invoke(tag_t<sync_wait_r<Result>>{}, (Sender&&) sender);
+  }
+};
+} // namespace _sync_wait_cpo
+
+inline constexpr _sync_wait_cpo::_fn sync_wait {};
 
 } // namespace unifex
 
