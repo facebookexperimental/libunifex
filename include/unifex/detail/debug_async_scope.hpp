@@ -144,6 +144,14 @@ struct _receiver<Receiver>::type final {
   }
 
   void set_done() noexcept { op_->complete(unifex::set_done); }
+
+  template(typename CPO)                       //
+      (requires is_receiver_query_cpo_v<CPO>)  //
+      friend auto tag_invoke(CPO cpo, const type& r) noexcept(
+          is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
+    return std::move(cpo)(std::as_const(r.op_->receiver_));
+  }
 };
 
 template <typename Sender, typename Receiver>
