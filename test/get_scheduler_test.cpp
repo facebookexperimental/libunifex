@@ -21,7 +21,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/via_stream.hpp>
+#include <unifex/typed_via_stream.hpp>
 #include <unifex/with_query_value.hpp>
 
 #include <chrono>
@@ -56,7 +56,7 @@ TEST(get_scheduler, current_scheduler) {
   // composed operations.
   sync_wait(with_query_value(
       then(
-          for_each(via_stream(current_scheduler,
+          for_each(typed_via_stream(current_scheduler,
                               transform_stream(range_stream{0, 10},
                                                [](int value) {
                                                  return value * value;
@@ -75,7 +75,7 @@ TEST(get_scheduler, Pipeable) {
     | transform_stream([](int value) {
         return value * value;
     })
-    | via_stream(current_scheduler)
+    | typed_via_stream(current_scheduler)
     | for_each([](int value) { std::printf("got %i\n", value); })
     | then([]() { std::printf("done\n"); })
     | with_query_value(get_scheduler, ctx.get_scheduler())

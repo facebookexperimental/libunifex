@@ -19,7 +19,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/ready_done_sender.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/scope_guard.hpp>
 #include <unifex/bind_back.hpp>
 
@@ -133,8 +133,8 @@ struct _stream<Sender>::type {
     return next_sender{std::move(s.sender_)};
   }
 
-  friend ready_done_sender tag_invoke(tag_t<cleanup>, type&) noexcept {
-    return {};
+  friend auto tag_invoke(tag_t<cleanup>, type&) noexcept {
+    return just_done();
   }
 
   template <typename Sender2>

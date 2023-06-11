@@ -16,7 +16,7 @@
 #pragma once
 
 #include <unifex/blocking.hpp>
-#include <unifex/ready_done_sender.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
 
@@ -78,8 +78,8 @@ struct stream {
     return next_sender{s};
   }
 
-  friend ready_done_sender tag_invoke(tag_t<cleanup>, stream&) noexcept {
-    return {};
+  friend auto tag_invoke(tag_t<cleanup>, stream&) noexcept {
+    return just_done();
   }
 };
 
