@@ -21,7 +21,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/via_stream.hpp>
+#include <unifex/typed_via_stream.hpp>
 #include <unifex/with_query_value.hpp>
 
 #include <atomic>
@@ -191,10 +191,10 @@ int main() {
   sync_wait(
       then(
           for_each(
-              via_stream(
+              typed_via_stream(
                   outer_delegating_ctx.get_scheduler(),
                   transform_stream(
-                      via_stream(
+                      typed_via_stream(
                           inner_delegating_ctx.get_scheduler(),
                           transform_stream(
                               range_stream{0, 10},

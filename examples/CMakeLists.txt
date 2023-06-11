@@ -14,7 +14,6 @@ endforeach()
 
 if(CXX_MEMORY_RESOURCE_HAVE_PMR)
   target_link_libraries(any_unique PUBLIC std::memory_resource)
-  target_link_libraries(submit_allocator_customisation PUBLIC std::memory_resource)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")

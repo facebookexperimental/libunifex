@@ -17,7 +17,7 @@
 
 #include <unifex/finally.hpp>
 #include <unifex/just.hpp>
-#include <unifex/ready_done_sender.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/then.hpp>
 #include <unifex/inline_scheduler.hpp>
 #include <unifex/any_scheduler.hpp>
@@ -159,7 +159,7 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanBeCancelled) {
   using test_t = AnySenderOfTest<TypeParam>;
   using any_sender = typename test_t::any_sender;
 
-  any_sender sender = finally(test_t::default_just(), ready_done_sender{});
+  any_sender sender = finally(test_t::default_just(), just_done());
 
   mock_receiver<TypeParam> receiver;
 

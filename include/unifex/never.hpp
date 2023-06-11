@@ -18,7 +18,7 @@
 #include <unifex/config.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/ready_done_sender.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/get_stop_token.hpp>
@@ -101,8 +101,8 @@ struct stream {
   friend constexpr sender tag_invoke(tag_t<next>, stream&) noexcept {
     return {};
   }
-  friend constexpr ready_done_sender tag_invoke(tag_t<cleanup>, stream&) noexcept {
-    return {};
+  friend constexpr auto tag_invoke(tag_t<cleanup>, stream&) noexcept {
+    return just_done();
   }
 };
 } // namespace _never
