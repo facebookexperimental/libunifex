@@ -81,7 +81,7 @@ public:
         bool await_ready() noexcept {
           return false;
         }
-        void await_suspend(coro::coroutine_handle<promise_type>) {
+        void await_suspend(coro::coroutine_handle<promise_type>) noexcept(noexcept(((Func &&) func_)())) {
           ((Func &&) func_)();
         }
         [[noreturn]] void await_resume() noexcept {
@@ -193,7 +193,7 @@ namespace _await_cpo {
       } catch (...) {
         ex = std::current_exception();
       }
-      co_yield[&] {
+      co_yield[&]() noexcept {
         unifex::set_error(std::move(receiver), std::move(ex));
       };
 #endif // !UNIFEX_NO_EXCEPTIONS

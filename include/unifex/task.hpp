@@ -105,7 +105,7 @@ protected:
   std::uintptr_t coro_;
 };
 
-template <typename T>
+template <typename T, bool nothrow>
 struct _task {
   /**
    * The "public facing" task<> type.
@@ -213,7 +213,7 @@ struct _task_promise_base : _promise_base {
   bool rescheduled_ = false;
 };
 
-template <typename T>
+template <typename T, bool nothrow>
 struct _result_and_unhandled_exception final {
   /**
    * Storage for a task<T> or sr_thunk_task<T>'s result, plus handling for
@@ -222,54 +222,71 @@ struct _result_and_unhandled_exception final {
    * This is used to share the implementation of result handling between
    * type-specific promise types.
    */
-  struct type {
-    void unhandled_exception() noexcept {
-      expected_.reset_value();
-      unifex::activate_union_member(
-          expected_.exception_, std::current_exception());
-      expected_.state_ = _state::exception;
-    }
-
-    decltype(auto) result() {
-      if (expected_.state_ == _state::exception) {
-        std::rethrow_exception(std::move(expected_.exception_).get());
+  struct type { //parametize on noexcept, noexcept terminates in body
+    void unhandled_exception() noexcept { // will be invoked in the catch block of the coroutine
+      if constexpr (nothrow) {
+        std::terminate();
+      } else {
+        expected_.reset_value();
+        unifex::activate_union_member(
+            expected_.exception_, std::current_exception());
+        expected_.state_ = _state::exception;
       }
-      return std::move(expected_.value_).get();
     }
 
-    _expected<T> expected_;
+    decltype(auto) result() noexcept(nothrow) {
+      if constexpr (nothrow) {
+        return std::move(expected_).get();
+      } else {
+        if (expected_.state_ == _state::exception) {
+          std::rethrow_exception(std::move(expected_.exception_).get());
+        }
+        return std::move(expected_.value_).get();
+      }
+    }
+
+    template <typename... Args>
+    // todo: consider if this should be nothrow or not
+    void set_value(Args&&... values) {
+      if constexpr (nothrow) {
+        expected_.construct(static_cast<Args&&>(values)...);
+      } else {
+        this->expected_.reset_value();
+        unifex::activate_union_member(
+            this->expected_.value_, static_cast<Args&&>(values)...);
+        this->expected_.state_ = _state::value;
+      }
+    }
+
+    std::conditional_t<nothrow, manual_lifetime<T>, _expected<T>> expected_;
   };
 };
 
-template <typename T>
+template <typename T, bool nothrow>
 struct _return_value_or_void {
   /**
    * Provides a type-specific return_value() method to meet a promise type's
    * requirements.
    */
+   // todo: consider if this should be nothrow or not
   struct type : _result_and_unhandled_exception<T>::type {
     template(typename Value = T)                                              //
         (requires convertible_to<Value, T> AND constructible_from<T, Value>)  //
         void return_value(Value&& value) noexcept(
             std::is_nothrow_constructible_v<T, Value>) {
-      this->expected_.reset_value();
-      unifex::activate_union_member(
-          this->expected_.value_, static_cast<Value&&>(value));
-      this->expected_.state_ = _state::value;
+      this->set_value(static_cast<Value&&>(value));
     }
   };
 };
 
-template <>
-struct _return_value_or_void<void> {
+template <bool nothrow>
+struct _return_value_or_void<void, nothrow> {
   /**
    * Provides a return_void() method to meet a promise type's requirements.
    */
   struct type : _result_and_unhandled_exception<void>::type {
     void return_void() noexcept {
-      expected_.reset_value();
-      unifex::activate_union_member(expected_.value_);
-      expected_.state_ = _state::value;
+      this->set_value();
     }
   };
 };
@@ -280,15 +297,15 @@ struct _return_value_or_void<void> {
  */
 struct _task_base {};
 
-template <typename T>
+template <typename T, bool nothrow>
 struct _promise final {
   /**
    * The promise_type for task<>; inherits _task_promise_base for common
-   * funcitonality, and _return_value_or_void<T> for result handling.
+   * functionality, and _return_value_or_void<T> for result handling.
    */
   struct type final
     : _task_promise_base
-    , _return_value_or_void<T>::type {
+    , _return_value_or_void<T, nothrow>::type {
     using result_type = T;
 
     typename _task<T>::type get_return_object() noexcept {
@@ -314,8 +331,9 @@ struct _promise final {
     }
 
     template <typename Value>
+    // todo: consider if this should be nothrow or not
     decltype(auto) await_transform(Value&& value) {
-      if constexpr (is_sender_for_v<remove_cvref_t<Value>, schedule>) {
+      if constexpr (!nothrow && is_sender_for_v<remove_cvref_t<Value>, schedule>) {
         // TODO: rip this out and replace it with something more explicit
 
         // If we are co_await'ing a sender that is the result of calling
@@ -455,7 +473,7 @@ struct _sr_thunk_promise final {
    */
   struct type final
     : _sr_thunk_promise_base
-    , _return_value_or_void<T>::type {
+    , _return_value_or_void<T, false>::type {
     using result_type = T;
 
     typename _sr_thunk_task<T>::type get_return_object() noexcept {
@@ -566,7 +584,7 @@ struct _awaiter final {
       return thisCoro;
     }
 
-    result_type await_resume() {
+    result_type await_resume() noexcept(noexcept(UNIFEX_DECLVAL(ThisPromise&).result())) {
       if constexpr (needs_stop_token_t::value)
         stopTokenAdapter_.unsubscribe();
       if constexpr (needs_scheduler_t::value)
@@ -639,11 +657,11 @@ inject_stop_request_thunk(typename _sa_task<T>::type awaitable) {
   co_return co_await std::move(awaitable);
 }
 
-template <typename T>
-struct _task<T>::type
+template <typename T, bool nothrow>
+struct _task<T, nothrow>::type
   : _task_base
   , coro_holder {
-  using promise_type = typename _promise<T>::type;
+  using promise_type = typename _promise<T, nothrow>::type;
   friend promise_type;
 
   template <
@@ -674,7 +692,7 @@ struct _task<T>::type
 
   template <typename Fn, typename... Args>
   friend type
-  tag_invoke(tag_t<co_invoke>, type_identity<type>, Fn fn, Args... args) {
+  tag_invoke(tag_t<co_invoke>, type_identity<type>, Fn fn, Args... args) noexcept(false) /* even if nothrow is true, ramp of a coroutine can still throw */ {
     co_return co_await std::invoke((Fn &&) fn, (Args &&) args...);
   }
 
@@ -683,7 +701,7 @@ private:
     : coro_holder(h) {}
 
   template <typename Promise>
-  friend auto tag_invoke(tag_t<unifex::await_transform>, Promise& p, type&& t) {
+  friend auto tag_invoke(tag_t<unifex::await_transform>, Promise& p, type&& t) noexcept(false) /* calls inject_stop_request_thunk which might throw */ {
     // we don't know whether our consumer will enforce the scheduler-affinity
     // invariants so we need to ensure that stop requests are delivered on the
     // right scheduler
@@ -692,13 +710,13 @@ private:
   }
 
   template <typename Receiver>
-  friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
+  friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) noexcept(false) /* will ultimately call a coroutine that might throw */ {
     using stoken_t = stop_token_type_t<Receiver>;
 
     if constexpr (is_stop_never_possible_v<stoken_t>) {
       // NOTE: we *don't* need to worry about stop requests if the receiver's
       //       stop token can't make such requests!
-      using sa_task = typename _sa_task<T>::type;
+      using sa_task = typename _sa_task<T, nothrow>::type;
 
       return connect(sa_task{std::move(t)}, static_cast<Receiver&&>(r));
     } else {
@@ -710,7 +728,7 @@ private:
   }
 
   template <typename Scheduler>
-  friend typename _sa_task<T>::type tag_invoke(
+  friend typename _sa_task<T, nothrow>::type tag_invoke(
       tag_t<with_scheduler_affinity>, type&& task, Scheduler&&) noexcept {
     return {std::move(task)};
   }
@@ -724,9 +742,9 @@ private:
  * The main difference is that await_transform doesn't indirect through
  * inject_stop_request_thunk.
  */
-template <typename T>
-struct _sa_task<T>::type final : public _task<T>::type {
-  using base = typename _task<T>::type;
+template <typename T, bool nothrow>
+struct _sa_task<T, nothrow>::type final : public _task<T, nothrow>::type {
+  using base = typename _task<T, nothrow>::type;
 
   type(base&& t) noexcept : base(std::move(t)) {}
 
@@ -746,8 +764,7 @@ struct _sa_task<T>::type final : public _task<T>::type {
 
   template <typename Receiver>
   friend auto
-  tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) noexcept(
-      noexcept(connect_awaitable(std::move(t), static_cast<Receiver&&>(r)))) {
+  tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) noexcept(false) /* ultimately calls a coroutine which may throw */ {
     return connect_awaitable(std::move(t), static_cast<Receiver&&>(r));
   }
 };
@@ -755,7 +772,10 @@ struct _sa_task<T>::type final : public _task<T>::type {
 }  // namespace _task
 
 template <typename T>
-using task = typename _task::_task<T>::type;
+using task = typename _task::_task<T, false>::type;
+
+template <typename T>
+using nothrow_task = typename _task::_task<T, true>::type;
 
 }  // namespace unifex
 
