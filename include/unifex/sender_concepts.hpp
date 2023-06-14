@@ -37,8 +37,6 @@
 
 namespace unifex {
 
-struct sender_base {};
-
 template <typename>
 struct sender_traits;
 
@@ -105,18 +103,6 @@ namespace detail {
     _has_bulk_sender_types = //
       UNIFEX_FRAGMENT(detail::_has_bulk_sender_types_impl, S);
 
-  struct _void_sender_traits {
-    template <
-        template <typename...> class Variant,
-        template <typename...> class Tuple>
-    using value_types = Variant<Tuple<>>;
-
-    template <template <typename...> class Variant>
-    using error_types = Variant<std::exception_ptr>;
-
-    static constexpr bool sends_done = true;
-  };
-
   template <typename S>
   struct _typed_sender_traits {
     template <
@@ -176,8 +162,6 @@ namespace detail {
       return _typed_bulk_sender_traits<S>{};
     } else if constexpr (_has_sender_types<S>) {
       return _typed_sender_traits<S>{};
-    } else if constexpr (std::is_base_of_v<sender_base, S>) {
-      return sender_base{};
     } else {
       return _no_sender_traits{};
     }
@@ -191,13 +175,13 @@ template <typename S>
 UNIFEX_CONCEPT //
   sender =     //
     move_constructible<remove_cvref_t<S>> &&
-    detail::_has_sender_traits<remove_cvref_t<S>>;
+    detail::_has_sender_traits<remove_cvref_t<S>> && //
+    detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
 
 template <typename S>
 UNIFEX_CONCEPT   //
   typed_sender = //
-    sender<S> && //
-    detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
+    sender<S>;
 
 template <typename S>
 UNIFEX_CONCEPT        //
