@@ -113,7 +113,7 @@ struct _task {
   struct [[nodiscard]] type;
 };
 
-template <typename T>
+template <typename T, bool nothrow>
 struct _sa_task final {
   /**
    * A "scheduler-affine" task that's used as an implementation detail to mark a
@@ -269,7 +269,7 @@ struct _return_value_or_void {
    * requirements.
    */
    // todo: consider if this should be nothrow or not
-  struct type : _result_and_unhandled_exception<T>::type {
+  struct type : _result_and_unhandled_exception<T, nothrow>::type {
     template(typename Value = T)                                              //
         (requires convertible_to<Value, T> AND constructible_from<T, Value>)  //
         void return_value(Value&& value) noexcept(
@@ -284,7 +284,7 @@ struct _return_value_or_void<void, nothrow> {
   /**
    * Provides a return_void() method to meet a promise type's requirements.
    */
-  struct type : _result_and_unhandled_exception<void>::type {
+  struct type : _result_and_unhandled_exception<void, nothrow>::type {
     void return_void() noexcept {
       this->set_value();
     }
@@ -308,8 +308,8 @@ struct _promise final {
     , _return_value_or_void<T, nothrow>::type {
     using result_type = T;
 
-    typename _task<T>::type get_return_object() noexcept {
-      return typename _task<T>::type{
+    typename _task<T, nothrow>::type get_return_object() noexcept {
+      return typename _task<T, nothrow>::type{
           coro::coroutine_handle<type>::from_promise(*this)};
     }
 
@@ -650,9 +650,9 @@ private:
  * Await the given sa_task<> in a context that will deliver stop requests from
  * the receiver on the expected scheduler.
  */
-template <typename T>
+template <typename T, bool nothrow>
 typename _sr_thunk_task<T>::type
-inject_stop_request_thunk(typename _sa_task<T>::type awaitable) {
+inject_stop_request_thunk(typename _sa_task<T, nothrow>::type awaitable) {
   // I wonder if we could do better than hopping through this extra coroutine
   co_return co_await std::move(awaitable);
 }
@@ -706,7 +706,7 @@ private:
     // invariants so we need to ensure that stop requests are delivered on the
     // right scheduler
     return unifex::await_transform(
-        p, inject_stop_request_thunk<T>(std::move(t)));
+        p, inject_stop_request_thunk<T, nothrow>(std::move(t)));
   }
 
   template <typename Receiver>
