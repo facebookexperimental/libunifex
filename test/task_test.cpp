@@ -18,12 +18,10 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <atomic>
 
-#include <unifex/just.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
-#include <unifex/then.hpp>
 
 #include <gtest/gtest.h>
 
@@ -42,7 +40,7 @@ task<int&> await_reference_awaitable() {
 }
 
 task<int&> await_reference_sender() {
-  int& x = co_await then(just(), []() -> int& { return global; });
+  int& x = co_await just_from([]() -> int& { return global; });
   co_return x;
 }
 
