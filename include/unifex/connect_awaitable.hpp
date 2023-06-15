@@ -214,7 +214,12 @@ using _await_cpo::connect_awaitable;
 
 // as_sender, for adapting an awaitable to be a typed sender
 namespace _as_sender {
-  template <typename Awaitable, typename Result = await_result_t<Awaitable>>
+
+  template <typename Awaitable>
+  using _awaitable_single_value_result_t =
+    wrap_reference_t<decay_rvalue_t<await_result_t<Awaitable>>>;
+
+  template <typename Awaitable, typename Result = _awaitable_single_value_result_t<Awaitable>>
   struct _sndr {
     struct type {
       template <
