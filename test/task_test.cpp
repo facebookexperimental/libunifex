@@ -29,12 +29,18 @@ using namespace unifex;
 
 int global;
 
+template <class Expected, class Actual>
+void check_is_type(Actual&&) {
+    static_assert(std::is_same_v<Expected, Actual>);
+}
+
 task<int&> await_reference_awaitable() {
   struct AwaitableGlobalRef {
     bool await_ready() noexcept { return true; }
     void await_suspend(coro::coroutine_handle<>) noexcept {};
     int& await_resume() noexcept { return global; }
   };
+  check_is_type<int&>(co_await AwaitableGlobalRef{});
   int& x = co_await AwaitableGlobalRef{};
   co_return x;
 }
