@@ -81,7 +81,7 @@ public:
         bool await_ready() noexcept {
           return false;
         }
-        void await_suspend(coro::coroutine_handle<promise_type>) noexcept(noexcept(((Func &&) func_)())) {
+        void await_suspend(coro::coroutine_handle<promise_type>) noexcept(std::is_nothrow_invocable_v<Func>) {
           ((Func &&) func_)();
         }
         [[noreturn]] void await_resume() noexcept {

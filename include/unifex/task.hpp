@@ -227,21 +227,21 @@ struct _result_and_unhandled_exception final {
       if constexpr (nothrow) {
         std::terminate();
       } else {
-        expected_.reset_value();
+        result_.reset_value();
         unifex::activate_union_member(
-            expected_.exception_, std::current_exception());
-        expected_.state_ = _state::exception;
+            result_.exception_, std::current_exception());
+        result_.state_ = _state::exception;
       }
     }
 
     decltype(auto) result() noexcept(nothrow) {
       if constexpr (nothrow) {
-        return std::move(expected_).get();
+        return std::move(result_).get();
       } else {
-        if (expected_.state_ == _state::exception) {
-          std::rethrow_exception(std::move(expected_.exception_).get());
+        if (result_.state_ == _state::exception) {
+          std::rethrow_exception(std::move(result_.exception_).get());
         }
-        return std::move(expected_.value_).get();
+        return std::move(result_.value_).get();
       }
     }
 
@@ -249,16 +249,16 @@ struct _result_and_unhandled_exception final {
     // todo: consider if this should be nothrow or not
     void set_value(Args&&... values) {
       if constexpr (nothrow) {
-        expected_.construct(static_cast<Args&&>(values)...);
+        result_.construct(static_cast<Args&&>(values)...);
       } else {
-        this->expected_.reset_value();
+        this->result_.reset_value();
         unifex::activate_union_member(
-            this->expected_.value_, static_cast<Args&&>(values)...);
-        this->expected_.state_ = _state::value;
+            this->result_.value_, static_cast<Args&&>(values)...);
+        this->result_.state_ = _state::value;
       }
     }
 
-    std::conditional_t<nothrow, manual_lifetime<T>, _expected<T>> expected_;
+    std::conditional_t<nothrow, manual_lifetime<T>, _expected<T>> result_;
   };
 };
 
@@ -454,6 +454,7 @@ struct _sr_thunk_promise_base : _promise_base {
   }
 };
 
+//TODO: determine if this should also be nothrow
 template <typename T>
 struct _sr_thunk_promise final {
   /**

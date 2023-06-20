@@ -53,7 +53,7 @@ nothrow_task<void> nothrowThrowsException() {
 }
 
 nothrow_task<void> nothrowJustError() {
-  co_await unifex::just_error(std::exception_ptr());
+  co_await unifex::just_error(std::make_exception_ptr(42));
 }
 
 task<void> nothrowTaskBody() {
@@ -75,6 +75,14 @@ nothrow_task<int> bar() {
     ADD_FAILURE();
   }
   co_return -1;
+}
+
+nothrow_task<bool> nothrowTryCatch() {
+  try {
+    throw std::exception{};
+  } catch (...) {
+    co_return true;
+  }
 }
 
 // Test that after a co_await schedule(), the coroutine's current
@@ -150,13 +158,17 @@ TEST(NothrowTaskSchedulerAffinityTest, CurrentSchedulerIsInheritedTest) {
   }
 }
 
-TEST(NoThrowTaskDeathTest, NoThrowTaskNestedInTaskStillTerminates) {
+TEST(NothrowTaskDeathTest, NothrowTaskNestedInTaskStillTerminates) {
   ASSERT_DEATH(sync_wait(nothrowTaskBody()), "");
 }
 
-TEST(NoThrowTaskTest, BasicCancellationStillWorks) {
+TEST(NothrowTaskTest, BasicCancellationStillWorks) {
   std::optional<int> j = sync_wait(bar());
   EXPECT_TRUE(!j);
+}
+
+TEST(NothrowTaskTest, NothrowDoesNotTerminateWithTryCatch) {
+  EXPECT_TRUE(sync_wait(nothrowTryCatch()));
 }
 
 #endif // !UNIFEX_NO_COROUTINES
