@@ -76,12 +76,13 @@ public:
 
     template <typename Func>
     auto yield_value(Func&& func) noexcept {
+      static constexpr bool isNothrowInvocable = std::is_nothrow_invocable_v<Func>;
       struct awaiter {
         Func&& func_;
         bool await_ready() noexcept {
           return false;
         }
-        void await_suspend(coro::coroutine_handle<promise_type>) noexcept(std::is_nothrow_invocable_v<Func>) {
+        void await_suspend(coro::coroutine_handle<promise_type>) noexcept(isNothrowInvocable) {
           ((Func &&) func_)();
         }
         [[noreturn]] void await_resume() noexcept {

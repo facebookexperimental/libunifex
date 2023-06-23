@@ -36,7 +36,7 @@ using namespace unifex;
 UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
 nothrow_task<void> child(Scheduler s, std::atomic<int>& x) {
-  co_await schedule(s);
+  co_await unifex::then(schedule(s), []() noexcept {});
   ++x;
 }
 
@@ -92,7 +92,7 @@ UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
 nothrow_task<bool> test_current_scheduler(Scheduler s) {
   auto before = co_await current_scheduler();
-  co_await schedule(s);
+  co_await unifex::then(schedule(s), []() noexcept {});
   auto after = co_await current_scheduler();
   co_return before == after;
 }
@@ -111,7 +111,7 @@ nothrow_task<std::pair<bool, std::thread::id>> test_current_scheduler_is_inherit
 UNIFEX_TEMPLATE(typename Scheduler)
   (requires scheduler<Scheduler>)
 nothrow_task<std::pair<bool, std::thread::id>> test_current_scheduler_is_inherited(Scheduler s) {
-  co_await schedule(s);
+  co_await unifex::then(schedule(s), []() noexcept {});
   co_return co_await test_current_scheduler_is_inherited_impl(s);
 }
 
@@ -136,7 +136,7 @@ TEST(NothrowTaskDeathTest, JustErrorCausesProgramTermination) {
   ASSERT_DEATH(sync_wait(nothrowJustError()), "");
 }
 
-TEST(NoThrowTaskSchedulerAffinityTest, CurrentSchedulerTest) {
+TEST(NothrowTaskSchedulerAffinityTest, CurrentSchedulerTest) {
   single_thread_context thread_ctx;
   if(auto opt = sync_wait(test_current_scheduler(thread_ctx.get_scheduler()))) {
     ASSERT_TRUE(opt.has_value());

@@ -332,8 +332,10 @@ struct _promise final {
 
     template <typename Value>
     // todo: consider if this should be nothrow or not
+    // NOTE: Magic rescheduling is not currently supported by nothrow tasks
     decltype(auto) await_transform(Value&& value) {
-      if constexpr (!nothrow && is_sender_for_v<remove_cvref_t<Value>, schedule>) {
+      if constexpr (is_sender_for_v<remove_cvref_t<Value>, schedule>) {
+        static_assert(!nothrow, "Magic rescheduling isn't supported by no-throw tasks");
         // TODO: rip this out and replace it with something more explicit
 
         // If we are co_await'ing a sender that is the result of calling
