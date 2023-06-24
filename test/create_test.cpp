@@ -30,6 +30,9 @@
 using namespace unifex;
 
 namespace {
+
+int global;
+
 struct CreateTest : testing::Test {
   unifex::single_thread_context someThread;
   unifex::async_scope someScope;
@@ -47,6 +50,14 @@ struct CreateTest : testing::Test {
     });
   }
 
+  void anIntRefAPI(void* context, void (*completed)(void* context, int& result)) {
+    // Execute some work asynchronously on some other thread. When its
+    // work is finished, pass the result to the callback.
+    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
+      completed(context, global);
+    });
+  }
+
   void aVoidAPI(void* context, void (*completed)(void* context)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
@@ -58,18 +69,38 @@ struct CreateTest : testing::Test {
 } // anonymous namespace
 
 TEST_F(CreateTest, BasicTest) {
-  auto snd = [this](int a, int b) {
-    return create<int>([a, b, this](auto& rec) {
-      static_assert(receiver_of<decltype(rec), int>);
-      anIntAPI(a, b, &rec, [](void* context, int result) {
-        unifex::void_cast<decltype(rec)>(context).set_value(result);
+  {
+    auto snd = [this](int a, int b) {
+      return create<int>([a, b, this](auto& rec) {
+        static_assert(receiver_of<decltype(rec), int>);
+        anIntAPI(a, b, &rec, [](void* context, int result) {
+          unifex::void_cast<decltype(rec)>(context).set_value(result);
+        });
       });
-    });
-  }(1, 2);
+    }(1, 2);
 
-  std::optional<int> res = sync_wait(std::move(snd));
-  ASSERT_TRUE(res.has_value());
-  EXPECT_EQ(*res, 3);
+    std::optional<int> res = sync_wait(std::move(snd));
+    ASSERT_TRUE(res.has_value());
+    EXPECT_EQ(*res, 3);
+  }
+
+  {
+    auto snd = [this]() {
+      return create<int&>([this](auto& rec) {
+        static_assert(receiver_of<decltype(rec), int&>);
+        anIntRefAPI(&rec, [](void* context, int& result) {
+          unifex::void_cast<decltype(rec)>(context).set_value(result);
+        });
+      });
+    }();
+
+    std::optional<std::reference_wrapper<int>> res = sync_wait(std::move(snd));
+    ASSERT_TRUE(res.has_value());
+    global = 0;
+    EXPECT_EQ(*res, 0);
+    global = 10;
+    EXPECT_EQ(*res, 10);
+  }
 }
 
 TEST_F(CreateTest, VoidWithContextTest) {
