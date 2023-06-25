@@ -17,7 +17,7 @@
 
 #include <unifex/adapt_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/typed_via.hpp>
+#include <unifex/via.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -30,7 +30,7 @@ namespace _typed_via_stream {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return typed_via((decltype(sender))sender, s);
+            return via((decltype(sender))sender, s);
           });
     }
     template (typename StreamSender, typename Scheduler)
@@ -39,7 +39,7 @@ namespace _typed_via_stream {
       return adapt_stream(
           (StreamSender &&) stream,
           [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return typed_via((decltype(sender))sender, s);
+            return via((decltype(sender))sender, s);
           });
     }
     template(typename Scheduler)
