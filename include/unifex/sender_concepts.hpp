@@ -179,10 +179,18 @@ UNIFEX_CONCEPT //
     detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
 
 template <typename S>
+[[deprecated("Use unifex::sender<S> instead")]]  //
+inline constexpr bool typed_sender = sender<S>;
+
+template <typename S>
 UNIFEX_CONCEPT    //
   bulk_sender =   //
     sender<S> &&  //
     detail::_has_bulk_sender_types<sender_traits<remove_cvref_t<S>>>;
+
+template <typename S>
+[[deprecated("Use unifex::bulk_sender<S> instead")]]  //
+inline constexpr bool typed_bulk_sender = bulk_sender<S>;
 
 namespace _start_cpo {
   inline const struct _fn {
