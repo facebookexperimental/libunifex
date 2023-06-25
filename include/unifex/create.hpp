@@ -172,7 +172,7 @@ struct _fn {
  *  void old_c_style_api(int a, int b, void* context, callback_t* callback_fn);
  *
  *  // A sender-based async API implemented in terms of the C-style API (using C++20):
- *  unifex::typed_sender auto new_sender_api(int a, int b) {
+ *  unifex::sender auto new_sender_api(int a, int b) {
  *    return unifex::create<int>([=](auto& rec) {
  *      old_c_style_api(a, b, &rec, [](void* context, int result) {
  *        unifex::void_cast<decltype(rec)>(context).set_value(result);

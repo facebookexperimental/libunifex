@@ -104,7 +104,7 @@ namespace detail {
       UNIFEX_FRAGMENT(detail::_has_bulk_sender_types_impl, S);
 
   template <typename S>
-  struct _typed_sender_traits {
+  struct _sender_traits {
     template <
         template <typename...> class Variant,
         template <typename...> class Tuple>
@@ -121,7 +121,7 @@ namespace detail {
   };
 
   template <typename S>
-  struct _typed_bulk_sender_traits : _typed_sender_traits<S> {
+  struct _bulk_sender_traits : _sender_traits<S> {
     template <
       template <typename...> class Variant,
       template <typename...> class Tuple>
@@ -159,9 +159,9 @@ namespace detail {
   template <typename S>
   constexpr auto _select_sender_traits() noexcept {
     if constexpr (_has_bulk_sender_types<S>) {
-      return _typed_bulk_sender_traits<S>{};
+      return _bulk_sender_traits<S>{};
     } else if constexpr (_has_sender_types<S>) {
-      return _typed_sender_traits<S>{};
+      return _sender_traits<S>{};
     } else {
       return _no_sender_traits{};
     }
@@ -177,11 +177,6 @@ UNIFEX_CONCEPT //
     move_constructible<remove_cvref_t<S>> &&
     detail::_has_sender_traits<remove_cvref_t<S>> && //
     detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
-
-template <typename S>
-UNIFEX_CONCEPT   //
-  typed_sender = //
-    sender<S>;
 
 template <typename S>
 UNIFEX_CONCEPT        //
@@ -394,28 +389,28 @@ template <typename Sender>
 using sender_error_type_list_t = sender_error_types_t<Sender, type_list>;
 
 /// \cond
-namespace _single_sender {
+namespace _detail {
 template <typename... Types>
 using _is_single_valued_tuple = std::bool_constant<1 >= sizeof...(Types)>;
 
 template <typename... Types>
 using _is_single_valued_variant =
     std::bool_constant<sizeof...(Types) == 1 && (Types::value && ...)>;
-}  // namespace _single_sender
+}  // namespace _detail
 /// \endcond
 
 template <typename Sender>
-UNIFEX_CONCEPT_FRAGMENT(        //
-    _single_typed_sender_impl,  //
-    requires()(0) &&            //
+UNIFEX_CONCEPT_FRAGMENT(  //
+    _single_sender_impl,  //
+    requires()(0) &&      //
         sender_traits<remove_cvref_t<Sender>>::template value_types<
-            _single_sender::_is_single_valued_variant,
-            _single_sender::_is_single_valued_tuple>::value);
+            _detail::_is_single_valued_variant,
+            _detail::_is_single_valued_tuple>::value);
 
 template <typename Sender>
-UNIFEX_CONCEPT _single_typed_sender = //
-    typed_sender<Sender> &&
-    UNIFEX_FRAGMENT(unifex::_single_typed_sender_impl, Sender);
+UNIFEX_CONCEPT _single_sender = //
+    sender<Sender> &&
+    UNIFEX_FRAGMENT(unifex::_single_sender_impl, Sender);
 
 }  // namespace unifex
 

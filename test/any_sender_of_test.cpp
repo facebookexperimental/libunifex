@@ -37,7 +37,7 @@ using namespace testing;
 
 namespace {
 // We need to validate the following contract:
-//  - any_sender_of<T...> is a typed_sender
+//  - any_sender_of<T...> is a sender
 //  - sender_traits<any_sender_of<T...>>::value_types<std::variant, std::tuple>
 //    is std::variant<std::tuple<T...>>
 //  - sender_traits<any_sender_of<T...>>::error_types<std::variant> is
@@ -61,7 +61,7 @@ struct AnySenderOfTestImpl : Test {
 
   static constexpr size_t value_count = sizeof...(T);
 
-  static_assert(typed_sender<any_sender>);
+  static_assert(sender<any_sender>);
   static_assert(sender_to<any_sender, mock_receiver<void(T...) noexcept(NoExcept)>>);
   static_assert(std::is_same_v<std::variant<std::tuple<T...>>,
                                sender_value_types_t<any_sender, std::variant, std::tuple>>);

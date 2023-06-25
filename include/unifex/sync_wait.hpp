@@ -143,7 +143,7 @@ std::optional<Result> _impl(Sender&& sender) {
 namespace _sync_wait_cpo {
   struct _fn {
     template(typename Sender)
-      (requires typed_sender<Sender>)
+      (requires sender<Sender>)
     auto operator()(Sender&& sender) const
         -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
       using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
