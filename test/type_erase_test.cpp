@@ -23,7 +23,7 @@
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
 #include <unifex/type_erased_stream.hpp>
-#include <unifex/typed_via_stream.hpp>
+#include <unifex/via_stream.hpp>
 
 #include <cstdio>
 
@@ -38,7 +38,7 @@ single_thread_context context2;
 
 TEST(type_erase, UseType) {
   auto functor = []() -> unifex::type_erased_stream<int> {
-    return type_erase<int>(typed_via_stream(
+    return type_erase<int>(via_stream(
         context1.get_scheduler(),
         on_stream(
             context2.get_scheduler(),
@@ -54,7 +54,7 @@ TEST(type_erase, UseType) {
 TEST(type_erase, Smoke) {
   sync_wait(then(
       for_each(
-          type_erase<int>(typed_via_stream(
+          type_erase<int>(via_stream(
               context1.get_scheduler(),
               on_stream(
                   context2.get_scheduler(),
@@ -70,7 +70,7 @@ TEST(type_erase, Pipeable) {
       | transform_stream(                                       //
             [](int value) { return value * value; })            //
       | on_stream(context2.get_scheduler())                     //
-      | typed_via_stream(context1.get_scheduler())              //
+      | via_stream(context1.get_scheduler())                    //
       | type_erase<int>()                                       //
       | for_each(                                               //
             [](int value) { std::printf("got %i\n", value); })  //

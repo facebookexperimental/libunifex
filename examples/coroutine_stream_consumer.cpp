@@ -26,7 +26,7 @@
 #include <unifex/take_until.hpp>
 #include <unifex/task.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/typed_via_stream.hpp>
+#include <unifex/via_stream.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/then.hpp>
 #include <unifex/just.hpp>
