@@ -5,6 +5,7 @@
 #include <unifex/sync_wait.hpp>
 
 #include <gtest/gtest.h>
+#include <tuple>
 #include <type_traits>
 #include <variant>
 
@@ -86,4 +87,99 @@ TEST(UponError, ExceptionHandling) {
     EXPECT_EQ(err, 2);
   }
   EXPECT_EQ(val, 0);
+}
+
+struct single_value_sender {
+
+  template <
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
+  using value_types = Variant<Tuple<int>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<>;
+
+  static constexpr bool sends_done = false;
+
+  template <class Receiver>
+  struct operation {
+    friend auto tag_invoke(tag_t<start>, operation& self) noexcept {
+      set_value(std::move(self.receiver), 0);
+    }
+
+    Receiver receiver;
+  };
+
+  template <class Receiver>
+  friend auto tag_invoke(tag_t<connect>, single_value_sender, Receiver&& receiver) {
+    return operation<Receiver>{std::forward<Receiver>(receiver)};
+  }
+};
+
+TEST(UponError, ZeroErrorSender) {
+  auto s = single_value_sender{} | upon_error([](auto) -> double { return 0.0; });
+  static_assert(std::is_same_v<
+    decltype(s)::value_types<std::variant, std::tuple>,
+    std::variant<std::tuple<int>>
+  >);
+}
+
+struct Error1{};
+struct Error2{};
+struct Error3{};
+struct Error4{};
+
+struct many_error_sender {
+
+  template <
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
+  using value_types = Variant<Tuple<double>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<Error1, Error2, Error3>;
+
+  static constexpr bool sends_done = false;
+
+  template <class Receiver>
+  struct operation {
+    friend auto tag_invoke(tag_t<start>, operation& self) noexcept {
+      set_error(std::move(self.receiver), Error1{});
+    }
+
+    Receiver receiver;
+  };
+
+  template <class Receiver>
+  friend auto tag_invoke(tag_t<connect>, many_error_sender, Receiver&& receiver) {
+    return operation<Receiver>{std::forward<Receiver>(receiver)};
+  }
+};
+
+TEST(UponError, ManyErrorSender) {
+  auto s = many_error_sender{} | upon_error([](auto e) {
+    if constexpr (std::is_same_v<decltype(e), Error3>) {
+      return Error4{};
+    } else {
+      return e;
+    }
+  });
+  static_assert(std::is_same_v<
+    decltype(s)::value_types<std::variant, std::tuple>,
+    std::variant<std::tuple<double>, std::tuple<Error1>, std::tuple<Error2>, std::tuple<Error4>>
+  >);
+}
+
+TEST(UponError, ManyErrorSenderIntoVoid) {
+  auto s = many_error_sender{} | upon_error([](auto e) {
+    if constexpr (std::is_same_v<decltype(e), Error3>) {
+      return;
+    } else {
+      return e;
+    }
+  });
+  static_assert(std::is_same_v<
+    decltype(s)::value_types<std::variant, std::tuple>,
+    std::variant<std::tuple<double>, std::tuple<Error1>, std::tuple<Error2>, std::tuple<>>
+  >);
 }
