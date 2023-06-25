@@ -122,9 +122,9 @@ private:
    * This helper returns type_list<type_list<Result>> if invoking func returns
    * Result else if func returns void then helper returns type_list<type_list<>>
    */
-  template <typename Error>
+  template <typename... Error>
   using invoked_result_t =
-      type_list<detail::result_overload_t<std::invoke_result_t<Func, Error>>>;
+      type_list<detail::result_overload_t<std::invoke_result_t<Func, Error>>...>;
 
 public:
   template <
