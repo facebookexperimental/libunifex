@@ -95,13 +95,40 @@ namespace unifex
   template <typename... UniqueLists>
   using concat_type_lists_t = typename concat_type_lists<UniqueLists...>::type;
 
+  // unique_type_list_elements<type_list<Ts...>>
+  //
+  // Result is produced via '::type' which will contain a type_list<Ts...> that
+  // contains the unique elements from the input type_list.
+  template <typename... Ts>
+  struct unique_type_list_elements;
+
+  template <typename... Ts>
+  using unique_type_list_elements_t = typename unique_type_list_elements<Ts...>::type;
+
+  template <>
+  struct unique_type_list_elements<type_list<>> {
+    using type = type_list<>;
+  };
+
+  template <typename T, typename... Ts>
+  struct unique_type_list_elements<type_list<T, Ts...>> {
+    using type = conditional_t<
+      is_one_of_v<T, Ts...>,
+      unique_type_list_elements_t<type_list<Ts...>>,
+      concat_type_lists_t<type_list<T>, unique_type_list_elements_t<type_list<Ts...>>>
+    >;
+  };
+
   // concat_type_lists_unique<UniqueLists...>
   //
   // Result is produced via '::type' which will contain a type_list<Ts...> that
-  // contains the unique elements from the input type_list types.
-  // Assumes that the input lists already
+  // contains the unique elements from the input type_list types. Any duplicate
+  // elements in the input lists are removed.
   template <typename... UniqueLists>
   struct concat_type_lists_unique;
+
+  template <typename... UniqueLists>
+  using concat_type_lists_unique_t = typename concat_type_lists_unique<UniqueLists...>::type;
 
   template <>
   struct concat_type_lists_unique<> {
@@ -116,16 +143,13 @@ namespace unifex
   template <typename... Ts, typename... Us, typename... OtherLists>
   struct concat_type_lists_unique<type_list<Ts...>, type_list<Us...>, OtherLists...>
     : concat_type_lists_unique<
-          typename concat_type_lists<
+          unique_type_list_elements_t<concat_type_lists_t<
               type_list<Ts...>,
               conditional_t<
                 is_one_of_v<Us, Ts...>,
                 type_list<>,
-                type_list<Us>>...>::type,
+                type_list<Us>>...>>,
           OtherLists...> {};
-
-  template <typename... UniqueLists>
-  using concat_type_lists_unique_t = typename concat_type_lists_unique<UniqueLists...>::type;
 
   namespace detail
   {
