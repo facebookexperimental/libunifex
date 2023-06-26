@@ -17,15 +17,15 @@ void verify_unique_type_list_elements() {
   >);
   static_assert(std::is_same_v<
     unique_type_list_elements_t<type_list<int, double, int>>,
-    type_list<double, int>
+    type_list<int, double>
   >);
   static_assert(std::is_same_v<
     unique_type_list_elements_t<type_list<int, double, double, int>>,
-    type_list<double, int>
+    type_list<int, double>
   >);
   static_assert(std::is_same_v<
     unique_type_list_elements_t<type_list<int, double, float, double, int>>,
-    type_list<float, double, int>
+    type_list<int, double, float>
   >);
   static_assert(std::is_same_v<
     unique_type_list_elements_t<type_list<double, int>>,
