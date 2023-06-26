@@ -105,8 +105,10 @@ namespace unifex
   template <typename List>
   using unique_type_list_elements_t = typename unique_type_list_elements<List, type_list<>>::type;
 
-  template <typename... Ts>
-  struct unique_type_list_elements<type_list<>, type_list<Ts...>> {
+  // Base case: empty input type_list, with any number of elements that have
+  // already been seen
+  template <typename... SeenElements>
+  struct unique_type_list_elements<type_list<>, type_list<SeenElements...>> {
     using type = type_list<>;
   };
 
