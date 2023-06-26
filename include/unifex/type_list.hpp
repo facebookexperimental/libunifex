@@ -114,7 +114,7 @@ namespace unifex
   struct unique_type_list_elements<type_list<T, Ts...>, type_list<SeenElements...>> {
     using type = conditional_t<
       is_one_of_v<T, SeenElements...>,
-      typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements..., T>>::type,
+      typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements...>>::type,
       concat_type_lists_t<type_list<T>, typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements..., T>>::type>
     >;
   };

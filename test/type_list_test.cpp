@@ -42,4 +42,8 @@ void verify_concat_type_lists_unique() {
     concat_type_lists_unique_t<type_list<int>, type_list<int, int>>,
     type_list<int>
   >);
+  static_assert(std::is_same_v<
+    concat_type_lists_unique_t<type_list<bool, int, double>, type_list<double, int, float>>,
+    type_list<bool, int, double, float>
+  >);
 }
