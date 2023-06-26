@@ -110,12 +110,12 @@ namespace unifex
     using type = type_list<>;
   };
 
-  template <typename T, typename... Ts, typename... Us>
-  struct unique_type_list_elements<type_list<T, Ts...>, type_list<Us...>> {
+  template <typename T, typename... Ts, typename... SeenElements>
+  struct unique_type_list_elements<type_list<T, Ts...>, type_list<SeenElements...>> {
     using type = conditional_t<
-      is_one_of_v<T, Us...>,
-      typename unique_type_list_elements<type_list<Ts...>, type_list<Us..., T>>::type,
-      concat_type_lists_t<type_list<T>, typename unique_type_list_elements<type_list<Ts...>, type_list<Us..., T>>::type>
+      is_one_of_v<T, SeenElements...>,
+      typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements..., T>>::type,
+      concat_type_lists_t<type_list<T>, typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements..., T>>::type>
     >;
   };
 
