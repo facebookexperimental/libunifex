@@ -170,6 +170,16 @@ TEST(UponError, ManyErrorSender) {
   >);
 }
 
+TEST(UponError, ManyErrorSenderAllReturnInt) {
+  auto s = many_error_sender{} | upon_error([](auto) -> int {
+    return 0;
+  });
+  static_assert(std::is_same_v<
+    decltype(s)::value_types<std::variant, std::tuple>,
+    std::variant<std::tuple<double>, std::tuple<int>>
+  >);
+}
+
 TEST(UponError, ManyErrorSenderIntoVoid) {
   auto s = many_error_sender{} | upon_error([](auto e) {
     if constexpr (std::is_same_v<decltype(e), Error3>) {
