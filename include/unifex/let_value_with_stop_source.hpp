@@ -51,7 +51,7 @@ template<typename Operation, typename Receiver>
 class _stop_source_receiver<Operation, Receiver>::type {
 public:
     explicit type(Operation& op, Receiver&& r) :
-        op_(op), receiver_{std::forward<Receiver>(r)}
+        op_(op), receiver_{std::move(r)}
     {}
 
     template(typename... Values)
