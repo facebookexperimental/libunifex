@@ -21,7 +21,7 @@
 #include <unifex/stop_immediately.hpp>
 #include <unifex/take_until.hpp>
 #include <unifex/thread_unsafe_event_loop.hpp>
-#include <unifex/typed_via_stream.hpp>
+#include <unifex/via_stream.hpp>
 
 #include <chrono>
 #include <cstdio>

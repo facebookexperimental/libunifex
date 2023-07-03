@@ -173,7 +173,7 @@ using callback_t = void(void* /*context*/, int /*result*/);
 void old_c_style_api(int a, int b, void* context, callback_t* callback_fn);
 
 // A sender-based async API implemented in terms of the C-style API (using C++20):
-unifex::typed_sender auto new_sender_api(int a, int b) {
+unifex::sender auto new_sender_api(int a, int b) {
   return unifex::create<int>([=](auto& rec) {
     old_c_style_api(a, b, &rec, [](void* context, int result) {
       unifex::void_cast<decltype(rec)>(context).set_value(result);
@@ -701,7 +701,7 @@ value channel as an empty `std::optional`. The value channel is also converted
 into an optional. The result is a sender that never completes with done,
 reporting cancellation by completing with an empty optional.
 
-This function only accepts `typed_sender`s that complete with either
+This function only accepts `sender`s that complete with either
 `void` or a single type.
 
 For example:
@@ -1172,7 +1172,7 @@ auto&& [state...] =
 
 **Arguments:**
 The first argument to `at_coroutine_exit` is a callable that returns an awaitable type
-(e.g., a `unifex::task<>` or a type that satisfies the `typed_sender` concept).
+(e.g., a `unifex::task<>` or a type that satisfies the `sender` concept).
 
 The other arguments are optional state that may be needed by the cleanup action. The
 cleanup action assumes ownership of the passed-in state by copying the state into separate

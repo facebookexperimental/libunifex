@@ -19,7 +19,7 @@
 #include <unifex/range_stream.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
-#include <unifex/typed_via_stream.hpp>
+#include <unifex/via_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/then.hpp>
 #include <unifex/stop_when.hpp>

@@ -123,7 +123,7 @@ struct _fn final {
                    remove_cvref_t<Scheduler>>,
                Sender,
                Scheduler>) {
-    // the default implementation for non-affine senders is a typed_via back to
+    // the default implementation for non-affine senders is a via back to
     // the given scheduler
     using sender_t =
         wsa_sender_wrapper<remove_cvref_t<Sender>, remove_cvref_t<Scheduler>>;
@@ -147,7 +147,7 @@ struct _fn final {
       return Awaitable{(Awaitable &&) awaitable};
     } else {
       // TODO: do this more efficiently; the current approach converts an
-      //       awaitable to a sender so we can pass it to typed_via, only to
+      //       awaitable to a sender so we can pass it to via, only to
       //       convert it back to an awaitable
       return unifex::await_transform(
           promise,

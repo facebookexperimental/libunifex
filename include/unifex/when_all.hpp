@@ -370,7 +370,7 @@ namespace _cpo {
       return tag_invoke(*this, (Senders &&) senders...);
     }
     template (typename... Senders)
-      (requires (typed_sender<Senders> &&...) AND (!tag_invocable<_fn, Senders...>))
+      (requires (unifex::sender<Senders> &&...) AND (!tag_invocable<_fn, Senders...>))
     auto operator()(Senders&&... senders) const
         -> _when_all::sender<Senders...> {
       return _when_all::sender<Senders...>{(Senders &&) senders...};

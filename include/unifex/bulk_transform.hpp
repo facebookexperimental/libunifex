@@ -206,7 +206,7 @@ private:
 
 struct _fn {
     template(typename Source, typename Func, typename FuncPolicy = decltype(get_execution_policy(UNIFEX_DECLVAL(Func&))))
-        (requires typed_bulk_sender<Source>)
+        (requires bulk_sender<Source>)
     auto operator()(Source&& s, Func&& f) const
         noexcept(is_nothrow_callable_v<_fn, Source, Func, FuncPolicy>)
         -> callable_result_t<_fn, Source, Func, FuncPolicy> {
@@ -215,7 +215,7 @@ struct _fn {
 
     template(typename Source, typename Func, typename FuncPolicy)
         (requires
-            typed_bulk_sender<Source> AND
+            bulk_sender<Source> AND
             tag_invocable<_fn, Source, Func, FuncPolicy>)
     auto operator()(Source&& s, Func&& f, FuncPolicy policy) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func, FuncPolicy>)
@@ -225,7 +225,7 @@ struct _fn {
 
     template(typename Source, typename Func, typename FuncPolicy)
         (requires
-            typed_bulk_sender<Source> AND
+            bulk_sender<Source> AND
             (!tag_invocable<_fn, Source, Func, FuncPolicy>))
     auto operator()(Source&& s, Func&& f, FuncPolicy policy) const
         noexcept(

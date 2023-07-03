@@ -19,7 +19,7 @@
 #include <unifex/trampoline_scheduler.hpp>
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/typed_via_stream.hpp>
+#include <unifex/via_stream.hpp>
 
 #include <cstdio>
 

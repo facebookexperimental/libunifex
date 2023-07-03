@@ -20,7 +20,7 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/typed_via_stream.hpp>
+#include <unifex/via_stream.hpp>
 
 #include <cstdio>
 
@@ -32,7 +32,7 @@ int main() {
 
   sync_wait(then(
       for_each(
-          typed_via_stream(
+          via_stream(
               context1.get_scheduler(),
               on_stream(
                   context2.get_scheduler(),

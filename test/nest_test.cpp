@@ -163,7 +163,7 @@ struct throwing_sender final {
   }
 };
 
-static_assert(unifex::typed_sender<throwing_sender>);
+static_assert(unifex::sender<throwing_sender>);
 
 TEST(nest_test, nest_has_the_expected_noexcept_clause) {
   tag_invocable_scope tscope;
