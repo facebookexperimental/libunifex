@@ -15,8 +15,10 @@
  */
 
 #include <unifex/create.hpp>
-#include <unifex/single_thread_context.hpp>
 #include <unifex/async_scope.hpp>
+#include <unifex/finally.hpp>
+#include <unifex/just.hpp>
+#include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 
 #include <optional>
@@ -73,6 +75,7 @@ TEST_F(CreateTest, BasicTest) {
     auto snd = [this](int a, int b) {
       return create<int>([a, b, this](auto& rec) {
         static_assert(receiver_of<decltype(rec), int>);
+        static_assert(!receiver_of<decltype(rec), int*>);
         anIntAPI(a, b, &rec, [](void* context, int result) {
           unifex::void_cast<decltype(rec)>(context).set_value(result);
         });
@@ -100,6 +103,173 @@ TEST_F(CreateTest, BasicTest) {
     EXPECT_EQ(*res, 0);
     global = 10;
     EXPECT_EQ(*res, 10);
+  }
+}
+
+TEST_F(CreateTest, FinallyCreate) {
+    auto snd = [this](int a, int b) {
+      return create<int>([a, b, this](auto& rec) {
+        static_assert(receiver_of<std::decay_t<decltype(rec)>, int>);
+        anIntAPI(a, b, &rec, [](void* context, int result) {
+          unifex::void_cast<decltype(rec)>(context).set_value(result);
+        });
+      });
+    }(1, 2) | finally(just());
+
+    std::optional<int> res = sync_wait(std::move(snd));
+    ASSERT_TRUE(res.has_value());
+    EXPECT_EQ(*res, 3);
+}
+
+TEST_F(CreateTest, DoubleCreateSetsIntValue) {
+  auto snd = [this](int a, int b) {
+    return create<double>([a, b, this](auto& rec) {
+      static_assert(receiver_of<std::decay_t<decltype(rec)>, int>);
+      anIntAPI(a, b, &rec, [](void* context, int result) {
+        unifex::void_cast<decltype(rec)>(context).set_value(result);
+      });
+    });
+  }(1, 2);
+
+  static_assert(std::is_same_v<decltype(sync_wait(std::move(snd))), std::optional<double>>);
+  std::optional<double> res = sync_wait(std::move(snd));
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(*res, 3);
+}
+
+struct TrackingObject {
+  static int moves;
+  static int copies;
+
+  explicit TrackingObject(int val) : val(val) {}
+  TrackingObject(const TrackingObject& other) : val(other.val) {
+    ++copies;
+  }
+  TrackingObject(TrackingObject&& other) : val(other.val) {
+    ++moves;
+    other.was_moved = true;
+  }
+  TrackingObject& operator=(const TrackingObject&) = delete;
+  TrackingObject& operator=(TrackingObject&&) = delete;
+
+  int val;
+  bool was_moved = false;
+};
+int TrackingObject::moves = 0;
+int TrackingObject::copies = 0;
+
+TEST_F(CreateTest, CreateObjectNotCopied) {
+  auto snd = [this](int a, int b) {
+    return create<TrackingObject>([a, b, this](auto& rec) {
+      static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject>);
+      anIntAPI(a, b, &rec, [](void* context, int result) {
+        unifex::void_cast<decltype(rec)>(context).set_value(TrackingObject{result});
+      });
+    });
+  }(1, 2);
+
+  TrackingObject::copies = 0;
+
+  std::optional<TrackingObject> res = sync_wait(std::move(snd));
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(res->val, 3);
+  EXPECT_EQ(TrackingObject::copies, 0);
+}
+
+TEST_F(CreateTest, CreateObjectCopied) {
+  auto snd = [this](int a, int b) {
+    return create<TrackingObject>([a, b, this](auto& rec) {
+      static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject>);
+      anIntAPI(a, b, &rec, [](void* context, int result) {
+        TrackingObject obj{result};
+        unifex::void_cast<decltype(rec)>(context).set_value(obj);
+      });
+    });
+  }(1, 2);
+
+  TrackingObject::copies = 0;
+
+  std::optional<TrackingObject> res = sync_wait(std::move(snd));
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(res->val, 3);
+  EXPECT_EQ(TrackingObject::copies, 1);
+}
+
+TEST_F(CreateTest, CreateWithConditionalMove) {
+  TrackingObject obj{0};
+
+  struct Data {
+    void* context;
+    TrackingObject* obj;
+  };
+  Data data{nullptr, &obj};
+
+  auto snd = [this, &data](int a, int b) {
+    return create<TrackingObject&&>([a, b, &data, this](auto& rec) {
+      static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject&&>);
+      data.context = &rec;
+      anIntAPI(a, b, &data, [](void* context, int result) {
+        Data& data = unifex::void_cast<Data&>(context);
+        data.obj->val = result;
+        unifex::void_cast<decltype(rec)>(data.context).set_value(std::move(*data.obj));
+      });
+    });
+  }(1, 2) | then([](TrackingObject&& obj) {
+      return obj.val;
+  });
+
+  TrackingObject::copies = 0;
+  TrackingObject::moves = 0;
+
+  std::optional<int> res = sync_wait(std::move(snd));
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(*res, 3);
+  EXPECT_EQ(TrackingObject::copies, 0);
+  EXPECT_EQ(TrackingObject::moves, 0);
+  EXPECT_FALSE(obj.was_moved);
+}
+
+TEST_F(CreateTest, CreateWithConversions) {
+  struct A {
+    int val;
+  };
+  struct B {
+    B(A a) : val(a.val) {}
+    B(int val) : val(val) {}
+    operator A() const {
+      return A{val};
+    }
+    int val;
+  };
+
+  {
+    auto snd = [this](int a, int b) {
+      return create<A>([a, b, this](auto& rec) {
+        static_assert(receiver_of<std::decay_t<decltype(rec)>, A>);
+        anIntAPI(a, b, &rec, [](void* context, int result) {
+          unifex::void_cast<decltype(rec)>(context).set_value(B{result});
+        });
+      });
+    }(1, 2);
+
+    std::optional<A> res = sync_wait(std::move(snd));
+    ASSERT_TRUE(res.has_value());
+    EXPECT_EQ(res->val, 3);
+  }
+
+  {
+    auto snd = [this](int a, int b) {
+      return create<B>([a, b, this](auto& rec) {
+        static_assert(receiver_of<std::decay_t<decltype(rec)>, int>);
+        anIntAPI(a, b, &rec, [](void* context, int result) {
+          unifex::void_cast<decltype(rec)>(context).set_value(A{result});
+        });
+      });
+    }(1, 2);
+
+    std::optional<B> res = sync_wait(std::move(snd));
+    ASSERT_TRUE(res.has_value());
+    EXPECT_EQ(res->val, 3);
   }
 }
 

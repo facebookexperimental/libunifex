@@ -24,6 +24,25 @@
 namespace unifex {
 namespace _create {
 
+template <typename From, typename To, typename = void>
+struct _do_convert {
+  To operator()(From&&) = delete;
+};
+
+template <typename From>
+struct _do_convert<From, From, void> {
+  From&& operator()(From&& obj) noexcept {
+    return static_cast<From&&>(obj);
+  }
+};
+
+template <typename From, typename To>
+struct _do_convert<From, To, std::void_t<std::enable_if_t<convertible_to<From, To>>>> {
+  To operator()(From&& obj) {
+    return static_cast<From&&>(obj);
+  }
+};
+
 template <typename Receiver, typename Fn, typename Context, typename... ValueTypes>
 struct _op {
   struct type {
@@ -34,9 +53,18 @@ struct _op {
       : rec_((Receiver&&) rec), fn_((Fn&&) fn), ctx_((Context&&) ctx) {}
 
     template (typename... Ts)
-      (requires receiver_of<Receiver, Ts...>)
-    void set_value(Ts&&... ts) noexcept(is_nothrow_receiver_of_v<Receiver, Ts...>) {
-      unifex::set_value((Receiver&&) rec_, (ValueTypes) ts...);
+      (requires receiver_of<Receiver, Ts...> AND (convertible_to<Ts, ValueTypes> && ...))
+    void set_value(Ts&&... ts) noexcept {
+      UNIFEX_TRY {
+        // Satisfy the value completion contract with _do_convert, which
+        // ensures the value passed to the receiver conforms to
+        // the value types of the create sender. E.g., if set_value
+        // is called with an lvalue reference but create sends non-reference
+        // values, _do_convert converts the provided Ts.
+        unifex::set_value((Receiver&&) rec_, _do_convert<Ts, ValueTypes>{}(static_cast<Ts&&>(ts))...);
+      } UNIFEX_CATCH(...) {
+        unifex::set_error(std::move(rec_), std::current_exception());
+      }
     }
 
     template (typename Error)
