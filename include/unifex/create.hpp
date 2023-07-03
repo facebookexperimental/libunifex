@@ -61,7 +61,7 @@ struct _op {
         // the value types of the create sender. E.g., if set_value
         // is called with an lvalue reference but create sends non-reference
         // values, _do_convert converts the provided Ts.
-        unifex::set_value((Receiver&&) rec_, _do_convert<Ts, ValueTypes>{}(static_cast<Ts&&>(ts))...);
+        unifex::set_value(std::move(rec_), _do_convert<Ts, ValueTypes>{}(static_cast<Ts&&>(ts))...);
       } UNIFEX_CATCH(...) {
         unifex::set_error(std::move(rec_), std::current_exception());
       }
