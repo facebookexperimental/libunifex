@@ -58,10 +58,10 @@ struct _op {
       UNIFEX_TRY {
         // Satisfy the value completion contract with _do_convert, which
         // ensures the value passed to the receiver conforms to
-        // the value types of the create sender. E.g., if set_value
+        // the value types of the create sender. For example, if set_value
         // is called with an lvalue reference but create sends non-reference
-        // values, _do_convert converts the provided Ts.
-        unifex::set_value(std::move(rec_), _do_convert<Ts, ValueTypes>{}(static_cast<Ts&&>(ts))...);
+        // values, _do_convert decays the provided Ts.
+        unifex::set_value(std::move(rec_), _do_convert<Ts&&, ValueTypes>{}(static_cast<Ts&&>(ts))...);
       } UNIFEX_CATCH(...) {
         unifex::set_error(std::move(rec_), std::current_exception());
       }

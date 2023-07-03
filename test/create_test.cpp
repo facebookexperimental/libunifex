@@ -195,6 +195,28 @@ TEST_F(CreateTest, CreateObjectCopied) {
   EXPECT_EQ(TrackingObject::copies, 1);
 }
 
+TEST_F(CreateTest, CreateObjectLeadsToNewObject) {
+  auto snd = [this](int a, int b) {
+    return create<TrackingObject>([a, b, this](auto& rec) {
+      static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject>);
+      anIntAPI(a, b, &rec, [](void* context, int result) {
+        unifex::void_cast<decltype(rec)>(context).set_value(TrackingObject{result});
+      });
+    });
+  }(1, 2) | then([](TrackingObject&& obj) {
+      return obj.val;
+  });
+
+  TrackingObject::copies = 0;
+  TrackingObject::moves = 0;
+
+  std::optional<int> res = sync_wait(std::move(snd));
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(*res, 3);
+  EXPECT_EQ(TrackingObject::copies, 0);
+  EXPECT_GT(TrackingObject::moves, 0);
+}
+
 TEST_F(CreateTest, CreateWithConditionalMove) {
   TrackingObject obj{0};
 
