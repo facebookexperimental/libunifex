@@ -130,8 +130,8 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::type 
     auto& op = op_;
     unifex::deactivate_union_member(op.doneCleanup_);
     unifex::set_value(
-        static_cast<Receiver&&>(op.receiver_),
-        std::forward<State>(op.state_));
+        std::move(op.receiver_),
+        std::move(op.state_));
   }
 
   template(typename CPO)
@@ -198,7 +198,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
     UNIFEX_TRY {
       op.state_ = std::invoke(
           op.reducer_,
-          std::forward<State>(op.state_),
+          std::move(op.state_),
           (Values &&) values...);
       unifex::activate_union_member_with(op.next_, [&] {
         return unifex::connect(next(op.stream_), next_receiver_t{op});
