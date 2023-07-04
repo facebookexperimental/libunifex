@@ -17,6 +17,8 @@
 
 #include <unifex/tag_invoke.hpp>
 
+#include <cstdint>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
