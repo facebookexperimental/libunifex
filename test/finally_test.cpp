@@ -71,9 +71,7 @@ TEST(Finally, Ref) {
     auto res = std::move(sndr) | sync_wait();
 
     ASSERT_FALSE(!res);
-    EXPECT_EQ(*res, 0);
-    a = 10;
-    EXPECT_EQ(*res, 10);
+    EXPECT_EQ(&res->get(), &a);
   }
 
   {
@@ -84,9 +82,7 @@ TEST(Finally, Ref) {
       | sync_wait();
 
     ASSERT_FALSE(!res);
-    EXPECT_EQ(*res, 0);
-    a = 10;
-    EXPECT_EQ(*res, 10);
+    EXPECT_EQ(&res->get(), &a);
   }
 
   {
@@ -98,9 +94,7 @@ TEST(Finally, Ref) {
       | sync_wait();
 
     ASSERT_FALSE(!res);
-    EXPECT_EQ(*res, 0);
-    a = 10;
-    EXPECT_EQ(*res, 10);
+    EXPECT_EQ(&res->get(), &a);
   }
 }
 
