@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <unifex/unstoppable.hpp>
+
 #include <unifex/just.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
 #include <unifex/on.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/unstoppable.hpp>
 
 #include <gtest/gtest.h>
 
