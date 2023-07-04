@@ -99,10 +99,7 @@ TEST_F(CreateTest, BasicTest) {
 
     std::optional<std::reference_wrapper<int>> res = sync_wait(std::move(snd));
     ASSERT_TRUE(res.has_value());
-    global = 0;
-    EXPECT_EQ(*res, 0);
-    global = 10;
-    EXPECT_EQ(*res, 10);
+    EXPECT_EQ(&res->get(), &global);
   }
 }
 
@@ -214,7 +211,7 @@ TEST_F(CreateTest, CreateObjectLeadsToNewObject) {
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(*res, 3);
   EXPECT_EQ(TrackingObject::copies, 0);
-  EXPECT_GT(TrackingObject::moves, 0);
+  EXPECT_GE(TrackingObject::moves, 1);
 }
 
 TEST_F(CreateTest, CreateWithConditionalMove) {

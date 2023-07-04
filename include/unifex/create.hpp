@@ -53,7 +53,7 @@ struct _op {
       : rec_((Receiver&&) rec), fn_((Fn&&) fn), ctx_((Context&&) ctx) {}
 
     template (typename... Ts)
-      (requires receiver_of<Receiver, Ts...> AND (convertible_to<Ts, ValueTypes> && ...))
+      (requires (convertible_to<Ts, ValueTypes> && ...))
     void set_value(Ts&&... ts) noexcept {
       UNIFEX_TRY {
         // Satisfy the value completion contract with _do_convert, which
@@ -128,7 +128,8 @@ struct _snd_base {
     template (typename Self, typename Receiver)
       (requires derived_from<remove_cvref_t<Self>, type> AND
         constructible_from<Fn, member_t<Self, Fn>> AND
-        constructible_from<Context, member_t<Self, Context>>)
+        constructible_from<Context, member_t<Self, Context>> AND
+        receiver_of<Receiver, ValueTypes...>)
     friend _operation<remove_cvref_t<Receiver>, Fn, Context, ValueTypes...>
     tag_invoke(tag_t<connect>, Self&& self, Receiver&& rec)
         noexcept(std::is_nothrow_constructible_v<

@@ -59,14 +59,14 @@ TEST(Finally, Ref) {
     using Sndr = decltype(sndr);
 
     static_assert(std::is_same_v<
-      Sndr::value_types<std::variant, std::tuple>,
+     sender_value_types_t<Sndr, std::variant, std::tuple>,
       std::variant<std::tuple<int&>>
     >);
     static_assert(std::is_same_v<
-      Sndr::error_types<std::variant>,
+      sender_error_types_t<Sndr, std::variant>,
       std::variant<std::exception_ptr>
     >);
-    static_assert(!Sndr::sends_done);
+    static_assert(!sender_traits<Sndr>::sends_done);
 
     auto res = std::move(sndr) | sync_wait();
 
@@ -143,14 +143,14 @@ TEST(Finally, ErrorRefDecays) {
   using Sndr = decltype(sndr);
 
   static_assert(std::is_same_v<
-    Sndr::value_types<std::variant, std::tuple>,
+    sender_value_types_t<Sndr, std::variant, std::tuple>,
     std::variant<std::tuple<>>
   >);
   static_assert(std::is_same_v<
-    Sndr::error_types<std::variant>,
+    sender_error_types_t<Sndr, std::variant>,
     std::variant<int, std::exception_ptr>
   >);
-  static_assert(!Sndr::sends_done);
+  static_assert(!sender_traits<Sndr>::sends_done);
 }
 
 TEST(Finally, Done) {
