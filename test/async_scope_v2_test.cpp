@@ -50,9 +50,9 @@ template <bool ThrowOnCopy, bool ThrowOnMove>
 struct custom_receiver final {
   custom_receiver() noexcept = default;
 
-  custom_receiver(const custom_receiver&) noexcept(!ThrowOnCopy) = default;
+  custom_receiver(const custom_receiver&) noexcept(!ThrowOnCopy) {}
 
-  custom_receiver(custom_receiver&&) noexcept(!ThrowOnMove) = default;
+  custom_receiver(custom_receiver&&) noexcept(!ThrowOnMove) {}
 
   ~custom_receiver() = default;
 
@@ -235,8 +235,8 @@ TEST_F(
     nest_of_just_of_newtype_has_expected_static_properties) {
   struct newtype {
     newtype() = default;
-    newtype(const newtype&) noexcept(false) = default;
-    newtype(newtype&&) noexcept(false) = default;
+    newtype(const newtype&) noexcept(false) {}
+    newtype(newtype&&) noexcept(false) {}
     ~newtype() = default;
   };
 

@@ -52,9 +52,10 @@ using namespace unifex;
 using namespace unifex::linuxos;
 using namespace std::chrono_literals;
 
-inline constexpr auto sink = [](auto&&...){};
-
-inline constexpr auto discard = then(sink);
+template<typename S>
+auto discard_value(S&& s) {
+  return then((S&&)s, [](auto&&...) noexcept {});
+}
 
 //! Seconds to warmup the benchmark
 static constexpr int WARMUP_DURATION = 3;
@@ -107,8 +108,7 @@ int main() {
         return
           // do read:
           async_read_some(rPipeRef, as_writable_bytes(span{buffer.data() + 0, 1}))
-          | discard
-          | then([&] {
+          | then([&](auto&&...) {
               UNIFEX_ASSERT(data[(reps + offset) % sizeof(data)] == buffer[0]);
               ++reps;
             });
@@ -128,7 +128,7 @@ int main() {
       // write the data to one end of the pipe
       sequence(
         just_from([&]{ printf("writes starting!\n"); }),
-        defer([&, databuffer] { return discard(async_write_some(wPipeRef, databuffer)); })
+        defer([&, databuffer] { return discard_value(async_write_some(wPipeRef, databuffer)); })
           | via(scheduler)
           | repeat_effect()
           | let_done([]{return just();})

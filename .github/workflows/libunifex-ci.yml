@@ -93,6 +93,96 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS:STRING=-fcoroutines"
           }
         - {
+            name: "Linux GCC 11 Debug (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-11", cxx: "g++-11"
+          }
+        - {
+            name: "Linux GCC 11 Optimised (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-11", cxx: "g++-11"
+          }
+        - {
+            name: "Linux GCC 11 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-11", cxx: "g++-11",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 11 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-11", cxx: "g++-11",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 12 Debug (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-12", cxx: "g++-12"
+          }
+        - {
+            name: "Linux GCC 12 Optimised (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-12", cxx: "g++-12"
+          }
+        - {
+            name: "Linux GCC 12 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-12", cxx: "g++-12",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 12 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-12", cxx: "g++-12",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 13 Debug (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-13", cxx: "g++-13"
+          }
+        - {
+            name: "Linux GCC 13 Optimised (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-13", cxx: "g++-13"
+          }
+        - {
+            name: "Linux GCC 13 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-13", cxx: "g++-13",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 13 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-13", cxx: "g++-13",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
             name: "Linux Clang 10 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-20.04,
             io_sys: io_uring,
@@ -519,6 +609,35 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh 16
+    - name: Install GCC 11
+      id: install_gcc_11
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-11' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
+        sudo apt update
+        sudo apt install g++-11 gcc-11
+
+    - name: Install GCC 12
+      id: install_gcc_12
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-12' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
+        sudo apt update
+        sudo apt install g++-12 gcc-12
+
+    - name: Install GCC 13
+      id: install_gcc_13
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-13' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
+        sudo apt update
+        sudo apt install g++-13 gcc-13
 
     - name: Install liburing 
       id: install_liburing
