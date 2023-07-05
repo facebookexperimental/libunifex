@@ -149,9 +149,9 @@ struct throwing_sender final {
 
   static constexpr bool sends_done = false;
 
-  throwing_sender() noexcept(false) = default;
+  throwing_sender() noexcept(false) {}
 
-  throwing_sender(const throwing_sender&) noexcept(false) = default;
+  throwing_sender(const throwing_sender&) noexcept(false) {}
 
   ~throwing_sender() = default;
 

@@ -383,9 +383,8 @@ TEST_F(async_scope_test, attach_connect) {
 }
 
 TEST_F(async_scope_test, attach_copy) {
-  mock_receiver<void()> receiver;
-  EXPECT_CALL(*receiver, set_value()).Times(2);
-  auto sender1 = scope.attach(just());
+  auto receiver = UnstoppableSimpleIntReceiver{};
+  auto sender1 = scope.attach(just(42));
   // both senders are attached
   auto sender2 = sender1;
 
