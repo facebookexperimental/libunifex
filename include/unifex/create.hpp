@@ -24,7 +24,7 @@
 namespace unifex {
 namespace _create {
 
-template <typename Receiver, typename Fn, typename Context>
+template <typename Receiver, typename Fn, typename Context, typename... ValueTypes>
 struct _op {
   struct type {
     explicit type(Receiver rec, Fn fn, Context ctx)
@@ -34,9 +34,17 @@ struct _op {
       : rec_((Receiver&&) rec), fn_((Fn&&) fn), ctx_((Context&&) ctx) {}
 
     template (typename... Ts)
-      (requires receiver_of<Receiver, Ts...>)
-    void set_value(Ts&&... ts) noexcept(is_nothrow_receiver_of_v<Receiver, Ts...>) {
-      unifex::set_value((Receiver&&) rec_, (Ts&&) ts...);
+      (requires (convertible_to<Ts, ValueTypes> && ...))
+    void set_value(Ts&&... ts) noexcept {
+      UNIFEX_TRY {
+        // Satisfy the value completion contract by converting to the
+        // Sender's value_types. For example, if set_value is called with
+        // an lvalue reference but the create Sender sends non-reference
+        // values.
+        unifex::set_value(std::move(rec_), static_cast<ValueTypes>(static_cast<Ts&&>(ts))...);
+      } UNIFEX_CATCH(...) {
+        unifex::set_error(std::move(rec_), std::current_exception());
+      }
     }
 
     template (typename Error)
@@ -79,10 +87,10 @@ struct _op {
   };
 };
 
-template <typename Receiver, typename Fn, typename Context>
-using _operation = typename _op<Receiver, Fn, Context>::type;
+template <typename Receiver, typename Fn, typename Context, typename... ValueTypes>
+using _operation = typename _op<Receiver, Fn, Context, ValueTypes...>::type;
 
-template <typename Fn, typename Context>
+template <typename Fn, typename Context, typename... ValueTypes>
 struct _snd_base {
   struct type {
     template <template<typename...> class Variant>
@@ -100,15 +108,16 @@ struct _snd_base {
     template (typename Self, typename Receiver)
       (requires derived_from<remove_cvref_t<Self>, type> AND
         constructible_from<Fn, member_t<Self, Fn>> AND
-        constructible_from<Context, member_t<Self, Context>>)
-    friend _operation<remove_cvref_t<Receiver>, Fn, Context>
+        constructible_from<Context, member_t<Self, Context>> AND
+        receiver_of<Receiver, ValueTypes...>)
+    friend _operation<remove_cvref_t<Receiver>, Fn, Context, ValueTypes...>
     tag_invoke(tag_t<connect>, Self&& self, Receiver&& rec)
         noexcept(std::is_nothrow_constructible_v<
-          _operation<Receiver, Fn, Context>,
+          _operation<Receiver, Fn, Context, ValueTypes...>,
           Receiver,
           member_t<Self, Fn>,
           member_t<Self, Context>>) {
-      return _operation<remove_cvref_t<Receiver>, Fn, Context>{
+      return _operation<remove_cvref_t<Receiver>, Fn, Context, ValueTypes...>{
         (Receiver&&) rec,
         ((Self&&) self).fn_,
         ((Self&&) self).ctx_};
@@ -121,7 +130,7 @@ struct _snd_base {
 
 template <typename Fn, typename Context, typename... ValueTypes>
 struct _snd {
-  struct type : _snd_base<Fn, Context>::type {
+  struct type : _snd_base<Fn, Context, ValueTypes...>::type {
     template <template<typename...> class Variant, template <typename...> class Tuple>
     using value_types = Variant<Tuple<ValueTypes...>>;
   };

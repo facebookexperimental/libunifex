@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 #include <unifex/finally.hpp>
+
 #include <unifex/inplace_stop_token.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/then.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_error.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
+#include <unifex/upon_error.hpp>
 
 #include <cstdio>
 #include <thread>
+#include <tuple>
+#include <variant>
 
 #include <gtest/gtest.h>
 
@@ -43,6 +48,103 @@ TEST(Finally, Value) {
   ASSERT_FALSE(!res);
   EXPECT_EQ(res->first, 42);
   EXPECT_EQ(res->second, context.get_thread_id());
+}
+
+TEST(Finally, Ref) {
+  {
+    int a = 0;
+
+    auto sndr = just_from([&a]() -> int& { return a; })
+      | finally(just());
+    using Sndr = decltype(sndr);
+
+    static_assert(std::is_same_v<
+     sender_value_types_t<Sndr, std::variant, std::tuple>,
+      std::variant<std::tuple<int&>>
+    >);
+    static_assert(std::is_same_v<
+      sender_error_types_t<Sndr, std::variant>,
+      std::variant<std::exception_ptr>
+    >);
+    static_assert(!sender_traits<Sndr>::sends_done);
+
+    auto res = std::move(sndr) | sync_wait();
+
+    ASSERT_FALSE(!res);
+    EXPECT_EQ(&res->get(), &a);
+  }
+
+  {
+    int a = 0;
+
+    auto res = just_from([&a]() -> const int& { return a; })
+      | finally(just())
+      | sync_wait();
+
+    ASSERT_FALSE(!res);
+    EXPECT_EQ(&res->get(), &a);
+  }
+
+  {
+    int a = 0;
+
+    auto res = just_from([&a]() -> int& { return a; })
+      | finally(just())
+      | then([](int& i) -> int& { return i; })
+      | sync_wait();
+
+    ASSERT_FALSE(!res);
+    EXPECT_EQ(&res->get(), &a);
+  }
+}
+
+struct sends_error_ref {
+
+  template <
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
+  using value_types = Variant<Tuple<>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<int>;
+
+  static constexpr bool sends_done = false;
+
+  template <class Receiver>
+  struct operation {
+    friend auto tag_invoke(tag_t<start>, operation& self) noexcept {
+      set_error(std::move(self.receiver), self.val);
+    }
+
+    int& val;
+    Receiver receiver;
+  };
+
+  template <class Receiver>
+  friend auto tag_invoke(tag_t<connect>, sends_error_ref self, Receiver&& receiver) {
+    return operation<Receiver>{self.val, std::forward<Receiver>(receiver)};
+  }
+
+  int& val;
+};
+
+
+TEST(Finally, ErrorRefDecays) {
+  // TODO: Should errors also have references preserved in 'finally?' See the
+  // 'finally' discussion in issue #541.
+  int a = 0;
+  auto sndr = sends_error_ref{a} | finally(just());
+  using Sndr = decltype(sndr);
+
+  static_assert(std::is_same_v<
+    sender_value_types_t<Sndr, std::variant, std::tuple>,
+    std::variant<std::tuple<>>
+  >);
+  static_assert(std::is_same_v<
+    sender_error_types_t<Sndr, std::variant>,
+    std::variant<int, std::exception_ptr>
+  >);
+  static_assert(!sender_traits<Sndr>::sends_done);
 }
 
 TEST(Finally, Done) {
