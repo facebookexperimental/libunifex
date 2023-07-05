@@ -31,6 +31,7 @@
 #include <functional>
 #include <tuple>
 #include <type_traits>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -85,7 +86,7 @@ struct _successor_receiver<Operation, Values...>::type {
   void set_error(Error error) && noexcept {
     auto& op = op_;
     cleanup();
-    unifex::set_error(std::move(op.receiver_), (Error &&) error);
+    unifex::set_error(std::move(op.receiver_), std::move(error));
   }
 
 private:
@@ -178,7 +179,7 @@ struct _predecessor_receiver<Operation>::type {
   void set_error(Error error) && noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.predOp_);
-    unifex::set_error(std::move(op.receiver_), (Error &&) error);
+    unifex::set_error(std::move(op.receiver_), std::move(error));
   }
 
   template(typename CPO)
@@ -236,7 +237,7 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
         receiver_((Receiver2 &&) receiver) {
     unifex::activate_union_member_with(predOp_, [&] {
       return unifex::connect(
-          (Predecessor &&) pred, predecessor_receiver<operation>{*this});
+          std::move(pred), predecessor_receiver<operation>{*this});
     });
   }
 

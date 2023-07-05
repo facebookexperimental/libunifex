@@ -25,6 +25,8 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_list.hpp>
 
+#include <utility>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {

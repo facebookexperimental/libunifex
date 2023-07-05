@@ -25,6 +25,8 @@
 #include <unifex/execution_policy.hpp>
 #include <unifex/type_list.hpp>
 
+#include <utility>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -165,7 +167,7 @@ private:
           nothrow_connectable) {
     return unifex::connect(
         static_cast<SuccessorFactory&&>(func)(stopSource_),
-        receiver_t{*this, static_cast<Receiver&&>(r)});
+        receiver_t{*this, std::move(r)});
   }
 
 public:

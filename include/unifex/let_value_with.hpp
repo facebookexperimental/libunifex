@@ -23,6 +23,8 @@
 #include <unifex/execution_policy.hpp>
 #include <unifex/type_list.hpp>
 
+#include <utility>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -102,10 +104,10 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
   type(StateFactory2&& stateFactory, SuccessorFactory2&& func, Receiver2&& r) :
     stateFactory_(static_cast<StateFactory2&&>(stateFactory)),
     func_(static_cast<SuccessorFactory2&&>(func)),
-    state_(static_cast<StateFactory&&>(stateFactory_)()),
+    state_(std::move(stateFactory_)()),
     innerOp_(
         unifex::connect(
-        static_cast<SuccessorFactory&&>(func_)(state_),
+        std::move(func_)(state_),
         static_cast<Receiver2&&>(r))) {
   }
 

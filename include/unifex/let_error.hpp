@@ -264,7 +264,7 @@ public:
     : func_((Func2 &&) func)
     , receiver_((Receiver2 &&) dest) {
     unifex::activate_union_member_with(sourceOp_, [&] {
-      return unifex::connect((Source &&) source, source_receiver{this});
+      return unifex::connect(std::move(source), source_receiver{this});
     });
   }
 
