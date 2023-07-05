@@ -102,9 +102,8 @@ template<typename StateFactory, typename SuccessorFactory, typename Receiver>
 struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
   template <typename StateFactory2, typename SuccessorFactory2, typename Receiver2>
   type(StateFactory2&& stateFactory, SuccessorFactory2&& func, Receiver2&& r) :
-    stateFactory_(static_cast<StateFactory2&&>(stateFactory)),
     func_(static_cast<SuccessorFactory2&&>(func)),
-    state_(std::move(stateFactory_)()),
+    state_(std::forward<StateFactory2>(stateFactory)()),
     innerOp_(
         unifex::connect(
         std::move(func_)(state_),
@@ -115,7 +114,6 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
     unifex::start(innerOp_);
   }
 
-  StateFactory stateFactory_;
   SuccessorFactory func_;
   callable_result_t<StateFactory> state_;
   connect_result_t<
