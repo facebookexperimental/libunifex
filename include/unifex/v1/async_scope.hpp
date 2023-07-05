@@ -178,8 +178,8 @@ struct _attach_receiver<Receiver>::type final {
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO&& cpo, const type& r) noexcept
-      -> decltype(std::move(cpo)(std::declval<const Receiver&>())) {
-    return std::move(cpo)(r.op_->receiver_);
+      -> decltype(std::forward<CPO>(cpo)(std::declval<const Receiver&>())) {
+    return std::forward<CPO>(cpo)(r.op_->receiver_);
   }
 
   typename _attach_op_base<Receiver>::type* op_;

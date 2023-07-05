@@ -264,10 +264,10 @@ struct _nest_receiver<Sender, Receiver>::type final {
   void set_value(T... values) noexcept {
     complete([&](auto&& receiver) noexcept {
       UNIFEX_TRY {
-        unifex::set_value(std::move(receiver), std::move(values)...);
+        unifex::set_value(std::forward<decltype(receiver)>(receiver), std::move(values)...);
       }
       UNIFEX_CATCH(...) {
-        unifex::set_error(std::move(receiver), std::current_exception());
+        unifex::set_error(std::forward<decltype(receiver)>(receiver), std::current_exception());
       }
     });
   }
@@ -275,7 +275,7 @@ struct _nest_receiver<Sender, Receiver>::type final {
   template <typename E>
   void set_error(E e) noexcept {
     complete([&](auto&& receiver) noexcept {
-      unifex::set_error(std::move(receiver), std::move(e));
+      unifex::set_error(std::forward<decltype(receiver)>(receiver), std::move(e));
     });
   }
 
@@ -301,8 +301,8 @@ struct _nest_receiver<Sender, Receiver>::type final {
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO&& cpo, const type& r) noexcept
-      -> decltype(std::move(cpo)(std::declval<const Receiver&>())) {
-    return std::move(cpo)(r.op_->receiver_);
+      -> decltype(std::forward<CPO>(cpo)(std::declval<const Receiver&>())) {
+    return std::forward<CPO>(cpo)(r.op_->receiver_);
   }
 };
 
