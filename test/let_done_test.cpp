@@ -107,7 +107,7 @@ TEST(TransformDone, WithValue) {
 }
 
 TEST(TransformDone, LvalueConnectable) {
-    sync_wait(repeat_effect_until(
-          let_done(just(), [] { return just(); }),
-      [n=0]() mutable noexcept { return n++ == 1000; }));
+  sync_wait(repeat_effect_until(
+        let_done(just(), [] { return just(); }),
+    [n=0]() mutable noexcept { return n++ == 1000; }));
 }

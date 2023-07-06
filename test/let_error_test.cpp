@@ -175,9 +175,9 @@ TEST(TransformError, SequenceFwd) {
 }
 
 TEST(TransformError, LvalueConnectable) {
-    sync_wait(repeat_effect_until(
-          let_error(just(), [](auto&&) { return just(); }),
-      [n=0]() mutable noexcept { return n++ == 1000; }));
+  sync_wait(repeat_effect_until(
+        let_error(just(), [](auto&&) { return just(); }),
+    [n=0]() mutable noexcept { return n++ == 1000; }));
 }
 
 #if !UNIFEX_NO_COROUTINES

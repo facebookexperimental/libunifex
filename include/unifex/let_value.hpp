@@ -228,16 +228,16 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
   template <typename Operation, typename... Values>
   friend struct _successor_receiver;
 
-  template <typename SuccessorFactory2, typename Receiver2>
+  template <typename Predecessor2, typename SuccessorFactory2, typename Receiver2>
   explicit type(
-      Predecessor&& pred,
+      Predecessor2&& pred,
       SuccessorFactory2&& func,
       Receiver2&& receiver)
       : func_((SuccessorFactory2 &&) func),
         receiver_((Receiver2 &&) receiver) {
     unifex::activate_union_member_with(predOp_, [&] {
       return unifex::connect(
-          std::move(pred), predecessor_receiver<operation>{*this});
+          std::forward<Predecessor2>(pred), predecessor_receiver<operation>{*this});
     });
   }
 
