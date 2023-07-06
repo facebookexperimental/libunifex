@@ -218,8 +218,8 @@ class _op<Source, Done, Receiver>::type {
   using final_receiver = final_receiver_type<Source, Done, Receiver>;
 
 public:
-  template <typename Done2, typename Receiver2>
-  explicit type(Source&& source, Done2&& done, Receiver2&& dest)
+  template <typename Source2, typename Done2, typename Receiver2>
+  explicit type(Source2&& source, Done2&& done, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
                std::is_nothrow_move_constructible_v<Done> &&
                is_nothrow_connectable_v<Source, source_receiver>)
@@ -227,7 +227,7 @@ public:
   , receiver_((Receiver2&&)dest)
   {
     unifex::activate_union_member_with(sourceOp_, [&] {
-        return unifex::connect(std::move(source), source_receiver{this});
+        return unifex::connect(std::forward<Source2>(source), source_receiver{this});
       });
     startedOp_ = 0 + 1;
   }

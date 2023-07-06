@@ -20,6 +20,7 @@
 #include <unifex/let_done.hpp>
 #include <unifex/let_error.hpp>
 #include <unifex/on.hpp>
+#include <unifex/repeat_effect_until.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
@@ -171,6 +172,12 @@ TEST(TransformError, SequenceFwd) {
       | sync_wait();
   ASSERT_TRUE(one.has_value());
   EXPECT_EQ(*one, 42);
+}
+
+TEST(TransformError, LvalueConnectable) {
+    sync_wait(repeat_effect_until(
+          let_error(just(), [](auto&&) { return just(); }),
+      [n=0]() mutable noexcept { return n++ == 1000; }));
 }
 
 #if !UNIFEX_NO_COROUTINES

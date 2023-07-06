@@ -256,15 +256,15 @@ class _op<Source, Func, Receiver>::type final {
   using final_receiver = final_receiver_type<Source, Func, Receiver, Error>;
 
 public:
-  template <typename Func2, typename Receiver2>
-  explicit type(Source&& source, Func2&& func, Receiver2&& dest) noexcept(
+  template <typename Source2, typename Func2, typename Receiver2>
+  explicit type(Source2&& source, Func2&& func, Receiver2&& dest) noexcept(
       std::is_nothrow_constructible_v<Receiver, Receiver2&&>&&
           std::is_nothrow_constructible_v<Func, Func2&&>&&
               is_nothrow_connectable_v<Source, source_receiver>)
     : func_((Func2 &&) func)
     , receiver_((Receiver2 &&) dest) {
     unifex::activate_union_member_with(sourceOp_, [&] {
-      return unifex::connect(std::move(source), source_receiver{this});
+      return unifex::connect(std::forward<Source2>(source), source_receiver{this});
     });
   }
 
@@ -418,8 +418,8 @@ public:
         is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
         std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
         std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-      -> operation_type<Source, Func, Receiver> {
-    return operation_type<Source, Func, Receiver>{
+      -> operation_type<member_t<Sender, Source>, Func, Receiver> {
+    return operation_type<member_t<Sender, Source> , Func, Receiver>{
       static_cast<Sender&&>(s).source_,
       static_cast<Sender&&>(s).func_,
       static_cast<Receiver&&>(r)
