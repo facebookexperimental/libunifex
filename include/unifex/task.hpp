@@ -377,7 +377,7 @@ struct _promise final {
       transform_schedule_sender_impl_(get_scheduler(snd));
 
       // Return the inner sender, appropriately wrapped in an awaitable:
-      return unifex::await_transform(*this, std::move(snd).base());
+      return unifex::await_transform(*this, std::forward<ScheduleSender>(snd).base());
     }
   };
 };
