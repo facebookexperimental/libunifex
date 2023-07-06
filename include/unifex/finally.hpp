@@ -71,7 +71,7 @@ namespace unifex
         SourceSender,
         CompletionSender,
         Receiver,
-        std::decay_t<Values>...>::type;
+        Values...>::type;
 
     template <
         typename SourceSender,
@@ -384,7 +384,7 @@ namespace unifex
         auto* const op = op_;
 
         UNIFEX_TRY {
-          unifex::activate_union_member<std::tuple<std::decay_t<Values>...>>(
+          unifex::activate_union_member<std::tuple<Values...>>(
             op->value_, static_cast<Values&&>(values)...);
         } UNIFEX_CATCH (...) {
           std::move(*this).set_error(std::current_exception());
@@ -411,8 +411,7 @@ namespace unifex
                   });
           unifex::start(completionOp);
         } UNIFEX_CATCH (...) {
-          using decayed_tuple_t = std::tuple<std::decay_t<Values>...>;
-          unifex::deactivate_union_member<decayed_tuple_t>(op->value_);
+          unifex::deactivate_union_member<std::tuple<Values...>>(op->value_);
           unifex::set_error(
               static_cast<Receiver&&>(op->receiver_), std::current_exception());
         }
@@ -593,7 +592,7 @@ namespace unifex
         sender_value_types_t<
             remove_cvref_t<SourceSender>,
             manual_lifetime_union,
-            decayed_tuple<std::tuple>::template apply>
+            std::tuple>
                 value_;
       };
 
@@ -647,7 +646,7 @@ namespace unifex
           template <typename...> class Variant,
           template <typename...> class Tuple>
       using value_types = typename sender_traits<SourceSender>::
-          template value_types<Variant, decayed_tuple<Tuple>::template apply>;
+          template value_types<Variant, Tuple>;
 
       // This can produce any of the error_types of SourceSender, or of
       // CompletionSender or an exception_ptr corresponding to an exception thrown

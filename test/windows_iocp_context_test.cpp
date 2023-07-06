@@ -28,7 +28,7 @@
 #include <unifex/span.hpp>
 #include <unifex/repeat_effect_until.hpp>
 #include <unifex/trampoline_scheduler.hpp>
-#include <unifex/typed_via.hpp>
+#include <unifex/via.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/on.hpp>
@@ -140,7 +140,7 @@ TEST(low_latency_iocp_context, read_write_pipe) {
 
 template<typename Sender>
 auto trampoline(Sender&& sender) {
-    return unifex::typed_via((Sender&&)sender, unifex::trampoline_scheduler{});
+    return unifex::via((Sender&&)sender, unifex::trampoline_scheduler{});
 }
 
 template<typename Sender>

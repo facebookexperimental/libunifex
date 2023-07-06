@@ -161,7 +161,7 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
   template <typename Receiver>
   auto connect(Receiver&& receiver) && {
     return unifex::connect(
-        std::forward<Predecessor>(pred_),
+        std::move(pred_),
         _ifor::receiver_t<Policy, Range, Func, Receiver>{
             (Func &&) func_,
             (Policy &&) policy_,

@@ -154,7 +154,7 @@ auto connect_as_unstoppable(Receiver&& r) noexcept(
         Receiver>) {
   return connect(
       with_query_value(schedule(), get_stop_token, unstoppable_token{}),
-      std::move(r));
+      std::forward<Receiver>(r));
 }
 
 template <typename Receiver>

@@ -32,7 +32,7 @@ namespace _done_as_opt {
 namespace _cpo {
 inline const struct _fn {
   template(typename Sender) //
-    (requires _single_typed_sender<Sender>) //
+    (requires _single_sender<Sender>) //
   auto operator()(Sender&& predecessor) const {
     using optional_t = std::optional<
         non_void_t<std::decay_t<sender_single_value_return_type_t<Sender>>>>;

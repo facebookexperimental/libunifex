@@ -34,7 +34,7 @@
 #include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/repeat_effect_until.hpp>
-#include <unifex/typed_via.hpp>
+#include <unifex/via.hpp>
 #include <unifex/with_query_value.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/stop_when.hpp>
@@ -113,7 +113,7 @@ int main() {
               ++reps;
             });
       })
-        | typed_via(scheduler)
+        | via(scheduler)
           // Repeat the reads:
         | repeat_effect()
           // stop reads after requested time
@@ -129,7 +129,7 @@ int main() {
       sequence(
         just_from([&]{ printf("writes starting!\n"); }),
         defer([&, databuffer] { return discard(async_write_some(wPipeRef, databuffer)); })
-          | typed_via(scheduler)
+          | via(scheduler)
           | repeat_effect()
           | let_done([]{return just();})
           | with_query_value(get_stop_token, stopToken),

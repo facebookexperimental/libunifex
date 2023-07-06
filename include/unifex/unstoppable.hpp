@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/get_stop_token.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/with_query_value.hpp>
 

@@ -17,7 +17,7 @@
 
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/then.hpp>
-#include <unifex/typed_via.hpp>
+#include <unifex/via.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -28,7 +28,7 @@ namespace _then_execute_cpo {
     template <typename Scheduler, typename Predecessor, typename Func>
     auto operator()(Scheduler&& s, Predecessor&& p, Func&& f) const {
       return then(
-          typed_via((Predecessor &&) p, (Scheduler&&)s),
+          via((Predecessor &&) p, (Scheduler&&)s),
           (Func &&) f);
     }
   };

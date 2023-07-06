@@ -138,7 +138,7 @@ private:
 struct _fn {
     template(typename Source)
         (requires
-            typed_bulk_sender<Source> &&
+            bulk_sender<Source> &&
             tag_invocable<_fn, Source>)
     auto operator()(Source&& source) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Source>)
@@ -148,7 +148,7 @@ struct _fn {
 
     template(typename Source)
         (requires
-            typed_bulk_sender<Source> &&
+            bulk_sender<Source> &&
             (!tag_invocable<_fn, Source>))
     auto operator()(Source&& source) const
         noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Source>, Source>)

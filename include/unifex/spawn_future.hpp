@@ -864,7 +864,7 @@ public:
       typename Sender,
       typename Scope,
       typename Alloc = std::allocator<std::byte>)  //
-      (requires typed_sender<remove_cvref_t<Sender>> AND
+      (requires sender<remove_cvref_t<Sender>> AND
            std::is_invocable_v<tag_t<nest>, Sender, Scope&> AND
                is_allocator_v<Alloc>)  //
       auto

@@ -176,7 +176,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       return
       unifex::let_value(
         unifex::just(std::forward<Values>(values)...),
-        [func = std::move(func_), sched = std::move(sched), begin_it,
+        [func = std::move(func_), sched = std::forward<Scheduler>(sched), begin_it,
         chunk_size, end_it, num_chunks](Values&... values) mutable {
           return unifex::let_value_with([&](){return State{false, std::vector<Iterator>(num_chunks, end_it)};},[&](State& state) {
             // Inject a stop source and make it available for inner operations.

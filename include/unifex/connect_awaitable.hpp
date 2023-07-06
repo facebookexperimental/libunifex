@@ -75,20 +75,22 @@ public:
     }
 
     template <typename Func>
+    struct awaiter {
+      Func&& func_;
+      bool await_ready() noexcept {
+        return false;
+      }
+      void await_suspend(coro::coroutine_handle<promise_type>) noexcept(std::is_nothrow_invocable_v<Func>) {
+        ((Func &&) func_)();
+      }
+      [[noreturn]] void await_resume() noexcept {
+        std::terminate();
+      }
+    };
+
+    template <typename Func>
     auto yield_value(Func&& func) noexcept {
-      struct awaiter {
-        Func&& func_;
-        bool await_ready() noexcept {
-          return false;
-        }
-        void await_suspend(coro::coroutine_handle<promise_type>) {
-          ((Func &&) func_)();
-        }
-        [[noreturn]] void await_resume() noexcept {
-          std::terminate();
-        }
-      };
-      return awaiter{(Func &&) func};
+      return awaiter<Func&&>{static_cast<Func&&>(func)};
     }
 
     template <typename Value>
@@ -193,7 +195,7 @@ namespace _await_cpo {
       } catch (...) {
         ex = std::current_exception();
       }
-      co_yield[&] {
+      co_yield[&]() noexcept {
         unifex::set_error(std::move(receiver), std::move(ex));
       };
 #endif // !UNIFEX_NO_EXCEPTIONS
