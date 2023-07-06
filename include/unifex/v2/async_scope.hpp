@@ -262,20 +262,20 @@ struct _nest_receiver<Sender, Receiver>::type final {
 
   template <typename... T>
   void set_value(T... values) noexcept {
-    complete([&](auto&& receiver) noexcept {
+    complete([&](Receiver&& receiver) noexcept {
       UNIFEX_TRY {
-        unifex::set_value(std::forward<decltype(receiver)>(receiver), std::move(values)...);
+        unifex::set_value(std::move(receiver), std::move(values)...);
       }
       UNIFEX_CATCH(...) {
-        unifex::set_error(std::forward<decltype(receiver)>(receiver), std::current_exception());
+        unifex::set_error(std::move(receiver), std::current_exception());
       }
     });
   }
 
   template <typename E>
   void set_error(E e) noexcept {
-    complete([&](auto&& receiver) noexcept {
-      unifex::set_error(std::forward<decltype(receiver)>(receiver), std::move(e));
+    complete([&](Receiver&& receiver) noexcept {
+      unifex::set_error(std::move(receiver), std::move(e));
     });
   }
 
