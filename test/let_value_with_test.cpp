@@ -36,3 +36,16 @@ TEST(LetValueWith, StatefulFactory) {
   ASSERT_TRUE(!!result);
   EXPECT_EQ(*result, 10);
 }
+
+TEST(LetValueWith, CallOperatorRvalueRefOverload) {
+  struct Factory {
+    int operator()() && {
+      return 10;
+    }
+  };
+  std::optional<int> result = sync_wait(let_value_with(Factory{}, [&](int& v) {
+      return just(v);
+    }));
+  ASSERT_TRUE(!!result);
+  EXPECT_EQ(*result, 10);
+}
