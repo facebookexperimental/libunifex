@@ -53,17 +53,13 @@ task<int&> await_reference_sender() {
 TEST(Task, AwaitAwaitableReturningReference) {
   global = 0;
   int& ref = sync_wait(await_reference_awaitable()).value();
-  EXPECT_EQ(ref, 0);
-  global = 10;
-  EXPECT_EQ(ref, 10);
+  EXPECT_EQ(&ref, &global);
 }
 
 TEST(Task, AwaitSenderReturningReference) {
   global = 0;
   int& ref = sync_wait(await_reference_sender()).value();
-  EXPECT_EQ(ref, 0);
-  global = 10;
-  EXPECT_EQ(ref, 10);
+  EXPECT_EQ(&ref, &global);
 }
 
 #endif // !UNIFEX_NO_COROUTINES
