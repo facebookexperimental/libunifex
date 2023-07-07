@@ -23,6 +23,9 @@
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
 
+#include <tuple>
+#include <variant>
+
 #include <gtest/gtest.h>
 
 using namespace unifex;
