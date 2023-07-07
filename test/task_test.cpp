@@ -51,14 +51,23 @@ task<int&> await_reference_sender() {
 }
 
 TEST(Task, AwaitAwaitableReturningReference) {
-  global = 0;
+  static_assert(std::is_same_v<
+    sender_value_types_t<decltype(await_reference_awaitable()), std::variant, std::tuple>,
+    std::variant<std::tuple<int&>>
+  >);
+
   int& ref = sync_wait(await_reference_awaitable()).value();
+  static_assert(std::is_same_v<
+    std::optional<std::reference_wrapper<int>>,
+    decltype(sync_wait(await_reference_awaitable()))>);
   EXPECT_EQ(&ref, &global);
 }
 
 TEST(Task, AwaitSenderReturningReference) {
-  global = 0;
   int& ref = sync_wait(await_reference_sender()).value();
+  static_assert(std::is_same_v<
+    std::optional<std::reference_wrapper<int>>,
+    decltype(sync_wait(await_reference_sender()))>);
   EXPECT_EQ(&ref, &global);
 }
 
