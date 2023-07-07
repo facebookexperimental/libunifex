@@ -286,7 +286,9 @@ TEST(Let, LetValueWithTraitlessPredecessor) {
 }
 
 TEST(Let, LvalueConnectable) {
+  int n = 0;
   sync_wait(repeat_effect_until(
       let_value(let_done(just(), [] { return just(); }), [] { return just(); }),
-    [n=0]() mutable noexcept { return n++ == 1000; }));
+    [&n]() mutable noexcept { return n++ == 5; }));
+  EXPECT_EQ(n, 6);
 }
