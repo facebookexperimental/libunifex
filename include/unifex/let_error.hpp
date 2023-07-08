@@ -265,7 +265,7 @@ public:
               is_nothrow_connectable_v<Source, source_receiver>)
     : func_((Func2 &&) func)
     , receiver_((Receiver2 &&) dest) {
-    // Note: 'Source' is not a forawrding reference since it's not deduced
+    // Note: 'Source' is not a forwarding reference since it's not deduced
     // in this constructor. It can either be a Sender&& or Sender& for
     // some concrete type Sender. Here, we want the forwarding behavior when
     // the operation is constructed based on the type of Source, even though
