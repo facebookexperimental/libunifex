@@ -30,6 +30,7 @@
 #include <type_traits>
 #include <utility>
 #include <optional>
+#include <system_error>
 
 #include <unifex/detail/prologue.hpp>
 
