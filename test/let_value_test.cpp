@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
+
+#include <unifex/just.hpp>
+#include <unifex/let_done.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
+#include <unifex/repeat_effect_until.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
@@ -280,4 +283,12 @@ TEST(Let, LetValueWithTraitlessPredecessor) {
       let_value(TraitslessSender{}, [](int val) { return just(val); }));
   ASSERT_TRUE(ret);
   EXPECT_EQ(*ret, 42);
+}
+
+TEST(Let, LvalueConnectable) {
+  int n = 0;
+  sync_wait(repeat_effect_until(
+      let_value(let_done(just(), [] { return just(); }), [] { return just(); }),
+    [&n]() mutable noexcept { return n++ == 5; }));
+  EXPECT_EQ(n, 6);
 }

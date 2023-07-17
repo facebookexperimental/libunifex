@@ -21,6 +21,7 @@
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/on.hpp>
+#include <unifex/repeat_effect_until.hpp>
 #include <unifex/then.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
@@ -103,4 +104,12 @@ TEST(TransformDone, WithValue) {
 
   EXPECT_TRUE(multiple.has_value());
   EXPECT_EQ(*multiple, std::tuple(42, 1, 2));
+}
+
+TEST(TransformDone, LvalueConnectable) {
+  int n = 0;
+  sync_wait(repeat_effect_until(
+        let_done(just(), [] { return just(); }),
+    [&n]() mutable noexcept { return n++ == 5; }));
+  EXPECT_EQ(n, 6);
 }

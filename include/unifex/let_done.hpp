@@ -219,15 +219,22 @@ class _op<Source, Done, Receiver>::type {
 
 public:
   template <typename Done2, typename Receiver2>
-  explicit type(Source&& source, Done2&& done, Receiver2&& dest)
+  explicit type(
+      Source&& source, // NOLINT(cppcoreguidelines-rvalue-reference-param-not-moved)
+      Done2&& done, Receiver2&& dest)
       noexcept(std::is_nothrow_move_constructible_v<Receiver> &&
                std::is_nothrow_move_constructible_v<Done> &&
                is_nothrow_connectable_v<Source, source_receiver>)
   : done_((Done2&&)done)
   , receiver_((Receiver2&&)dest)
   {
+    // Note: 'Source' is not a forwarding reference since it's not deduced
+    // in this constructor. It can either be a Sender&& or Sender& for
+    // some concrete type Sender. Here, we want the forwarding behavior when
+    // the operation is constructed based on the type of Source, even though
+    // it's not a idiomatic use for std::forward.
     unifex::activate_union_member_with(sourceOp_, [&] {
-        return unifex::connect((Source&&)source, source_receiver{this});
+        return unifex::connect(std::forward<Source>(source), source_receiver{this});
       });
     startedOp_ = 0 + 1;
   }
