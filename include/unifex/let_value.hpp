@@ -57,45 +57,29 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
-    auto& op = op_;
-    UNIFEX_TRY {
-      // Taking by value here to force a copy on the offchance the value
-      // objects lives in the operation state (e.g., just), in which
-      // case the call to cleanup() would invalidate them.
-      [&](auto... copies) {
-        cleanup();
-        unifex::set_value(
-            std::move(op.receiver_), (decltype(copies) &&) copies...);
-      } ((SuccessorValues&&) values...);
-    } UNIFEX_CATCH (...) {
-      unifex::set_error(std::move(op.receiver_), std::current_exception());
-    }
+    op_.cleanup_ = type::cleanup;
+    unifex::set_value(
+        std::move(op_.receiver_), std::forward<SuccessorValues>(values)...);
   }
 
   void set_done() && noexcept {
-    auto& op = op_;
-    cleanup();
-    unifex::set_done(std::move(op.receiver_));
+    op_.cleanup_ = type::cleanup;
+    unifex::set_done(std::move(op_.receiver_));
   }
 
-  // Taking by value here to force a copy on the offchance the error
-  // object lives in the operation state (e.g., just_error), in which
-  // case the call to cleanup() would invalidate it.
   template <typename Error>
-  void set_error(Error error) && noexcept {
-    auto& op = op_;
-    cleanup();
-    unifex::set_error(std::move(op.receiver_), (Error &&) error);
+  void set_error(Error&& error) && noexcept {
+    op_.cleanup_ = type::cleanup;
+    unifex::set_error(std::move(op_.receiver_), std::forward<Error>(error));
   }
 
 private:
   template <typename... Values2>
   using successor_operation = typename Operation::template successor_operation<Values2...>;
 
-  void cleanup() noexcept {
-    auto& op = op_;
-    unifex::deactivate_union_member<successor_operation<Values...>>(op.succOp_);
-    op.values_.template destruct<decayed_tuple<Values...>>();
+  static void cleanup(Operation* op) noexcept {
+    unifex::deactivate_union_member<successor_operation<Values...>>(op->succOp_);
+    op->values_.template destruct<decayed_tuple<Values...>>();
   }
 
   template(typename CPO)
@@ -241,17 +225,17 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
   }
 
   ~type() {
-    if (!started_) {
-      unifex::deactivate_union_member(predOp_);
-    }
+    cleanup_(this);
   }
 
   void start() noexcept {
-    started_ = true;
     unifex::start(predOp_.get());
   }
 
 private:
+  template <typename O, typename... V>
+  friend struct _successor_receiver;
+
   using predecessor_type = remove_cvref_t<Predecessor>;
   UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -264,7 +248,9 @@ private:
         value_types<manual_lifetime_union, successor_operation>
             succOp_;
   };
-  bool started_ = false;
+  void (*cleanup_)(type*) noexcept = [](type* self) noexcept {
+    unifex::deactivate_union_member(self->predOp_);
+  };
 };
 
 template <typename Predecessor, typename SuccessorFactory>

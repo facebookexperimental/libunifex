@@ -22,6 +22,7 @@
 #include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_error.hpp>
+#include <unifex/let_value.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
@@ -181,4 +182,18 @@ TEST(Finally, BlockingKind) {
   auto snd2 = finally(just(), schedule(context.get_scheduler()));
   using Snd2 = decltype(snd2);
   static_assert(blocking_kind::never == sender_traits<Snd2>::blocking);
+}
+
+TEST(Finally, CombinedWithLetValue) {
+  const int i{42};
+  auto ret = let_value(
+                 just(&i),
+                 [](const int* pi) noexcept {
+                   return just(pi) |
+                       then([](const int* pi) -> const int& { return *pi; });
+                 }) |
+      finally(just()) | then([](const int& i) { return &i; }) | sync_wait();
+
+  ASSERT_TRUE(ret.has_value());
+  EXPECT_EQ(&i, *ret);
 }

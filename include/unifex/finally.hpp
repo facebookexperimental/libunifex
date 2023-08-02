@@ -104,8 +104,7 @@ namespace unifex
             scope_guard g{[op]() noexcept {
               unifex::deactivate_union_member<std::tuple<Values...>>(op->value_);
             }};
-            return static_cast<std::tuple<Values...>&&>(
-              op->value_.template get<std::tuple<Values...>>());
+            return std::move(op->value_).template get<std::tuple<Values...>>();
           }
           ();
 
