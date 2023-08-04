@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
+
+#include <unifex/just.hpp>
+#include <unifex/let_error.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
@@ -281,3 +283,26 @@ TEST(Let, LetValueWithTraitlessPredecessor) {
   ASSERT_TRUE(ret);
   EXPECT_EQ(*ret, 42);
 }
+
+TEST(Let, PredecessorCancels) {
+  auto ret = let_value(just_done(), []() { return just(42); }) | sync_wait();
+
+  EXPECT_FALSE(ret.has_value());
+}
+
+#if !UNIFEX_NO_EXCEPTIONS
+TEST(Let, PredecessorThrows) {
+  auto ret = just(5) | then([](int i) -> int { throw i; }) |
+      let_value([](int) { return just(42); }) | let_error([](auto e) {
+               try {
+                 std::rethrow_exception(std::move(e));
+               } catch (int i) {
+                 return just(i);
+               }
+             }) |
+      sync_wait();
+
+  ASSERT_TRUE(ret.has_value());
+  EXPECT_EQ(*ret, 5);
+}
+#endif

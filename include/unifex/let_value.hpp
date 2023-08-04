@@ -57,16 +57,19 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
+    UNIFEX_ASSERT(op_.cleanup_ == op_.template deactivateSuccOpAndDestructValues<Values...>);
     unifex::set_value(
         std::move(op_.receiver_), std::forward<SuccessorValues>(values)...);
   }
 
   void set_done() && noexcept {
+    UNIFEX_ASSERT(op_.cleanup_ == op_.template deactivateSuccOpAndDestructValues<Values...>);
     unifex::set_done(std::move(op_.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
+    UNIFEX_ASSERT(op_.cleanup_ == op_.template deactivateSuccOpAndDestructValues<Values...>);
     unifex::set_error(std::move(op_.receiver_), std::forward<Error>(error));
   }
 
@@ -121,6 +124,7 @@ struct _predecessor_receiver<Operation>::type {
   void set_value(Values&&... values) && noexcept {
     auto& op = op_;
     UNIFEX_TRY {
+      UNIFEX_ASSERT(op_.cleanup_ == op_.deactivatePredOp);
       // if we throw while constructing values_ then the default
       // cleanup_ will destroy predOp_
       auto& valueTuple =
@@ -130,15 +134,18 @@ struct _predecessor_receiver<Operation>::type {
       // ok, values_ initialized; next step is to construct the
       // successor operation, but we need to destroy predOp_ first
       // to make room
-      unifex::deactivate_union_member(op.predOp_);
+      //
+      // leave a null function pointer in place while op is
+      // temporarily in an invalid state; any accidental invocations
+      // should be crashes intead of less-safe UB, and the compiler
+      // ought to eliminate the dead store if it can prove it's dead
+      std::exchange(op.cleanup_, nullptr)(&op);
 
       if constexpr (!is_nothrow_connectable_v<successor_type<Values...>,
                           successor_receiver<Operation, Values...>>) {
         // setup a cleanup_ that will only destroy values_ in case
         // we throw while constructing succOp_
-        op.cleanup_ = [](Operation* op) noexcept {
-          op->values_.template destruct<decayed_tuple<Values...>>();
-        };
+        op.cleanup_ = Operation::template destructValues<Values...>;
       }
 
       auto& succOp =
@@ -152,23 +159,25 @@ struct _predecessor_receiver<Operation>::type {
 
       // now that succOp_ has been successfully constructed, the
       // op's cleanup_ needs to destroy both values_ and succOp_
-      op.cleanup_ = [](Operation* op) noexcept {
-        unifex::deactivate_union_member<successor_operation<Values...>>(op->succOp_);
-        op->values_.template destruct<decayed_tuple<Values...>>();
-      };
+      op.cleanup_ = Operation::template deactivateSuccOpAndDestructValues<Values...>;
 
       unifex::start(succOp);
     } UNIFEX_CATCH (...) {
+      // depending on where the exception came from, cleanup_
+      // could be any valid cleanup function
+      UNIFEX_ASSERT(op.cleanup_ != nullptr);
       unifex::set_error(std::move(op.receiver_), std::current_exception());
     }
   }
 
   void set_done() && noexcept {
+    UNIFEX_ASSERT(op_.cleanup_ == op_.deactivatePredOp);
     unifex::set_done(std::move(op_.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
+    UNIFEX_ASSERT(op_.cleanup_ == op_.deactivatePredOp);
     unifex::set_error(std::move(op_.receiver_), std::forward<Error>(error));
   }
 
@@ -240,6 +249,21 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
   }
 
 private:
+  static void deactivatePredOp(type* self) noexcept {
+    unifex::deactivate_union_member(self->predOp_);
+  }
+
+  template <typename... Values>
+  static void destructValues(type* self) noexcept {
+    self->values_.template destruct<decayed_tuple<Values...>>();
+  }
+
+  template <typename... Values>
+  static void deactivateSuccOpAndDestructValues(type* self) noexcept {
+    unifex::deactivate_union_member<successor_operation<Values...>>(self->succOp_);
+    self->values_.template destruct<decayed_tuple<Values...>>();
+  }
+
   using predecessor_type = remove_cvref_t<Predecessor>;
   UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
@@ -252,9 +276,7 @@ private:
         value_types<manual_lifetime_union, successor_operation>
             succOp_;
   };
-  void (*cleanup_)(type*) noexcept = [](type* self) noexcept {
-    unifex::deactivate_union_member(self->predOp_);
-  };
+  void (*cleanup_)(type*) noexcept = deactivatePredOp;
 };
 
 template <typename Predecessor, typename SuccessorFactory>
