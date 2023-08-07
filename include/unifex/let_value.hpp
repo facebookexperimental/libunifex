@@ -57,23 +57,29 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == op_.template deactivateSuccOpAndDestructValues<Values...>);
+    UNIFEX_ASSERT(op_.cleanup_ == expectedCleanup);
+
     unifex::set_value(
         std::move(op_.receiver_), std::forward<SuccessorValues>(values)...);
   }
 
   void set_done() && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == op_.template deactivateSuccOpAndDestructValues<Values...>);
+    UNIFEX_ASSERT(op_.cleanup_ == expectedCleanup);
+
     unifex::set_done(std::move(op_.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == op_.template deactivateSuccOpAndDestructValues<Values...>);
+    UNIFEX_ASSERT(op_.cleanup_ == expectedCleanup);
+
     unifex::set_error(std::move(op_.receiver_), std::forward<Error>(error));
   }
 
 private:
+  [[maybe_unused]] static constexpr void (*expectedCleanup)(Operation*) noexcept
+      = Operation::template deactivateSuccOpAndDestructValues<Values...>;
+
   template <typename... Values2>
   using successor_operation = typename Operation::template successor_operation<Values2...>;
 
