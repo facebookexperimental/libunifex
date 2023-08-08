@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/just.hpp>
 #include <unifex/let_value.hpp>
+
+#include <unifex/allocate.hpp>
+#include <unifex/just.hpp>
+#include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
+#include <unifex/just_void_or_done.hpp>
+#include <unifex/let_error.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
-#include <unifex/allocate.hpp>
-#include <unifex/just_done.hpp>
-#include <unifex/just_error.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -281,3 +284,29 @@ TEST(Let, LetValueWithTraitlessPredecessor) {
   ASSERT_TRUE(ret);
   EXPECT_EQ(*ret, 42);
 }
+
+TEST(Let, PredecessorCancels) {
+  // TODO: MSVC doesn't like the type computations if we use just_done() here;
+  //       seems worth fixing, but in a later PR
+  auto ret = let_value(just_void_or_done(false), []() { return just(42); }) |
+      sync_wait();
+
+  EXPECT_FALSE(ret.has_value());
+}
+
+#if !UNIFEX_NO_EXCEPTIONS
+TEST(Let, PredecessorThrows) {
+  auto ret = just(5) | then([](int i) -> int { throw i; }) |
+      let_value([](int) { return just(42); }) | let_error([](auto e) {
+               try {
+                 std::rethrow_exception(std::move(e));
+               } catch (int i) {
+                 return just(i);
+               }
+             }) |
+      sync_wait();
+
+  ASSERT_TRUE(ret.has_value());
+  EXPECT_EQ(*ret, 5);
+}
+#endif
