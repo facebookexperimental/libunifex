@@ -15,17 +15,18 @@
  */
 #include <unifex/let_value.hpp>
 
+#include <unifex/allocate.hpp>
 #include <unifex/just.hpp>
+#include <unifex/just_done.hpp>
+#include <unifex/just_error.hpp>
+#include <unifex/just_void_or_done.hpp>
 #include <unifex/let_error.hpp>
 #include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
-#include <unifex/allocate.hpp>
-#include <unifex/just_done.hpp>
-#include <unifex/just_error.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -285,7 +286,10 @@ TEST(Let, LetValueWithTraitlessPredecessor) {
 }
 
 TEST(Let, PredecessorCancels) {
-  auto ret = let_value(just_done(), []() { return just(42); }) | sync_wait();
+  // TODO: MSVC doesn't like the type computations if we use just_done() here;
+  //       seems worth fixing, but in a later PR
+  auto ret = let_value(just_void_or_done(false), []() { return just(42); }) |
+      sync_wait();
 
   EXPECT_FALSE(ret.has_value());
 }
