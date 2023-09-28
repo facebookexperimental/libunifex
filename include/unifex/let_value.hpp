@@ -148,7 +148,8 @@ struct _predecessor_receiver<Operation>::type {
       std::exchange(op.cleanup_, nullptr)(&op);
 
       if constexpr (!is_nothrow_connectable_v<successor_type<Values...>,
-                          successor_receiver<Operation, Values...>>) {
+                          successor_receiver<Operation, Values...>> ||
+                          !noexcept(std::apply(std::move(op.func_), valueTuple))) {
         // setup a cleanup_ that will only destroy values_ in case
         // we throw while constructing succOp_
         op.cleanup_ = Operation::template destructValues<Values...>;
@@ -158,6 +159,7 @@ struct _predecessor_receiver<Operation>::type {
           unifex::activate_union_member_with<successor_operation<Values...>>(
             op.succOp_,
             [&] {
+              static_assert(noexcept(successor_receiver<Operation, Values...>{op}));
               return unifex::connect(
                   std::apply(std::move(op.func_), valueTuple),
                   successor_receiver<Operation, Values...>{op});
