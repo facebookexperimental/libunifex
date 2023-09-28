@@ -264,6 +264,13 @@ TEST(Let, SimpleLetValueErrorWithAllocate) {
   })), std::invalid_argument);
 }
 
+TEST(Let, LetValueSuccessorWithException) {
+  EXPECT_THROW(sync_wait(unifex::just() | unifex::let_value([]() {
+    throw std::runtime_error("Throwing error for testing purposes");
+    return unifex::just();
+  })), std::runtime_error);
+}
+
 namespace {
 struct TraitslessSender {
   template <typename Receiver>
