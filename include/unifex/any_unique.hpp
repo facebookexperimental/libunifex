@@ -16,14 +16,15 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/detail/vtable.hpp>
+#include <unifex/detail/with_forwarding_tag_invoke.hpp>
+#include <unifex/detail/with_type_erased_tag_invoke.hpp>
 #include <unifex/overload.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/std_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/this.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/std_concepts.hpp>
-#include <unifex/detail/vtable.hpp>
-#include <unifex/detail/with_type_erased_tag_invoke.hpp>
-#include <unifex/detail/with_forwarding_tag_invoke.hpp>
 
 #include <memory>
 #include <utility>
@@ -47,6 +48,13 @@ struct _deallocate_cpo {
     }
   }
 };
+
+} // namespace _any_unique
+
+template <>
+inline constexpr bool is_receiver_query_cpo_v<_any_unique::_deallocate_cpo> = false;
+
+namespace _any_unique {
 
 template <typename Concrete, typename Allocator>
 struct _concrete_impl {
