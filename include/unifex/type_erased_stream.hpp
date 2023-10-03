@@ -28,6 +28,8 @@
 #include <unifex/bind_back.hpp>
 #include <unifex/exception.hpp>
 
+#include <atomic>
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -104,24 +106,45 @@ struct _stream<Values...>::type final {
     virtual void start_cleanup(cleanup_receiver_base& receiver) noexcept = 0;
   };
 
+  struct next_op_base {
+    // last caller owns result delivery by calling set_* on a receiver
+    bool complete() noexcept {
+      return refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1;
+    }
+    private:
+      std::atomic_char refCount_{1};
+    protected:
+      next_op_base() noexcept = default;
+      next_op_base(next_op_base&&) = delete;
+      // prevent delete through a pointer-to-base
+     ~next_op_base() = default;
+  };
+
   template <typename Receiver>
   struct _next_receiver final {
     struct type final : next_receiver_base {
       UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
+      next_op_base* op_;
 
-      explicit type(Receiver&& receiver)
-        : receiver_((Receiver &&) receiver) {}
+      explicit type(Receiver&& receiver, next_op_base* op)
+        : receiver_((Receiver &&) receiver), op_(op) {}
 
       void set_value(Values&&... values) noexcept override {
-        unifex::set_value(std::move(receiver_), (Values &&) values...);
+        if (op_->complete()) {
+          unifex::set_value(std::move(receiver_), (Values &&) values...);
+        }
       }
 
       void set_done() noexcept override {
-        unifex::set_done(std::move(receiver_));
+        if (op_->complete()) {
+          unifex::set_done(std::move(receiver_));
+        }
       }
 
       void set_error(std::exception_ptr ex) noexcept override {
-        unifex::set_error(std::move(receiver_), std::move(ex));
+        if (op_->complete()) {
+          unifex::set_error(std::move(receiver_), std::move(ex));
+        }
       }
 
     private:
@@ -329,17 +352,18 @@ struct _stream<Values...>::type final {
 
     template <typename Receiver>
     struct _op final {
-      struct type final {
+      struct type final : next_op_base {
         struct cancel_callback final {
-          inplace_stop_source& stopSource_;
+          type& op_;
           void operator()() noexcept {
-            stopSource_.request_stop();
+            op_.request_stop();
           }
         };
 
         stream_base& stream_;
         inplace_stop_source stopSource_;
         next_receiver<Receiver> receiver_;
+        std::atomic_char refCount_{1};
         UNIFEX_NO_UNIQUE_ADDRESS
             typename stop_token_type_t<Receiver&>::
             template callback_type<cancel_callback>
@@ -349,10 +373,10 @@ struct _stream<Values...>::type final {
         explicit type(stream_base& strm, Receiver2&& receiver)
           : stream_(strm),
             stopSource_(),
-            receiver_((Receiver2 &&) receiver),
+            receiver_((Receiver2 &&) receiver, this),
             stopCallback_(
               get_stop_token(receiver_.receiver_),
-              cancel_callback{stopSource_})
+              cancel_callback{*this})
         {}
 
         void start() noexcept {
@@ -360,6 +384,17 @@ struct _stream<Values...>::type final {
             receiver_,
             get_stop_token(receiver_.receiver_).stop_possible() ?
             stopSource_.get_token() : inplace_stop_token{});
+        }
+
+        void request_stop() noexcept {
+          // mark callback as running (own set_*)
+          if (refCount_.fetch_add(1, std::memory_order_relaxed) == 0) {
+            // set_* already called
+            return;
+          }
+          stopSource_.request_stop();
+          // conditionally call set_*
+          receiver_.set_done();
         }
       };
     };

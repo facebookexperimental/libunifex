@@ -15,15 +15,19 @@
  */
 #include <unifex/type_erased_stream.hpp>
 
+#include <unifex/async_auto_reset_event.hpp>
 #include <unifex/for_each.hpp>
+#include <unifex/just_from.hpp>
+#include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/never.hpp>
 #include <unifex/on_stream.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
-#include <unifex/type_erased_stream.hpp>
 #include <unifex/via_stream.hpp>
+#include <unifex/when_all.hpp>
 
 #include <cstdio>
 
@@ -37,7 +41,7 @@ single_thread_context context2;
 }  // namespace
 
 TEST(type_erase, UseType) {
-  auto functor = []() -> unifex::type_erased_stream<int> {
+  auto functor = []() -> type_erased_stream<int> {
     return type_erase<int>(via_stream(
         context1.get_scheduler(),
         on_stream(
@@ -76,4 +80,12 @@ TEST(type_erase, Pipeable) {
             [](int value) { std::printf("got %i\n", value); })  //
       | then([]() { std::printf("done\n"); })                   //
       | sync_wait();
+}
+
+TEST(type_erase, InlineCancel) {
+  sync_wait(let_value_with_stop_source([](auto& stopSource) {
+    return when_all(
+        for_each(type_erase<>(never_stream()), []() { std::printf("next\n"); }),
+        just_from([&] { stopSource.request_stop(); }));
+  }));
 }
