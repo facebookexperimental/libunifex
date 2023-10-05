@@ -111,13 +111,12 @@ struct _stream<Values...>::type final {
     bool complete() noexcept {
       return refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1;
     }
-    private:
-      std::atomic_char refCount_{1};
     protected:
       next_op_base() noexcept = default;
       next_op_base(next_op_base&&) = delete;
       // prevent delete through a pointer-to-base
-     ~next_op_base() = default;
+      ~next_op_base() = default;
+      std::atomic_char refCount_{1};
   };
 
   template <typename Receiver>
@@ -363,7 +362,6 @@ struct _stream<Values...>::type final {
         stream_base& stream_;
         inplace_stop_source stopSource_;
         next_receiver<Receiver> receiver_;
-        std::atomic_char refCount_{1};
         UNIFEX_NO_UNIQUE_ADDRESS
             typename stop_token_type_t<Receiver&>::
             template callback_type<cancel_callback>
@@ -388,7 +386,7 @@ struct _stream<Values...>::type final {
 
         void request_stop() noexcept {
           // mark callback as running (own set_*)
-          if (refCount_.fetch_add(1, std::memory_order_relaxed) == 0) {
+          if (next_op_base::refCount_.fetch_add(1, std::memory_order_relaxed) == 0) {
             // set_* already called
             return;
           }
