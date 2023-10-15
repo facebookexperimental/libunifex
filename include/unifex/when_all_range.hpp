@@ -20,6 +20,7 @@
 #include <atomic>
 #include <cstddef>
 #include <functional>
+#include <iterator>
 #include <numeric>
 #include <optional>
 #include <type_traits>
