@@ -15,14 +15,15 @@
  */
 #pragma once
 
+#include <unifex/as_exception_ptr.hpp>
+#include <unifex/bind_back.hpp>
+#include <unifex/blocking.hpp>
+#include <unifex/exception.hpp>
 #include <unifex/manual_event_loop.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
-#include <unifex/blocking.hpp>
 #include <unifex/with_query_value.hpp>
-#include <unifex/bind_back.hpp>
-#include <unifex/exception.hpp>
 
 #include <condition_variable>
 #include <exception>
@@ -81,15 +82,6 @@ struct _receiver {
       unifex::activate_union_member(promise_.exception_, std::move(err));
       promise_.state_ = promise<T>::state::error;
       signal_complete();
-    }
-
-    void set_error(std::error_code ec) && noexcept {
-      std::move(*this).set_error(make_exception_ptr(std::system_error{ec, "sync_wait"}));
-    }
-
-    template <typename Error>
-    void set_error(Error&& e) && noexcept {
-      std::move(*this).set_error(make_exception_ptr((Error&&)e));
     }
 
     void set_done() && noexcept {
