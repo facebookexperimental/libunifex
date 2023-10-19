@@ -17,7 +17,7 @@ This project contains implementations of the following:
 This project is still evolving and should be considered experimental in nature. No guarantee is made for API or ABI stability.
 
 **Build status**
-- on Github Actions: [![GitHub Actions Status](https://github.com/facebookexperimental/libunifex/workflows/libunifex%20CI/badge.svg?branch=master)](https://github.com/facebookexperimental/libunifex/actions)
+- on Github Actions: [![GitHub Actions Status](https://github.com/facebookexperimental/libunifex/workflows/libunifex%20CI/badge.svg?branch=main)](https://github.com/facebookexperimental/libunifex/actions)
 
 # Documentation
 
