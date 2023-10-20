@@ -407,6 +407,22 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
+            name: "Linux Clang 17 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "clang-17", cxx: "clang++-17",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 17 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "clang-17", cxx: "clang++-17",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
             name: "macOS GCC Debug (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
@@ -609,6 +625,17 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh 16
+
+    - name: Install Clang 17
+      id: install_clang_17
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-17' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 17
+
     - name: Install GCC 11
       id: install_gcc_11
       if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-11' )
