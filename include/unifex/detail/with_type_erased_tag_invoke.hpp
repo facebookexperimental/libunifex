@@ -40,16 +40,15 @@ namespace unifex
         static_assert(
             !NoExcept ||
             noexcept(extract_this<Args...>{}((decltype(args)&&)args...)));
-        auto&& t = extract_this<Args...>{}((decltype(args)&&)args...);
-        void* objPtr = get_object_address(t);
-        auto* fnPtr = get_vtable(t)->template get<CPO>();
+        void* objPtr = get_object_address(extract_this<Args...>{}((decltype(args)&&)args...));
+        auto* fnPtr = get_vtable(extract_this<Args...>{}((decltype(args)&&)args...))->template get<CPO>();
 
         // Sanity check that all of the component expressions here are
         // noexcept so we don't end up with exception tables being generated
         // for this function.
-        static_assert(!NoExcept || noexcept(get_object_address(t)));
+        static_assert(!NoExcept || noexcept(get_object_address(extract_this<Args...>{}((decltype(args)&&)args...))));
         static_assert(
-            !NoExcept || noexcept(get_vtable(t)->template get<CPO>()));
+            !NoExcept || noexcept(get_vtable(extract_this<Args...>{}((decltype(args)&&)args...))->template get<CPO>()));
         static_assert(
             !NoExcept ||
             noexcept(fnPtr(
