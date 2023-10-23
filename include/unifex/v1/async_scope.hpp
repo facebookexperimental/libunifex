@@ -56,16 +56,12 @@ struct _attach_op_base final {
 
 template <typename Receiver>
 struct _attach_op_base<Receiver>::type {
-UNIFEX_DIAGNOSTIC_PUSH
-UNIFEX_INGORE_MAYBE_UNINITIALIZED_IN_GCC_9
 
   template <typename Receiver2>
   explicit type(inplace_stop_token stoken, Receiver2&& receiver) noexcept(
       std::is_nothrow_constructible_v<Receiver, Receiver2>)
     : stoken_(stoken)
     , receiver_(static_cast<Receiver2&&>(receiver)) {}
-
-UNIFEX_DIAGNOSTIC_POP
 
   type(type&&) = delete;
 

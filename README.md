@@ -34,8 +34,8 @@ This project is still evolving and should be considered experimental in nature. 
 A recent compiler that supports C++17 or later. Libunifex is known to work
 with the following compilers:
 
-* GCC, 9.x and later
-* Clang, 10.x and later
+* GCC, 11.x and later
+* Clang, 12.x and later
 * MSVC 2019.6 and later
 
 This library also supports C++20 coroutines. You will need to compile with
