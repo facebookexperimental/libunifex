@@ -241,6 +241,8 @@ struct _result_and_unhandled_exception final {
         if (result_.state_ == _state::exception) {
           std::rethrow_exception(std::move(result_.exception_).get());
         }
+
+        UNIFEX_ASSERT(result_.state_ == _state::value);
         return std::move(result_.value_).get();
       }
     }
@@ -389,6 +391,7 @@ struct _sr_thunk_promise_base : _promise_base {
     if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
       return continuation_.done();
     } else {
+      handleToResume_ = continuation_.done();
       return coro::noop_coroutine();
     }
   }
@@ -420,7 +423,8 @@ struct _sr_thunk_promise_base : _promise_base {
 
     void set_value(bool) noexcept {
       if (self->refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        self->continuation_.handle().resume();
+        UNIFEX_ASSERT(self->handleToResume_ != coro::coroutine_handle<>{});
+        self->handleToResume_.resume();
       }
     }
     void set_error(std::exception_ptr) noexcept { std::terminate(); }
@@ -447,6 +451,7 @@ struct _sr_thunk_promise_base : _promise_base {
   using stop_callback_t =
       typename inplace_stop_token::callback_type<stop_callback>;
 
+  coro::coroutine_handle<> handleToResume_{};
   manual_lifetime<stop_callback_t> callback_;
 
   std::atomic<uint8_t> refCount_{1};
@@ -499,7 +504,11 @@ struct _sr_thunk_promise final {
           if (p.refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             return h.promise().continuation_.handle().resume();
           }
-          // nothing
+          else {
+            p.handleToResume_ = h.promise().continuation_.handle();
+            // don't resume anything here; wait for the deferred stop request
+            // to resume our continuation
+          }
         }
 #else
         coro::coroutine_handle<>
@@ -513,6 +522,7 @@ struct _sr_thunk_promise final {
           if (p.refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             return h.promise().continuation_.handle();
           } else {
+            p.handleToResume_ = h.promise().continuation_.handle();
             return coro::noop_coroutine();
           }
         }
