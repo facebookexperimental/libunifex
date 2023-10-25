@@ -503,8 +503,7 @@ struct _sr_thunk_promise final {
           // nothing and wait for the async stop request to do it
           if (p.refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
             return h.promise().continuation_.handle().resume();
-          }
-          else {
+          } else {
             p.handleToResume_ = h.promise().continuation_.handle();
             // don't resume anything here; wait for the deferred stop request
             // to resume our continuation
