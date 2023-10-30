@@ -21,156 +21,178 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-  // A template metaprogramming data-structure used to represent an
-  // ordered list of types.
-  template <typename... Ts>
-  struct type_list {
-    // Invoke the template metafunction with the type-list's elements
-    // as arguments.
-    template <template <typename...> class F>
-    using apply = F<Ts...>;
-  };
+namespace unifex {
+// A template metaprogramming data-structure used to represent an
+// ordered list of types.
+template <typename... Ts>
+struct type_list {
+  // Invoke the template metafunction with the type-list's elements
+  // as arguments.
+  template <template <typename...> class F>
+  using apply = F<Ts...>;
+};
 
-  // apply_to_type_list<F, type_list<Ts...>>
-  //
-  // Shortcut to `typename type_list<Ts...>::template apply<F>`.
-  template <template <typename...> class F, typename List>
-  struct apply_to_type_list;
+// apply_to_type_list<F, type_list<Ts...>>
+//
+// Shortcut to `typename type_list<Ts...>::template apply<F>`.
+template <template <typename...> class F, typename List>
+struct apply_to_type_list;
 
-  template <template <typename...> class F, typename... Ts>
-  struct apply_to_type_list<F, type_list<Ts...>> {
-    using type = F<Ts...>;
-  };
+template <template <typename...> class F, typename... Ts>
+struct apply_to_type_list<F, type_list<Ts...>> {
+  using type = F<Ts...>;
+};
 
-  template <template <typename...> class F, typename List>
-  using apply_to_type_list_t = typename apply_to_type_list<F, List>::type;
+template <template <typename...> class F, typename List>
+using apply_to_type_list_t = typename apply_to_type_list<F, List>::type;
 
-  // map_type_list<type_list<Ts...>, F>
-  //
-  // Builds type_list<F<Ts>...>.
-  //
-  // Result is produced via nested ::type.
-  template <typename List, template <typename> class F>
-  struct map_type_list;
+// map_type_list<type_list<Ts...>, F>
+//
+// Builds type_list<F<Ts>...>.
+//
+// Result is produced via nested ::type.
+template <typename List, template <typename> class F>
+struct map_type_list;
 
-  template <typename... Ts, template <typename> class F>
-  struct map_type_list<type_list<Ts...>, F> {
-    using type = type_list<F<Ts>...>;
-  };
+template <typename... Ts, template <typename> class F>
+struct map_type_list<type_list<Ts...>, F> {
+  using type = type_list<F<Ts>...>;
+};
 
-  template <typename List, template <typename> class F>
-  using map_type_list_t = typename map_type_list<List, F>::type;
+template <typename List, template <typename> class F>
+using map_type_list_t = typename map_type_list<List, F>::type;
 
-  // concat_type_lists<Lists...>
-  //
-  // Concatenates a variadic pack of type_list<Ts...> into a single
-  // type_list that contains the concatenation of the elements of the
-  // input type_lists.
-  //
-  // Result is produced via nested ::type.
-  template <typename... Lists>
-  struct concat_type_lists;
+// concat_type_lists<Lists...>
+//
+// Concatenates a variadic pack of type_list<Ts...> into a single
+// type_list that contains the concatenation of the elements of the
+// input type_lists.
+//
+// Result is produced via nested ::type.
+template <typename... Lists>
+struct concat_type_lists;
 
-  template <>
-  struct concat_type_lists<> {
-    using type = type_list<>;
-  };
+template <>
+struct concat_type_lists<> {
+  using type = type_list<>;
+};
 
-  template <typename List>
-  struct concat_type_lists<List> {
-    using type = List;
-  };
+template <typename List>
+struct concat_type_lists<List> {
+  using type = List;
+};
 
-  template <typename... Ts, typename... Us>
-  struct concat_type_lists<type_list<Ts...>, type_list<Us...>> {
-      using type = type_list<Ts..., Us...>;
-  };
+template <typename... Ts, typename... Us>
+struct concat_type_lists<type_list<Ts...>, type_list<Us...>> {
+  using type = type_list<Ts..., Us...>;
+};
 
-  template <typename... Ts, typename... Us, typename... Vs, typename... OtherLists>
-  struct concat_type_lists<type_list<Ts...>, type_list<Us...>, type_list<Vs...>, OtherLists...>
-    : concat_type_lists<type_list<Ts..., Us..., Vs...>, OtherLists...> {};
+template <
+    typename... Ts,
+    typename... Us,
+    typename... Vs,
+    typename... OtherLists>
+struct concat_type_lists<
+    type_list<Ts...>,
+    type_list<Us...>,
+    type_list<Vs...>,
+    OtherLists...>
+  : concat_type_lists<type_list<Ts..., Us..., Vs...>, OtherLists...> {};
 
-  template <typename... UniqueLists>
-  using concat_type_lists_t = typename concat_type_lists<UniqueLists...>::type;
+template <typename... UniqueLists>
+using concat_type_lists_t = typename concat_type_lists<UniqueLists...>::type;
 
-  // unique_type_list_elements<type_list<Ts...>>
-  //
-  // Result is produced via '::type' which will contain a type_list<Ts...> that
-  // contains the unique elements from the input type_list.
-  template <typename... Ts>
-  struct unique_type_list_elements;
+// unique_type_list_elements<type_list<Ts...>>
+//
+// Result is produced via '::type' which will contain a type_list<Ts...> that
+// contains the unique elements from the input type_list.
+template <typename... Ts>
+struct unique_type_list_elements;
 
-  template <typename List>
-  using unique_type_list_elements_t = typename unique_type_list_elements<List, type_list<>>::type;
+template <typename List>
+using unique_type_list_elements_t =
+    typename unique_type_list_elements<List, type_list<>>::type;
 
-  // Base case: empty input type_list, with any number of elements that have
-  // already been seen
-  template <typename... SeenElements>
-  struct unique_type_list_elements<type_list<>, type_list<SeenElements...>> {
-    using type = type_list<>;
-  };
+// Base case: empty input type_list, with any number of elements that have
+// already been seen
+template <typename... SeenElements>
+struct unique_type_list_elements<type_list<>, type_list<SeenElements...>> {
+  using type = type_list<>;
+};
 
-  template <typename T, typename... Ts, typename... SeenElements>
-  struct unique_type_list_elements<type_list<T, Ts...>, type_list<SeenElements...>> {
-    using type = conditional_t<
+template <typename T, typename... Ts, typename... SeenElements>
+struct unique_type_list_elements<
+    type_list<T, Ts...>,
+    type_list<SeenElements...>> {
+  using type = conditional_t<
       is_one_of_v<T, SeenElements...>,
-      typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements...>>::type,
-      concat_type_lists_t<type_list<T>, typename unique_type_list_elements<type_list<Ts...>, type_list<SeenElements..., T>>::type>
-    >;
-  };
-
-  // concat_type_lists_unique<UniqueLists...>
-  //
-  // Result is produced via '::type' which will contain a type_list<Ts...> that
-  // contains the unique elements from the input type_list types. Any duplicate
-  // elements in the input lists are removed.
-  template <typename... UniqueLists>
-  struct concat_type_lists_unique;
-
-  template <typename... UniqueLists>
-  using concat_type_lists_unique_t = typename concat_type_lists_unique<UniqueLists...>::type;
-
-  template <>
-  struct concat_type_lists_unique<> {
-    using type = type_list<>;
-  };
-
-  template <typename UniqueList>
-  struct concat_type_lists_unique<UniqueList> {
-    using type = UniqueList;
-  };
-
-  template <typename... Ts, typename... Us, typename... OtherLists>
-  struct concat_type_lists_unique<type_list<Ts...>, type_list<Us...>, OtherLists...>
-    : concat_type_lists_unique<
-          unique_type_list_elements_t<concat_type_lists_t<
+      typename unique_type_list_elements<
+          type_list<Ts...>,
+          type_list<SeenElements...>>::type,
+      concat_type_lists_t<
+          type_list<T>,
+          typename unique_type_list_elements<
               type_list<Ts...>,
-              conditional_t<
+              type_list<SeenElements..., T>>::type>>;
+};
+
+// concat_type_lists_unique<UniqueLists...>
+//
+// Result is produced via '::type' which will contain a type_list<Ts...> that
+// contains the unique elements from the input type_list types. Any duplicate
+// elements in the input lists are removed.
+template <typename... UniqueLists>
+struct concat_type_lists_unique;
+
+template <typename... UniqueLists>
+using concat_type_lists_unique_t =
+    typename concat_type_lists_unique<UniqueLists...>::type;
+
+template <>
+struct concat_type_lists_unique<> {
+  using type = type_list<>;
+};
+
+template <typename UniqueList>
+struct concat_type_lists_unique<UniqueList> {
+  using type = UniqueList;
+};
+
+template <typename... Ts, typename... Us, typename... OtherLists>
+struct concat_type_lists_unique<
+    type_list<Ts...>,
+    type_list<Us...>,
+    OtherLists...>
+  : concat_type_lists_unique<
+        unique_type_list_elements_t<concat_type_lists_t<
+            type_list<Ts...>,
+            conditional_t<
                 is_one_of_v<Us, Ts...>,
                 type_list<>,
                 type_list<Us>>...>>,
-          OtherLists...> {};
+        OtherLists...> {};
 
-  namespace detail
-  {
-    template <
-      template <typename...> class Outer,
-      template <typename...> class Inner>
-    struct type_list_nested_apply_impl {
-      template <typename... Lists>
-      using apply = Outer<typename Lists::template apply<Inner>...>;
-    };
-  }
+namespace detail {
+template <
+    template <typename...>
+    class Outer,
+    template <typename...>
+    class Inner>
+struct type_list_nested_apply_impl {
+  template <typename... Lists>
+  using apply = Outer<typename Lists::template apply<Inner>...>;
+};
+}  // namespace detail
 
-  template <
+template <
     typename ListOfLists,
-    template <typename...> class Outer,
-    template <typename...> class Inner>
-  using type_list_nested_apply_t = typename ListOfLists::template apply<
+    template <typename...>
+    class Outer,
+    template <typename...>
+    class Inner>
+using type_list_nested_apply_t = typename ListOfLists::template apply<
     detail::type_list_nested_apply_impl<Outer, Inner>::template apply>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
