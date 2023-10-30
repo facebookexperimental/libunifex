@@ -821,8 +821,8 @@ public:
 
   static constexpr blocking_kind blocking = sender_traits<sender_t>::blocking;
 
-  static constexpr bool is_always_scheduler_affine
-      = sender_traits<sender_t>::is_always_scheduler_affine;
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<sender_t>::is_always_scheduler_affine;
 
   explicit type(
       Scope& scope,
@@ -843,7 +843,8 @@ public:
     return connect(std::move(self).sender_, static_cast<Receiver&&>(receiver));
   }
 
-  friend blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+  friend blocking_kind
+  tag_invoke(tag_t<blocking>, const type& sender) noexcept {
     return unifex::blocking(sender.sender_);
   }
 };
