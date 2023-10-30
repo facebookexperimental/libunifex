@@ -67,11 +67,11 @@ inline const struct open_file_read_write_cpo {
     return unifex::tag_invoke(*this, (Executor &&) executor, path);
   }
 } open_file_read_write{};
-} // namespace _filesystem
+}  // namespace _filesystem
 
 using _filesystem::open_file_read_only;
-using _filesystem::open_file_write_only;
 using _filesystem::open_file_read_write;
-} // namespace unifex
+using _filesystem::open_file_write_only;
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
