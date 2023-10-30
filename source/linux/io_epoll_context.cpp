@@ -17,48 +17,48 @@
 #include <unifex/config.hpp>
 #if !UNIFEX_NO_EPOLL
 
-#include <unifex/linux/io_epoll_context.hpp>
+#  include <unifex/linux/io_epoll_context.hpp>
 
-#include <unifex/scope_guard.hpp>
-#include <unifex/exception.hpp>
+#  include <unifex/exception.hpp>
+#  include <unifex/scope_guard.hpp>
 
-#include <cstring>
-#include <system_error>
-#include <thread>
+#  include <cstring>
+#  include <system_error>
+#  include <thread>
 
-#include <fcntl.h>
-#include <sys/uio.h>
-#include <sys/epoll.h>
-#include <sys/timerfd.h>
-#include <sys/eventfd.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <time.h>
-#include <unistd.h>
+#  include <fcntl.h>
+#  include <sys/epoll.h>
+#  include <sys/eventfd.h>
+#  include <sys/mman.h>
+#  include <sys/stat.h>
+#  include <sys/timerfd.h>
+#  include <sys/uio.h>
+#  include <time.h>
+#  include <unistd.h>
 
-#include <cstdio>
+#  include <cstdio>
 
 // #define LOGGING_ENABLED
 
-#ifdef LOGGING_ENABLED
-#define LOG(S)             \
-  do {                     \
-    ::std::puts(S);        \
-    ::std::fflush(stdout); \
-  } while (false)
-#define LOGX(...)               \
-  do {                          \
-    ::std::printf(__VA_ARGS__); \
-    ::std::fflush(stdout);      \
-  } while (false)
-#else
-#define LOG(S) \
-  do {         \
-  } while (false)
-#define LOGX(...) \
-  do {            \
-  } while (false)
-#endif
+#  ifdef LOGGING_ENABLED
+#    define LOG(S)             \
+      do {                     \
+        ::std::puts(S);        \
+        ::std::fflush(stdout); \
+      } while (false)
+#    define LOGX(...)               \
+      do {                          \
+        ::std::printf(__VA_ARGS__); \
+        ::std::fflush(stdout);      \
+      } while (false)
+#  else
+#    define LOG(S) \
+      do {         \
+      } while (false)
+#    define LOGX(...) \
+      do {            \
+      } while (false)
+#  endif
 
 namespace unifex::linuxos {
 
@@ -74,7 +74,8 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("epoll_create failed with %i\n", errorCode);
-      throw_(std::system_error{errorCode, std::system_category(), "epoll_create(1)"});
+      throw_(std::system_error{
+          errorCode, std::system_category(), "epoll_create(1)"});
     }
     epollFd_ = safe_file_descriptor{fd};
   }
@@ -84,7 +85,10 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("timerfd_create CLOCK_MONOTONIC failed with %i\n", errorCode);
-      throw_(std::system_error{errorCode, std::system_category(), "timerfd_create(CLOCK_MONOTONIC, 0)"});
+      throw_(std::system_error{
+          errorCode,
+          std::system_category(),
+          "timerfd_create(CLOCK_MONOTONIC, 0)"});
     }
 
     timerFd_ = safe_file_descriptor{fd};
@@ -94,11 +98,15 @@ io_epoll_context::io_epoll_context() {
     epoll_event event = {};
     event.events = EPOLLIN;
     event.data.ptr = timer_user_data();
-    int result = epoll_ctl(epollFd_.get(), EPOLL_CTL_ADD, timerFd_.get(), &event);
+    int result =
+        epoll_ctl(epollFd_.get(), EPOLL_CTL_ADD, timerFd_.get(), &event);
     if (result < 0) {
       int errorCode = errno;
       LOGX("epoll_ctl EPOLL_CTL_ADD timerFd_ failed with %i\n", errorCode);
-      throw_(std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD timerFd_"});
+      throw_(std::system_error{
+          errorCode,
+          std::system_category(),
+          "epoll_ctl EPOLL_CTL_ADD timerFd_"});
     }
   }
 
@@ -107,7 +115,8 @@ io_epoll_context::io_epoll_context() {
     if (fd < 0) {
       int errorCode = errno;
       LOGX("eventfd failed with %i\n", errorCode);
-      throw_(std::system_error{errorCode, std::system_category(), "create remoteQueueEventFd_"});
+      throw_(std::system_error{
+          errorCode, std::system_category(), "create remoteQueueEventFd_"});
     }
 
     remoteQueueEventFd_ = safe_file_descriptor{fd};
@@ -117,11 +126,17 @@ io_epoll_context::io_epoll_context() {
     epoll_event event = {};
     event.events = EPOLLIN;
     event.data.ptr = remote_queue_event_user_data;
-    int result = epoll_ctl(epollFd_.get(), EPOLL_CTL_ADD, remoteQueueEventFd_.get(), &event);
+    int result = epoll_ctl(
+        epollFd_.get(), EPOLL_CTL_ADD, remoteQueueEventFd_.get(), &event);
     if (result < 0) {
       int errorCode = errno;
-      LOGX("epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_ failed with %i\n", errorCode);
-      throw_(std::system_error{errorCode, std::system_category(), "epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_"});
+      LOGX(
+          "epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_ failed with %i\n",
+          errorCode);
+      throw_(std::system_error{
+          errorCode,
+          std::system_category(),
+          "epoll_ctl EPOLL_CTL_ADD remoteQueueEventFd_"});
     }
   }
 
@@ -130,7 +145,8 @@ io_epoll_context::io_epoll_context() {
 
 io_epoll_context::~io_epoll_context() {
   epoll_event event = {};
-  (void)epoll_ctl(epollFd_.get(), EPOLL_CTL_DEL, remoteQueueEventFd_.get(), &event);
+  (void)epoll_ctl(
+      epollFd_.get(), EPOLL_CTL_DEL, remoteQueueEventFd_.get(), &event);
   (void)epoll_ctl(epollFd_.get(), EPOLL_CTL_DEL, timerFd_.get(), &event);
   LOG("io_epoll_context destructor done");
 }
@@ -248,15 +264,14 @@ void io_epoll_context::execute_pending_local() noexcept {
 }
 
 void io_epoll_context::acquire_completion_queue_items() {
-
   LOG("epoll_wait()");
 
   epoll_event completions[io_epoll_max_event_count];
   int result = epoll_wait(
-    epollFd_.get(),
-    completions,
-    io_epoll_max_event_count,
-    localQueue_.empty() ? -1 : 0);
+      epollFd_.get(),
+      completions,
+      io_epoll_max_event_count,
+      localQueue_.empty() ? -1 : 0);
   if (result < 0) {
     int errorCode = errno;
     throw_(std::system_error{errorCode, std::system_category(), "epoll_wait"});
@@ -298,8 +313,7 @@ void io_epoll_context::acquire_completion_queue_items() {
 
       // Read the eventfd to clear the signal.
       std::uint64_t buffer;
-      ssize_t bytesRead =
-          read(timerFd_.get(), &buffer, sizeof(buffer));
+      ssize_t bytesRead = read(timerFd_.get(), &buffer, sizeof(buffer));
       if (bytesRead < 0) {
         // read() failed
         [[maybe_unused]] int errorCode = errno;
@@ -313,7 +327,8 @@ void io_epoll_context::acquire_completion_queue_items() {
     }
 
     LOGX("completion event %i\n", completed.events);
-    auto& completionState = *reinterpret_cast<completion_base*>(completed.data.ptr);
+    auto& completionState =
+        *reinterpret_cast<completion_base*>(completed.data.ptr);
 
     UNIFEX_ASSERT(completionState.enqueued_.load() == 0);
     ++completionState.enqueued_;
@@ -409,10 +424,10 @@ void io_epoll_context::update_timers() noexcept {
   } else {
     const auto earliestDueTime = timers_.top()->dueTime_;
     LOGX(
-      "next timer in %i ms\n",
-      (int)std::chrono::duration_cast<std::chrono::milliseconds>(
-          earliestDueTime - monotonic_clock::now())
-          .count());
+        "next timer in %i ms\n",
+        (int)std::chrono::duration_cast<std::chrono::milliseconds>(
+            earliestDueTime - monotonic_clock::now())
+            .count());
     if (currentDueTime_) {
       constexpr auto threshold = std::chrono::microseconds(1);
       if (earliestDueTime < (*currentDueTime_ - threshold)) {
@@ -455,9 +470,8 @@ bool io_epoll_context::try_submit_timer_io(const time_point& dueTime) noexcept {
   return true;
 }
 
-std::pair<io_epoll_context::async_reader, io_epoll_context::async_writer> tag_invoke(
-    tag_t<open_pipe>,
-    io_epoll_context::scheduler scheduler) {
+std::pair<io_epoll_context::async_reader, io_epoll_context::async_writer>
+tag_invoke(tag_t<open_pipe>, io_epoll_context::scheduler scheduler) {
   int fd[2] = {};
   int result = ::pipe2(fd, O_NONBLOCK | O_CLOEXEC);
   if (result < 0) {
@@ -465,9 +479,11 @@ std::pair<io_epoll_context::async_reader, io_epoll_context::async_writer> tag_in
     throw_(std::system_error{errorCode, std::system_category(), "pipe2"});
   }
 
-  return {io_epoll_context::async_reader{*scheduler.context_, fd[0]}, io_epoll_context::async_writer{*scheduler.context_, fd[1]}};
+  return {
+      io_epoll_context::async_reader{*scheduler.context_, fd[0]},
+      io_epoll_context::async_writer{*scheduler.context_, fd[1]}};
 }
 
-} // namespace unifex::linuxos
+}  // namespace unifex::linuxos
 
-#endif // !UNIFEX_NO_EPOLL
+#endif  // !UNIFEX_NO_EPOLL
