@@ -16,46 +16,48 @@
 #pragma once
 
 #include <unifex/adapt_stream.hpp>
+#include <unifex/bind_back.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/bind_back.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _on_stream {
-  inline const struct _fn {
-    template (typename StreamSender, typename Scheduler)
-      (requires scheduler<Scheduler>)
-    auto operator()(Scheduler&& scheduler, StreamSender&& stream) const {
-      return adapt_stream(
-          (StreamSender &&) stream,
-          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return on(s, (decltype(sender)) sender);
-          });
-    }
-    template (typename StreamSender, typename Scheduler)
-      (requires scheduler<Scheduler>)
-    auto operator()(StreamSender&& stream, Scheduler&& scheduler) const {
-      return adapt_stream(
-          (StreamSender &&) stream,
-          [s = (Scheduler &&) scheduler](auto&& sender) mutable {
-            return on(s, (decltype(sender)) sender);
-          });
-    }
-    template(typename Scheduler)
-      (requires scheduler<Scheduler>)
-    constexpr auto operator()(Scheduler&& scheduler) const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn, Scheduler>)
-        -> bind_back_result_t<_fn, Scheduler> {
-      return bind_back(*this, (Scheduler&&)scheduler);
-    }
-  } on_stream {};
-} // namespace _on_stream
+inline const struct _fn {
+  template(typename StreamSender, typename Scheduler)  //
+      (requires scheduler<Scheduler>)                  //
+      auto
+      operator()(Scheduler&& scheduler, StreamSender&& stream) const {
+    return adapt_stream(
+        (StreamSender &&) stream,
+        [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+          return on(s, (decltype(sender))sender);
+        });
+  }
+  template(typename StreamSender, typename Scheduler)  //
+      (requires scheduler<Scheduler>)                  //
+      auto
+      operator()(StreamSender&& stream, Scheduler&& scheduler) const {
+    return adapt_stream(
+        (StreamSender &&) stream,
+        [s = (Scheduler &&) scheduler](auto&& sender) mutable {
+          return on(s, (decltype(sender))sender);
+        });
+  }
+  template(typename Scheduler)         //
+      (requires scheduler<Scheduler>)  //
+      constexpr auto
+      operator()(Scheduler&& scheduler) const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Scheduler>)
+          -> bind_back_result_t<_fn, Scheduler> {
+    return bind_back(*this, (Scheduler &&) scheduler);
+  }
+} on_stream{};
+}  // namespace _on_stream
 
 using _on_stream::on_stream;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
