@@ -18,7 +18,7 @@
 // multiple times.
 
 #ifndef UNIFEX_PROLOGUE_HPP
-#error Epilogue included but prologue has not
+#  error Epilogue included but prologue has not
 #endif
 #undef UNIFEX_PROLOGUE_HPP
 
