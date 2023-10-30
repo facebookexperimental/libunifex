@@ -21,7 +21,7 @@ template <typename Result, typename = void>
 struct result_overload {
   using type = type_list<Result>;
 };
-template<>
+template <>
 struct result_overload<void> {
   using type = type_list<>;
 };
@@ -43,15 +43,17 @@ struct _receiver<Receiver, Func>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
 
-  template (typename... Values)
-    (requires receiver_of<Receiver, Values...>)
-  void set_value(Values&&... values) && {
+  template(typename... Values)  //
+      (requires receiver_of<
+          Receiver,
+          Values...>)  //
+      void set_value(Values&&... values) && {
     unifex::set_value((Receiver &&)(receiver_), (Values &&)(values)...);
   }
 
-  template (typename Error)
-    (requires receiver<Receiver, Error>)
-  void set_error(Error&& error) && noexcept{
+  template(typename Error)                  //
+      (requires receiver<Receiver, Error>)  //
+      void set_error(Error&& error) && noexcept {
     using result_t = std::invoke_result_t<Func, Error>;
     if constexpr (std::is_void_v<result_t>) {
       if constexpr (noexcept(std::invoke((Func &&) func_, (Error &&) error))) {
@@ -84,21 +86,20 @@ struct _receiver<Receiver, Func>::type {
     }
   }
 
-  void set_done() && noexcept {
-    unifex::set_done((Receiver &&)(receiver_));
-  }
+  void set_done() && noexcept { unifex::set_done((Receiver &&)(receiver_)); }
 
-  template(typename CPO)
-    (requires is_receiver_query_cpo_v<CPO>)
-    friend auto tag_invoke( CPO cpo, const type& r) noexcept(
-      is_nothrow_callable_v<CPO, const Receiver&>)
-      -> callable_result_t<CPO, const Receiver&> {
+  template(typename CPO)                       //
+      (requires is_receiver_query_cpo_v<CPO>)  //
+      friend auto tag_invoke(CPO cpo, const type& r) noexcept(
+          is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
     return (CPO &&)(cpo)(std::as_const(r.receiver_));
   }
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Visit>
-  friend void tag_invoke(tag_t<visit_continuations>, const type& self, Visit&& visit) {
+  friend void
+  tag_invoke(tag_t<visit_continuations>, const type& self, Visit&& visit) {
     std::invoke(visit, self.receiver_);
   }
 #endif
@@ -123,8 +124,8 @@ private:
    * Result else if func returns void then helper returns type_list<type_list<>>
    */
   template <typename... Error>
-  using invoked_result_t =
-      type_list<detail::result_overload_t<std::invoke_result_t<Func, Error>>...>;
+  using invoked_result_t = type_list<
+      detail::result_overload_t<std::invoke_result_t<Func, Error>>...>;
 
 public:
   template <
@@ -144,28 +145,42 @@ public:
 
   static constexpr bool sends_done = sender_traits<Predecessor>::sends_done;
 
-  static constexpr blocking_kind blocking = sender_traits<Predecessor>::blocking;
+  static constexpr blocking_kind blocking =
+      sender_traits<Predecessor>::blocking;
 
-  static constexpr bool is_always_scheduler_affine
-      = sender_traits<Predecessor>::is_always_scheduler_affine;
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Predecessor>::is_always_scheduler_affine;
 
   template <typename Receiver>
   using receiver_t = receiver_t<Receiver, Func>;
 
-  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+  friend constexpr blocking_kind
+  tag_invoke(tag_t<blocking>, const type& sender) noexcept {
     return unifex::blocking(sender.pred_);
   }
 
-  template(typename Sender, typename Receiver)
-    (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver> AND
-     sender_to<member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>>)
-    friend auto tag_invoke( tag_t<unifex::connect>, Sender&& s, Receiver&& r)
-    noexcept(
-        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>&&
-        std::is_nothrow_constructible_v<Func, member_t<Sender, Func>>&&
-        is_nothrow_connectable_v<member_t<Sender, Predecessor>,
-                                      receiver_t<remove_cvref_t<Receiver>>>)
-      -> connect_result_t< member_t<Sender, Predecessor>, receiver_t<remove_cvref_t<Receiver>>> {
+  template(typename Sender, typename Receiver)  //
+      (requires same_as<remove_cvref_t<Sender>, type> AND receiver<Receiver> AND
+           sender_to<
+               member_t<Sender, Predecessor>,
+               receiver_t<remove_cvref_t<Receiver>>>)  //
+      friend auto tag_invoke(
+          tag_t<unifex::connect>,
+          Sender&& s,
+          Receiver&&
+              r) noexcept(std::
+                              is_nothrow_constructible_v<
+                                  remove_cvref_t<Receiver>,
+                                  Receiver>&&
+                                  std::is_nothrow_constructible_v<
+                                      Func,
+                                      member_t<Sender, Func>>&&
+                                      is_nothrow_connectable_v<
+                                          member_t<Sender, Predecessor>,
+                                          receiver_t<remove_cvref_t<Receiver>>>)
+          -> connect_result_t<
+              member_t<Sender, Predecessor>,
+              receiver_t<remove_cvref_t<Receiver>>> {
     return unifex::connect(
         static_cast<Sender&&>(s).pred_,
         receiver_t<remove_cvref_t<Receiver>>{
@@ -183,19 +198,23 @@ private:
       meta_quote2<_upon_error::sender>>::template apply<Sender, Func>;
 
 public:
-  template(typename Sender, typename Func)
-    (requires tag_invocable<_fn, Sender, Func>)
-  auto operator()(Sender&& predecessor, Func&& func) const
+  template(typename Sender, typename Func)         //
+      (requires tag_invocable<_fn, Sender, Func>)  //
+      auto
+      operator()(Sender&& predecessor, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
-      -> _result_t<Sender, Func> {
+          -> _result_t<Sender, Func> {
     return unifex::tag_invoke(_fn{}, (Sender &&)(predecessor), (Func &&)(func));
   }
 
-  template(typename Sender, typename Func)
-    (requires(!tag_invocable<_fn, Sender, Func>))
-  auto operator()(Sender&& predecessor, Func&& func) const
-      noexcept(std::is_nothrow_constructible_v<_upon_error::sender<Sender, Func>,
-               Sender, Func>) -> _result_t<Sender, Func> {
+  template(typename Sender, typename Func)           //
+      (requires(!tag_invocable<_fn, Sender, Func>))  //
+      auto
+      operator()(Sender&& predecessor, Func&& func) const
+      noexcept(std::is_nothrow_constructible_v<
+               _upon_error::sender<Sender, Func>,
+               Sender,
+               Func>) -> _result_t<Sender, Func> {
     return _upon_error::sender<Sender, Func>{
         (Sender &&)(predecessor), (Func &&)(func)};
   }
@@ -203,7 +222,7 @@ public:
   template <typename Func>
   constexpr auto operator()(Func&& func) const
       noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
-      -> bind_back_result_t<_fn, Func> {
+          -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&)(func));
   }
 };
