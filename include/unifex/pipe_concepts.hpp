@@ -24,18 +24,14 @@ namespace _pipe_cpo {
 inline const struct open_pipe_cpo {
   template <typename Executor>
   auto operator()(Executor&& executor) const
-      noexcept(is_nothrow_tag_invocable_v<
-               open_pipe_cpo,
-               Executor>)
-          -> tag_invoke_result_t<
-              open_pipe_cpo,
-              Executor> {
+      noexcept(is_nothrow_tag_invocable_v<open_pipe_cpo, Executor>)
+          -> tag_invoke_result_t<open_pipe_cpo, Executor> {
     return unifex::tag_invoke(*this, (Executor &&) executor);
   }
 } open_pipe{};
-} // namespace _pipe_cpo
+}  // namespace _pipe_cpo
 
 using _pipe_cpo::open_pipe;
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
