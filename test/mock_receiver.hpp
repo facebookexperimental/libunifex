@@ -51,17 +51,16 @@ struct mock_receiver_body_base;
 
 template <typename R, typename... As>
 struct mock_receiver_body_base<R(As...)> {
-    using type = mock_receiver_body_base_impl<R(As...), false>;
+  using type = mock_receiver_body_base_impl<R(As...), false>;
 };
 
 template <typename R, typename... As>
 struct mock_receiver_body_base<R(As...) noexcept> {
-    using type = mock_receiver_body_base_impl<R(As...), true>;
+  using type = mock_receiver_body_base_impl<R(As...), true>;
 };
 
 template <typename Sig>
-using mock_receiver_body_base_t =
-    typename mock_receiver_body_base<Sig>::type;
+using mock_receiver_body_base_t = typename mock_receiver_body_base<Sig>::type;
 
 template <typename... Bases>
 struct mock_receiver_body_impl : Bases... {
@@ -78,32 +77,28 @@ using mock_receiver_body =
 
 template <typename... Sigs>
 struct mock_receiver {
- private:
-  std::shared_ptr<mock_receiver_body<Sigs...>> body_
-      = std::make_shared<mock_receiver_body<Sigs...>>();
+private:
+  std::shared_ptr<mock_receiver_body<Sigs...>> body_ =
+      std::make_shared<mock_receiver_body<Sigs...>>();
 
- public:
+public:
   template <typename... T>
-  auto set_value(T&&... ts) noexcept(noexcept(body_->set_value((T&&)ts...)))
-      -> decltype(body_->set_value((T&&)ts...)) {
-    body_->set_value((T&&)ts...);
+  auto set_value(T&&... ts) noexcept(noexcept(body_->set_value((T &&) ts...)))
+      -> decltype(body_->set_value((T &&) ts...)) {
+    body_->set_value((T &&) ts...);
   }
 
   void set_error(std::exception_ptr eptr) noexcept {
     body_->set_error(std::move(eptr));
   }
 
-  void set_done() noexcept {
-    body_->set_done();
-  }
+  void set_done() noexcept { body_->set_done(); }
 
-  mock_receiver_body<Sigs...>& operator*() noexcept {
-    return *body_;
-  }
+  mock_receiver_body<Sigs...>& operator*() noexcept { return *body_; }
 
   const mock_receiver_body<Sigs...>& operator*() const noexcept {
     return *body_;
   }
 };
 
-} // namespace unifex_test
+}  // namespace unifex_test
