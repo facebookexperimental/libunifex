@@ -24,14 +24,10 @@ struct unstoppable_token {
   struct callback_type {
     explicit callback_type(unstoppable_token, F&&) noexcept {}
   };
-  static constexpr bool stop_requested() noexcept {
-    return false;
-  }
-  static constexpr bool stop_possible() noexcept {
-    return false;
-  }
+  static constexpr bool stop_requested() noexcept { return false; }
+  static constexpr bool stop_possible() noexcept { return false; }
 };
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
