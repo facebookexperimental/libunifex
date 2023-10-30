@@ -152,7 +152,8 @@ public:
         static_cast<Self&&>(s).value_};
   }
 
-  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+  friend constexpr blocking_kind
+  tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
     return unifex::blocking(s.sender_);
   }
 
