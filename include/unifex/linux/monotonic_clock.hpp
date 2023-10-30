@@ -31,15 +31,15 @@ namespace linuxos {
 // This is the clock-type used for timers by the io_uring IORING_OP_TIMEOUT
 // operations with absolute times.
 class monotonic_clock {
- public:
+public:
   using rep = std::int64_t;
-  using ratio = std::ratio<1, 10'000'000>; // 100ns
+  using ratio = std::ratio<1, 10'000'000>;  // 100ns
   using duration = std::chrono::duration<rep, ratio>;
 
   static constexpr bool is_steady = true;
 
   class time_point {
-   public:
+  public:
     using duration = monotonic_clock::duration;
 
     constexpr time_point() noexcept : seconds_(0), nanoseconds_(0) {}
@@ -63,28 +63,22 @@ class monotonic_clock {
     }
 
     static time_point from_seconds_and_nanoseconds(
-        std::int64_t seconds,
-        long long nanoseconds) noexcept;
+        std::int64_t seconds, long long nanoseconds) noexcept;
 
-    constexpr std::int64_t seconds_part() const noexcept {
-      return seconds_;
-    }
+    constexpr std::int64_t seconds_part() const noexcept { return seconds_; }
 
     constexpr long long nanoseconds_part() const noexcept {
       return nanoseconds_;
     }
 
     template <typename Rep, typename Ratio>
-    time_point& operator+=(
-        const std::chrono::duration<Rep, Ratio>& d) noexcept;
+    time_point& operator+=(const std::chrono::duration<Rep, Ratio>& d) noexcept;
 
     template <typename Rep, typename Ratio>
-    time_point& operator-=(
-        const std::chrono::duration<Rep, Ratio>& d) noexcept;
+    time_point& operator-=(const std::chrono::duration<Rep, Ratio>& d) noexcept;
 
-    friend duration operator-(
-        const time_point& a,
-        const time_point& b) noexcept {
+    friend duration
+    operator-(const time_point& a, const time_point& b) noexcept {
       return duration(
           (a.seconds_ - b.seconds_) * 10'000'000 +
           (a.nanoseconds_ - b.nanoseconds_) / 100);
@@ -92,8 +86,7 @@ class monotonic_clock {
 
     template <typename Rep, typename Ratio>
     friend time_point operator+(
-        const time_point& a,
-        std::chrono::duration<Rep, Ratio> d) noexcept {
+        const time_point& a, std::chrono::duration<Rep, Ratio> d) noexcept {
       time_point tp = a;
       tp += d;
       return tp;
@@ -101,8 +94,7 @@ class monotonic_clock {
 
     template <typename Rep, typename Ratio>
     friend time_point operator-(
-        const time_point& a,
-        std::chrono::duration<Rep, Ratio> d) noexcept {
+        const time_point& a, std::chrono::duration<Rep, Ratio> d) noexcept {
       time_point tp = a;
       tp -= d;
       return tp;
@@ -133,7 +125,7 @@ class monotonic_clock {
       return !(a < b);
     }
 
-   private:
+  private:
     void normalize() noexcept;
 
     std::int64_t seconds_;
@@ -145,8 +137,7 @@ class monotonic_clock {
 
 inline monotonic_clock::time_point
 monotonic_clock::time_point::from_seconds_and_nanoseconds(
-    std::int64_t seconds,
-    long long nanoseconds) noexcept {
+    std::int64_t seconds, long long nanoseconds) noexcept {
   time_point tp;
   tp.seconds_ = seconds;
   tp.nanoseconds_ = nanoseconds;
@@ -192,7 +183,7 @@ inline void monotonic_clock::time_point::normalize() noexcept {
   }
 }
 
-} // namespace linuxos
-} // namespace unifex
+}  // namespace linuxos
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
