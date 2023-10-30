@@ -88,4 +88,4 @@ void thread_unsafe_event_loop::run_until_empty() noexcept {
   }
 }
 
-} // namespace unifex
+}  // namespace unifex
