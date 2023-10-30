@@ -119,12 +119,9 @@ public:
       typename Sender,
       typename Scope,
       typename Alloc = std::allocator<std::byte>)  //
-      (requires sender<Sender> AND                 //
-           is_allocator_v<Alloc> AND               //
-               sender_to<
-                   decltype(nest(
-                       UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Scope&))),
-                   spawn_detached_receiver_t<Alloc>>)  //
+      (requires sender<Sender> AND is_allocator_v<Alloc> AND sender_to<
+          decltype(nest(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Scope&))),
+          spawn_detached_receiver_t<Alloc>>)  //
       void
       operator()(Sender&& sender, Scope& scope, const Alloc& alloc = {}) const {
     using sender_t = decltype(nest(static_cast<Sender&&>(sender), scope));
