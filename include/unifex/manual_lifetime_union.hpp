@@ -19,8 +19,8 @@
 #include <unifex/scope_guard.hpp>
 
 #include <algorithm>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -28,26 +28,27 @@ namespace unifex {
 
 template <typename... Ts>
 class manual_lifetime_union {
- public:
+public:
   manual_lifetime_union() = default;
 
   template <typename T, typename... Args>
   [[maybe_unused]] T& construct(Args&&... args) noexcept(
       std::is_nothrow_constructible_v<T, Args...>) {
     return unifex::activate_union_member(
-      *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
-      static_cast<Args&&>(args)...);
+        *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
+        static_cast<Args&&>(args)...);
   }
   template <typename T, typename Func>
-  [[maybe_unused]] T& construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  [[maybe_unused]] T&
+  construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
     return unifex::activate_union_member_with(
-      *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
-      static_cast<Func&&>(func));
+        *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
+        static_cast<Func&&>(func));
   }
   template <typename T>
   void destruct() noexcept {
     unifex::deactivate_union_member(
-      *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)));
+        *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)));
   }
 
   template <typename T>
@@ -57,20 +58,23 @@ class manual_lifetime_union {
         ->get();
   }
   template <typename T>
-  decltype(auto) get() const & noexcept {
+  decltype(auto) get() const& noexcept {
     static_assert(is_one_of_v<T, Ts...>);
     return static_cast<manual_lifetime<T> const*>(
-        static_cast<void const*>(&storage_))->get();
+               static_cast<void const*>(&storage_))
+        ->get();
   }
   template <typename T>
   decltype(auto) get() && noexcept {
     static_assert(is_one_of_v<T, Ts...>);
     return std::move(
-      *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_))).get();
+               *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)))
+        .get();
   }
 
- private:
-  alignas(Ts...) unsigned char storage_[std::max({ sizeof(manual_lifetime<Ts>)... })];
+private:
+  alignas(
+      Ts...) unsigned char storage_[std::max({sizeof(manual_lifetime<Ts>)...})];
 };
 
 template <>
@@ -83,7 +87,9 @@ template <typename T, typename... Ts, typename... Args>
 T& activate_union_member(manual_lifetime_union<Ts...>& box, Args&&... args) //
     noexcept(std::is_nothrow_constructible_v<T, Args...>) {
   auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
-  scope_guard guard = [=]() noexcept { p->~manual_lifetime_union(); };
+  scope_guard guard = [=]() noexcept {
+    p->~manual_lifetime_union();
+  };
   auto& t = p->template construct<T>(static_cast<Args&&>(args)...);
   guard.release();
   return t;
@@ -96,7 +102,9 @@ template <typename T, typename... Ts, typename Func>
 T& activate_union_member_with(manual_lifetime_union<Ts...>& box, Func&& func)
     noexcept(is_nothrow_callable_v<Func>) {
   auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
-  scope_guard guard = [=]() noexcept { p->~manual_lifetime_union(); };
+  scope_guard guard = [=]() noexcept {
+    p->~manual_lifetime_union();
+  };
   auto& t = p->template construct_with<T>(static_cast<Func&&>(func));
   guard.release();
   return t;
@@ -109,6 +117,6 @@ void deactivate_union_member(manual_lifetime_union<Ts...>& box) noexcept {
   box.~manual_lifetime_union();
 }
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
