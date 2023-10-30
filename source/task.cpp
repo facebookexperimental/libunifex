@@ -17,28 +17,29 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/task.hpp>
-#include <unifex/at_coroutine_exit.hpp>
+#  include <unifex/at_coroutine_exit.hpp>
+#  include <unifex/task.hpp>
 
 namespace unifex::_task {
-void _task_promise_base::transform_schedule_sender_impl_(any_scheduler newSched) {
-  // If we haven't already inserted a cleanup action to take us back to the correct
-  // scheduler, do so now:
+void _task_promise_base::transform_schedule_sender_impl_(
+    any_scheduler newSched) {
+  // If we haven't already inserted a cleanup action to take us back to the
+  // correct scheduler, do so now:
   if (!std::exchange(this->rescheduled_, true)) {
     // Create a cleanup action that transitions back onto the current scheduler:
     auto cleanupTask = at_coroutine_exit(schedule, this->sched_);
-    // Insert the cleanup action into the head of the continuation chain by making
-    // direct calls to the cleanup task's awaiter member functions. See type
-    // _cleanup_task in at_coroutine_exit.hpp:
+    // Insert the cleanup action into the head of the continuation chain by
+    // making direct calls to the cleanup task's awaiter member functions. See
+    // type _cleanup_task in at_coroutine_exit.hpp:
     cleanupTask.await_suspend_impl_(*this);
-    (void) cleanupTask.await_resume();
+    (void)cleanupTask.await_resume();
   }
 
   // Update the current scheduler. (Don't do this before we have inserted the
-  // cleanup action because the insertion of the cleanup action reads this task's
-  // current scheduler.)
+  // cleanup action because the insertion of the cleanup action reads this
+  // task's current scheduler.)
   this->sched_ = std::move(newSched);
 }
-} // unifex::_task
+}  // namespace unifex::_task
 
 #endif
