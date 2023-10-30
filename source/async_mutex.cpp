@@ -16,14 +16,15 @@
 
 #include <unifex/async_mutex.hpp>
 
-
 namespace unifex {
 
-async_mutex::async_mutex() noexcept : atomicQueue_(false) {}
+async_mutex::async_mutex() noexcept : atomicQueue_(false) {
+}
 
-async_mutex::~async_mutex() {}
+async_mutex::~async_mutex() {
+}
 
-bool async_mutex::try_enqueue(waiter_base *base) noexcept {
+bool async_mutex::try_enqueue(waiter_base* base) noexcept {
   return atomicQueue_.enqueue_or_mark_active(base);
 }
 
@@ -36,8 +37,8 @@ void async_mutex::unlock() noexcept {
     pendingQueue_ = std::move(newWaiters);
   }
 
-  waiter_base *item = pendingQueue_.pop_front();
+  waiter_base* item = pendingQueue_.pop_front();
   item->resume_(item);
 }
 
-} // namespace unifex
+}  // namespace unifex
