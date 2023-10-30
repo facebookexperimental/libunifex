@@ -34,6 +34,6 @@ inline constexpr bool is_stop_never_possible_v<
 template <typename T>
 using is_stop_never_possible = std::bool_constant<is_stop_never_possible_v<T>>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
