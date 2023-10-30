@@ -18,7 +18,7 @@
 #include <unifex/spin_wait.hpp>
 
 #ifndef NDEBUG
-#include <stdio.h>
+#  include <stdio.h>
 #endif
 
 namespace unifex {
@@ -170,4 +170,4 @@ void inplace_stop_source::remove_callback(
   }
 }
 
-} // namespace unifex
+}  // namespace unifex
