@@ -22,7 +22,8 @@ void context::run() {
   std::unique_lock lock{mutex_};
   while (true) {
     while (head_ == nullptr) {
-      if (stop_) return;
+      if (stop_)
+        return;
       cv_.wait(lock);
     }
     auto* task = head_;
@@ -54,5 +55,5 @@ void context::enqueue(task_base* task) {
   cv_.notify_one();
 }
 
-} // _manual_event_loop
-} // unifex
+}  // namespace _manual_event_loop
+}  // namespace unifex
