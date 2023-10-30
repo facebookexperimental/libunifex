@@ -143,10 +143,11 @@ public:
 
   static constexpr bool sends_done = sender_traits<inner_sender_t>::sends_done;
 
-  static constexpr blocking_kind blocking = sender_traits<inner_sender_t>::blocking;
+  static constexpr blocking_kind blocking =
+      sender_traits<inner_sender_t>::blocking;
 
-  static constexpr bool is_always_scheduler_affine
-      = sender_traits<inner_sender_t>::is_always_scheduler_affine;
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<inner_sender_t>::is_always_scheduler_affine;
 
   template <typename SuccessorFactory2>
   explicit type(SuccessorFactory2&& func) noexcept(
