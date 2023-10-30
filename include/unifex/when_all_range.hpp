@@ -182,8 +182,7 @@ public:
   _operation_holder* holders_;
   std::size_t numHolders_{0};
   UNIFEX_NO_UNIQUE_ADDRESS
-  std::optional<unifex::sender_error_types_t<Sender, std::variant>>
-      error_;
+  std::optional<unifex::sender_error_types_t<Sender, std::variant>> error_;
   UNIFEX_NO_UNIQUE_ADDRESS
   unifex::manual_lifetime<typename unifex::stop_token_type_t<
       Receiver&>::template callback_type<cancel_operation>>
@@ -233,12 +232,12 @@ struct _element_receiver<Receiver, Sender>::type final {
     return op_.receiver_;
   }
 
-  template(typename CPO, typename R)                         //
-      (requires unifex::is_receiver_query_cpo_v<CPO> AND     //
-           unifex::same_as<R, type> AND                      //
+  template(typename CPO, typename R)  //
+      (requires unifex::is_receiver_query_cpo_v<CPO> AND
+           unifex::same_as<R, type> AND
                unifex::is_callable_v<CPO, const Receiver&>)  //
-      friend auto tag_invoke(CPO cpo, const R& r)            //
-      noexcept(unifex::is_nothrow_callable_v<CPO, const Receiver&>)
+      friend auto tag_invoke(CPO cpo, const R& r) noexcept(
+          unifex::is_nothrow_callable_v<CPO, const Receiver&>)
           -> unifex::callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
@@ -293,9 +292,8 @@ public:
 
   static constexpr bool sends_done = true;
 
-  static constexpr blocking_kind blocking = std::min(
-      blocking_kind::maybe(),
-      sender_traits<Sender>::blocking());
+  static constexpr blocking_kind blocking =
+      std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
 
   static constexpr bool is_always_scheduler_affine =
       sender_traits<Sender>::is_always_scheduler_affine;
@@ -333,7 +331,7 @@ private:
             return std::max(max, next());
           });
     }
-}
+  }
 
   std::vector<Sender> senders_;
 };
