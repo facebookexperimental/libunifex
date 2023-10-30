@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- #pragma once
+#pragma once
 
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/then.hpp>
@@ -24,16 +24,14 @@
 namespace unifex {
 
 namespace _then_execute_cpo {
-  struct _fn {
-    template <typename Scheduler, typename Predecessor, typename Func>
-    auto operator()(Scheduler&& s, Predecessor&& p, Func&& f) const {
-      return then(
-          via((Predecessor &&) p, (Scheduler&&)s),
-          (Func &&) f);
-    }
-  };
-} // namespace _then_execute_cpo
-inline constexpr _then_execute_cpo::_fn then_execute {};
-} // namespace unifex
+struct _fn {
+  template <typename Scheduler, typename Predecessor, typename Func>
+  auto operator()(Scheduler&& s, Predecessor&& p, Func&& f) const {
+    return then(via((Predecessor &&) p, (Scheduler &&) s), (Func &&) f);
+  }
+};
+}  // namespace _then_execute_cpo
+inline constexpr _then_execute_cpo::_fn then_execute{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
