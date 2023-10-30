@@ -59,9 +59,7 @@ namespace _io_cpo {
 //
 inline const struct async_read_some_cpo {
   template <typename ForwardReader, typename BufferSequence>
-  auto operator()(
-      ForwardReader& socket,
-      BufferSequence&& bufferSequence) const
+  auto operator()(ForwardReader& socket, BufferSequence&& bufferSequence) const
       noexcept(is_nothrow_tag_invocable_v<
                async_read_some_cpo,
                ForwardReader&,
@@ -75,14 +73,9 @@ inline const struct async_read_some_cpo {
   }
 
   template <typename ForwardReader>
-  auto operator()(
-      ForwardReader& socket) const
-      noexcept(is_nothrow_tag_invocable_v<
-               async_read_some_cpo,
-               ForwardReader&>)
-          -> tag_invoke_result_t<
-              async_read_some_cpo,
-              ForwardReader&> {
+  auto operator()(ForwardReader& socket) const
+      noexcept(is_nothrow_tag_invocable_v<async_read_some_cpo, ForwardReader&>)
+          -> tag_invoke_result_t<async_read_some_cpo, ForwardReader&> {
     return unifex::tag_invoke(*this, socket);
   }
 } async_read_some{};
@@ -97,9 +90,7 @@ inline const struct async_read_some_cpo {
 //
 inline const struct async_write_some_cpo {
   template <typename ForwardWriter, typename BufferSequence>
-  auto operator()(
-      ForwardWriter& socket,
-      BufferSequence&& bufferSequence) const
+  auto operator()(ForwardWriter& socket, BufferSequence&& bufferSequence) const
       noexcept(is_nothrow_tag_invocable_v<
                async_write_some_cpo,
                ForwardWriter&,
@@ -113,16 +104,10 @@ inline const struct async_write_some_cpo {
   }
 
   template <typename ForwardWriter>
-  auto operator()(
-      ForwardWriter& socket) const
-      noexcept(is_nothrow_tag_invocable_v<
-               async_write_some_cpo,
-               ForwardWriter&>)
-          -> tag_invoke_result_t<
-              async_write_some_cpo,
-              ForwardWriter&> {
-    return unifex::tag_invoke(
-        *this, socket);
+  auto operator()(ForwardWriter& socket) const
+      noexcept(is_nothrow_tag_invocable_v<async_write_some_cpo, ForwardWriter&>)
+          -> tag_invoke_result_t<async_write_some_cpo, ForwardWriter&> {
+    return unifex::tag_invoke(*this, socket);
   }
 } async_write_some{};
 
@@ -147,16 +132,10 @@ inline const struct async_read_some_at_cpo {
   }
 
   template <typename RandomReader>
-  auto operator()(
-      RandomReader& file) const
-      noexcept(is_nothrow_tag_invocable_v<
-               async_read_some_at_cpo,
-               RandomReader&>)
-          -> tag_invoke_result_t<
-              async_read_some_at_cpo,
-              RandomReader&> {
-    return unifex::tag_invoke(
-        *this, file);
+  auto operator()(RandomReader& file) const noexcept(
+      is_nothrow_tag_invocable_v<async_read_some_at_cpo, RandomReader&>)
+      -> tag_invoke_result_t<async_read_some_at_cpo, RandomReader&> {
+    return unifex::tag_invoke(*this, file);
   }
 } async_read_some_at{};
 
@@ -181,25 +160,19 @@ inline const struct async_write_some_at_cpo {
   }
 
   template <typename RandomWriter>
-  auto operator()(
-      RandomWriter& file) const
-      noexcept(is_nothrow_tag_invocable_v<
-               async_write_some_at_cpo,
-               RandomWriter&>)
-          -> tag_invoke_result_t<
-              async_write_some_at_cpo,
-              RandomWriter&> {
-    return unifex::tag_invoke(
-        *this, file);
+  auto operator()(RandomWriter& file) const noexcept(
+      is_nothrow_tag_invocable_v<async_write_some_at_cpo, RandomWriter&>)
+      -> tag_invoke_result_t<async_write_some_at_cpo, RandomWriter&> {
+    return unifex::tag_invoke(*this, file);
   }
 } async_write_some_at{};
-} // namespace _io_cpo
+}  // namespace _io_cpo
 
 using _io_cpo::async_read_some;
-using _io_cpo::async_write_some;
 using _io_cpo::async_read_some_at;
+using _io_cpo::async_write_some;
 using _io_cpo::async_write_some_at;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
