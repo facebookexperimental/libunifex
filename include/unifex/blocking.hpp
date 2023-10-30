@@ -67,27 +67,19 @@ struct blocking_kind {
 
   blocking_kind() = default;
 
-  constexpr blocking_kind(_enum kind) noexcept
-    : value(kind)
-  {}
+  constexpr blocking_kind(_enum kind) noexcept : value(kind) {}
 
   template <_enum Kind>
-  constexpr blocking_kind(constant<Kind>) noexcept
-    : value(Kind)
-  {}
+  constexpr blocking_kind(constant<Kind>) noexcept : value(Kind) {}
 
-  constexpr operator _enum() const noexcept {
-    return value;
-  }
+  constexpr operator _enum() const noexcept { return value; }
 
-  constexpr _enum operator()() const noexcept {
-    return value;
-  }
+  constexpr _enum operator()() const noexcept { return value; }
 
-  static constexpr constant<_enum::maybe> maybe {};
-  static constexpr constant<_enum::never> never {};
-  static constexpr constant<_enum::always> always {};
-  static constexpr constant<_enum::always_inline> always_inline {};
+  static constexpr constant<_enum::maybe> maybe{};
+  static constexpr constant<_enum::never> never{};
+  static constexpr constant<_enum::always> always{};
+  static constexpr constant<_enum::always_inline> always_inline{};
 
   _enum value{_enum::maybe};
 };
@@ -96,36 +88,35 @@ template <typename Sender, typename = void>
 struct _has_blocking : std::false_type {};
 
 template <typename Sender>
-struct _has_blocking<
-    Sender,
-    std::void_t<decltype(Sender::blocking)>>
+struct _has_blocking<Sender, std::void_t<decltype(Sender::blocking)>>
   : std::true_type {};
 
 struct _fn {
-  template(typename Sender)
-    (requires tag_invocable<_fn, const Sender&>)
-  constexpr auto operator()(const Sender& s) const
+  template(typename Sender)                         //
+      (requires tag_invocable<_fn, const Sender&>)  //
+      constexpr auto
+      operator()(const Sender& s) const
       noexcept(is_nothrow_tag_invocable_v<_fn, const Sender&>)
-      -> tag_invoke_result_t<_fn, const Sender&> {
+          -> tag_invoke_result_t<_fn, const Sender&> {
     return tag_invoke(_fn{}, s);
   }
-  template(typename Sender)
-    (requires (!tag_invocable<_fn, const Sender&>))
-  constexpr auto operator()(const Sender&) const noexcept {
+  template(typename Sender)                           //
+      (requires(!tag_invocable<_fn, const Sender&>))  //
+      constexpr auto
+      operator()(const Sender&) const noexcept {
     if constexpr (_has_blocking<Sender>::value) {
       return blocking_kind::constant<Sender::blocking>{};
-    }
-    else {
+    } else {
       return blocking_kind::maybe;
     }
   }
 };
 
-} // namespace _block
+}  // namespace _block
 
-inline constexpr _block::_fn blocking {};
+inline constexpr _block::_fn blocking{};
 using _block::blocking_kind;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
