@@ -33,13 +33,9 @@ class context;
 struct task_base {
   using execute_fn = void(task_base*) noexcept;
 
-  explicit task_base(execute_fn* execute) noexcept
-  : execute_(execute)
-  {}
+  explicit task_base(execute_fn* execute) noexcept : execute_(execute) {}
 
-  void execute() noexcept {
-    this->execute_(this);
-  }
+  void execute() noexcept { this->execute_(this); }
 
   task_base* next_ = nullptr;
   execute_fn* execute_;
@@ -56,7 +52,7 @@ template <typename Receiver>
 class _op<Receiver>::type final : task_base {
   using stop_token_type = stop_token_type_t<Receiver&>;
 
- public:
+public:
   template <typename Receiver2>
   explicit type(Receiver2&& receiver, context* loop)
     : task_base(&type::execute_impl)
@@ -65,7 +61,7 @@ class _op<Receiver>::type final : task_base {
 
   void start() noexcept;
 
- private:
+private:
   static void execute_impl(task_base* t) noexcept {
     auto& self = *static_cast<type*>(t);
     if constexpr (is_stop_never_possible_v<stop_token_type>) {
@@ -86,13 +82,16 @@ class _op<Receiver>::type final : task_base {
 class context {
   template <class Receiver>
   friend struct _op;
- public:
+
+public:
   class scheduler {
     class schedule_task {
-     public:
+    public:
       template <
-          template <typename...> class Variant,
-          template <typename...> class Tuple>
+          template <typename...>
+          class Variant,
+          template <typename...>
+          class Tuple>
       using value_types = Variant<Tuple<>>;
 
       template <template <typename...> class Variant>
@@ -110,9 +109,7 @@ class context {
     private:
       friend scheduler;
 
-      explicit schedule_task(context* loop) noexcept
-        : loop_(loop)
-      {}
+      explicit schedule_task(context* loop) noexcept : loop_(loop) {}
 
       context* const loop_;
     };
@@ -121,10 +118,8 @@ class context {
 
     explicit scheduler(context* loop) noexcept : loop_(loop) {}
 
-   public:
-    schedule_task schedule() const noexcept {
-      return schedule_task{loop_};
-    }
+  public:
+    schedule_task schedule() const noexcept { return schedule_task{loop_}; }
 
     friend bool operator==(scheduler a, scheduler b) noexcept {
       return a.loop_ == b.loop_;
@@ -133,19 +128,17 @@ class context {
       return a.loop_ != b.loop_;
     }
 
-   private:
+  private:
     context* loop_;
   };
 
-  scheduler get_scheduler() {
-    return scheduler{this};
-  }
+  scheduler get_scheduler() { return scheduler{this}; }
 
   void run();
 
   void stop();
 
- private:
+private:
   void enqueue(task_base* task);
 
   std::mutex mutex_;
@@ -160,9 +153,9 @@ inline void _op<Receiver>::type::start() noexcept {
   loop_->enqueue(this);
 }
 
-} // namespace _manual_event_loop
+}  // namespace _manual_event_loop
 
 using manual_event_loop = _manual_event_loop::context;
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
