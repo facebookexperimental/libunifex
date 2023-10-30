@@ -18,48 +18,48 @@
 #include <unifex/config.hpp>
 #if !UNIFEX_NO_LIBURING
 
-#include <unifex/detail/atomic_intrusive_queue.hpp>
-#include <unifex/detail/intrusive_heap.hpp>
-#include <unifex/detail/intrusive_queue.hpp>
-#include <unifex/defer.hpp>
-#include <unifex/file_concepts.hpp>
-#include <unifex/filesystem.hpp>
-#include <unifex/io_concepts.hpp>
-#include <unifex/just_done.hpp>
-#include <unifex/let_value_with.hpp>
-#include <unifex/socket_concepts.hpp>
-#include <unifex/get_stop_token.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/span.hpp>
-#include <unifex/stop_token_concepts.hpp>
+#  include <unifex/defer.hpp>
+#  include <unifex/file_concepts.hpp>
+#  include <unifex/filesystem.hpp>
+#  include <unifex/get_stop_token.hpp>
+#  include <unifex/io_concepts.hpp>
+#  include <unifex/just_done.hpp>
+#  include <unifex/let_value_with.hpp>
+#  include <unifex/manual_lifetime.hpp>
+#  include <unifex/receiver_concepts.hpp>
+#  include <unifex/socket_concepts.hpp>
+#  include <unifex/span.hpp>
+#  include <unifex/stop_token_concepts.hpp>
+#  include <unifex/detail/atomic_intrusive_queue.hpp>
+#  include <unifex/detail/intrusive_heap.hpp>
+#  include <unifex/detail/intrusive_queue.hpp>
 
-#include <unifex/linux/mmap_region.hpp>
-#include <unifex/linux/monotonic_clock.hpp>
-#include <unifex/linux/safe_file_descriptor.hpp>
+#  include <unifex/linux/mmap_region.hpp>
+#  include <unifex/linux/monotonic_clock.hpp>
+#  include <unifex/linux/safe_file_descriptor.hpp>
 
-#include <atomic>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <optional>
-#include <system_error>
-#include <utility>
+#  include <atomic>
+#  include <cstddef>
+#  include <cstdint>
+#  include <cstring>
+#  include <optional>
+#  include <system_error>
+#  include <utility>
 
-#include UNIFEX_LIBURING_HEADER
+#  include UNIFEX_LIBURING_HEADER
 
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <unistd.h>
+#  include <netinet/in.h>
+#  include <sys/socket.h>
+#  include <sys/uio.h>
+#  include <unistd.h>
 
-#include <unifex/detail/prologue.hpp>
+#  include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace linuxos {
 
 class io_uring_context {
- public:
+public:
   class schedule_sender;
   class schedule_at_sender;
   template <typename Duration>
@@ -82,7 +82,7 @@ class io_uring_context {
 
   scheduler get_scheduler() noexcept;
 
- private:
+private:
   struct operation_base {
     operation_base() noexcept {}
     operation_base* next_;
@@ -95,7 +95,7 @@ class io_uring_context {
 
   struct stop_operation : operation_base {
     stop_operation() noexcept {
-      this->execute_ = [](operation_base * op) noexcept {
+      this->execute_ = [](operation_base* op) noexcept {
         static_cast<stop_operation*>(op)->shouldStop_ = true;
       };
     }
@@ -109,9 +109,9 @@ class io_uring_context {
         io_uring_context& context,
         const time_point& dueTime,
         bool canBeCancelled) noexcept
-        : context_(context),
-          dueTime_(dueTime),
-          canBeCancelled_(canBeCancelled) {}
+      : context_(context)
+      , dueTime_(dueTime)
+      , canBeCancelled_(canBeCancelled) {}
 
     schedule_at_operation* timerNext_;
     schedule_at_operation* timerPrev_;
@@ -291,7 +291,9 @@ class io_uring_context {
 template <typename StopToken>
 void io_uring_context::run(StopToken stopToken) {
   stop_operation stopOp;
-  auto onStopRequested = [&] { this->schedule_impl(&stopOp); };
+  auto onStopRequested = [&] {
+    this->schedule_impl(&stopOp);
+  };
   typename StopToken::template callback_type<decltype(onStopRequested)>
       stopCallback{std::move(stopToken), std::move(onStopRequested)};
   run_impl(stopOp.shouldStop_);
@@ -338,22 +340,22 @@ bool io_uring_context::try_submit_io(PopulateFn populateSqe) noexcept {
 class io_uring_context::schedule_sender {
   template <typename Receiver>
   class operation : private operation_base {
-   public:
+  public:
     void start() noexcept {
-      UNIFEX_TRY {
-        context_.schedule_impl(this);
-      } UNIFEX_CATCH (...) {
+      UNIFEX_TRY { context_.schedule_impl(this); }
+      UNIFEX_CATCH(...) {
         unifex::set_error(
             static_cast<Receiver&&>(receiver_), std::current_exception());
       }
     }
 
-   private:
+  private:
     friend schedule_sender;
 
     template <typename Receiver2>
     explicit operation(io_uring_context& context, Receiver2&& r)
-        : context_(context), receiver_((Receiver2 &&) r) {
+      : context_(context)
+      , receiver_((Receiver2 &&) r) {
       this->execute_ = &execute_impl;
     }
 
@@ -366,13 +368,14 @@ class io_uring_context::schedule_sender {
         }
       }
 
-      if constexpr (noexcept(unifex::set_value(static_cast<Receiver&&>(op.receiver_)))) {
+      if constexpr (noexcept(unifex::set_value(
+                        static_cast<Receiver&&>(op.receiver_)))) {
         unifex::set_value(static_cast<Receiver&&>(op.receiver_));
       } else {
-        UNIFEX_TRY {
-          unifex::set_value(static_cast<Receiver&&>(op.receiver_));
-        } UNIFEX_CATCH (...) {
-          unifex::set_error(static_cast<Receiver&&>(op.receiver_), std::current_exception());
+        UNIFEX_TRY { unifex::set_value(static_cast<Receiver&&>(op.receiver_)); }
+        UNIFEX_CATCH(...) {
+          unifex::set_error(
+              static_cast<Receiver&&>(op.receiver_), std::current_exception());
         }
       }
     }
@@ -381,10 +384,12 @@ class io_uring_context::schedule_sender {
     Receiver receiver_;
   };
 
- public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
@@ -394,15 +399,15 @@ class io_uring_context::schedule_sender {
 
   template <typename Receiver>
   operation<std::remove_reference_t<Receiver>> connect(Receiver&& r) {
-    return operation<std::remove_reference_t<Receiver>>{context_,
-                                                        (Receiver &&) r};
+    return operation<std::remove_reference_t<Receiver>>{
+        context_, (Receiver &&) r};
   }
 
- private:
+private:
   friend io_uring_context::scheduler;
 
   explicit schedule_sender(io_uring_context& context) noexcept
-      : context_(context) {}
+    : context_(context) {}
 
   io_uring_context& context_;
 };
@@ -414,13 +419,13 @@ class io_uring_context::read_sender {
   class operation : private completion_base {
     friend io_uring_context;
 
-   public:
+  public:
     template <typename Receiver2>
     explicit operation(const read_sender& sender, Receiver2&& r)
-        : context_(sender.context_),
-          fd_(sender.fd_),
-          offset_(sender.offset_),
-          receiver_((Receiver2 &&) r) {
+      : context_(sender.context_)
+      , fd_(sender.fd_)
+      , offset_(sender.offset_)
+      , receiver_((Receiver2 &&) r) {
       buffer_[0].iov_base = sender.buffer_.data();
       buffer_[0].iov_len = sender.buffer_.size();
     }
@@ -434,7 +439,7 @@ class io_uring_context::read_sender {
       }
     }
 
-   private:
+  private:
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_io();
     }
@@ -442,8 +447,8 @@ class io_uring_context::read_sender {
     void start_io() noexcept {
       UNIFEX_ASSERT(context_.is_running_on_io_thread());
       stopCallback_.construct(
-            get_stop_token(receiver_), cancel_callback{*this});
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
+          get_stop_token(receiver_), cancel_callback{*this});
+      auto populateSqe = [this](io_uring_sqe& sqe) noexcept {
         sqe.opcode = IORING_OP_READV;
         sqe.fd = fd_;
         sqe.off = offset_;
@@ -462,7 +467,8 @@ class io_uring_context::read_sender {
     }
 
     void request_stop() noexcept {
-      if (char expected = 1; !refCount_.compare_exchange_strong(expected, 2, std::memory_order_relaxed)) {
+      if (char expected = 1; !refCount_.compare_exchange_strong(
+              expected, 2, std::memory_order_relaxed)) {
         // lost race with on_read_complete
         UNIFEX_ASSERT(expected == 0);
         return;
@@ -476,7 +482,7 @@ class io_uring_context::read_sender {
 
     void request_stop_local() noexcept {
       UNIFEX_ASSERT(context_.is_running_on_io_thread());
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
+      auto populateSqe = [this](io_uring_sqe& sqe) noexcept {
         sqe.opcode = IORING_OP_ASYNC_CANCEL;
         sqe.fd = -1;
         sqe.off = 0;
@@ -512,13 +518,16 @@ class io_uring_context::read_sender {
       if (get_stop_token(self.receiver_).stop_requested()) {
         unifex::set_done(std::move(self.receiver_));
       } else if (self.result_ >= 0) {
-        if constexpr (noexcept(unifex::set_value(std::move(self.receiver_), ssize_t(self.result_)))) {
+        if constexpr (noexcept(unifex::set_value(
+                          std::move(self.receiver_), ssize_t(self.result_)))) {
           unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
         } else {
           UNIFEX_TRY {
             unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
-          } UNIFEX_CATCH (...) {
-            unifex::set_error(std::move(self.receiver_), std::current_exception());
+          }
+          UNIFEX_CATCH(...) {
+            unifex::set_error(
+                std::move(self.receiver_), std::current_exception());
           }
         }
       } else if (self.result_ == -ECANCELED) {
@@ -548,9 +557,7 @@ class io_uring_context::read_sender {
     struct cancel_callback final {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     io_uring_context& context_;
@@ -565,11 +572,13 @@ class io_uring_context::read_sender {
     cancel_operation cop_{*this};
   };
 
- public:
+public:
   // Produces number of bytes read.
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<ssize_t>>;
 
   // Note: Only case it might complete with exception_ptr is if the
@@ -584,14 +593,17 @@ class io_uring_context::read_sender {
       int fd,
       offset_t offset,
       span<std::byte> buffer) noexcept
-      : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
+    : context_(context)
+    , fd_(fd)
+    , offset_(offset)
+    , buffer_(buffer) {}
 
   template <typename Receiver>
   operation<remove_cvref_t<Receiver>> connect(Receiver&& r) && {
     return operation<remove_cvref_t<Receiver>>{*this, (Receiver &&) r};
   }
 
- private:
+private:
   io_uring_context& context_;
   int fd_;
   offset_t offset_;
@@ -605,13 +617,13 @@ class io_uring_context::write_sender {
   class operation : private completion_base {
     friend io_uring_context;
 
-   public:
+  public:
     template <typename Receiver2>
     explicit operation(const write_sender& sender, Receiver2&& r)
-        : context_(sender.context_),
-          fd_(sender.fd_),
-          offset_(sender.offset_),
-          receiver_((Receiver2 &&) r) {
+      : context_(sender.context_)
+      , fd_(sender.fd_)
+      , offset_(sender.offset_)
+      , receiver_((Receiver2 &&) r) {
       buffer_[0].iov_base = (void*)sender.buffer_.data();
       buffer_[0].iov_len = sender.buffer_.size();
     }
@@ -625,7 +637,7 @@ class io_uring_context::write_sender {
       }
     }
 
-   private:
+  private:
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_io();
     }
@@ -633,8 +645,8 @@ class io_uring_context::write_sender {
     void start_io() noexcept {
       UNIFEX_ASSERT(context_.is_running_on_io_thread());
       stopCallback_.construct(
-            get_stop_token(receiver_), cancel_callback{*this});
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
+          get_stop_token(receiver_), cancel_callback{*this});
+      auto populateSqe = [this](io_uring_sqe& sqe) noexcept {
         sqe.opcode = IORING_OP_WRITEV;
         sqe.fd = fd_;
         sqe.off = offset_;
@@ -653,7 +665,8 @@ class io_uring_context::write_sender {
     }
 
     void request_stop() noexcept {
-      if (char expected = 1; !refCount_.compare_exchange_strong(expected, 2, std::memory_order_relaxed)) {
+      if (char expected = 1; !refCount_.compare_exchange_strong(
+              expected, 2, std::memory_order_relaxed)) {
         // lost race with on_write_complete
         UNIFEX_ASSERT(expected == 0);
         return;
@@ -667,7 +680,7 @@ class io_uring_context::write_sender {
 
     void request_stop_local() noexcept {
       UNIFEX_ASSERT(context_.is_running_on_io_thread());
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
+      auto populateSqe = [this](io_uring_sqe& sqe) noexcept {
         sqe.opcode = IORING_OP_ASYNC_CANCEL;
         sqe.fd = -1;
         sqe.off = 0;
@@ -703,13 +716,16 @@ class io_uring_context::write_sender {
       if (get_stop_token(self.receiver_).stop_requested()) {
         unifex::set_done(std::move(self.receiver_));
       } else if (self.result_ >= 0) {
-        if constexpr (noexcept(unifex::set_value(std::move(self.receiver_), ssize_t(self.result_)))) {
+        if constexpr (noexcept(unifex::set_value(
+                          std::move(self.receiver_), ssize_t(self.result_)))) {
           unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
         } else {
           UNIFEX_TRY {
             unifex::set_value(std::move(self.receiver_), ssize_t(self.result_));
-          } UNIFEX_CATCH (...) {
-            unifex::set_error(std::move(self.receiver_), std::current_exception());
+          }
+          UNIFEX_CATCH(...) {
+            unifex::set_error(
+                std::move(self.receiver_), std::current_exception());
           }
         }
       } else if (self.result_ == -ECANCELED) {
@@ -739,9 +755,7 @@ class io_uring_context::write_sender {
     struct cancel_callback final {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     io_uring_context& context_;
@@ -756,11 +770,13 @@ class io_uring_context::write_sender {
     cancel_operation cop_{*this};
   };
 
- public:
+public:
   // Produces number of bytes read.
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<ssize_t>>;
 
   // Note: Only case it might complete with exception_ptr is if the
@@ -775,14 +791,17 @@ class io_uring_context::write_sender {
       int fd,
       offset_t offset,
       span<const std::byte> buffer) noexcept
-      : context_(context), fd_(fd), offset_(offset), buffer_(buffer) {}
+    : context_(context)
+    , fd_(fd)
+    , offset_(offset)
+    , buffer_(buffer) {}
 
   template <typename Receiver>
   operation<remove_cvref_t<Receiver>> connect(Receiver&& r) {
     return operation<remove_cvref_t<Receiver>>{*this, (Receiver &&) r};
   }
 
- private:
+private:
   io_uring_context& context_;
   int fd_;
   offset_t offset_;
@@ -790,13 +809,14 @@ class io_uring_context::write_sender {
 };
 
 class io_uring_context::async_read_only_file {
- public:
+public:
   using offset_t = std::int64_t;
 
   explicit async_read_only_file(io_uring_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
+    : context_(context)
+    , fd_(fd) {}
 
- private:
+private:
   friend scheduler;
 
   friend read_sender tag_invoke(
@@ -812,13 +832,14 @@ class io_uring_context::async_read_only_file {
 };
 
 class io_uring_context::async_write_only_file {
- public:
+public:
   using offset_t = std::int64_t;
 
   explicit async_write_only_file(io_uring_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
+    : context_(context)
+    , fd_(fd) {}
 
- private:
+private:
   friend scheduler;
 
   friend write_sender tag_invoke(
@@ -834,13 +855,14 @@ class io_uring_context::async_write_only_file {
 };
 
 class io_uring_context::async_read_write_file {
- public:
+public:
   using offset_t = std::int64_t;
 
   explicit async_read_write_file(io_uring_context& context, int fd) noexcept
-      : context_(context), fd_(fd) {}
+    : context_(context)
+    , fd_(fd) {}
 
- private:
+private:
   friend scheduler;
 
   friend write_sender tag_invoke(
@@ -869,16 +891,12 @@ class io_uring_context::schedule_at_sender {
     static constexpr bool is_stop_ever_possible =
         !is_stop_never_possible_v<stop_token_type_t<Receiver>>;
 
-   public:
+  public:
     explicit operation(
-        io_uring_context& context,
-        const time_point& dueTime,
-        Receiver&& r)
-        : schedule_at_operation(
-              context,
-              dueTime,
-              get_stop_token(r).stop_possible()),
-          receiver_((Receiver &&) r) {}
+        io_uring_context& context, const time_point& dueTime, Receiver&& r)
+      : schedule_at_operation(
+            context, dueTime, get_stop_token(r).stop_possible())
+      , receiver_((Receiver &&) r) {}
 
     void start() noexcept {
       if (this->context_.is_running_on_io_thread()) {
@@ -888,7 +906,7 @@ class io_uring_context::schedule_at_sender {
       }
     }
 
-   private:
+  private:
     static void on_schedule_complete(operation_base* op) noexcept {
       static_cast<operation*>(op)->start_local();
     }
@@ -919,10 +937,10 @@ class io_uring_context::schedule_at_sender {
       if constexpr (noexcept(unifex::set_value(std::move(timerOp).receiver_))) {
         unifex::set_value(std::move(timerOp).receiver_);
       } else {
-        UNIFEX_TRY {
-          unifex::set_value(std::move(timerOp).receiver_);
-        } UNIFEX_CATCH (...) {
-          unifex::set_error(std::move(timerOp).receiver_, std::current_exception());
+        UNIFEX_TRY { unifex::set_value(std::move(timerOp).receiver_); }
+        UNIFEX_CATCH(...) {
+          unifex::set_error(
+              std::move(timerOp).receiver_, std::current_exception());
         }
       }
     }
@@ -1016,9 +1034,7 @@ class io_uring_context::schedule_at_sender {
     struct cancel_callback {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     Receiver receiver_;
@@ -1027,10 +1043,12 @@ class io_uring_context::schedule_at_sender {
         stopCallback_;
   };
 
- public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<>>;
 
   // Note: Only case it might complete with exception_ptr is if the
@@ -1041,9 +1059,9 @@ class io_uring_context::schedule_at_sender {
   static constexpr bool sends_done = true;
 
   explicit schedule_at_sender(
-      io_uring_context& context,
-      const time_point& dueTime) noexcept
-      : context_(context), dueTime_(dueTime) {}
+      io_uring_context& context, const time_point& dueTime) noexcept
+    : context_(context)
+    , dueTime_(dueTime) {}
 
   template <typename Receiver>
   operation<remove_cvref_t<Receiver>> connect(Receiver&& r) {
@@ -1051,13 +1069,13 @@ class io_uring_context::schedule_at_sender {
         context_, dueTime_, (Receiver &&) r};
   }
 
- private:
+private:
   io_uring_context& context_;
   time_point dueTime_;
 };
 
 class io_uring_context::scheduler {
- public:
+public:
   scheduler(const scheduler&) noexcept = default;
   scheduler& operator=(const scheduler&) = default;
   ~scheduler() = default;
@@ -1066,33 +1084,23 @@ class io_uring_context::scheduler {
     return schedule_sender{*context_};
   }
 
-  time_point now() const noexcept {
-    return monotonic_clock::now();
-  }
+  time_point now() const noexcept { return monotonic_clock::now(); }
 
   schedule_at_sender schedule_at(const time_point& dueTime) const noexcept {
     return schedule_at_sender{*context_, dueTime};
   }
 
- private:
+private:
   friend io_uring_context;
 
   friend async_read_only_file tag_invoke(
-      tag_t<open_file_read_only>,
-      scheduler s,
-      const filesystem::path& path);
+      tag_t<open_file_read_only>, scheduler s, const filesystem::path& path);
   friend async_read_write_file tag_invoke(
-      tag_t<open_file_read_write>,
-      scheduler s,
-      const filesystem::path& path);
+      tag_t<open_file_read_write>, scheduler s, const filesystem::path& path);
   friend async_write_only_file tag_invoke(
-      tag_t<open_file_write_only>,
-      scheduler s,
-      const filesystem::path& path);
-  friend accept_stream tag_invoke(
-      tag_t<open_listening_socket>,
-      scheduler s,
-      port_t port);
+      tag_t<open_file_write_only>, scheduler s, const filesystem::path& path);
+  friend accept_stream
+  tag_invoke(tag_t<open_listening_socket>, scheduler s, port_t port);
 
   friend bool operator==(scheduler a, scheduler b) noexcept {
     return a.context_ == b.context_;
@@ -1144,7 +1152,7 @@ class io_uring_context::accept_sender {
     void start_io() noexcept {
       UNIFEX_ASSERT(context_.is_running_on_io_thread());
       stopCallback_.construct(
-            get_stop_token(receiver_), cancel_callback{*this});
+          get_stop_token(receiver_), cancel_callback{*this});
       auto populateSqe = [this](io_uring_sqe& sqe) noexcept {
         sqe.opcode = IORING_OP_ACCEPT;
         sqe.accept_flags = SOCK_NONBLOCK;
@@ -1163,7 +1171,8 @@ class io_uring_context::accept_sender {
     }
 
     void request_stop() noexcept {
-      if (char expected = 1; !refCount_.compare_exchange_strong(expected, 2, std::memory_order_relaxed)) {
+      if (char expected = 1; !refCount_.compare_exchange_strong(
+              expected, 2, std::memory_order_relaxed)) {
         // lost race with on_accept
         UNIFEX_ASSERT(expected == 0);
         return;
@@ -1177,7 +1186,7 @@ class io_uring_context::accept_sender {
 
     void request_stop_local() noexcept {
       UNIFEX_ASSERT(context_.is_running_on_io_thread());
-      auto populateSqe = [this](io_uring_sqe & sqe) noexcept {
+      auto populateSqe = [this](io_uring_sqe& sqe) noexcept {
         sqe.opcode = IORING_OP_ASYNC_CANCEL;
         sqe.fd = -1;
         sqe.off = 0;
@@ -1214,11 +1223,17 @@ class io_uring_context::accept_sender {
         unifex::set_done(std::move(self.receiver_));
       } else if (self.result_ >= 0) {
         if constexpr (noexcept(unifex::set_value(
-                          std::move(self.receiver_), async_read_write_file{self.context_, self.result_}))) {
-          unifex::set_value(std::move(self.receiver_), async_read_write_file{self.context_, self.result_});
+                          std::move(self.receiver_),
+                          async_read_write_file{
+                              self.context_, self.result_}))) {
+          unifex::set_value(
+              std::move(self.receiver_),
+              async_read_write_file{self.context_, self.result_});
         } else {
           UNIFEX_TRY {
-            unifex::set_value(std::move(self.receiver_), async_read_write_file{self.context_, self.result_});
+            unifex::set_value(
+                std::move(self.receiver_),
+                async_read_write_file{self.context_, self.result_});
           }
           UNIFEX_CATCH(...) {
             unifex::set_error(
@@ -1252,9 +1267,7 @@ class io_uring_context::accept_sender {
     struct cancel_callback final {
       operation& op_;
 
-      void operator()() noexcept {
-        op_.request_stop();
-      }
+      void operator()() noexcept { op_.request_stop(); }
     };
 
     io_uring_context& context_;
@@ -1317,7 +1330,9 @@ public:
           }
           return fd_.get();
         },
-        [this](auto fd) noexcept { return accept_sender{context_, fd}; });
+        [this](auto fd) noexcept {
+          return accept_sender{context_, fd};
+        });
   }
 
   auto cleanup() noexcept {
@@ -1359,9 +1374,9 @@ private:
   }
 };
 
-} // namespace linuxos
-} // namespace unifex
+}  // namespace linuxos
+}  // namespace unifex
 
-#include <unifex/detail/epilogue.hpp>
+#  include <unifex/detail/epilogue.hpp>
 
-#endif // __has_include(<liburing.h>)
+#endif  // __has_include(<liburing.h>)
