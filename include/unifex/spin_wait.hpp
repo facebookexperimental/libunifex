@@ -22,7 +22,7 @@
 namespace unifex {
 
 class spin_wait {
- public:
+public:
   spin_wait() noexcept = default;
 
   void wait() noexcept {
@@ -36,12 +36,12 @@ class spin_wait {
     }
   }
 
- private:
+private:
   static constexpr std::uint32_t yield_threshold = 20;
 
   std::uint32_t count_ = 0;
 };
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
