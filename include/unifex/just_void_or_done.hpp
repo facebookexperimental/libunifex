@@ -64,16 +64,14 @@ struct _sender {
 
   static constexpr bool sends_done = true;
 
-  static constexpr auto blocking =  blocking_kind::always_inline;
+  static constexpr auto blocking = blocking_kind::always_inline;
 
-  // clang-format off
-  UNIFEX_TEMPLATE(typename Receiver)
-      (requires receiver<Receiver>)
-  friend auto tag_invoke(tag_t<connect>, _sender s, Receiver&& r)
-      noexcept(std::is_nothrow_move_constructible_v<Receiver>) {
+  template(typename Receiver)        //
+      (requires receiver<Receiver>)  //
+      friend auto tag_invoke(tag_t<connect>, _sender s, Receiver&& r) noexcept(
+          std::is_nothrow_move_constructible_v<Receiver>) {
     return operation<Receiver>{static_cast<Receiver&&>(r), s.isVoid_};
   }
-  // clang-format on
 };
 
 inline constexpr struct just_void_or_done_fn {
