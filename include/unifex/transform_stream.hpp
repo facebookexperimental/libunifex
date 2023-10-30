@@ -15,9 +15,9 @@
  */
 #pragma once
 
+#include <unifex/bind_back.hpp>
 #include <unifex/next_adapt_stream.hpp>
 #include <unifex/then.hpp>
-#include <unifex/bind_back.hpp>
 
 #include <functional>
 
@@ -25,25 +25,25 @@
 
 namespace unifex {
 namespace _tfx_stream {
-  struct _fn {
-    template <typename StreamSender, typename Func>
-    auto operator()(StreamSender&& stream, Func&& func) const {
-      return next_adapt_stream(
-          (StreamSender &&) stream, [func = (Func &&) func](auto&& sender) mutable {
-            return then((decltype(sender))sender, std::ref(func));
-          });
-    }
-    template <typename Func>
-    constexpr auto operator()(Func&& func) const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn, Func>)
-        -> bind_back_result_t<_fn, Func> {
-      return bind_back(*this, (Func&&)func);
-    }
-  };
-} // namespace _tfx_stream
+struct _fn {
+  template <typename StreamSender, typename Func>
+  auto operator()(StreamSender&& stream, Func&& func) const {
+    return next_adapt_stream(
+        (StreamSender &&) stream,
+        [func = (Func &&) func](auto&& sender) mutable {
+          return then((decltype(sender))sender, std::ref(func));
+        });
+  }
+  template <typename Func>
+  constexpr auto operator()(Func&& func) const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+          -> bind_back_result_t<_fn, Func> {
+    return bind_back(*this, (Func &&) func);
+  }
+};
+}  // namespace _tfx_stream
 
-inline constexpr _tfx_stream::_fn transform_stream {};
-} // namespace unifex
+inline constexpr _tfx_stream::_fn transform_stream{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
