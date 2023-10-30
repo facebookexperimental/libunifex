@@ -16,10 +16,10 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/blocking.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/blocking.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -36,63 +36,61 @@ private:
         void start() & noexcept {
           UNIFEX_TRY {
             if (get_stop_token(std::as_const(rec_)).stop_requested()) {
-              unifex::set_done((Receiver&&) rec_);
+              unifex::set_done((Receiver &&) rec_);
             } else {
-              unifex::set_value((Receiver&&) rec_);
+              unifex::set_value((Receiver &&) rec_);
             }
-          } UNIFEX_CATCH (...) {
-            unifex::set_error((Receiver&&) rec_, std::current_exception());
+          }
+          UNIFEX_CATCH(...) {
+            unifex::set_error((Receiver &&) rec_, std::current_exception());
           }
         }
       };
     };
 
   public:
-  #if !UNIFEX_NO_COROUTINES
+#if !UNIFEX_NO_COROUTINES
     // Provide an awaiter interface in addition to the sender interface
     // because as an awaiter we can take advantage of symmetric transfer
     // to save stack space:
-    bool await_ready() const noexcept {
-      return false;
-    }
+    bool await_ready() const noexcept { return false; }
     template <typename Promise>
-    coro::coroutine_handle<> await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
+    coro::coroutine_handle<>
+    await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
       if (get_stop_token(coro.promise()).stop_requested()) {
         return coro.promise().unhandled_done();
       }
-      return coro; // don't suspend
+      return coro;  // don't suspend
     }
-    void await_resume() const noexcept {
-    }
-  #endif
+    void await_resume() const noexcept {}
+#endif
 
-    template<
-      template<typename...> class Variant,
-      template<typename...> class Tuple>
+    template <
+        template <typename...>
+        class Variant,
+        template <typename...>
+        class Tuple>
     using value_types = Variant<Tuple<>>;
 
-    template<
-      template<typename...> class Variant>
+    template <template <typename...> class Variant>
     using error_types = Variant<std::exception_ptr>;
 
     static constexpr bool sends_done = true;
 
     static constexpr blocking_kind blocking = blocking_kind::always_inline;
 
-    template (typename Receiver)
-      (requires receiver_of<Receiver>)
-    auto connect(Receiver&& rec) const
-      -> typename _op<remove_cvref_t<Receiver>>::type {
-      return typename _op<remove_cvref_t<Receiver>>::type{(Receiver&&) rec};
+    template(typename Receiver)           //
+        (requires receiver_of<Receiver>)  //
+        auto connect(Receiver&& rec) const ->
+        typename _op<remove_cvref_t<Receiver>>::type {
+      return typename _op<remove_cvref_t<Receiver>>::type{(Receiver &&) rec};
     }
   };
 
 public:
-  [[nodiscard]] constexpr _sender operator()() const noexcept {
-    return {};
-  }
+  [[nodiscard]] constexpr _sender operator()() const noexcept { return {}; }
 };
-} // namespace _stop_if
+}  // namespace _stop_if
 
 namespace _stop {
 struct _fn {
@@ -100,14 +98,14 @@ struct _fn {
     return just_done();
   }
 };
-} // namespace _stop
+}  // namespace _stop
 
 // Await this to cancel and unwind if stop has been requested:
-inline constexpr _stop_if::_fn stop_if_requested {};
+inline constexpr _stop_if::_fn stop_if_requested{};
 
 // Await this to cancel unconditionally:
-inline constexpr _stop::_fn stop {};
+inline constexpr _stop::_fn stop{};
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
