@@ -26,7 +26,7 @@
 #include <unifex/when_all.hpp>
 
 #if !UNIFEX_NO_COROUTINES
-#include <unifex/task.hpp>
+#  include <unifex/task.hpp>
 #endif
 
 #include <chrono>

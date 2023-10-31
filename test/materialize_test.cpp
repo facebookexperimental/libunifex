@@ -15,13 +15,13 @@
  */
 #include <unifex/materialize.hpp>
 
-#include <unifex/when_all.hpp>
-#include <unifex/just_error.hpp>
 #include <unifex/dematerialize.hpp>
-#include <unifex/then.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/single_thread_context.hpp>
+#include <unifex/just_error.hpp>
 #include <unifex/scheduler_concepts.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/when_all.hpp>
 
 #include <optional>
 
@@ -30,46 +30,40 @@
 using namespace unifex;
 
 TEST(Materialize, Smoke) {
-    single_thread_context ctx;
+  single_thread_context ctx;
 
-    std::optional<int> result = sync_wait(
-        dematerialize(
-            materialize(
-                then(
-                    schedule(ctx.get_scheduler()),
-                    []() { return 42; }))));
+  std::optional<int> result = sync_wait(dematerialize(
+      materialize(then(schedule(ctx.get_scheduler()), []() { return 42; }))));
 
-    EXPECT_TRUE(!!result);
-    EXPECT_EQ(result.value(), 42);
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(result.value(), 42);
 }
 
 TEST(Materialize, Pipeable) {
-    single_thread_context ctx;
+  single_thread_context ctx;
 
-    std::optional<int> result = schedule(ctx.get_scheduler())
-      | then(
-        []() { return 42; })
-      | materialize()
-      | dematerialize()
-      | sync_wait();
+  std::optional<int> result = schedule(ctx.get_scheduler()) |
+      then([]() { return 42; }) | materialize() | dematerialize() | sync_wait();
 
-    EXPECT_TRUE(!!result);
-    EXPECT_EQ(result.value(), 42);
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(result.value(), 42);
 }
 
 #if !UNIFEX_NO_EXCEPTIONS
 TEST(Materialize, Failure) {
-    EXPECT_THROW({
-      try {
-        std::optional<unit> result = just_error(std::make_exception_ptr(std::runtime_error{"failure"}))
-          | materialize()
-          | dematerialize()
-          | sync_wait();
-        EXPECT_FALSE(!!result); // should be unreachable - silences unused warning
-      } catch(const std::runtime_error& ex) { 
-        EXPECT_STREQ(ex.what(), "failure"); 
-        throw;
-      }
-    }, std::runtime_error);
+  EXPECT_THROW(
+      {
+        try {
+          std::optional<unit> result = just_error(std::make_exception_ptr(
+                                           std::runtime_error{"failure"})) |
+              materialize() | dematerialize() | sync_wait();
+          EXPECT_FALSE(
+              !!result);  // should be unreachable - silences unused warning
+        } catch (const std::runtime_error& ex) {
+          EXPECT_STREQ(ex.what(), "failure");
+          throw;
+        }
+      },
+      std::runtime_error);
 }
-#endif // !UNIFEX_NO_EXCEPTIONS
+#endif  // !UNIFEX_NO_EXCEPTIONS

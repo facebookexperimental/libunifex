@@ -30,11 +30,11 @@
 using namespace unifex;
 
 TEST(async_mutex, multiple_threads) {
-#if !defined(UNIFEX_TEST_LIMIT_ASYNC_MUTEX_ITERATIONS)
+#  if !defined(UNIFEX_TEST_LIMIT_ASYNC_MUTEX_ITERATIONS)
   constexpr int iterations = 100'000;
-#else
+#  else
   constexpr int iterations = UNIFEX_TEST_LIMIT_ASYNC_MUTEX_ITERATIONS;
-#endif
+#  endif
 
   async_mutex mutex;
 
@@ -53,9 +53,8 @@ TEST(async_mutex, multiple_threads) {
   single_thread_context ctx1;
   single_thread_context ctx2;
 
-  sync_wait(when_all(
-      makeTask(ctx1.get_scheduler()),
-      makeTask(ctx2.get_scheduler())));
+  sync_wait(
+      when_all(makeTask(ctx1.get_scheduler()), makeTask(ctx2.get_scheduler())));
 
   EXPECT_EQ(2 * iterations, sharedState);
 }

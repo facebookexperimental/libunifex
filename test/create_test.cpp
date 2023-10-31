@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include <unifex/create.hpp>
 #include <unifex/async_scope.hpp>
+#include <unifex/create.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/just.hpp>
 #include <unifex/single_thread_context.hpp>
@@ -26,8 +26,8 @@
 #include <gtest/gtest.h>
 
 #if !UNIFEX_NO_COROUTINES
-#include <unifex/task.hpp>
-#endif // !UNIFEX_NO_COROUTINES
+#  include <unifex/task.hpp>
+#endif  // !UNIFEX_NO_COROUTINES
 
 using namespace unifex;
 
@@ -39,36 +39,39 @@ struct CreateTest : testing::Test {
   unifex::single_thread_context someThread;
   unifex::async_scope someScope;
 
-  ~CreateTest() {
-    sync_wait(someScope.cleanup());
-  }
+  ~CreateTest() { sync_wait(someScope.cleanup()); }
 
-  void anIntAPI(int a, int b, void* context, void (*completed)(void* context, int result)) {
+  void anIntAPI(
+      int a,
+      int b,
+      void* context,
+      void (*completed)(void* context, int result)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
-      auto result = a + b;
-      completed(context, result);
-    });
+    someScope.detached_spawn_call_on(
+        someThread.get_scheduler(), [=]() noexcept {
+          auto result = a + b;
+          completed(context, result);
+        });
   }
 
-  void anIntRefAPI(void* context, void (*completed)(void* context, int& result)) {
+  void
+  anIntRefAPI(void* context, void (*completed)(void* context, int& result)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
-      completed(context, global);
-    });
+    someScope.detached_spawn_call_on(
+        someThread.get_scheduler(),
+        [=]() noexcept { completed(context, global); });
   }
 
   void aVoidAPI(void* context, void (*completed)(void* context)) {
     // Execute some work asynchronously on some other thread. When its
     // work is finished, pass the result to the callback.
-    someScope.detached_spawn_call_on(someThread.get_scheduler(), [=]() noexcept {
-      completed(context);
-    });
+    someScope.detached_spawn_call_on(
+        someThread.get_scheduler(), [=]() noexcept { completed(context); });
   }
 };
-} // anonymous namespace
+}  // anonymous namespace
 
 TEST_F(CreateTest, BasicTest) {
   {
@@ -104,18 +107,20 @@ TEST_F(CreateTest, BasicTest) {
 }
 
 TEST_F(CreateTest, FinallyCreate) {
-    auto snd = [this](int a, int b) {
-      return create<int>([a, b, this](auto& rec) {
-        static_assert(receiver_of<std::decay_t<decltype(rec)>, int>);
-        anIntAPI(a, b, &rec, [](void* context, int result) {
-          unifex::void_cast<decltype(rec)>(context).set_value(result);
+  auto snd =
+      [this](int a, int b) {
+        return create<int>([a, b, this](auto& rec) {
+          static_assert(receiver_of<std::decay_t<decltype(rec)>, int>);
+          anIntAPI(a, b, &rec, [](void* context, int result) {
+            unifex::void_cast<decltype(rec)>(context).set_value(result);
+          });
         });
-      });
-    }(1, 2) | finally(just());
+      }(1, 2) |
+      finally(just());
 
-    std::optional<int> res = sync_wait(std::move(snd));
-    ASSERT_TRUE(res.has_value());
-    EXPECT_EQ(*res, 3);
+  std::optional<int> res = sync_wait(std::move(snd));
+  ASSERT_TRUE(res.has_value());
+  EXPECT_EQ(*res, 3);
 }
 
 TEST_F(CreateTest, DoubleCreateSetsIntValue) {
@@ -128,7 +133,9 @@ TEST_F(CreateTest, DoubleCreateSetsIntValue) {
     });
   }(1, 2);
 
-  static_assert(std::is_same_v<decltype(sync_wait(std::move(snd))), std::optional<double>>);
+  static_assert(std::is_same_v<
+                decltype(sync_wait(std::move(snd))),
+                std::optional<double>>);
   std::optional<double> res = sync_wait(std::move(snd));
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(*res, 3);
@@ -139,9 +146,7 @@ struct TrackingObject {
   static int copies;
 
   explicit TrackingObject(int val) : val(val) {}
-  TrackingObject(const TrackingObject& other) : val(other.val) {
-    ++copies;
-  }
+  TrackingObject(const TrackingObject& other) : val(other.val) { ++copies; }
   TrackingObject(TrackingObject&& other) : val(other.val) {
     ++moves;
     other.was_moved = true;
@@ -160,7 +165,8 @@ TEST_F(CreateTest, CreateObjectNotCopied) {
     return create<TrackingObject>([a, b, this](auto& rec) {
       static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject>);
       anIntAPI(a, b, &rec, [](void* context, int result) {
-        unifex::void_cast<decltype(rec)>(context).set_value(TrackingObject{result});
+        unifex::void_cast<decltype(rec)>(context).set_value(
+            TrackingObject{result});
       });
     });
   }(1, 2);
@@ -193,16 +199,18 @@ TEST_F(CreateTest, CreateObjectCopied) {
 }
 
 TEST_F(CreateTest, CreateObjectLeadsToNewObject) {
-  auto snd = [this](int a, int b) {
-    return create<TrackingObject>([a, b, this](auto& rec) {
-      static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject>);
-      anIntAPI(a, b, &rec, [](void* context, int result) {
-        unifex::void_cast<decltype(rec)>(context).set_value(TrackingObject{result});
-      });
-    });
-  }(1, 2) | then([](TrackingObject&& obj) {
-      return obj.val;
-  });
+  auto snd =
+      [this](int a, int b) {
+        return create<TrackingObject>([a, b, this](auto& rec) {
+          static_assert(
+              receiver_of<std::decay_t<decltype(rec)>, TrackingObject>);
+          anIntAPI(a, b, &rec, [](void* context, int result) {
+            unifex::void_cast<decltype(rec)>(context).set_value(
+                TrackingObject{result});
+          });
+        });
+      }(1, 2) |
+      then([](TrackingObject&& obj) { return obj.val; });
 
   TrackingObject::copies = 0;
   TrackingObject::moves = 0;
@@ -223,19 +231,21 @@ TEST_F(CreateTest, CreateWithConditionalMove) {
   };
   Data data{nullptr, &obj};
 
-  auto snd = [this, &data](int a, int b) {
-    return create<TrackingObject&&>([a, b, &data, this](auto& rec) {
-      static_assert(receiver_of<std::decay_t<decltype(rec)>, TrackingObject&&>);
-      data.context = &rec;
-      anIntAPI(a, b, &data, [](void* context, int result) {
-        Data& data = unifex::void_cast<Data&>(context);
-        data.obj->val = result;
-        unifex::void_cast<decltype(rec)>(data.context).set_value(std::move(*data.obj));
-      });
-    });
-  }(1, 2) | then([](TrackingObject&& obj) {
-      return obj.val;
-  });
+  auto snd =
+      [this, &data](int a, int b) {
+        return create<TrackingObject&&>([a, b, &data, this](auto& rec) {
+          static_assert(
+              receiver_of<std::decay_t<decltype(rec)>, TrackingObject&&>);
+          data.context = &rec;
+          anIntAPI(a, b, &data, [](void* context, int result) {
+            Data& data = unifex::void_cast<Data&>(context);
+            data.obj->val = result;
+            unifex::void_cast<decltype(rec)>(data.context)
+                .set_value(std::move(*data.obj));
+          });
+        });
+      }(1, 2) |
+      then([](TrackingObject&& obj) { return obj.val; });
 
   TrackingObject::copies = 0;
   TrackingObject::moves = 0;
@@ -255,9 +265,7 @@ TEST_F(CreateTest, CreateWithConversions) {
   struct B {
     B(A a) : val(a.val) {}
     B(int val) : val(val) {}
-    operator A() const {
-      return A{val};
-    }
+    operator A() const { return A{val}; }
     int val;
   };
 
@@ -295,15 +303,16 @@ TEST_F(CreateTest, CreateWithConversions) {
 TEST_F(CreateTest, VoidWithContextTest) {
   bool called = false;
   auto snd = [&called, this]() {
-    return create<>([this](auto& rec) {
-      static_assert(receiver_of<decltype(rec)>);
-      aVoidAPI(&rec, [](void* context) {
-        auto& rec2 = unifex::void_cast<decltype(rec)>(context);
-        rec2.context().get() = true;
-        rec2.set_value();
-      });
-    },
-    std::ref(called));
+    return create<>(
+        [this](auto& rec) {
+          static_assert(receiver_of<decltype(rec)>);
+          aVoidAPI(&rec, [](void* context) {
+            auto& rec2 = unifex::void_cast<decltype(rec)>(context);
+            rec2.context().get() = true;
+            rec2.set_value();
+          });
+        },
+        std::ref(called));
   }();
 
   std::optional<unit> res = sync_wait(std::move(snd));
@@ -326,4 +335,4 @@ TEST_F(CreateTest, AwaitTest) {
   EXPECT_EQ(*res, 3);
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

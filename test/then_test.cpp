@@ -15,13 +15,13 @@
  */
 #include <unifex/then.hpp>
 
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
 #include <unifex/let_done.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -39,10 +39,7 @@ TEST(Transform, Smoke) {
 
   int count = 0;
 
-  sync_wait(
-        then(
-          schedule_after(scheduler, 200ms), 
-          [&]{ ++count; }));
+  sync_wait(then(schedule_after(scheduler, 200ms), [&] { ++count; }));
 
   EXPECT_EQ(count, 1);
 }
@@ -50,16 +47,11 @@ TEST(Transform, Smoke) {
 TEST(Pipeable, Transform) {
   int count = 0;
 
-  just()
-    | then([&]{ ++count; })
-    | sync_wait();
+  just() | then([&] { ++count; }) | sync_wait();
 
-  auto twocount = then([&]{ ++count; }) | then([&]{ ++count; });
+  auto twocount = then([&] { ++count; }) | then([&] { ++count; });
 
-  just()
-    | then([&]{ ++count; })
-    | twocount
-    | sync_wait();
+  just() | then([&] { ++count; }) | twocount | sync_wait();
 
   EXPECT_EQ(count, 4);
 }

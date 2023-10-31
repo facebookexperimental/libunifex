@@ -18,15 +18,14 @@
 
 #if !UNIFEX_NO_COROUTINES
 
+#  include <unifex/just_from.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
 
-#include <unifex/just_from.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
+#  include <tuple>
+#  include <variant>
 
-#include <tuple>
-#include <variant>
-
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 
@@ -34,7 +33,7 @@ int global;
 
 template <class Expected, class Actual>
 void check_is_type(Actual&&) {
-    static_assert(std::is_same_v<Expected, Actual>);
+  static_assert(std::is_same_v<Expected, Actual>);
 }
 
 task<int&> await_reference_awaitable() {
@@ -55,23 +54,25 @@ task<int&> await_reference_sender() {
 
 TEST(Task, AwaitAwaitableReturningReference) {
   static_assert(std::is_same_v<
-    sender_value_types_t<decltype(await_reference_awaitable()), std::variant, std::tuple>,
-    std::variant<std::tuple<int&>>
-  >);
+                sender_value_types_t<
+                    decltype(await_reference_awaitable()),
+                    std::variant,
+                    std::tuple>,
+                std::variant<std::tuple<int&>>>);
 
   int& ref = sync_wait(await_reference_awaitable()).value();
   static_assert(std::is_same_v<
-    std::optional<std::reference_wrapper<int>>,
-    decltype(sync_wait(await_reference_awaitable()))>);
+                std::optional<std::reference_wrapper<int>>,
+                decltype(sync_wait(await_reference_awaitable()))>);
   EXPECT_EQ(&ref, &global);
 }
 
 TEST(Task, AwaitSenderReturningReference) {
   int& ref = sync_wait(await_reference_sender()).value();
   static_assert(std::is_same_v<
-    std::optional<std::reference_wrapper<int>>,
-    decltype(sync_wait(await_reference_sender()))>);
+                std::optional<std::reference_wrapper<int>>,
+                decltype(sync_wait(await_reference_sender()))>);
   EXPECT_EQ(&ref, &global);
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

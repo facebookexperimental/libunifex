@@ -15,16 +15,16 @@
  */
 #include <unifex/let_done.hpp>
 
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/on.hpp>
-#include <unifex/then.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/stop_when.hpp>
-#include <unifex/just_from.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 #include <chrono>
 #include <iostream>
@@ -42,13 +42,10 @@ TEST(TransformDone, Smoke) {
 
   int count = 0;
 
-  sync_wait(
-    stop_when(
+  sync_wait(stop_when(
       sequence(
-        let_done(
-          schedule_after(scheduler, 200ms), 
-          []{ return just(); }), 
-        just_from([&]{ ++count; })),
+          let_done(schedule_after(scheduler, 200ms), [] { return just(); }),
+          just_from([&] { ++count; })),
       schedule_after(scheduler, 100ms)));
 
   EXPECT_EQ(count, 1);
@@ -62,8 +59,8 @@ TEST(TransformDone, StayDone) {
   int count = 0;
 
   auto op = sequence(
-    on(scheduler, just_done() | let_done([]{ return just(); })),
-    just_from([&]{ ++count; }));
+      on(scheduler, just_done() | let_done([] { return just(); })),
+      just_from([&] { ++count; }));
   sync_wait(std::move(op));
 
   EXPECT_EQ(count, 1);
@@ -77,29 +74,21 @@ TEST(TransformDone, Pipeable) {
   int count = 0;
 
   sequence(
-    schedule_after(scheduler, 200ms)
-      | let_done(
-          []{ return just(); }), 
-    just_from([&]{ ++count; }))
-    | stop_when(schedule_after(scheduler, 100ms))
-    | sync_wait();
+      schedule_after(scheduler, 200ms) | let_done([] { return just(); }),
+      just_from([&] { ++count; })) |
+      stop_when(schedule_after(scheduler, 100ms)) | sync_wait();
 
   EXPECT_EQ(count, 1);
 }
 
 TEST(TransformDone, WithValue) {
-  auto one = 
-    just_done()
-    | let_done([] { return just(42); })
-    | sync_wait();
+  auto one = just_done() | let_done([] { return just(42); }) | sync_wait();
 
   EXPECT_TRUE(one.has_value());
   EXPECT_EQ(*one, 42);
 
-  auto multiple = 
-    just_done()
-    | let_done([] { return just(42, 1, 2); })
-    | sync_wait();
+  auto multiple =
+      just_done() | let_done([] { return just(42, 1, 2); }) | sync_wait();
 
   EXPECT_TRUE(multiple.has_value());
   EXPECT_EQ(*multiple, std::tuple(42, 1, 2));

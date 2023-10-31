@@ -87,8 +87,8 @@ struct throwing_sender final {
 
   static constexpr bool sends_done = false;
 
-  static constexpr unifex::blocking_kind blocking
-      = unifex::blocking_kind::always_inline;
+  static constexpr unifex::blocking_kind blocking =
+      unifex::blocking_kind::always_inline;
 
   UNIFEX_TEMPLATE(typename Receiver)                                //
   (requires unifex::sender_to<decltype(unifex::just()), Receiver>)  //
