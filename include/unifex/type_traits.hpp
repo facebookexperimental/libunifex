@@ -21,41 +21,42 @@
 
 #include <unifex/detail/prologue.hpp>
 
-#if (defined(__cpp_lib_type_trait_variable_templates) && \
-  __cpp_lib_type_trait_variable_templates > 0)
-#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
+#if (                                                   \
+    defined(__cpp_lib_type_trait_variable_templates) && \
+    __cpp_lib_type_trait_variable_templates > 0)
+#  define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 1
 #else
-#define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 0
+#  define UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES 0
 #endif
 
 #if defined(__clang__)
-#define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
+#  define UNIFEX_IS_SAME(...) __is_same(__VA_ARGS__)
 #elif defined(__GNUC__) && __GNUC__ >= 6
-#define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
+#  define UNIFEX_IS_SAME(...) __is_same_as(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
+#  define UNIFEX_IS_SAME(...) std::is_same_v<__VA_ARGS__>
 #else
-#define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
+#  define UNIFEX_IS_SAME(...) std::is_same<__VA_ARGS__>::value
 #endif
 
 #if defined(__GNUC__) || defined(_MSC_VER)
-#define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
+#  define UNIFEX_IS_BASE_OF(...) __is_base_of(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
+#  define UNIFEX_IS_BASE_OF(...) std::is_base_of_v<__VA_ARGS__>
 #else
-#define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
+#  define UNIFEX_IS_BASE_OF(...) std::is_base_of<__VA_ARGS__>::value
 #endif
 
 #if defined(__clang__) || defined(_MSC_VER) || \
-  (defined(__GNUC__) && __GNUC__ >= 8)
-#define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
+    (defined(__GNUC__) && __GNUC__ >= 8)
+#  define UNIFEX_IS_CONSTRUCTIBLE(...) __is_constructible(__VA_ARGS__)
 #elif UNIFEX_CXX_TRAIT_VARIABLE_TEMPLATES
-#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
+#  define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible_v<__VA_ARGS__>
 #else
-#define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
+#  define UNIFEX_IS_CONSTRUCTIBLE(...) std::is_constructible<__VA_ARGS__>::value
 #endif
 
-#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__(*)()noexcept>(nullptr)()
+#define UNIFEX_DECLVAL(...) static_cast<__VA_ARGS__ (*)() noexcept>(nullptr)()
 
 namespace unifex {
 
@@ -64,10 +65,10 @@ template <typename T>
 struct type_identity {
   using type = T;
 };
-} // namespace _ti
+}  // namespace _ti
 using _ti::type_identity;
 
-template<typename T>
+template <typename T>
 using type_identity_t = typename type_identity<T>::type;
 
 template <typename... Ts>
@@ -83,20 +84,41 @@ using single_type_t = typename single_type<Ts...>::type;
 
 // We don't care about volatile, and not handling volatile is
 // less work for the compiler.
-template <class T> struct remove_cvref { using type = T; };
-template <class T> struct remove_cvref<T const> { using type = T; };
+template <class T>
+struct remove_cvref {
+  using type = T;
+};
+template <class T>
+struct remove_cvref<T const> {
+  using type = T;
+};
 // template <class T> struct remove_cvref<T volatile> { using type = T; };
 // template <class T> struct remove_cvref<T const volatile> { using type = T; };
-template <class T> struct remove_cvref<T&> { using type = T; };
-template <class T> struct remove_cvref<T const&> { using type = T; };
+template <class T>
+struct remove_cvref<T&> {
+  using type = T;
+};
+template <class T>
+struct remove_cvref<T const&> {
+  using type = T;
+};
 // template <class T> struct remove_cvref<T volatile&> { using type = T; };
-// template <class T> struct remove_cvref<T const volatile&> { using type = T; };
-template <class T> struct remove_cvref<T&&> { using type = T; };
-template <class T> struct remove_cvref<T const&&> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile&> { using type = T;
+// };
+template <class T>
+struct remove_cvref<T&&> {
+  using type = T;
+};
+template <class T>
+struct remove_cvref<T const&&> {
+  using type = T;
+};
 // template <class T> struct remove_cvref<T volatile&&> { using type = T; };
-// template <class T> struct remove_cvref<T const volatile&&> { using type = T; };
+// template <class T> struct remove_cvref<T const volatile&&> { using type = T;
+// };
 
-template <class T> using remove_cvref_t = typename remove_cvref<T>::type;
+template <class T>
+using remove_cvref_t = typename remove_cvref<T>::type;
 
 template <template <typename...> class T, typename X>
 inline constexpr bool instance_of_v = false;
@@ -109,7 +131,7 @@ using instance_of = std::bool_constant<instance_of_v<T, X>>;
 
 namespace _unit {
 struct unit {};
-}
+}  // namespace _unit
 using _unit::unit;
 
 template <bool B>
@@ -139,9 +161,8 @@ template <class Member, class Self>
 Member Self::*_memptr(const Self&);
 
 template <typename Self, typename Member>
-using member_t = decltype(
-    (UNIFEX_DECLVAL(Self&&) .*
-        unifex::_memptr<Member>(UNIFEX_DECLVAL(Self&&))));
+using member_t = decltype((
+    UNIFEX_DECLVAL(Self &&).*unifex::_memptr<Member>(UNIFEX_DECLVAL(Self &&))));
 
 template <typename T>
 using decay_rvalue_t =
@@ -150,30 +171,37 @@ using decay_rvalue_t =
 template <typename... Args>
 using is_empty_list = std::bool_constant<(sizeof...(Args) == 0)>;
 
-// Polyfill for std::is_nothrow_convertible[_v] which is only available in C++20 or later.
+// Polyfill for std::is_nothrow_convertible[_v] which is only available in C++20
+// or later.
 #if __cpp_lib_is_nothrow_convertible >= 201806L
 
-template<typename From, typename To>
-inline constexpr bool is_nothrow_convertible_v = std::is_nothrow_convertible_v<From, To>;
+template <typename From, typename To>
+inline constexpr bool is_nothrow_convertible_v =
+    std::is_nothrow_convertible_v<From, To>;
 
-template<typename From, typename To>
+template <typename From, typename To>
 using is_nothrow_convertible = std::is_nothrow_convertible<From, To>;
 
 #else
 namespace _is_nothrow_convertible {
 
-template<typename From, typename To>
-auto test(int) -> decltype(std::bool_constant<noexcept(static_cast<void(*)(To) noexcept>(nullptr)(static_cast<From(*)() noexcept>(nullptr)()))>{});
-template<typename From, typename To>
-auto test(...) -> std::bool_constant<std::is_void_v<From> && std::is_void_v<To>>;
+template <typename From, typename To>
+auto test(int)
+    -> decltype(std::bool_constant<noexcept(static_cast<void (*)(To) noexcept>(
+                    nullptr)(static_cast<From (*)() noexcept>(nullptr)()))>{});
+template <typename From, typename To>
+auto test(...)
+    -> std::bool_constant<std::is_void_v<From> && std::is_void_v<To>>;
 
-}
+}  // namespace _is_nothrow_convertible
 
-template<typename From, typename To>
-using is_nothrow_convertible = decltype(_is_nothrow_convertible::test<From, To>(0));
+template <typename From, typename To>
+using is_nothrow_convertible =
+    decltype(_is_nothrow_convertible::test<From, To>(0));
 
-template<typename From, typename To>
-inline constexpr bool is_nothrow_convertible_v = is_nothrow_convertible<From, To>::value;
+template <typename From, typename To>
+inline constexpr bool is_nothrow_convertible_v =
+    is_nothrow_convertible<From, To>::value;
 
 #endif
 
@@ -194,25 +222,28 @@ inline constexpr bool is_one_of_v = (UNIFEX_IS_SAME(T, Ts) || ...);
 
 template <typename Fn, typename... As>
 using callable_result_t =
-    decltype(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...));
+    decltype(UNIFEX_DECLVAL(Fn &&)(UNIFEX_DECLVAL(As &&)...));
 
 namespace _is_callable {
-  struct yes_type { char dummy; };
-  struct no_type { char dummy[2]; };
-  static_assert(sizeof(yes_type) != sizeof(no_type));
+struct yes_type {
+  char dummy;
+};
+struct no_type {
+  char dummy[2];
+};
+static_assert(sizeof(yes_type) != sizeof(no_type));
 
-  template <
-      typename Fn,
-      typename... As,
-      typename = callable_result_t<Fn, As...>>
-  yes_type _try_call(Fn(*)(As...))
-      noexcept(noexcept(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...)));
-  no_type _try_call(...) noexcept(false);
-} // namespace _is_callable
+template <typename Fn, typename... As, typename = callable_result_t<Fn, As...>>
+yes_type _try_call(Fn (*)(As...)) noexcept(
+    noexcept(UNIFEX_DECLVAL(Fn&&)(UNIFEX_DECLVAL(As&&)...)));
+no_type _try_call(...) noexcept(false);
+}  // namespace _is_callable
 
 template <typename Fn, typename... As>
-inline constexpr bool is_callable_v =
-  sizeof(decltype(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)))) == sizeof(_is_callable::yes_type);
+inline constexpr bool
+    is_callable_v = sizeof(decltype(_is_callable::_try_call(
+                        static_cast<Fn (*)(As...)>(nullptr)))) ==
+    sizeof(_is_callable::yes_type);
 
 template <typename Fn, typename... As>
 struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
@@ -220,33 +251,39 @@ struct is_callable : std::bool_constant<is_callable_v<Fn, As...>> {};
 template <bool Callable, typename R, typename Fn, typename... As>
 inline constexpr bool _is_callable_r_v = false;
 
-template<typename R, typename Fn, typename... As>
-inline constexpr bool _is_callable_r_v<true, R, Fn, As...> = std::is_convertible_v<callable_result_t<Fn, As...>, R>;
+template <typename R, typename Fn, typename... As>
+inline constexpr bool _is_callable_r_v<true, R, Fn, As...> =
+    std::is_convertible_v<callable_result_t<Fn, As...>, R>;
 
-template<typename R, typename Fn, typename... As>
-inline constexpr bool is_callable_r_v = _is_callable_r_v<is_callable_v<Fn, As...>, R, Fn, As...>;
+template <typename R, typename Fn, typename... As>
+inline constexpr bool is_callable_r_v =
+    _is_callable_r_v<is_callable_v<Fn, As...>, R, Fn, As...>;
 
-template<typename R, typename Fn, typename... As>
+template <typename R, typename Fn, typename... As>
 struct is_callable_r : std::bool_constant<is_callable_r_v<R, Fn, As...>> {};
 
 template <typename Fn, typename... As>
 inline constexpr bool is_nothrow_callable_v =
-    noexcept(_is_callable::_try_call(static_cast<Fn(*)(As...)>(nullptr)));
+    noexcept(_is_callable::_try_call(static_cast<Fn (*)(As...)>(nullptr)));
 
 template <typename Fn, typename... As>
-struct is_nothrow_callable : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
+struct is_nothrow_callable
+  : std::bool_constant<is_nothrow_callable_v<Fn, As...>> {};
 
-template<bool IsNothrowCallable, typename R, typename Fn, typename... As>
+template <bool IsNothrowCallable, typename R, typename Fn, typename... As>
 inline constexpr bool _is_nothrow_callable_r_v = false;
 
-template<typename R, typename Fn, typename... As>
-inline constexpr bool _is_nothrow_callable_r_v<true, R, Fn, As...> = is_nothrow_convertible<callable_result_t<Fn, As...>, R>::value; 
+template <typename R, typename Fn, typename... As>
+inline constexpr bool _is_nothrow_callable_r_v<true, R, Fn, As...> =
+    is_nothrow_convertible<callable_result_t<Fn, As...>, R>::value;
 
-template<typename R, typename Fn, typename... As>
-inline constexpr bool is_nothrow_callable_r_v = _is_nothrow_callable_r_v<is_nothrow_callable_v<Fn, As...>, R, Fn, As...>;
+template <typename R, typename Fn, typename... As>
+inline constexpr bool is_nothrow_callable_r_v =
+    _is_nothrow_callable_r_v<is_nothrow_callable_v<Fn, As...>, R, Fn, As...>;
 
-template<typename R, typename Fn, typename... As>
-struct is_nothrow_callable_r : std::bool_constant<is_nothrow_callable_r_v<R, Fn, As...>> {};
+template <typename R, typename Fn, typename... As>
+struct is_nothrow_callable_r
+  : std::bool_constant<is_nothrow_callable_r_v<R, Fn, As...>> {};
 
 template <typename T, typename = void>
 struct is_allocator : std::false_type {};
@@ -257,13 +294,14 @@ constexpr bool is_allocator_v = is_allocator<T>::value;
 template <typename T>
 struct is_allocator<
     T,
-    std::void_t<typename T::value_type,
-                decltype(std::declval<T>().allocate(std::size_t{})),
-                decltype(std::declval<T>().deallocate(nullptr, std::size_t{})),
-                std::enable_if_t<std::is_copy_constructible_v<T>>,
-                decltype(std::declval<const T&>() == std::declval<const T&>()),
-                decltype(std::declval<const T&>() != std::declval<const T&>())>>
-    : std::true_type {};
+    std::void_t<
+        typename T::value_type,
+        decltype(std::declval<T>().allocate(std::size_t{})),
+        decltype(std::declval<T>().deallocate(nullptr, std::size_t{})),
+        std::enable_if_t<std::is_copy_constructible_v<T>>,
+        decltype(std::declval<const T&>() == std::declval<const T&>()),
+        decltype(std::declval<const T&>() != std::declval<const T&>())>>
+  : std::true_type {};
 
 template <typename T>
 struct type_always {
@@ -349,6 +387,6 @@ struct meta_quote1_ {
   };
 };
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

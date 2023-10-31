@@ -16,8 +16,8 @@
 #pragma once
 
 #include <exception>
-#include <utility>
 #include <type_traits>
+#include <utility>
 
 #include <unifex/std_concepts.hpp>
 
@@ -28,26 +28,26 @@
 // move as much exception machinery into a cpp file as possible to avoid
 // template code bloat.
 #if !defined(_LIBCPP_ABI_MICROSOFT) && !defined(_MSVC_STL_VERSION)
-#define UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR 0
+#  define UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR 0
 #else
-#define UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR 1
+#  define UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR 1
 #endif
 
 namespace unifex {
 namespace _throw {
 struct _fn {
   template <typename Exception>
-  [[noreturn]] UNIFEX_ALWAYS_INLINE
-  void operator()([[maybe_unused]] Exception&& ex) const {
-  #if !UNIFEX_NO_EXCEPTIONS
-    throw (Exception&&) ex;
-  #else
+  [[noreturn]] UNIFEX_ALWAYS_INLINE void
+  operator()([[maybe_unused]] Exception&& ex) const {
+#if !UNIFEX_NO_EXCEPTIONS
+    throw(Exception &&) ex;
+#else
     std::terminate();
-  #endif
+#endif
   }
 };
-} // namespace _throw
-inline constexpr _throw::_fn throw_ {};
+}  // namespace _throw
+inline constexpr _throw::_fn throw_{};
 
 namespace _except_ptr {
 
@@ -55,16 +55,16 @@ namespace _except_ptr {
 // If std::make_exeption_ptr() is slow, then move it into a cpp
 // file to generate less code elsewhere.
 struct _ref {
-  template (typename Obj)
-    (requires (!same_as<remove_cvref_t<Obj>, _ref>))
-  _ref(Obj&& obj) noexcept
-    : p_((void*) std::addressof(obj))
+  template(typename Obj)                               //
+      (requires(!same_as<remove_cvref_t<Obj>, _ref>))  //
+      _ref(Obj&& obj) noexcept
+    : p_((void*)std::addressof(obj))
     , throw_([](void* p) {
-        unifex::throw_((Obj&&) *(std::add_pointer_t<Obj>) p);
-      })
-  {}
+      unifex::throw_((Obj &&) * (std::add_pointer_t<Obj>)p);
+    }) {}
   _ref(_ref&&) = delete;
   [[noreturn]] void rethrow() const;
+
 private:
   void* p_;
   void (*throw_)(void*);
@@ -73,19 +73,19 @@ private:
 struct _fn {
   [[nodiscard]] std::exception_ptr operator()(_ref) const noexcept;
 };
-#else // !UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR
+#else  // !UNIFEX_HAS_FAST_MAKE_EXCEPTION_PTR
 struct _fn {
   template <typename Obj>
-  [[nodiscard]] UNIFEX_ALWAYS_INLINE
-  std::exception_ptr operator()(Obj&& obj) const noexcept {
-      return std::make_exception_ptr((Obj&&) obj);
+  [[nodiscard]] UNIFEX_ALWAYS_INLINE std::exception_ptr
+  operator()(Obj&& obj) const noexcept {
+    return std::make_exception_ptr((Obj &&) obj);
   }
 };
 #endif
 
-} // namespace _except_ptr
+}  // namespace _except_ptr
 
-inline constexpr _except_ptr::_fn make_exception_ptr {};
-} // namespace unifex
+inline constexpr _except_ptr::_fn make_exception_ptr{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

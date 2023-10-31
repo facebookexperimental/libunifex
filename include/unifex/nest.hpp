@@ -40,8 +40,8 @@ private:
 
 public:
   template(typename Sender, typename Scope)  //
-      (requires sender<Sender> AND tag_invocable<_nest_fn, Sender, Scope&>
-           AND sender<tag_invoke_result_t<_nest_fn, Sender, Scope&>>)  //
+      (requires sender<Sender> AND tag_invocable<_nest_fn, Sender, Scope&> AND
+           sender<tag_invoke_result_t<_nest_fn, Sender, Scope&>>)  //
       auto
       operator()(Sender&& sender, Scope& scope) const
       noexcept(is_nothrow_tag_invocable_v<_nest_fn, Sender, Scope&>)
@@ -50,8 +50,7 @@ public:
   }
 
   template(typename Sender, typename Scope)  //
-      (requires sender<Sender> AND(
-          !tag_invocable<_nest_fn, Sender, Scope&>)
+      (requires sender<Sender> AND(!tag_invocable<_nest_fn, Sender, Scope&>)
            AND sender<nest_member_result_t<Scope, Sender>>)  //
       auto
       operator()(Sender&& sender, Scope& scope) const

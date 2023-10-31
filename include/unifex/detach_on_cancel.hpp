@@ -45,7 +45,8 @@ struct operation_state {
   struct type final {
     type(UpstreamSender&& s, DownstreamReceiver&& r)
       : receiver_(std::move(r))
-      , state_(std::make_unique<detached_state>(*this, (UpstreamSender &&) s)) {}
+      , state_(std::make_unique<detached_state>(*this, (UpstreamSender &&) s)) {
+    }
 
     friend void tag_invoke(tag_t<unifex::start>, type& op) noexcept {
       auto& childOp = op.state_->childOp_;
@@ -99,7 +100,8 @@ struct operation_state<UpstreamSender, DownstreamReceiver>::_receiver final {
 };
 
 template <typename UpstreamSender, typename DownstreamReceiver>
-struct operation_state<UpstreamSender, DownstreamReceiver>::detached_state final {
+struct operation_state<UpstreamSender, DownstreamReceiver>::detached_state
+    final {
   using parent_op_t =
       typename operation_state<UpstreamSender, DownstreamReceiver>::type;
 
@@ -207,16 +209,17 @@ struct _sender<Sender>::type {
   static constexpr bool sends_done = true;
 
   // We will complete inline if started with a stop token that has had stop
-  // requested. If Sender is maybe or never then we're maybe overall; if Sender is
-  // always then we can report always; otherwise Sender is always_inline and we
-  // can report that.
+  // requested. If Sender is maybe or never then we're maybe overall; if Sender
+  // is always then we can report always; otherwise Sender is always_inline and
+  // we can report that.
   static constexpr blocking_kind blocking =
       std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
 
-  static constexpr bool is_always_scheduler_affine
-      = sender_traits<Sender>::is_always_scheduler_affine;
+  static constexpr bool is_always_scheduler_affine =
+      sender_traits<Sender>::is_always_scheduler_affine;
 
-  friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& sender) noexcept {
+  friend constexpr blocking_kind
+  tag_invoke(tag_t<blocking>, const type& sender) noexcept {
     blocking_kind other{blocking(sender)};
     return std::min(blocking_kind::maybe(), other());
   }
@@ -226,11 +229,11 @@ struct _sender<Sender>::type {
       operation_state<member_t<This, Sender>, remove_cvref_t<Receiver>>;
 
   template(typename This, typename Receiver)  //
-      (requires same_as<remove_cvref_t<This>, type> AND
-           receiver<Receiver> AND  //
-               sender_to<member_t<This, Sender>, //
-                   typename operation_state_t<This, Receiver>::_receiver>)  //
-  friend typename operation_state_t<This, Receiver>::type tag_invoke(
+      (requires same_as<remove_cvref_t<This>, type> AND receiver<Receiver> AND
+           sender_to<
+               member_t<This, Sender>,
+               typename operation_state_t<This, Receiver>::_receiver>)  //
+      friend typename operation_state_t<This, Receiver>::type tag_invoke(
           tag_t<unifex::connect>, This&& s, Receiver&& r) noexcept(false) {
     return typename operation_state_t<This, Receiver>::type{
         static_cast<This&&>(s).upstreamSender_, static_cast<Receiver&&>(r)};
@@ -240,9 +243,12 @@ struct _sender<Sender>::type {
 
 namespace detach_on_cancel_impl {
 inline constexpr struct detach_on_cancel_fn {
-  template(typename Sender)(requires sender<Sender>) constexpr auto
-  operator()(Sender&& sender) const
-      noexcept(std::is_nothrow_constructible_v<_detach_on_cancel::sender<remove_cvref_t<Sender>>,
+  template(typename Sender)      //
+      (requires sender<Sender>)  //
+      constexpr auto
+      operator()(Sender&& sender) const
+      noexcept(std::is_nothrow_constructible_v<
+               _detach_on_cancel::sender<remove_cvref_t<Sender>>,
                Sender>) -> _detach_on_cancel::sender<remove_cvref_t<Sender>> {
     return _detach_on_cancel::sender<remove_cvref_t<Sender>>{(Sender &&)
                                                                  sender};

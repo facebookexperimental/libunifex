@@ -23,13 +23,13 @@ namespace unifex {
 namespace linuxos {
 
 class safe_file_descriptor {
- public:
+public:
   safe_file_descriptor() noexcept : fd_(-1) {}
 
   explicit safe_file_descriptor(int fd) noexcept : fd_(fd) {}
 
   safe_file_descriptor(safe_file_descriptor&& other) noexcept
-      : fd_(std::exchange(other.fd_, -1)) {}
+    : fd_(std::exchange(other.fd_, -1)) {}
 
   ~safe_file_descriptor() {
     if (valid()) {
@@ -42,21 +42,17 @@ class safe_file_descriptor {
     return *this;
   }
 
-  bool valid() const noexcept {
-    return fd_ >= 0;
-  }
+  bool valid() const noexcept { return fd_ >= 0; }
 
-  int get() const noexcept {
-    return fd_;
-  }
+  int get() const noexcept { return fd_; }
 
   void close() noexcept;
 
- private:
+private:
   int fd_;
 };
 
-} // namespace linuxos
-} // namespace unifex
+}  // namespace linuxos
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

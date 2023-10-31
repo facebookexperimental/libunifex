@@ -15,13 +15,13 @@
  */
 #pragma once
 
+#include <unifex/config.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/continuations.hpp>
+#include <unifex/coroutine.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
-#include <unifex/config.hpp>
-#include <unifex/coroutine.hpp>
 #include <unifex/type_index.hpp>
-#include <unifex/continuations.hpp>
 
 #include <functional>
 #include <vector>
@@ -31,83 +31,86 @@
 namespace unifex {
 
 namespace _async_trace {
-  struct entry {
-    entry(
-        std::size_t depth,
-        std::size_t parentIndex,
-        const continuation_info& continuation) noexcept
-      : depth(depth)
-      , parentIndex(parentIndex)
-      , continuation(continuation) {}
+struct entry {
+  entry(
+      std::size_t depth,
+      std::size_t parentIndex,
+      const continuation_info& continuation) noexcept
+    : depth(depth)
+    , parentIndex(parentIndex)
+    , continuation(continuation) {}
 
-    std::size_t depth;
-    std::size_t parentIndex;
-    continuation_info continuation;
-  };
-} // namespace _async_trace
+  std::size_t depth;
+  std::size_t parentIndex;
+  continuation_info continuation;
+};
+}  // namespace _async_trace
 using async_trace_entry = _async_trace::entry;
 
 namespace _async_trace_cpo {
-  inline const struct _fn {
-    template <typename Continuation>
-    std::vector<async_trace_entry> operator()(const Continuation& c) const {
-      std::vector<async_trace_entry> results;
-      results.emplace_back(0, 0, continuation_info::from_continuation(c));
+inline const struct _fn {
+  template <typename Continuation>
+  std::vector<async_trace_entry> operator()(const Continuation& c) const {
+    std::vector<async_trace_entry> results;
+    results.emplace_back(0, 0, continuation_info::from_continuation(c));
 
-      // Breadth-first search of async call-stack graph.
-      for (std::size_t i = 0; i < results.size(); ++i) {
-        auto [depth, parentIndex, info] = results[i];
-        visit_continuations(
-            info, [depth = depth, i, &results](const continuation_info& x) {
-              results.emplace_back(depth + 1, i, x);
-            });
-      }
-      return results;
+    // Breadth-first search of async call-stack graph.
+    for (std::size_t i = 0; i < results.size(); ++i) {
+      auto [depth, parentIndex, info] = results[i];
+      visit_continuations(
+          info, [depth = depth, i, &results](const continuation_info& x) {
+            results.emplace_back(depth + 1, i, x);
+          });
     }
-  } async_trace {};
-} // namespace _async_trace_cpo
+    return results;
+  }
+} async_trace{};
+}  // namespace _async_trace_cpo
 using _async_trace_cpo::async_trace;
 
 namespace _async_trace {
-  template <typename Receiver>
-  struct _op {
-    struct type {
-      Receiver receiver_;
+template <typename Receiver>
+struct _op {
+  struct type {
+    Receiver receiver_;
 
-      void start() noexcept {
-        UNIFEX_TRY {
-          auto trace = async_trace(receiver_);
-          unifex::set_value(std::move(receiver_), std::move(trace));
-        } UNIFEX_CATCH (...) {
-          unifex::set_error(std::move(receiver_), std::current_exception());
-        }
+    void start() noexcept {
+      UNIFEX_TRY {
+        auto trace = async_trace(receiver_);
+        unifex::set_value(std::move(receiver_), std::move(trace));
       }
-    };
-  };
-  template <typename Receiver>
-  using operation = typename _op<remove_cvref_t<Receiver>>::type;
-
-  struct sender {
-    template <
-        template <typename...> class Variant,
-        template <typename...> class Tuple>
-    using value_types = Variant<Tuple<std::vector<entry>>>;
-
-    template <template <typename...> class Variant>
-    using error_types = Variant<std::exception_ptr>;
-
-    static constexpr bool sends_done = false;
-
-    static constexpr blocking_kind blocking = blocking_kind::always_inline;
-
-    template <typename Receiver>
-    operation<Receiver> connect(Receiver&& r) const& {
-      return operation<Receiver>{(Receiver &&) r};
+      UNIFEX_CATCH(...) {
+        unifex::set_error(std::move(receiver_), std::current_exception());
+      }
     }
   };
-} // namespace _async_trace
+};
+template <typename Receiver>
+using operation = typename _op<remove_cvref_t<Receiver>>::type;
+
+struct sender {
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = Variant<Tuple<std::vector<entry>>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<std::exception_ptr>;
+
+  static constexpr bool sends_done = false;
+
+  static constexpr blocking_kind blocking = blocking_kind::always_inline;
+
+  template <typename Receiver>
+  operation<Receiver> connect(Receiver&& r) const& {
+    return operation<Receiver>{(Receiver &&) r};
+  }
+};
+}  // namespace _async_trace
 using async_trace_sender = _async_trace::sender;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

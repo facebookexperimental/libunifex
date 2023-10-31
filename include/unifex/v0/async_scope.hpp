@@ -21,13 +21,13 @@
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/just_from.hpp>
 #include <unifex/manual_lifetime.hpp>
+#include <unifex/on.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/sequence.hpp>
 #include <unifex/then.hpp>
 #include <unifex/type_traits.hpp>
-#include <unifex/on.hpp>
 
 #include <atomic>
 #include <memory>
@@ -43,9 +43,7 @@ namespace _async_scope {
 struct async_scope;
 
 struct _receiver_base {
-  [[noreturn]] void set_error(std::exception_ptr) noexcept {
-    std::terminate();
-  }
+  [[noreturn]] void set_error(std::exception_ptr) noexcept { std::terminate(); }
 
   friend inplace_stop_token
   tag_invoke(tag_t<get_stop_token>, const _receiver_base& r) noexcept {
@@ -87,9 +85,7 @@ struct _receiver<Sender>::type final : _receiver_base {
   // it's just simpler to skip this
   type& operator=(type&&) = delete;
 
-  void set_value() noexcept {
-    set_done();
-  }
+  void set_value() noexcept { set_done(); }
 
   void set_done() noexcept {
     // we're about to delete this, so save the scope for later
@@ -105,7 +101,7 @@ struct async_scope {
 private:
   template <typename Scheduler, typename Sender>
   using _on_result_t =
-    decltype(on(UNIFEX_DECLVAL(Scheduler&&), UNIFEX_DECLVAL(Sender&&)));
+      decltype(on(UNIFEX_DECLVAL(Scheduler &&), UNIFEX_DECLVAL(Sender&&)));
 
   inplace_stop_source stopSource_;
   // (opState_ & 1) is 1 until we've been stopped
@@ -131,9 +127,9 @@ public:
     UNIFEX_ASSERT(op_count(state) == 0);
   }
 
-  template (typename Sender)
-    (requires sender_to<Sender, receiver<Sender>>)
-  void spawn(Sender&& sender) {
+  template(typename Sender)                           //
+      (requires sender_to<Sender, receiver<Sender>>)  //
+      void spawn(Sender&& sender) {
     // this could throw; if it does, there's nothing to clean up
     auto opToStart = std::make_unique<manual_lifetime<_operation_t<Sender>>>();
 
@@ -142,7 +138,7 @@ public:
     // destructor so we're good
     opToStart->construct_with([&] {
       return connect(
-          (Sender&&) sender,
+          (Sender &&) sender,
           receiver<Sender>{stopSource_.get_token(), opToStart.get(), this});
     });
 
@@ -156,47 +152,39 @@ public:
       // after this, which means we can rely on its self-ownership to ensure
       // that it is eventually deleted
       unifex::start(opToStart.release()->get());
-    }
-    else {
+    } else {
       // we've been stopped so clean up and bail out
       opToStart->destruct();
     }
   }
 
-  template (typename Sender, typename Scheduler)
-    (requires scheduler<Scheduler> AND
-     sender_to<
-        _on_result_t<Scheduler, Sender>,
-        receiver<_on_result_t<Scheduler, Sender>>>)
-  void spawn_on(Scheduler&& scheduler, Sender&& sender) {
-    spawn(on((Scheduler&&) scheduler, (Sender&&) sender));
+  template(typename Sender, typename Scheduler)  //
+      (requires scheduler<Scheduler> AND sender_to<
+          _on_result_t<Scheduler, Sender>,
+          receiver<_on_result_t<
+              Scheduler,
+              Sender>>>)  //
+      void spawn_on(Scheduler&& scheduler, Sender&& sender) {
+    spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
   }
 
-  template (typename Scheduler, typename Fun)
-    (requires scheduler<Scheduler> AND callable<Fun>)
-  void spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
+  template(typename Scheduler, typename Fun)             //
+      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      void spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     static_assert(
-      is_nothrow_callable_v<Fun>,
-      "Please annotate your callable with noexcept.");
-    spawn_on(
-      (Scheduler&&) scheduler,
-      just_from((Fun&&) fun));
+        is_nothrow_callable_v<Fun>,
+        "Please annotate your callable with noexcept.");
+    spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
 
   [[nodiscard]] auto complete() noexcept {
     return sequence(
-        just_from([this] () noexcept {
-          end_of_scope();
-        }),
-        await_and_sync());
+        just_from([this]() noexcept { end_of_scope(); }), await_and_sync());
   }
 
   [[nodiscard]] auto cleanup() noexcept {
     return sequence(
-        just_from([this]() noexcept {
-          request_stop();
-        }),
-        await_and_sync());
+        just_from([this]() noexcept { request_stop(); }), await_and_sync());
   }
 
   inplace_stop_token get_stop_token() noexcept {
@@ -208,17 +196,14 @@ public:
     stopSource_.request_stop();
   }
 
- private:
-
+private:
   static constexpr std::size_t stoppedBit{1};
 
   static bool is_stopping(std::size_t state) noexcept {
     return (state & stoppedBit) == 0;
   }
 
-  static std::size_t op_count(std::size_t state) noexcept {
-    return state >> 1;
-  }
+  static std::size_t op_count(std::size_t state) noexcept { return state >> 1; }
 
   [[nodiscard]] bool try_record_start() noexcept {
     auto opState = opState_.load(std::memory_order_relaxed);
@@ -230,9 +215,7 @@ public:
 
       UNIFEX_ASSERT(opState + 2 > opState);
     } while (!opState_.compare_exchange_weak(
-        opState,
-        opState + 2,
-        std::memory_order_relaxed));
+        opState, opState + 2, std::memory_order_relaxed));
 
     return true;
   }
@@ -257,12 +240,12 @@ public:
   }
 };
 
-} // namespace _async_scope
+}  // namespace _async_scope
 
 using v0::_async_scope::async_scope;
 
-} // namespace v0
+}  // namespace v0
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

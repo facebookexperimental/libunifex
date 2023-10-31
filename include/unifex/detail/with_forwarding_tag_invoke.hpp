@@ -24,70 +24,67 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace unifex
-{
-  namespace detail
-  {
-    inline namespace _gwo_cpo_ns
-    {
-      struct _get_wrapped_object_cpo {
-        template(typename T)                                      //
-            (requires tag_invocable<_get_wrapped_object_cpo, T>)  //
-            auto
-            operator()(T&& wrapper) const
-            noexcept(is_nothrow_tag_invocable_v<_get_wrapped_object_cpo, T>)
-                -> tag_invoke_result_t<_get_wrapped_object_cpo, T> {
-          return unifex::tag_invoke(*this, static_cast<T&&>(wrapper));
-        }
-      };
+namespace unifex {
+namespace detail {
+inline namespace _gwo_cpo_ns {
+struct _get_wrapped_object_cpo {
+  template(typename T)                                      //
+      (requires tag_invocable<_get_wrapped_object_cpo, T>)  //
+      auto
+      operator()(T&& wrapper) const
+      noexcept(is_nothrow_tag_invocable_v<_get_wrapped_object_cpo, T>)
+          -> tag_invoke_result_t<_get_wrapped_object_cpo, T> {
+    return unifex::tag_invoke(*this, static_cast<T&&>(wrapper));
+  }
+};
 
-      inline constexpr _get_wrapped_object_cpo get_wrapped_object{};
-    }  // namespace _gwo_cpo_ns
+inline constexpr _get_wrapped_object_cpo get_wrapped_object{};
+}  // namespace _gwo_cpo_ns
 
-    template <typename Derived, typename CPO, typename Sig>
-    struct _with_forwarding_tag_invoke;
+template <typename Derived, typename CPO, typename Sig>
+struct _with_forwarding_tag_invoke;
 
-    template <typename Derived, typename CPO>
-    using with_forwarding_tag_invoke = typename _with_forwarding_tag_invoke<
-        Derived,
-        base_cpo_t<CPO>,
-        typename CPO::type_erased_signature_t>::type;
+template <typename Derived, typename CPO>
+using with_forwarding_tag_invoke = typename _with_forwarding_tag_invoke<
+    Derived,
+    base_cpo_t<CPO>,
+    typename CPO::type_erased_signature_t>::type;
 
-    // noexcept(false) specialisation
-    template <typename Derived, typename CPO, typename Ret, typename... Args>
-    struct _with_forwarding_tag_invoke<Derived, CPO, Ret(Args...)> {
-      struct type {
-        friend Ret tag_invoke(CPO cpo, replace_this_t<Args, Derived>... args) {
-          auto& wrapped = get_wrapped_object(extract_this<Args...>{}(args...));
-          return static_cast<CPO&&>(cpo)(replace_this<Args>::get(
-              static_cast<decltype(args)&&>(args), wrapped)...);
-        }
-      };
-    };
+// noexcept(false) specialisation
+template <typename Derived, typename CPO, typename Ret, typename... Args>
+struct _with_forwarding_tag_invoke<Derived, CPO, Ret(Args...)> {
+  struct type {
+    friend Ret tag_invoke(CPO cpo, replace_this_t<Args, Derived>... args) {
+      auto& wrapped = get_wrapped_object(extract_this<Args...>{}(args...));
+      return static_cast<CPO&&>(cpo)(replace_this<Args>::get(
+          static_cast<decltype(args)&&>(args), wrapped)...);
+    }
+  };
+};
 
-    // noexcept(true) specialisation
-    template <typename Derived, typename CPO, typename Ret, typename... Args>
-    struct _with_forwarding_tag_invoke<Derived, CPO, Ret(Args...) noexcept> {
-      struct type {
-        friend Ret
-        tag_invoke(CPO cpo, replace_this_t<Args, Derived>... args) noexcept {
-          auto& wrapped = get_wrapped_object(extract_this<Args...>{}(args...));
+// noexcept(true) specialisation
+template <typename Derived, typename CPO, typename Ret, typename... Args>
+struct _with_forwarding_tag_invoke<Derived, CPO, Ret(Args...) noexcept> {
+  struct type {
+    friend Ret
+    tag_invoke(CPO cpo, replace_this_t<Args, Derived>... args) noexcept {
+      auto& wrapped = get_wrapped_object(extract_this<Args...>{}(args...));
 
-          // Sanity check that all of the component expressions here are
-          // noexcept so we don't end up with exception tables being generated
-          // for this function.
-          static_assert(noexcept(get_wrapped_object(extract_this<Args...>{}(args...))));
-          static_assert(
-              noexcept(static_cast<CPO&&>(cpo)(replace_this<Args>::get(
-                  static_cast<decltype(args)&&>(args), wrapped)...)));
+      // Sanity check that all of the component expressions here are
+      // noexcept so we don't end up with exception tables being generated
+      // for this function.
+      static_assert(
+          noexcept(get_wrapped_object(extract_this<Args...>{}(args...))));
+      static_assert(noexcept(static_cast<CPO&&>(cpo)(replace_this<Args>::get(
+          static_cast<decltype(args)&&>(args), wrapped)...)));
 
-          return static_cast<CPO&&>(cpo)(replace_this<Args>::get(
-              static_cast<decltype(args)&&>(args), wrapped)...);
-        }
-      };
-    };
+      return static_cast<CPO&&>(cpo)(replace_this<Args>::get(
+          static_cast<decltype(args)&&>(args), wrapped)...);
+    }
+  };
+};
 
-  }  // namespace detail
+}  // namespace detail
 }  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

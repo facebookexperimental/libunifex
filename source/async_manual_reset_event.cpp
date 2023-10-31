@@ -38,7 +38,8 @@ void async_manual_reset_event::set() noexcept {
   }
 }
 
-void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_event& evt) noexcept {
+void async_manual_reset_event::start_or_wait(
+    _op_base& op, async_manual_reset_event& evt) noexcept {
   // Try to push op onto the stack of waiting ops.
   void* const signalledState = &evt;
 
@@ -61,4 +62,4 @@ void async_manual_reset_event::start_or_wait(_op_base& op, async_manual_reset_ev
       std::memory_order_acquire));
 }
 
-} // namespace unfiex::_amre
+}  // namespace unifex::_amre

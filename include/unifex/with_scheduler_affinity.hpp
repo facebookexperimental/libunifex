@@ -89,9 +89,9 @@ public:
 };
 
 struct _fn final {
-  template(typename Sender, typename Scheduler)          //
-      (requires sender<Sender> AND scheduler<Scheduler>  //
-           AND tag_invocable<_fn, Sender, Scheduler>)    //
+  template(typename Sender, typename Scheduler)  //
+      (requires sender<Sender> AND scheduler<Scheduler> AND
+           tag_invocable<_fn, Sender, Scheduler>)  //
       constexpr auto
       operator()(Sender&& s, Scheduler&& sched) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Scheduler>)
@@ -101,20 +101,20 @@ struct _fn final {
         _fn{}, static_cast<Sender&&>(s), static_cast<Scheduler&&>(sched));
   }
 
-  template(typename Sender, typename Scheduler)                               //
-      (requires sender<Sender> AND scheduler<Scheduler> AND                   //
-           sender_traits<remove_cvref_t<Sender>>::is_always_scheduler_affine  //
-               AND(!tag_invocable<_fn, Sender, Scheduler>))                   //
+  template(typename Sender, typename Scheduler)  //
+      (requires sender<Sender> AND scheduler<Scheduler> AND
+           sender_traits<remove_cvref_t<Sender>>::is_always_scheduler_affine
+               AND(!tag_invocable<_fn, Sender, Scheduler>))  //
       constexpr Sender&&
       operator()(Sender&& s, Scheduler&&) const noexcept {
     // the default implementation for statically-affine senders is the identity
     return static_cast<Sender&&>(s);
   }
 
-  template(typename Sender, typename Scheduler)                              //
-      (requires sender<Sender> AND scheduler<Scheduler> AND                  //
-       (!sender_traits<remove_cvref_t<Sender>>::is_always_scheduler_affine)  //
-       AND(!tag_invocable<_fn, Sender, Scheduler>))                          //
+  template(typename Sender, typename Scheduler)  //
+      (requires sender<Sender> AND scheduler<Scheduler> AND(
+          !sender_traits<remove_cvref_t<Sender>>::is_always_scheduler_affine)
+           AND(!tag_invocable<_fn, Sender, Scheduler>))  //
       constexpr auto
       operator()(Sender&& s, Scheduler&& sched) const
       noexcept(std::is_nothrow_constructible_v<

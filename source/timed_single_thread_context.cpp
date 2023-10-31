@@ -18,8 +18,8 @@
 namespace unifex {
 
 timed_single_thread_context::timed_single_thread_context()
-: thread_([this] { this->run(); })
-{}
+  : thread_([this] { this->run(); }) {
+}
 
 timed_single_thread_context::~timed_single_thread_context() {
   {
@@ -122,4 +122,4 @@ void _timed_single_thread_context::cancel_callback::operator()() noexcept {
   }
 }
 
-} // namespace unifex
+}  // namespace unifex

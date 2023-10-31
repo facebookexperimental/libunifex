@@ -16,8 +16,8 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -105,7 +105,7 @@ struct _replace_this<const this_&&> {
 
   template <typename T>
   static const T&& get(detail::_ignore, T& obj) noexcept {
-    return (const T&&) obj;
+    return (const T&&)obj;
   }
 };
 
@@ -119,14 +119,13 @@ template <typename Arg, typename T>
 using replace_this_t = typename replace_this<Arg>::template apply<Arg, T>;
 
 template <typename Arg>
-using replace_this_with_void_ptr_t =
-    conditional_t<is_this_v<Arg>, void*, Arg>;
+using replace_this_with_void_ptr_t = conditional_t<is_this_v<Arg>, void*, Arg>;
 
 template <bool...>
 struct _extract_this {
   template <typename TFirst, typename... TRest>
   TFirst&& operator()(TFirst&& first, TRest&&...) const noexcept {
-    return (TFirst&&) first;
+    return (TFirst &&) first;
   }
 };
 template <bool... IsThis>
@@ -141,6 +140,6 @@ struct _extract_this<false, IsThis...> {
 template <typename... Ts>
 using extract_this = _extract_this<is_this_v<Ts>...>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

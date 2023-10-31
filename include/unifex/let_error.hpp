@@ -16,18 +16,18 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/tag_invoke.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
-#include <unifex/type_traits.hpp>
-#include <unifex/type_list.hpp>
-#include <unifex/manual_lifetime.hpp>
-#include <unifex/manual_lifetime_union.hpp>
 #include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/manual_lifetime.hpp>
+#include <unifex/manual_lifetime_union.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/sender_concepts.hpp>
+#include <unifex/tag_invoke.hpp>
+#include <unifex/type_list.hpp>
+#include <unifex/type_traits.hpp>
 
-#include <utility>
 #include <exception>
+#include <utility>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -39,14 +39,16 @@ struct _op final {
   class type;
 };
 template <typename Source, typename Func, typename Receiver>
-using operation_type = typename _op<Source, Func, remove_cvref_t<Receiver>>::type;
+using operation_type =
+    typename _op<Source, Func, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Func, typename Receiver>
 struct _rcvr final {
   class type;
 };
 template <typename Source, typename Func, typename Receiver>
-using receiver_type = typename _rcvr<Source, Func, remove_cvref_t<Receiver>>::type;
+using receiver_type =
+    typename _rcvr<Source, Func, remove_cvref_t<Receiver>>::type;
 
 template <typename Source, typename Func, typename Receiver, typename Error>
 struct _frcvr final {
@@ -81,10 +83,10 @@ public:
   // Flipping the order of `deactivate_*` and `set_value` is UB since by the
   // time `set_value()` returns `op_` might as well be already destroyed,
   // without proper deactivation of `op_->sourceOp_`.
-  template(typename... Values)
-    (requires receiver_of<Receiver, Values...>)
-  void set_value(Values... values) noexcept(
-      is_nothrow_receiver_of_v<Receiver, Values...>) {
+  template(typename... Values)                     //
+      (requires receiver_of<Receiver, Values...>)  //
+      void set_value(Values... values) noexcept(
+          is_nothrow_receiver_of_v<Receiver, Values...>) {
     // local copy, b/c deactivate_union_member deletes this
     auto op = op_;
     UNIFEX_ASSERT(op != nullptr);
@@ -136,13 +138,14 @@ public:
   }
 
 private:
-  template(typename CPO, typename Self)
-    (requires is_receiver_query_cpo_v<CPO> AND
-        same_as<remove_cvref_t<Self>, type> AND
-        is_callable_v<CPO, const Receiver&>)
-  friend auto tag_invoke(CPO cpo, Self&& r)
-      noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-      -> callable_result_t<CPO, const Receiver&> {
+  template(typename CPO, typename Self)  //
+      (requires is_receiver_query_cpo_v<CPO> AND
+           same_as<remove_cvref_t<Self>, type> AND is_callable_v<
+               CPO,
+               const Receiver&>)  //
+      friend auto tag_invoke(CPO cpo, Self&& r) noexcept(
+          is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -151,9 +154,8 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const type& r,
-      VisitFunc&& func) noexcept(is_nothrow_callable_v<
-                                VisitFunc&,
-                                const Receiver&>) {
+      VisitFunc&&
+          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -175,19 +177,21 @@ public:
   explicit type(operation* op) noexcept : op_(op) {}
   type(type&& other) noexcept : op_(std::exchange(other.op_, {})) {}
 
-  template(typename... Values)
-    (requires receiver_of<Receiver, Values...>)
-  // Taking by value here to force a move/copy on the offchance the value
-  // objects live in the operation state, in which case destroying the
-  // predecessor operation state would invalidate it.
-  void set_value(Values... values) noexcept(
-      is_nothrow_receiver_of_v<Receiver, Values...>) {
+  template(typename... Values)  //
+      (requires receiver_of<Receiver, Values...>)
+      // Taking by value here to force a move/copy on the
+      // offchance the value objects live in the operation
+      // state, in which case destroying the predecessor
+      // operation state would invalidate it.
+      void set_value(Values... values) noexcept(
+          is_nothrow_receiver_of_v<Receiver, Values...>) {
     // local copy, b/c cleanup deletes this
     auto op = op_;
     cleanup(op);
     UNIFEX_TRY {
       unifex::set_value(std::move(op->receiver_), std::move(values)...);
-    } UNIFEX_CATCH (...) {
+    }
+    UNIFEX_CATCH(...) {
       unifex::set_error(std::move(op->receiver_), std::current_exception());
     }
   }
@@ -199,12 +203,13 @@ public:
     unifex::set_done(std::move(op->receiver_));
   }
 
-  template(typename ErrorValue)
-    (requires receiver<Receiver, ErrorValue>)
-  // Taking by value here to force a copy on the offchance the error
-  // object lives in the operation state, in which
-  // case the call to cleanup() would invalidate them.
-  void set_error(ErrorValue error) noexcept {
+  template(typename ErrorValue)  //
+      (requires receiver<Receiver, ErrorValue>)
+      // Taking by value here to force a copy on the offchance
+      // the error object lives in the operation state, in
+      // which case the call to cleanup() would invalidate
+      // them.
+      void set_error(ErrorValue error) noexcept {
     // local copy, b/c cleanup deletes this
     auto op = op_;
     cleanup(op);
@@ -220,12 +225,12 @@ private:
     op->error_.template destruct<Error>();
   }
 
-  template(typename CPO)
+  template(typename CPO)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-          is_callable_v<CPO, const Receiver&>)
-  friend auto tag_invoke(CPO cpo, const type& r)
-      noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-      -> callable_result_t<CPO, const Receiver&> {
+           is_callable_v<CPO, const Receiver&>)  //
+      friend auto tag_invoke(CPO cpo, const type& r) noexcept(
+          is_nothrow_callable_v<CPO, const Receiver&>)
+          -> callable_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -234,9 +239,8 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const type& r,
-      VisitFunc&& func) noexcept(is_nothrow_callable_v<
-                                VisitFunc&,
-                                const Receiver&>) {
+      VisitFunc&&
+          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -311,8 +315,7 @@ private:
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
   UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   UNIFEX_NO_UNIQUE_ADDRESS
-      sender_error_types_t<source_type, manual_lifetime_union>
-          error_;
+  sender_error_types_t<source_type, manual_lifetime_union> error_;
   union {
     manual_lifetime<source_op_t> sourceOp_;
     final_op_union_t finalOp_;
@@ -320,26 +323,28 @@ private:
   bool started_ = false;
 };
 
-template<typename Sender>
-struct sends_done_impl : std::bool_constant<sender_traits<Sender>::sends_done> {};
+template <typename Sender>
+struct sends_done_impl
+  : std::bool_constant<sender_traits<Sender>::sends_done> {};
 
-template<typename... Senders>
+template <typename... Senders>
 using any_sends_done = std::disjunction<sends_done_impl<Senders>...>;
 
 template <typename... Senders>
-using all_always_scheduler_affine = std::conjunction<detail::_is_always_scheduler_affine<Senders>...>;
+using all_always_scheduler_affine =
+    std::conjunction<detail::_is_always_scheduler_affine<Senders>...>;
 
 template <typename First, typename... Rest>
 struct max_blocking_kind {
   constexpr _block::_enum operator()() const noexcept {
-    _block::_enum enums[]{sender_traits<First>::blocking, sender_traits<Rest>::blocking...};
+    _block::_enum enums[]{
+        sender_traits<First>::blocking, sender_traits<Rest>::blocking...};
     return *std::max_element(std::begin(enums), std::end(enums));
   }
 };
 
 template <typename Source, typename Func>
 class _sndr<Source, Func>::type final {
-
   template <typename Error>
   using final_sender = callable_result_t<Func, remove_cvref_t<Error>&>;
 
@@ -350,7 +355,8 @@ class _sndr<Source, Func>::type final {
   using sends_done_impl = any_sends_done<Source, final_sender<Errors>...>;
 
   template <typename... Errors>
-  using scheduler_affine_impl = all_always_scheduler_affine<Source, final_sender<Errors>...>;
+  using scheduler_affine_impl =
+      all_always_scheduler_affine<Source, final_sender<Errors>...>;
 
   template <typename... Errors>
   using max_successor_blocking = max_blocking_kind<final_sender<Errors>...>;
@@ -378,9 +384,8 @@ public:
           map_type_list_t<final_senders_list, sender_error_type_list_t>>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
-  static constexpr bool sends_done =
-    sender_traits<Source>::sends_done ||
-    sender_error_types_t<Source, sends_done_impl>::value;
+  static constexpr bool sends_done = sender_traits<Source>::sends_done ||
+      sender_error_types_t<Source, sends_done_impl>::value;
 
   // the successors' blocking trait only affects our blocking_kind if the
   // predecessor fails so the successors can't raise our blocking_kind past
@@ -392,46 +397,47 @@ public:
           blocking_kind::maybe()));
 
   static constexpr bool is_always_scheduler_affine =
-    sender_error_types_t<Source, scheduler_affine_impl>::value;
+      sender_error_types_t<Source, scheduler_affine_impl>::value;
 
   template <typename Source2, typename Func2>
-  explicit type(Source2&& source, Func2&& func)
-    noexcept(
-      std::is_nothrow_constructible_v<Source, Source2> &&
-      std::is_nothrow_constructible_v<Func, Func2>)
-    : source_((Source2&&)source)
-    , func_((Func2&&)func)
-  {}
+  explicit type(Source2&& source, Func2&& func) noexcept(
+      std::is_nothrow_constructible_v<Source, Source2>&&
+          std::is_nothrow_constructible_v<Func, Func2>)
+    : source_((Source2 &&) source)
+    , func_((Func2 &&) func) {}
 
   template(
-    typename Sender,
-    typename Receiver,
-    typename...,
-    typename SourceReceiver = receiver_type<member_t<Sender, Source>, Func, Receiver>)
-      (requires receiver<Receiver> AND
-          same_as<remove_cvref_t<Sender>, type> AND
-          constructible_from<Func, member_t<Sender, Func>> AND
-          constructible_from<remove_cvref_t<Receiver>, Receiver> AND
-          sender_to<Source, SourceReceiver>)
-  friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r)
-       noexcept(
-        is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
-        std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
-        std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
-      -> operation_type<Source, Func, Receiver> {
+      typename Sender,
+      typename Receiver,
+      typename...,
+      typename SourceReceiver =
+          receiver_type<member_t<Sender, Source>, Func, Receiver>)  //
+      (requires receiver<Receiver> AND same_as<remove_cvref_t<Sender>, type> AND
+           constructible_from<Func, member_t<Sender, Func>> AND
+               constructible_from<remove_cvref_t<Receiver>, Receiver> AND
+                   sender_to<
+                       Source,
+                       SourceReceiver>)  //
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
+          is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver>&&
+              std::is_nothrow_constructible_v<Func, member_t<Sender, Func>>&&
+                  std::is_nothrow_constructible_v<
+                      remove_cvref_t<Receiver>,
+                      Receiver>) -> operation_type<Source, Func, Receiver> {
     return operation_type<Source, Func, Receiver>{
-      static_cast<Sender&&>(s).source_,
-      static_cast<Sender&&>(s).func_,
-      static_cast<Receiver&&>(r)
-    };
+        static_cast<Sender&&>(s).source_,
+        static_cast<Sender&&>(s).func_,
+        static_cast<Receiver&&>(r)};
   }
 
-  friend constexpr blocking_kind tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
+  friend constexpr blocking_kind
+  tag_invoke(tag_t<unifex::blocking>, const type& s) noexcept {
     // get the runtime blocking_kind for the predecessor
     blocking_kind pred = blocking(s.source_);
     // we have to go with the static result for the successors since we don't
     // know how pred_ will complete
-    blocking_kind succ = sender_error_types_t<Source, max_successor_blocking>{}();
+    blocking_kind succ =
+        sender_error_types_t<Source, max_successor_blocking>{}();
 
     return std::max(pred(), std::min(succ(), blocking_kind::maybe()));
   }
@@ -441,44 +447,42 @@ private:
   Func func_;
 };
 
-namespace _cpo
-{
+namespace _cpo {
 struct _fn final {
-  template(typename Source, typename Func)
-    (requires tag_invocable<_fn, Source, Func> AND
-        sender<Source>)
-  auto operator()(Source&& source, Func&& func) const
+  template(typename Source, typename Func)                            //
+      (requires tag_invocable<_fn, Source, Func> AND sender<Source>)  //
+      auto
+      operator()(Source&& source, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>)
-      -> tag_invoke_result_t<_fn, Source, Func> {
-    return tag_invoke(*this, (Source&&)source, (Func&&)func);
+          -> tag_invoke_result_t<_fn, Source, Func> {
+    return tag_invoke(*this, (Source &&) source, (Func &&) func);
   }
 
-  template(typename Source, typename Func)
-    (requires (!tag_invocable<_fn, Source, Func>) AND
-        constructible_from<remove_cvref_t<Source>, Source> AND
-        constructible_from<remove_cvref_t<Func>, Func>)
-  auto operator()(Source&& source, Func&& func) const
+  template(typename Source, typename Func)  //
+      (requires(!tag_invocable<_fn, Source, Func>)
+           AND constructible_from<remove_cvref_t<Source>, Source> AND
+               constructible_from<remove_cvref_t<Func>, Func>)  //
+      auto
+      operator()(Source&& source, Func&& func) const
       noexcept(std::is_nothrow_constructible_v<
-                   _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>,
-                   Source,
-                   Func>)
-      -> _sender<remove_cvref_t<Source>, remove_cvref_t<Func>> {
+               _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>,
+               Source,
+               Func>) -> _sender<remove_cvref_t<Source>, remove_cvref_t<Func>> {
     return _sender<remove_cvref_t<Source>, remove_cvref_t<Func>>{
-        (Source&&)source, (Func&&)func};
+        (Source &&) source, (Func &&) func};
   }
   template <typename Func>
   constexpr auto operator()(Func&& func) const
-      noexcept(is_nothrow_callable_v<
-        tag_t<bind_back>, _fn, Func>)
-      -> bind_back_result_t<_fn, Func> {
-    return bind_back(*this, (Func&&)func);
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+          -> bind_back_result_t<_fn, Func> {
+    return bind_back(*this, (Func &&) func);
   }
 };
-} // namespace _cpo
-} // namespace _let_e
+}  // namespace _cpo
+}  // namespace _let_e
 
-inline constexpr _let_e::_cpo::_fn let_error {};
+inline constexpr _let_e::_cpo::_fn let_error{};
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

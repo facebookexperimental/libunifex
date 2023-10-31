@@ -16,15 +16,15 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/detail/vtable.hpp>
-#include <unifex/detail/with_forwarding_tag_invoke.hpp>
-#include <unifex/detail/with_type_erased_tag_invoke.hpp>
 #include <unifex/overload.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/this.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/vtable.hpp>
+#include <unifex/detail/with_forwarding_tag_invoke.hpp>
+#include <unifex/detail/with_type_erased_tag_invoke.hpp>
 
 #include <memory>
 #include <utility>
@@ -38,8 +38,7 @@ struct _deallocate_cpo {
   using type_erased_signature_t = void(this_&) noexcept;
 
   template <typename T>
-  UNIFEX_ALWAYS_INLINE
-  void operator()(T& obj) const noexcept {
+  UNIFEX_ALWAYS_INLINE void operator()(T& obj) const noexcept {
     if constexpr (tag_invocable<_deallocate_cpo, T&>) {
       static_assert(noexcept(tag_invoke(_deallocate_cpo{}, obj)));
       tag_invoke(_deallocate_cpo{}, obj);
@@ -49,34 +48,41 @@ struct _deallocate_cpo {
   }
 };
 
-} // namespace _any_unique
+}  // namespace _any_unique
 
 template <>
-inline constexpr bool is_receiver_query_cpo_v<_any_unique::_deallocate_cpo> = false;
+inline constexpr bool is_receiver_query_cpo_v<_any_unique::_deallocate_cpo> =
+    false;
 
 namespace _any_unique {
 
 template <typename Concrete, typename Allocator>
 struct _concrete_impl {
   struct base {
-    using allocator_type = typename std::allocator_traits<
-        Allocator>::template rebind_alloc<base>;
+    using allocator_type =
+        typename std::allocator_traits<Allocator>::template rebind_alloc<base>;
 
     template <typename... Args>
-    explicit base(std::allocator_arg_t, allocator_type alloc, Args&&... args)
-      noexcept(std::is_nothrow_move_constructible_v<allocator_type> &&
-          std::is_nothrow_constructible_v<Concrete, Args...>)
+    explicit base(
+        std::allocator_arg_t,
+        allocator_type alloc,
+        Args&&... args) noexcept(std::
+                                     is_nothrow_move_constructible_v<
+                                         allocator_type>&&
+                                         std::is_nothrow_constructible_v<
+                                             Concrete,
+                                             Args...>)
       : value((Args &&) args...)
       , alloc(std::move(alloc)) {}
 
     friend void tag_invoke(_deallocate_cpo, base& impl) noexcept {
       allocator_type allocCopy = std::move(impl.alloc);
       impl.~base();
-      std::allocator_traits<allocator_type>::deallocate(
-          allocCopy, &impl, 1);
+      std::allocator_traits<allocator_type>::deallocate(allocCopy, &impl, 1);
     }
 
-    friend Concrete& tag_invoke(tag_t<detail::get_wrapped_object>, base& self) noexcept {
+    friend Concrete&
+    tag_invoke(tag_t<detail::get_wrapped_object>, base& self) noexcept {
       return self.value;
     }
 
@@ -86,7 +92,9 @@ struct _concrete_impl {
 
   template <typename... CPOs>
   struct impl {
-    struct type : base, private detail::with_forwarding_tag_invoke<base, CPOs>... {
+    struct type
+      : base
+      , private detail::with_forwarding_tag_invoke<base, CPOs>... {
       using base::base;
     };
   };
@@ -104,7 +112,7 @@ struct _byval {
 template <typename... CPOs>
 class _byval<CPOs...>::type
   : private with_type_erased_tag_invoke<type, CPOs>... {
- public:
+public:
   template <typename Concrete, typename Allocator, typename... Args>
   explicit type(
       std::allocator_arg_t,
@@ -128,7 +136,8 @@ class _byval<CPOs...>::type
       // injection of the parameters.
       ::new ((void*)ptr)
           concrete_type{std::allocator_arg, typedAllocator, (Args &&) args...};
-    } UNIFEX_CATCH (...) {
+    }
+    UNIFEX_CATCH(...) {
       allocator_traits::deallocate(typedAllocator, ptr, 1);
       UNIFEX_RETHROW();
     }
@@ -136,10 +145,10 @@ class _byval<CPOs...>::type
     impl_ = static_cast<void*>(ptr);
   }
 
-  template(typename Concrete, typename Allocator)
-      (requires (!same_as<std::allocator_arg_t, std::decay_t<Concrete>>) AND
-          (!instance_of_v<std::in_place_type_t, std::decay_t<Concrete>>))
-  type(Concrete&& concrete, Allocator alloc)
+  template(typename Concrete, typename Allocator)  //
+      (requires(!same_as<std::allocator_arg_t, std::decay_t<Concrete>>) AND(
+          !instance_of_v<std::in_place_type_t, std::decay_t<Concrete>>))  //
+      type(Concrete&& concrete, Allocator alloc)
     : type(
           std::allocator_arg,
           std::move(alloc),
@@ -147,24 +156,23 @@ class _byval<CPOs...>::type
           (Concrete &&) concrete) {}
 
   template <typename Concrete, typename... Args>
-  explicit type([[maybe_unused]] std::in_place_type_t<Concrete> tag, Args&&... args)
-    : impl_(new Concrete((Args&&) args...))
+  explicit type(
+      [[maybe_unused]] std::in_place_type_t<Concrete> tag, Args&&... args)
+    : impl_(new Concrete((Args &&) args...))
     , vtable_(vtable_holder_t::template create<Concrete>()) {}
 
-  template(typename Concrete)
-    (requires (!same_as<type, remove_cvref_t<Concrete>>) AND
-      (!instance_of_v<std::in_place_type_t, Concrete>))
-  type(Concrete&& concrete)
-    : impl_(new auto((Concrete&&) concrete))
+  template(typename Concrete)  //
+      (requires(!same_as<type, remove_cvref_t<Concrete>>)
+           AND(!instance_of_v<std::in_place_type_t, Concrete>))  //
+      type(Concrete&& concrete)
+    : impl_(new auto((Concrete &&) concrete))
     , vtable_(vtable_holder_t::template create<std::decay_t<Concrete>>()) {}
 
   type(type&& other) noexcept
     : impl_(std::exchange(other.impl_, nullptr))
     , vtable_(other.vtable_) {}
 
-  UNIFEX_ALWAYS_INLINE ~type() {
-    unsafe_deallocate();
-  }
+  UNIFEX_ALWAYS_INLINE ~type() { unsafe_deallocate(); }
 
   void swap(type& other) noexcept {
     std::swap(vtable_, other.vtable_);
@@ -176,11 +184,11 @@ class _byval<CPOs...>::type
     return *this;
   }
 
- private:
+private:
   using vtable_holder_t = std::conditional_t<
-    (sizeof...(CPOs) <= 2),
-    detail::inline_vtable_holder<_deallocate_cpo, CPOs...>,
-    detail::indirect_vtable_holder<_deallocate_cpo, CPOs...>>;
+      (sizeof...(CPOs) <= 2),
+      detail::inline_vtable_holder<_deallocate_cpo, CPOs...>,
+      detail::indirect_vtable_holder<_deallocate_cpo, CPOs...>>;
 
   UNIFEX_ALWAYS_INLINE void unsafe_deallocate() noexcept {
     // This leaves the any_unique in an invalid state.
@@ -192,9 +200,7 @@ class _byval<CPOs...>::type
     }
   }
 
-  friend void swap(type& left, type& right) noexcept {
-    left.swap(right);
-  }
+  friend void swap(type& left, type& right) noexcept { left.swap(right); }
 
   friend const vtable_holder_t& get_vtable(const type& self) noexcept {
     return self.vtable_;
@@ -208,7 +214,7 @@ class _byval<CPOs...>::type
   vtable_holder_t vtable_;
 };
 
-} // namespace _any_unique
+}  // namespace _any_unique
 
 template <typename... CPOs>
 using any_unique = typename _any_unique::_byval<CPOs...>::type;
@@ -216,6 +222,6 @@ using any_unique = typename _any_unique::_byval<CPOs...>::type;
 template <auto&... CPOs>
 using any_unique_t = any_unique<tag_t<CPOs>...>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

@@ -56,7 +56,6 @@ struct _attach_op_base final {
 
 template <typename Receiver>
 struct _attach_op_base<Receiver>::type {
-
   template <typename Receiver2>
   explicit type(inplace_stop_token stoken, Receiver2&& receiver) noexcept(
       std::is_nothrow_constructible_v<Receiver, Receiver2>)
@@ -237,9 +236,8 @@ struct _attach_sender<Sender>::type final {
 
   static constexpr bool sends_done = sender_traits<Sender>::sends_done;
 
-  static constexpr blocking_kind blocking = std::min(
-      blocking_kind::maybe(),
-      sender_traits<Sender>::blocking());
+  static constexpr blocking_kind blocking =
+      std::min(blocking_kind::maybe(), sender_traits<Sender>::blocking());
 
   static constexpr bool is_always_scheduler_affine =
       sender_traits<Sender>::is_always_scheduler_affine;
@@ -270,13 +268,13 @@ struct _attach_sender<Sender>::type final {
         static_cast<Receiver&&>(receiver)};
   }
 
-  friend constexpr blocking_kind
-  tag_invoke(tag_t<unifex::blocking>, [[maybe_unused]] const type& self) noexcept {
-    if constexpr (sender_traits<Sender>::blocking == blocking_kind::always_inline) {
+  friend constexpr blocking_kind tag_invoke(
+      tag_t<unifex::blocking>, [[maybe_unused]] const type& self) noexcept {
+    if constexpr (
+        sender_traits<Sender>::blocking == blocking_kind::always_inline) {
       // we can be constexpr in this case
       return blocking_kind::always_inline;
-    }
-    else {
+    } else {
       if (self.scope_) {
         return unifex::blocking(self.sender_);
       } else {

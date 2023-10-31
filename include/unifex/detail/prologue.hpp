@@ -18,7 +18,7 @@
 // multiple times.
 
 #ifdef UNIFEX_PROLOGUE_HPP
-#error Prologue has already been included
+#  error Prologue has already been included
 #endif
 #define UNIFEX_PROLOGUE_HPP
 
@@ -27,17 +27,15 @@
 UNIFEX_DIAGNOSTIC_PUSH
 
 #if defined(__clang__)
-    #pragma clang diagnostic ignored "-Wkeyword-macro"
+#  pragma clang diagnostic ignored "-Wkeyword-macro"
 #endif
 
 #if UNIFEX_CXX_CONCEPTS
-  #define template(...) \
-    template <__VA_ARGS__> UNIFEX_PP_EXPAND \
-    /**/
+#  define template(...)    \
+    template <__VA_ARGS__> \
+    UNIFEX_PP_EXPAND /**/
 #else
-  #define template(...) \
-    template <__VA_ARGS__ UNIFEX_TEMPLATE_SFINAE_AUX_ \
-    /**/
+#  define template(...) template <__VA_ARGS__ UNIFEX_TEMPLATE_SFINAE_AUX_ /**/
 #endif
 
 UNIFEX_DIAGNOSTIC_POP

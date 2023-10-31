@@ -25,4 +25,4 @@ mmap_region::~mmap_region() {
   }
 }
 
-} // namespace unifex::linuxos
+}  // namespace unifex::linuxos

@@ -19,9 +19,9 @@
 #include <unifex/type_traits.hpp>
 
 #if UNIFEX_NO_RTTI
-#include <functional>
+#  include <functional>
 #else
-#include <typeindex>
+#  include <typeindex>
 #endif
 
 #include <unifex/detail/prologue.hpp>
@@ -31,19 +31,16 @@ namespace unifex {
 #if UNIFEX_NO_RTTI
 
 struct type_index final {
-  const char* name() const noexcept {
-    return index_;
-  }
+  const char* name() const noexcept { return index_; }
 
   std::size_t hash_code() const noexcept {
     return std::hash<const void*>{}(index_);
   }
 
- private:
+private:
   const char* index_;
 
-  explicit type_index(const char* index) noexcept
-    : index_(index) {}
+  explicit type_index(const char* index) noexcept : index_(index) {}
 
   friend bool operator==(type_index lhs, type_index rhs) noexcept {
     return lhs.index_ == rhs.index_;
@@ -76,11 +73,11 @@ struct type_index final {
   static type_index make() noexcept {
     static_assert(std::is_same_v<T, remove_cvref_t<T>>);
 
-#ifdef __FUNCSIG__
+#  ifdef __FUNCSIG__
     static constexpr auto index = __FUNCSIG__;
-#else
+#  else
     static constexpr auto index = __PRETTY_FUNCTION__;
-#endif
+#  endif
 
     return type_index{index};
   }
@@ -102,7 +99,7 @@ type_index type_id() noexcept {
 
 #endif
 
-} // namespace unifex
+}  // namespace unifex
 
 #if UNIFEX_NO_RTTI
 
@@ -115,7 +112,7 @@ struct hash<unifex::type_index> {
   }
 };
 
-} // namespace std
+}  // namespace std
 
 #endif
 

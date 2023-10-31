@@ -18,9 +18,9 @@
 #include <unifex/config.hpp>
 
 #if !UNIFEX_NO_MEMORY_RESOURCE
-#include UNIFEX_MEMORY_RESOURCE_HEADER
+#  include UNIFEX_MEMORY_RESOURCE_HEADER
 
 namespace unifex {
-    namespace pmr = UNIFEX_MEMORY_RESOURCE_NAMESPACE;
+namespace pmr = UNIFEX_MEMORY_RESOURCE_NAMESPACE;
 }
 #endif

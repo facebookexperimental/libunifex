@@ -27,11 +27,12 @@ struct mmap_region {
   mmap_region() noexcept : ptr_(nullptr), size_(0) {}
 
   mmap_region(mmap_region&& r) noexcept
-      : ptr_(std::exchange(r.ptr_, nullptr)),
-        size_(std::exchange(r.size_, 0)) {}
+    : ptr_(std::exchange(r.ptr_, nullptr))
+    , size_(std::exchange(r.size_, 0)) {}
 
   explicit mmap_region(void* ptr, std::size_t size) noexcept
-      : ptr_(ptr), size_(size) {}
+    : ptr_(ptr)
+    , size_(size) {}
 
   ~mmap_region();
 
@@ -41,20 +42,16 @@ struct mmap_region {
     return *this;
   }
 
-  void* data() const noexcept {
-    return ptr_;
-  }
+  void* data() const noexcept { return ptr_; }
 
-  std::size_t size() const noexcept {
-    return size_;
-  }
+  std::size_t size() const noexcept { return size_; }
 
- private:
+private:
   void* ptr_;
   std::size_t size_;
 };
 
-} // namespace linuxos
-} // namespace unifex
+}  // namespace linuxos
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

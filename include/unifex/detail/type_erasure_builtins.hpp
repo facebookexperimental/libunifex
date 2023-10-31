@@ -34,54 +34,50 @@
 //      _copy_construct_cpo is customsied by defining a copy-constructor.
 //
 
-namespace unifex
-{
-  namespace detail
-  {
-    struct _destroy_cpo {
-      using type_erased_signature_t = void(this_&) noexcept;
+namespace unifex {
+namespace detail {
+struct _destroy_cpo {
+  using type_erased_signature_t = void(this_&) noexcept;
 
-      template(typename T)                              //
-          (requires std::is_nothrow_destructible_v<T>)  //
-          void
-          operator()(T& object) const noexcept {
-        object.~T();
-      }
-    };
+  template(typename T)                              //
+      (requires std::is_nothrow_destructible_v<T>)  //
+      void
+      operator()(T& object) const noexcept {
+    object.~T();
+  }
+};
 
-    template <bool RequireNoexceptMove>
-    struct _move_construct_cpo {
-      using type_erased_signature_t =
-          void(void* p, this_&& src) noexcept(RequireNoexceptMove);
+template <bool RequireNoexceptMove>
+struct _move_construct_cpo {
+  using type_erased_signature_t =
+      void(void* p, this_&& src) noexcept(RequireNoexceptMove);
 
-      template(typename T)  //
-          (requires(
-              !RequireNoexceptMove ||
-              std::is_nothrow_move_constructible_v<T>))  //
-          void
-          operator()(void* p, T&& src) const
-          noexcept(std::is_nothrow_move_constructible_v<T>) {
-        ::new (p) T(static_cast<T&&>(src));
-      }
-    };
+  template(typename T)  //
+      (requires(
+          !RequireNoexceptMove || std::is_nothrow_move_constructible_v<T>))  //
+      void
+      operator()(void* p, T&& src) const
+      noexcept(std::is_nothrow_move_constructible_v<T>) {
+    ::new (p) T(static_cast<T&&>(src));
+  }
+};
 
-    template <bool RequireNoexceptCopy>
-    struct _copy_construct_cpo {
-      using type_erased_signature_t =
-          void(void* p, const this_& src) noexcept(RequireNoexceptCopy);
+template <bool RequireNoexceptCopy>
+struct _copy_construct_cpo {
+  using type_erased_signature_t =
+      void(void* p, const this_& src) noexcept(RequireNoexceptCopy);
 
-      template(typename T)  //
-          (requires(
-              !RequireNoexceptCopy ||
-              std::is_nothrow_copy_constructible_v<T>))  //
-          void
-          operator()(void* p, const T& src) const
-          noexcept(std::is_nothrow_copy_constructible_v<T>) {
-        ::new (p) T(src);
-      }
-    };
+  template(typename T)  //
+      (requires(
+          !RequireNoexceptCopy || std::is_nothrow_copy_constructible_v<T>))  //
+      void
+      operator()(void* p, const T& src) const
+      noexcept(std::is_nothrow_copy_constructible_v<T>) {
+    ::new (p) T(src);
+  }
+};
 
-  }  // namespace detail
+}  // namespace detail
 }  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

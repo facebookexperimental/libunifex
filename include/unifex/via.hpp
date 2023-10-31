@@ -15,10 +15,10 @@
  */
 #pragma once
 
+#include <unifex/bind_back.hpp>
 #include <unifex/finally.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
-#include <unifex/bind_back.hpp>
 
 #include <type_traits>
 
@@ -26,43 +26,45 @@
 
 namespace unifex {
 namespace _via {
-  struct _fn {
-    template(typename Source, typename Scheduler)
-        (requires tag_invocable<_fn, Source, Scheduler>)
-    auto operator()(Source&& source, Scheduler&& scheduler) const
-        noexcept(is_nothrow_tag_invocable_v<_fn, Source, Scheduler>)
-            -> tag_invoke_result_t<_fn, Source, Scheduler> {
-      return tag_invoke(
-          *this,
-          static_cast<Source&&>(source),
-          static_cast<Scheduler&&>(scheduler));
-    }
+struct _fn {
+  template(typename Source, typename Scheduler)         //
+      (requires tag_invocable<_fn, Source, Scheduler>)  //
+      auto
+      operator()(Source&& source, Scheduler&& scheduler) const
+      noexcept(is_nothrow_tag_invocable_v<_fn, Source, Scheduler>)
+          -> tag_invoke_result_t<_fn, Source, Scheduler> {
+    return tag_invoke(
+        *this,
+        static_cast<Source&&>(source),
+        static_cast<Scheduler&&>(scheduler));
+  }
 
-    template(typename Source, typename Scheduler)
-        (requires (!tag_invocable<_fn, Source, Scheduler>))
-    auto operator()(Source&& source, Scheduler&& scheduler) const
-        noexcept(noexcept(finally(
-            static_cast<Source&&>(source),
-            schedule(static_cast<Scheduler&&>(scheduler)))))
-            -> decltype(finally(
-                static_cast<Source&&>(source),
-                schedule(static_cast<Scheduler&&>(scheduler)))) {
-      return finally(
+  template(typename Source, typename Scheduler)           //
+      (requires(!tag_invocable<_fn, Source, Scheduler>))  //
+      auto
+      operator()(Source&& source, Scheduler&& scheduler) const
+      noexcept(noexcept(finally(
           static_cast<Source&&>(source),
-          schedule(static_cast<Scheduler&&>(scheduler)));
-    }
-    template(typename Scheduler)
-        (requires scheduler<Scheduler>)
-    constexpr auto operator()(Scheduler&& scheduler) const
-        noexcept(is_nothrow_callable_v<
-          tag_t<bind_back>, _fn, Scheduler>)
-        -> bind_back_result_t<_fn, Scheduler> {
-      return bind_back(*this, (Scheduler&&)scheduler);
-    }
-  };
-} // namespace _via
+          schedule(static_cast<Scheduler&&>(scheduler)))))
+          -> decltype(finally(
+              static_cast<Source&&>(source),
+              schedule(static_cast<Scheduler&&>(scheduler)))) {
+    return finally(
+        static_cast<Source&&>(source),
+        schedule(static_cast<Scheduler&&>(scheduler)));
+  }
+  template(typename Scheduler)         //
+      (requires scheduler<Scheduler>)  //
+      constexpr auto
+      operator()(Scheduler&& scheduler) const
+      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Scheduler>)
+          -> bind_back_result_t<_fn, Scheduler> {
+    return bind_back(*this, (Scheduler &&) scheduler);
+  }
+};
+}  // namespace _via
 
-inline constexpr _via::_fn via {};
-} // namespace unifex
+inline constexpr _via::_fn via{};
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

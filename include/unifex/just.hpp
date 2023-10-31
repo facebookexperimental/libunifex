@@ -16,9 +16,9 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/blocking.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
-#include <unifex/blocking.hpp>
 #include <unifex/std_concepts.hpp>
 
 #include <exception>
@@ -50,7 +50,8 @@ struct _op<Receiver, Values...>::type {
             unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
           },
           std::move(values_));
-    } UNIFEX_CATCH (...) {
+    }
+    UNIFEX_CATCH(...) {
       unifex::set_error((Receiver &&) receiver_, std::current_exception());
     }
   }
@@ -67,10 +68,12 @@ template <typename... Values>
 class _sender<Values...>::type {
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Values...> values_;
 
-  public:
+public:
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<Values...>>;
 
   template <template <typename...> class Variant>
@@ -80,37 +83,48 @@ class _sender<Values...>::type {
 
   static constexpr auto blocking = blocking_kind::always_inline;
 
-  template(typename... Values2)
-    (requires (sizeof...(Values2) == sizeof...(Values)) AND
-      constructible_from<std::tuple<Values...>, Values2...>)
-  explicit type(std::in_place_t, Values2&&... values)
-    noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
+  template(typename... Values2)  //
+      (requires(sizeof...(Values2) == sizeof...(Values)) AND constructible_from<
+          std::tuple<Values...>,
+          Values2...>)  //
+      explicit type(std::in_place_t, Values2&&... values) noexcept(
+          std::is_nothrow_constructible_v<std::tuple<Values...>, Values2...>)
     : values_((Values2 &&) values...) {}
 
-  template(typename This, typename Receiver)
-      (requires same_as<remove_cvref_t<This>, type> AND
-        receiver<Receiver> AND
-        constructible_from<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
-  friend auto tag_invoke(tag_t<connect>, This&& that, Receiver&& r)
-      noexcept(std::is_nothrow_constructible_v<std::tuple<Values...>, member_t<This, std::tuple<Values...>>>)
-      -> operation<Receiver, Values...> {
+  template(typename This, typename Receiver)  //
+      (requires same_as<remove_cvref_t<This>, type> AND receiver<Receiver> AND
+           constructible_from<
+               std::tuple<Values...>,
+               member_t<
+                   This,
+                   std::tuple<Values...>>>)  //
+      friend auto tag_invoke(
+          tag_t<connect>,
+          This&& that,
+          Receiver&& r) noexcept(std::
+                                     is_nothrow_constructible_v<
+                                         std::tuple<Values...>,
+                                         member_t<This, std::tuple<Values...>>>)
+          -> operation<Receiver, Values...> {
     return {static_cast<This&&>(that).values_, static_cast<Receiver&&>(r)};
   }
 };
-} // namespace _just
+}  // namespace _just
 
 namespace _just_cpo {
-  inline const struct just_fn {
-    template <typename... Values>
-    constexpr auto operator()(Values&&... values) const
-      noexcept(std::is_nothrow_constructible_v<_just::sender<Values...>, std::in_place_t, Values...>)
-      -> _just::sender<Values...> {
-      return _just::sender<Values...>{std::in_place, (Values&&)values...};
-    }
-  } just{};
-} // namespace _just_cpo
+inline const struct just_fn {
+  template <typename... Values>
+  constexpr auto operator()(Values&&... values) const
+      noexcept(std::is_nothrow_constructible_v<
+               _just::sender<Values...>,
+               std::in_place_t,
+               Values...>) -> _just::sender<Values...> {
+    return _just::sender<Values...>{std::in_place, (Values &&) values...};
+  }
+} just{};
+}  // namespace _just_cpo
 using _just_cpo::just;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

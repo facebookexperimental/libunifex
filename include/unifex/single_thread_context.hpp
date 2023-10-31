@@ -35,18 +35,14 @@ public:
     thread_.join();
   }
 
-  auto get_scheduler() noexcept {
-    return loop_.get_scheduler();
-  }
+  auto get_scheduler() noexcept { return loop_.get_scheduler(); }
 
-  std::thread::id get_thread_id() const noexcept {
-    return thread_.get_id();
-  }
+  std::thread::id get_thread_id() const noexcept { return thread_.get_id(); }
 };
-} // namespace _single_thread
+}  // namespace _single_thread
 
 using single_thread_context = _single_thread::context;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

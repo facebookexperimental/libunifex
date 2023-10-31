@@ -29,4 +29,4 @@ void trampoline_scheduler::trampoline_state::drain() noexcept {
   }
 }
 
-} // namespace unifex
+}  // namespace unifex

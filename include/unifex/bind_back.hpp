@@ -30,16 +30,15 @@ namespace _compose {
 
 struct _fn {
   template <typename Target, typename Other, typename Self>
-  auto operator()(Target&& target, Other&& other, Self&& self) const
-    noexcept(
-      is_nothrow_callable_v<Other, Target> &&
-      is_nothrow_callable_v<Self, callable_result_t<Other, Target>>)
-    -> callable_result_t<Self, callable_result_t<Other, Target>> {
-    return ((Self&&) self)(((Other&&) other)((Target&&) target));
+  auto operator()(Target&& target, Other&& other, Self&& self) const noexcept(
+      is_nothrow_callable_v<Other, Target>&&
+          is_nothrow_callable_v<Self, callable_result_t<Other, Target>>)
+      -> callable_result_t<Self, callable_result_t<Other, Target>> {
+    return ((Self &&) self)(((Other &&) other)((Target &&) target));
   }
 };
 
-} // namespace _compose
+}  // namespace _compose
 
 namespace _bind_back {
 
@@ -56,12 +55,13 @@ struct _apply_fn_impl<Cpo, Target>::type {
   Cpo&& cpo_;
   Target&& target_;
 
-  template (typename... ArgN)
-    (requires callable<Cpo, Target, ArgN...>)
-  auto operator()(ArgN&&... argN)
-    noexcept(is_nothrow_callable_v<Cpo, Target, ArgN...>)
-    -> callable_result_t<Cpo, Target, ArgN...> {
-    return ((Cpo&&) cpo_)((Target&&) target_, (ArgN&&) argN...);
+  template(typename... ArgN)                     //
+      (requires callable<Cpo, Target, ArgN...>)  //
+      auto
+      operator()(ArgN&&... argN) noexcept(
+          is_nothrow_callable_v<Cpo, Target, ArgN...>)
+          -> callable_result_t<Cpo, Target, ArgN...> {
+    return ((Cpo &&) cpo_)((Target &&) target_, (ArgN &&) argN...);
   }
 };
 
@@ -80,62 +80,71 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
   UNIFEX_NO_UNIQUE_ADDRESS Cpo cpo_;
   std::tuple<ArgN...> argN_;
 
-  template (typename Target)
-    (requires (!derived_from<remove_cvref_t<Target>, _result_base>) AND
-      callable<Cpo const&, Target, ArgN const&...>)
-  decltype(auto) operator()(Target&& target) const &
-    noexcept(is_nothrow_callable_v<Cpo const&, Target, ArgN const&...>) {
-    return std::apply(_apply_fn<Cpo const&, Target>{cpo_, (Target&&) target}, argN_);
-  }
-  template (typename Target)
-    (requires (!derived_from<remove_cvref_t<Target>, _result_base>) AND
-      callable<Cpo, Target, ArgN...>)
-  decltype(auto) operator()(Target&& target) &&
-    noexcept(is_nothrow_callable_v<Cpo, Target, ArgN...>) {
+  template(typename Target)  //
+      (requires(!derived_from<remove_cvref_t<Target>, _result_base>)
+           AND callable<Cpo const&, Target, ArgN const&...>)  //
+      decltype(auto)
+      operator()(Target&& target) const& noexcept(
+          is_nothrow_callable_v<Cpo const&, Target, ArgN const&...>) {
     return std::apply(
-        _apply_fn<Cpo, Target>{(Cpo&&) cpo_, (Target&&) target},
+        _apply_fn<Cpo const&, Target>{cpo_, (Target &&) target}, argN_);
+  }
+  template(typename Target)  //
+      (requires(!derived_from<remove_cvref_t<Target>, _result_base>)
+           AND callable<Cpo, Target, ArgN...>)  //
+      decltype(auto)
+      operator()(Target&& target) && noexcept(
+          is_nothrow_callable_v<Cpo, Target, ArgN...>) {
+    return std::apply(
+        _apply_fn<Cpo, Target>{(Cpo &&) cpo_, (Target &&) target},
         std::move(argN_));
   }
 
-  template (typename Target, typename Self)
-    (requires (!derived_from<remove_cvref_t<Target>, _result_base>) AND
-      same_as<remove_cvref_t<Self>, type> AND
-      callable<member_t<Self, Cpo>, Target, member_t<Self, ArgN>...>)
-  friend decltype(auto) operator|(Target&& target, Self&& self)
-    noexcept(
-      is_nothrow_callable_v<member_t<Self, Cpo>, Target, member_t<Self, ArgN>...>) {
+  template(typename Target, typename Self)  //
+      (requires(!derived_from<
+                remove_cvref_t<Target>,
+                _result_base>) AND same_as<remove_cvref_t<Self>, type> AND
+           callable<member_t<Self, Cpo>, Target, member_t<Self, ArgN>...>)  //
+      friend decltype(auto)
+      operator|(Target&& target, Self&& self) noexcept(
+          is_nothrow_callable_v<
+              member_t<Self, Cpo>,
+              Target,
+              member_t<Self, ArgN>...>) {
     return std::apply(
-        _apply_fn<member_t<Self, Cpo>, Target>{((Self&&) self).cpo_, (Target&&) target},
-        ((Self&&) self).argN_);
+        _apply_fn<member_t<Self, Cpo>, Target>{
+            ((Self &&) self).cpo_, (Target &&) target},
+        ((Self &&) self).argN_);
   }
 
-  template (typename Other, typename Self)
-    (requires derived_from<remove_cvref_t<Other>, _result_base> AND
-      same_as<remove_cvref_t<Self>, type>)
-  friend decltype(auto) operator|(Other&& other, Self&& self)
-    noexcept(noexcept(
-      _result<_compose::_fn, remove_cvref_t<Other>, type>{
-          {}, // _result_base
-          {}, // _compose::_fn
-          std::tuple{(Other&&) other, (Self&&) self}})) {
+  template(typename Other, typename Self)  //
+      (requires derived_from<remove_cvref_t<Other>, _result_base> AND
+           same_as<remove_cvref_t<Self>, type>)  //
+      friend decltype(auto)
+      operator|(Other&& other, Self&& self) noexcept(
+          noexcept(_result<_compose::_fn, remove_cvref_t<Other>, type>{
+              {},  // _result_base
+              {},  // _compose::_fn
+              std::tuple{(Other &&) other, (Self &&) self}})) {
     return _result<_compose::_fn, remove_cvref_t<Other>, type>{
-        {}, // _result_base
-        {}, // _compose::_fn
-        std::tuple{(Other&&) other, (Self&&) self}};
+        {},  // _result_base
+        {},  // _compose::_fn
+        std::tuple{(Other &&) other, (Self &&) self}};
   }
 };
 
 inline const struct _fn {
   template <typename Cpo, typename... ArgN>
   constexpr auto operator()(Cpo cpo, ArgN&&... argN) const
-      noexcept(noexcept(
-          _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, std::tuple{(ArgN &&) argN...}}))
-      -> _result<Cpo, std::decay_t<ArgN>...> {
-    return _result<Cpo, std::decay_t<ArgN>...>{{}, (Cpo&&) cpo, std::tuple{(ArgN &&) argN...}};
+      noexcept(noexcept(_result<Cpo, std::decay_t<ArgN>...>{
+          {}, (Cpo &&) cpo, std::tuple{(ArgN &&) argN...}}))
+          -> _result<Cpo, std::decay_t<ArgN>...> {
+    return _result<Cpo, std::decay_t<ArgN>...>{
+        {}, (Cpo &&) cpo, std::tuple{(ArgN &&) argN...}};
   }
 } bind_back{};
 
-} // namespace _bind_back
+}  // namespace _bind_back
 
 using _bind_back::bind_back;
 
@@ -143,6 +152,6 @@ template <typename Cpo, typename... ArgN>
 using bind_back_result_t =
     _bind_back::_result<std::decay_t<Cpo>, std::decay_t<ArgN>...>;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

@@ -28,7 +28,10 @@ template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc>
 struct _adapted {
   struct type;
 };
-template <typename Stream, typename NextAdaptFunc, typename CleanupAdaptFunc = void>
+template <
+    typename Stream,
+    typename NextAdaptFunc,
+    typename CleanupAdaptFunc = void>
 using adapted = typename _adapted<
     remove_cvref_t<Stream>,
     std::decay_t<NextAdaptFunc>,
@@ -70,33 +73,33 @@ struct _adapted<Stream, AdaptFunc, void>::type {
     return std::invoke(s.adapter_, cleanup(s.innerStream_));
   }
 };
-} // namespace _adapt_stream
+}  // namespace _adapt_stream
 
 namespace _adapt_stream_cpo {
-  inline const struct _fn {
-    template <typename Stream, typename AdapterFunc>
-    auto operator()(Stream&& stream, AdapterFunc&& adapt) const
-        -> _adapt_stream::adapted<Stream, AdapterFunc> {
-      return {(Stream &&) stream, (AdapterFunc &&) adapt};
-    }
+inline const struct _fn {
+  template <typename Stream, typename AdapterFunc>
+  auto operator()(Stream&& stream, AdapterFunc&& adapt) const
+      -> _adapt_stream::adapted<Stream, AdapterFunc> {
+    return {(Stream &&) stream, (AdapterFunc &&) adapt};
+  }
 
-    template <
-        typename Stream,
-        typename NextAdapterFunc,
-        typename CleanupAdapterFunc>
-    auto operator()(
-        Stream&& stream,
-        NextAdapterFunc&& adaptNext,
-        CleanupAdapterFunc&& adaptCleanup) const
-        -> _adapt_stream::adapted<Stream, NextAdapterFunc, CleanupAdapterFunc> {
-      return {
-          (Stream &&) stream,
-          (NextAdapterFunc &&) adaptNext,
-          (CleanupAdapterFunc &&) adaptCleanup};
-    }
-  } adapt_stream {};
-} // namespace _adapt_stream_cpo
+  template <
+      typename Stream,
+      typename NextAdapterFunc,
+      typename CleanupAdapterFunc>
+  auto operator()(
+      Stream&& stream,
+      NextAdapterFunc&& adaptNext,
+      CleanupAdapterFunc&& adaptCleanup) const
+      -> _adapt_stream::adapted<Stream, NextAdapterFunc, CleanupAdapterFunc> {
+    return {
+        (Stream &&) stream,
+        (NextAdapterFunc &&) adaptNext,
+        (CleanupAdapterFunc &&) adaptCleanup};
+  }
+} adapt_stream{};
+}  // namespace _adapt_stream_cpo
 using _adapt_stream_cpo::adapt_stream;
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

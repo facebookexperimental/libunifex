@@ -48,8 +48,10 @@ struct next_sender {
   stream& stream_;
 
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<int>>;
 
   template <template <typename...> class Variant>
@@ -91,10 +93,10 @@ void _op<Receiver>::type::start() noexcept {
     unifex::set_done(std::move(receiver_));
   }
 }
-} // namespace _range
+}  // namespace _range
 
 using range_stream = _range::stream;
 
-} // namespace unifex
+}  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>
