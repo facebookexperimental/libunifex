@@ -15,17 +15,17 @@
  */
 #include <unifex/any_sender_of.hpp>
 
+#include <unifex/any_scheduler.hpp>
 #include <unifex/finally.hpp>
+#include <unifex/inline_scheduler.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/then.hpp>
-#include <unifex/inline_scheduler.hpp>
-#include <unifex/any_scheduler.hpp>
 
 #include "mock_receiver.hpp"
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <string>
 #include <tuple>
@@ -62,20 +62,21 @@ struct AnySenderOfTestImpl : Test {
   static constexpr size_t value_count = sizeof...(T);
 
   static_assert(sender<any_sender>);
-  static_assert(sender_to<any_sender, mock_receiver<void(T...) noexcept(NoExcept)>>);
-  static_assert(std::is_same_v<std::variant<std::tuple<T...>>,
-                               sender_value_types_t<any_sender, std::variant, std::tuple>>);
-  static_assert(std::is_same_v<std::variant<std::exception_ptr>,
-                               sender_error_types_t<any_sender, std::variant>>);
+  static_assert(
+      sender_to<any_sender, mock_receiver<void(T...) noexcept(NoExcept)>>);
+  static_assert(std::is_same_v<
+                std::variant<std::tuple<T...>>,
+                sender_value_types_t<any_sender, std::variant, std::tuple>>);
+  static_assert(std::is_same_v<
+                std::variant<std::exception_ptr>,
+                sender_error_types_t<any_sender, std::variant>>);
 
   static auto default_just() {
     if constexpr (value_count == 0) {
       return just();
-    }
-    else if constexpr (value_count == 1) {
+    } else if constexpr (value_count == 1) {
       return just(42);
-    }
-    else if constexpr (value_count == 2) {
+    } else if constexpr (value_count == 2) {
       return just(42, std::string{"hello"});
     }
   }
@@ -84,11 +85,9 @@ struct AnySenderOfTestImpl : Test {
   static auto& expect_set_value_call(U& receiver) noexcept {
     if constexpr (value_count == 0) {
       return EXPECT_CALL(receiver, set_value());
-    }
-    else if constexpr (value_count == 1) {
+    } else if constexpr (value_count == 1) {
       return EXPECT_CALL(receiver, set_value(_));
-    }
-    else if constexpr (value_count == 2) {
+    } else if constexpr (value_count == 2) {
       return EXPECT_CALL(receiver, set_value(_, _));
     }
   }
@@ -98,14 +97,11 @@ template <typename Sig>
 struct AnySenderOfTest;
 
 template <typename... Ts>
-struct AnySenderOfTest<void(Ts...)>
-  : AnySenderOfTestImpl<false, Ts...>
-{};
+struct AnySenderOfTest<void(Ts...)> : AnySenderOfTestImpl<false, Ts...> {};
 
 template <typename... Ts>
 struct AnySenderOfTest<void(Ts...) noexcept>
-  : AnySenderOfTestImpl<true, Ts...>
-{};
+  : AnySenderOfTestImpl<true, Ts...> {};
 
 using AnySenderOfTestTypes = Types<
     void(),
@@ -117,7 +113,10 @@ using AnySenderOfTestTypes = Types<
 
 TYPED_TEST_SUITE(AnySenderOfTest, AnySenderOfTestTypes, );
 
-template <typename SenderSig, typename ReceiverSig = SenderSig, typename... ExtraReceiverSigs>
+template <
+    typename SenderSig,
+    typename ReceiverSig = SenderSig,
+    typename... ExtraReceiverSigs>
 void testWrappingAJust() noexcept {
   using test_t = AnySenderOfTest<SenderSig>;
   using any_sender = typename test_t::any_sender;
@@ -128,29 +127,35 @@ void testWrappingAJust() noexcept {
 
   auto op = connect(std::move(sender), receiver);
 
-  test_t::expect_set_value_call(*receiver)
-      .WillOnce(Invoke([](auto... values) noexcept {
+  test_t::expect_set_value_call(*receiver).WillOnce(
+      Invoke([](auto... values) noexcept {
         if constexpr (test_t::value_count == 0) {
           EXPECT_EQ(std::tuple{}, std::tie(values...));
         } else if constexpr (test_t::value_count == 1) {
           EXPECT_EQ(std::tuple{42}, std::tie(values...));
         } else {
           static_assert(test_t::value_count == 2, "Unimplemented");
-          EXPECT_EQ((std::tuple{42, std::string{"hello"}}), std::tie(values...));
+          EXPECT_EQ(
+              (std::tuple{42, std::string{"hello"}}), std::tie(values...));
         }
       }));
 
   start(op);
 }
 
-} // <anonymous namespace>
+}  // namespace
 
 TYPED_TEST(AnySenderOfTest, AnySenderOfCanWrapAJust) {
   testWrappingAJust<TypeParam>();
 }
 
 TYPED_TEST(AnySenderOfTest, AnySenderOfCanConnectToAMultiReceiver) {
-  testWrappingAJust<TypeParam, void(), void(int), void(int, std::string), void(int, int, int)>();
+  testWrappingAJust<
+      TypeParam,
+      void(),
+      void(int),
+      void(int, std::string),
+      void(int, int, int)>();
 }
 
 #if !defined(_MSC_VER)
@@ -170,15 +175,14 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanBeCancelled) {
   start(op);
 }
 
-#if !UNIFEX_NO_EXCEPTIONS
+#  if !UNIFEX_NO_EXCEPTIONS
 TYPED_TEST(AnySenderOfTest, AnySenderOfCanError) {
   using test_t = AnySenderOfTest<TypeParam>;
   using any_sender = typename test_t::any_sender;
 
-  any_sender sender = finally(test_t::default_just(),
-      then(just(), [] {
-        throw std::runtime_error("uh oh");
-      }));
+  any_sender sender = finally(test_t::default_just(), then(just(), [] {
+                                throw std::runtime_error("uh oh");
+                              }));
 
   mock_receiver<TypeParam> receiver;
 
@@ -199,17 +203,17 @@ TYPED_TEST(AnySenderOfTest, AnySenderOfCanError) {
 
   start(op);
 }
-#endif // !UNIFEX_NO_EXCEPTIONS
-#endif // !defined(_MSC_VER)
+#  endif  // !UNIFEX_NO_EXCEPTIONS
+#endif    // !defined(_MSC_VER)
 
 TEST(AnySenderOfTest, SchedulerProvider) {
-  // Build a list of required receiver queries; in this case, just get_scheduler:
-  using Queries =
-      with_receiver_queries<overload<any_scheduler(const this_&)>(get_scheduler)>;
+  // Build a list of required receiver queries; in this case, just
+  // get_scheduler:
+  using Queries = with_receiver_queries<overload<any_scheduler(const this_&)>(
+      get_scheduler)>;
 
   // From that list of receiver queries, generate a type-erased sender:
-  using Sender =
-      Queries::any_sender_of<int, std::string>;
+  using Sender = Queries::any_sender_of<int, std::string>;
 
   // Type-erase a sender. This sender only connects to receivers that have
   // implemented the required receiver queries.
@@ -218,7 +222,8 @@ TEST(AnySenderOfTest, SchedulerProvider) {
   // Wrap the sender such that all passed-in receivers are wrapped in a
   // wrapper that implements the get_scheduler query to return an
   // inline_scheduler
-  auto sender = with_query_value(std::move(j), get_scheduler, inline_scheduler{});
+  auto sender =
+      with_query_value(std::move(j), get_scheduler, inline_scheduler{});
 
   mock_receiver<void(int, std::string)> receiver;
 

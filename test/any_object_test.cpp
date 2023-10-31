@@ -28,111 +28,110 @@
 
 #include <unifex/detail/prologue.hpp>
 
-namespace
-{
-  inline constexpr struct get_typeid_cpo {
-    using type_erased_signature_t =
-        unifex::type_index(const unifex::this_&) noexcept;
+namespace {
+inline constexpr struct get_typeid_cpo {
+  using type_erased_signature_t =
+      unifex::type_index(const unifex::this_&) noexcept;
 
-    template <typename T>
-    friend unifex::type_index tag_invoke(get_typeid_cpo, const T&) {
-      return unifex::type_id<T>();
-    }
+  template <typename T>
+  friend unifex::type_index tag_invoke(get_typeid_cpo, const T&) {
+    return unifex::type_id<T>();
+  }
 
-    template(typename T)                                            //
-        (requires unifex::tag_invocable<get_typeid_cpo, const T&>)  //
-        auto
-        operator()(const T& x) const noexcept
-        -> unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
-      static_assert(std::is_same_v<
-                    unifex::type_index,
-                    unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
-      return unifex::tag_invoke(get_typeid_cpo{}, x);
-    }
-  } get_typeid{};
+  template(typename T)                                            //
+      (requires unifex::tag_invocable<get_typeid_cpo, const T&>)  //
+      auto
+      operator()(const T& x) const noexcept
+      -> unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
+    static_assert(std::is_same_v<
+                  unifex::type_index,
+                  unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
+    return unifex::tag_invoke(get_typeid_cpo{}, x);
+  }
+} get_typeid{};
 
-  inline constexpr struct to_string_cpo {
-    using type_erased_signature_t = std::string(const unifex::this_&);
+inline constexpr struct to_string_cpo {
+  using type_erased_signature_t = std::string(const unifex::this_&);
 
-    template(typename T)(
-        requires unifex::tag_invocable<to_string_cpo, const T&> AND
-            unifex::convertible_to<
-                unifex::tag_invoke_result_t<to_string_cpo, const T&>,
-                std::string>) std::string
-    operator()(const T& value) const {
-      return unifex::tag_invoke(to_string_cpo{}, value);
-    }
+  template(typename T)(
+      requires unifex::tag_invocable<to_string_cpo, const T&> AND
+          unifex::convertible_to<
+              unifex::tag_invoke_result_t<to_string_cpo, const T&>,
+              std::string>) std::string
+  operator()(const T& value) const {
+    return unifex::tag_invoke(to_string_cpo{}, value);
+  }
 
-    template <
-        typename T,
-        std::enable_if_t<!unifex::tag_invocable<to_string_cpo, const T&>, int> =
-            0,
-        std::void_t<decltype(std::to_string(std::declval<const T&>()))>* =
-            nullptr>
-    std::string operator()(const T& x) const {
-      return std::to_string(x);
-    }
-  } to_string;
+  template <
+      typename T,
+      std::enable_if_t<!unifex::tag_invocable<to_string_cpo, const T&>, int> =
+          0,
+      std::void_t<decltype(std::to_string(std::declval<const T&>()))>* =
+          nullptr>
+  std::string operator()(const T& x) const {
+    return std::to_string(x);
+  }
+} to_string;
 
-  using any_typeidable = unifex::basic_any_object<
-      8,
-      8,
-      true,
-      std::allocator<std::byte>,
-      unifex::tag_t<get_typeid>>;
+using any_typeidable = unifex::basic_any_object<
+    8,
+    8,
+    true,
+    std::allocator<std::byte>,
+    unifex::tag_t<get_typeid>>;
 
-  struct instance_counter {
-  private:
-    static int constructor_count;
-    static int destructor_count;
+struct instance_counter {
+private:
+  static int constructor_count;
+  static int destructor_count;
 
-  public:
-    int id;
-    int original_id;
+public:
+  int id;
+  int original_id;
 
-    static void reset_counts() {
-      constructor_count = 0;
-      destructor_count = 0;
-    }
-    static size_t get_constructor_count() noexcept { return constructor_count; }
-    static size_t get_destructor_count() noexcept { return destructor_count; }
-    static size_t get_instance_count() noexcept {
-      return constructor_count - destructor_count;
-    }
+  static void reset_counts() {
+    constructor_count = 0;
+    destructor_count = 0;
+  }
+  static size_t get_constructor_count() noexcept { return constructor_count; }
+  static size_t get_destructor_count() noexcept { return destructor_count; }
+  static size_t get_instance_count() noexcept {
+    return constructor_count - destructor_count;
+  }
 
-    instance_counter() noexcept : id(constructor_count++), original_id(id) {}
+  instance_counter() noexcept : id(constructor_count++), original_id(id) {}
 
-    instance_counter(const instance_counter& x) noexcept
-      : id(constructor_count++)
-      , original_id(x.original_id) {}
+  instance_counter(const instance_counter& x) noexcept
+    : id(constructor_count++)
+    , original_id(x.original_id) {}
 
-    instance_counter(instance_counter&& x) noexcept
-      : id(constructor_count++)
-      , original_id(x.original_id) {
-      x.original_id = -x.original_id;
-    }
+  instance_counter(instance_counter&& x) noexcept
+    : id(constructor_count++)
+    , original_id(x.original_id) {
+    x.original_id = -x.original_id;
+  }
 
-    ~instance_counter() { ++destructor_count; }
+  ~instance_counter() { ++destructor_count; }
 
-    instance_counter& operator=(const instance_counter& x) noexcept {
-      original_id = x.original_id;
-      return *this;
-    }
+  instance_counter& operator=(const instance_counter& x) noexcept {
+    original_id = x.original_id;
+    return *this;
+  }
 
-    instance_counter&& operator=(instance_counter&& x) noexcept {
-      original_id = x.original_id;
-      x.original_id = -x.original_id;
-      return std::move(*this);
-    }
+  instance_counter&& operator=(instance_counter&& x) noexcept {
+    original_id = x.original_id;
+    x.original_id = -x.original_id;
+    return std::move(*this);
+  }
 
-    friend std::string
-    tag_invoke(unifex::tag_t<to_string>, const instance_counter& x) {
-      return std::to_string(x.id) + " (" + std::to_string(x.original_id) + ")";
-    }
-  };
+  friend std::string
+  tag_invoke(unifex::tag_t<to_string>, const instance_counter& x) {
+    return std::to_string(x.id) + " (" + std::to_string(x.original_id) + ")";
+  }
+};
 
-  int instance_counter::constructor_count = 0;
-  int instance_counter::destructor_count = 0;
+int instance_counter::constructor_count = 0;
+int instance_counter::destructor_count = 0;
 }  // namespace
 
 TEST(AnyObjectTest, ImplicitConstruction) {
@@ -229,26 +228,25 @@ TEST(AnyObjectTest, MoveConstructorDoesNotMoveLargeObjects) {
   EXPECT_EQ(instance_counter::get_constructor_count(), 1);
 }
 
-namespace
-{
-  template <typename T>
-  struct always_fails_allocator {
-    using value_type = T;
+namespace {
+template <typename T>
+struct always_fails_allocator {
+  using value_type = T;
 
-    always_fails_allocator() = default;
+  always_fails_allocator() = default;
 
-    template <typename OtherT>
-    always_fails_allocator(always_fails_allocator<OtherT>) noexcept {}
+  template <typename OtherT>
+  always_fails_allocator(always_fails_allocator<OtherT>) noexcept {}
 
-    T* allocate(size_t) { throw std::bad_alloc{}; }
+  T* allocate(size_t) { throw std::bad_alloc{}; }
 
-    void deallocate(T*, size_t) { std::terminate(); }
-  };
+  void deallocate(T*, size_t) { std::terminate(); }
+};
 
-  template <size_t Size, size_t Alignment>
-  struct alignas(Alignment) sized_type {
-    std::byte storage[Size];
-  };
+template <size_t Size, size_t Alignment>
+struct alignas(Alignment) sized_type {
+  std::byte storage[Size];
+};
 
 }  // namespace
 
@@ -308,31 +306,30 @@ TEST(AnyObjectTest, UseDefaultAllocatorIfNotSpecified) {
       std::bad_alloc);
 }
 
-namespace
-{
-  [[maybe_unused]] inline constexpr struct get_foo_cpo {
-    using type_erased_signature_t = int(const unifex::this_&);
+namespace {
+[[maybe_unused]] inline constexpr struct get_foo_cpo {
+  using type_erased_signature_t = int(const unifex::this_&);
 
-    template(typename T)                                         //
-        (requires unifex::tag_invocable<get_foo_cpo, const T&>)  //
-        auto
-        operator()(const T& x) const
-        noexcept(unifex::is_nothrow_tag_invocable_v<get_foo_cpo, const T&>)
-            -> unifex::tag_invoke_result_t<get_foo_cpo, const T&> {
-      return unifex::tag_invoke(*this, x);
-    }
-  } get_foo{};
+  template(typename T)                                         //
+      (requires unifex::tag_invocable<get_foo_cpo, const T&>)  //
+      auto
+      operator()(const T& x) const
+      noexcept(unifex::is_nothrow_tag_invocable_v<get_foo_cpo, const T&>)
+          -> unifex::tag_invoke_result_t<get_foo_cpo, const T&> {
+    return unifex::tag_invoke(*this, x);
+  }
+} get_foo{};
 
-  using any_foo = unifex::
-      basic_any_object<16, 16, true, std::allocator<std::byte>, get_foo_cpo>;
+using any_foo = unifex::
+    basic_any_object<16, 16, true, std::allocator<std::byte>, get_foo_cpo>;
 
-  struct foo_supported {
-    int foo = 0;
+struct foo_supported {
+  int foo = 0;
 
-    friend int tag_invoke(get_foo_cpo, const foo_supported& x) noexcept {
-      return x.foo;
-    }
-  };
+  friend int tag_invoke(get_foo_cpo, const foo_supported& x) noexcept {
+    return x.foo;
+  }
+};
 
 }  // namespace
 
@@ -395,7 +392,7 @@ TEST(AnyObjectTest, SelfMoveAssignmentDoesNothing) {
     any_t x{std::in_place_type<instance_counter>};
 
     auto& xAlias = x;
-    
+
     EXPECT_EQ(instance_counter::get_constructor_count(), 1);
     EXPECT_EQ(instance_counter::get_destructor_count(), 0);
 
@@ -409,11 +406,10 @@ TEST(AnyObjectTest, SelfMoveAssignmentDoesNothing) {
   EXPECT_EQ(instance_counter::get_destructor_count(), 1);
 }
 
-namespace
-{
-  struct big_instance_counter : instance_counter {
-    std::byte bytes[100];
-  };
+namespace {
+struct big_instance_counter : instance_counter {
+  std::byte bytes[100];
+};
 }  // namespace
 
 TEST(AnyObjectTest, MoveAssignmentFromHeapAllocatedValue1) {
@@ -514,68 +510,66 @@ TEST(AnyObjectTest, MoveAssignmentHeapAllocated) {
   }
 }
 
-namespace
-{
-  struct allocation {
-    explicit allocation(void* p, size_t sz) noexcept : pointer(p), size(sz) {}
-    void* pointer;
-    size_t size;
-  };
+namespace {
+struct allocation {
+  explicit allocation(void* p, size_t sz) noexcept : pointer(p), size(sz) {}
+  void* pointer;
+  size_t size;
+};
 
-  struct tracking_allocator_base {
-  public:
-    static std::vector<allocation> get_allocations() { return allocations; }
+struct tracking_allocator_base {
+public:
+  static std::vector<allocation> get_allocations() { return allocations; }
 
-  protected:
-    static std::vector<allocation> allocations;
-  };
+protected:
+  static std::vector<allocation> allocations;
+};
 
-  inline std::vector<allocation> tracking_allocator_base::allocations{};
+inline std::vector<allocation> tracking_allocator_base::allocations{};
 
-  template <typename T>
-  struct tracking_allocator : tracking_allocator_base {
-    using value_type = T;
+template <typename T>
+struct tracking_allocator : tracking_allocator_base {
+  using value_type = T;
 
-    tracking_allocator() = default;
+  tracking_allocator() = default;
 
-    template <typename OtherT>
-    tracking_allocator(tracking_allocator<OtherT>) noexcept {}
+  template <typename OtherT>
+  tracking_allocator(tracking_allocator<OtherT>) noexcept {}
 
-    T* allocate(size_t n) {
-      T* result = std::allocator<T>{}.allocate(n);
-      tracking_allocator_base::allocations.emplace_back(result, n * sizeof(T));
-      return result;
+  T* allocate(size_t n) {
+    T* result = std::allocator<T>{}.allocate(n);
+    tracking_allocator_base::allocations.emplace_back(result, n * sizeof(T));
+    return result;
+  }
+
+  void deallocate(T* ptr, size_t n) {
+    auto it = tracking_allocator_base::allocations.begin();
+    while (it != tracking_allocator_base::allocations.end()) {
+      if (it->pointer == ptr && it->size == n * sizeof(T)) {
+        tracking_allocator_base::allocations.erase(it);
+        goto free;
+      }
     }
 
-    void deallocate(T* ptr, size_t n) {
-      auto it = tracking_allocator_base::allocations.begin();
-      while (it != tracking_allocator_base::allocations.end()) {
-        if (it->pointer == ptr && it->size == n * sizeof(T)) {
-          tracking_allocator_base::allocations.erase(it);
-          goto free;
-        }
-      }
-
-      assert(false && "deallocating unrecognised allocation");
+    assert(false && "deallocating unrecognised allocation");
 
 free:
-      std::allocator<T>{}.deallocate(ptr, n);
-    }
-  };
+    std::allocator<T>{}.deallocate(ptr, n);
+  }
+};
 
-  struct ThrowingMove : instance_counter {
-    ThrowingMove() noexcept = default;
+struct ThrowingMove : instance_counter {
+  ThrowingMove() noexcept = default;
 
-    ThrowingMove(ThrowingMove&& x) noexcept(false)
-      : instance_counter(std::move(x)) {
-      throw std::logic_error("shouldn't be called");
-    }
+  ThrowingMove(ThrowingMove&& x) noexcept(false)
+    : instance_counter(std::move(x)) {
+    throw std::logic_error("shouldn't be called");
+  }
 
-    friend std::string
-    tag_invoke(unifex::tag_t<to_string>, const ThrowingMove&) {
-      return "ThrowingMove";
-    }
-  };
+  friend std::string tag_invoke(unifex::tag_t<to_string>, const ThrowingMove&) {
+    return "ThrowingMove";
+  }
+};
 }  // namespace
 
 TEST(AnyObjectTest, TypeEraseTypeWithThrowingMoveConstructorHeapAllocates) {

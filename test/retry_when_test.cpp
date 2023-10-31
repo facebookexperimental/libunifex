@@ -18,28 +18,26 @@
 
 #if !UNIFEX_NO_EXCEPTIONS
 
-#include <unifex/retry_when.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/then.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/timed_single_thread_context.hpp>
-#include <unifex/let_value.hpp>
+#  include <unifex/let_value.hpp>
+#  include <unifex/retry_when.hpp>
+#  include <unifex/scheduler_concepts.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/then.hpp>
+#  include <unifex/timed_single_thread_context.hpp>
 
-#include <exception>
-#include <cstdio>
-#include <chrono>
+#  include <chrono>
+#  include <cstdio>
+#  include <exception>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace std::chrono_literals;
 
 namespace {
 class some_error : public std::exception {
-    const char* what() const noexcept override {
-        return "some error";
-    }
+  const char* what() const noexcept override { return "some error"; }
 };
-} // anonymous namespace
+}  // anonymous namespace
 
 TEST(retry_when, WorksAsExpected) {
   unifex::timed_single_thread_context ctx;
@@ -48,37 +46,38 @@ TEST(retry_when, WorksAsExpected) {
   auto startTime = std::chrono::steady_clock::now();
 
   auto timeSinceStartInMs = [startTime] {
-      return std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::steady_clock::now() - startTime).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now() - startTime)
+        .count();
   };
 
   int operationCount = 0;
 
   EXPECT_THROW(
-    unifex::sync_wait(
-      unifex::retry_when(
-        unifex::then(unifex::schedule_after(scheduler, 10ms), [&] {
-            ++operationCount;
-            std::printf("[%d] %d: operation about to fail\n", (int)timeSinceStartInMs(), operationCount);
-            throw some_error{};
-          }),
-        [count = 0, scheduler](std::exception_ptr ex) mutable {
-          if (++count > 5) {
-            std::printf("retry limit exceeded\n");
-            std::rethrow_exception(ex);
-          }
+      unifex::sync_wait(unifex::retry_when(
+          unifex::then(
+              unifex::schedule_after(scheduler, 10ms),
+              [&] {
+                ++operationCount;
+                std::printf(
+                    "[%d] %d: operation about to fail\n",
+                    (int)timeSinceStartInMs(),
+                    operationCount);
+                throw some_error{};
+              }),
+          [count = 0, scheduler](std::exception_ptr ex) mutable {
+            if (++count > 5) {
+              std::printf("retry limit exceeded\n");
+              std::rethrow_exception(ex);
+            }
 
-          // Simulate some back-off strategy that increases the timeout.
-          return unifex::schedule_after(scheduler, count * 100ms);
-        })), some_error);
+            // Simulate some back-off strategy that increases the timeout.
+            return unifex::schedule_after(scheduler, count * 100ms);
+          })),
+      some_error);
 
   const int expectedDurationInMs =
-    10 +
-    (100 + 10) +
-    (200 + 10) +
-    (300 + 10) +
-    (400 + 10) +
-    (500 + 10);
+      10 + (100 + 10) + (200 + 10) + (300 + 10) + (400 + 10) + (500 + 10);
 
   const auto elapsedDurationInMs = timeSinceStartInMs();
   EXPECT_GE(elapsedDurationInMs, expectedDurationInMs)
@@ -95,38 +94,37 @@ TEST(retry_when, Pipeable) {
   auto startTime = std::chrono::steady_clock::now();
 
   auto timeSinceStartInMs = [startTime] {
-      return std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::steady_clock::now() - startTime).count();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now() - startTime)
+        .count();
   };
 
   int operationCount = 0;
 
   EXPECT_THROW(
-    unifex::schedule_after(scheduler, 10ms)
-      | unifex::then([&] {
-          ++operationCount;
-          std::printf("[%d] %d: operation about to fail\n", (int)timeSinceStartInMs(), operationCount);
-          throw some_error{};
-        })
-      | unifex::retry_when(
-          [count = 0, scheduler](std::exception_ptr ex) mutable {
-            if (++count > 5) {
-              std::printf("retry limit exceeded\n");
-              std::rethrow_exception(ex);
-            }
+      unifex::schedule_after(scheduler, 10ms) | unifex::then([&] {
+        ++operationCount;
+        std::printf(
+            "[%d] %d: operation about to fail\n",
+            (int)timeSinceStartInMs(),
+            operationCount);
+        throw some_error{};
+      }) |
+          unifex::retry_when(
+              [count = 0, scheduler](std::exception_ptr ex) mutable {
+                if (++count > 5) {
+                  std::printf("retry limit exceeded\n");
+                  std::rethrow_exception(ex);
+                }
 
-            // Simulate some back-off strategy that increases the timeout.
-            return unifex::schedule_after(scheduler, count * 100ms);
-          })
-      | unifex::sync_wait(), some_error);
+                // Simulate some back-off strategy that increases the timeout.
+                return unifex::schedule_after(scheduler, count * 100ms);
+              }) |
+          unifex::sync_wait(),
+      some_error);
 
   const int expectedDurationInMs =
-    10 +
-    (100 + 10) +
-    (200 + 10) +
-    (300 + 10) +
-    (400 + 10) +
-    (500 + 10);
+      10 + (100 + 10) + (200 + 10) + (300 + 10) + (400 + 10) + (500 + 10);
 
   const auto elapsedDurationInMs = timeSinceStartInMs();
   EXPECT_GE(elapsedDurationInMs, expectedDurationInMs)
@@ -136,4 +134,4 @@ TEST(retry_when, Pipeable) {
       << "error: operation should have executed 6 times";
 }
 
-#endif // !UNIFEX_NO_EXCEPTIONS
+#endif  // !UNIFEX_NO_EXCEPTIONS

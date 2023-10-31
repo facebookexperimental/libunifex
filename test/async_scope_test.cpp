@@ -16,6 +16,7 @@
 
 #include <unifex/allocate.hpp>
 #include <unifex/any_sender_of.hpp>
+#include <unifex/async_scope.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_from.hpp>
@@ -30,7 +31,6 @@
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
-#include <unifex/async_scope.hpp>
 #include <unifex/when_all.hpp>
 
 #include "mock_receiver.hpp"
@@ -96,8 +96,7 @@ struct async_scope_test : testing::Test {
   }
 
   void expect_work_to_run() {
-    future<int, int> fut =
-        scope.spawn_on(thread.get_scheduler(), just(42, 42));
+    future<int, int> fut = scope.spawn_on(thread.get_scheduler(), just(42, 42));
 
     // we'll hang here if the above work doesn't start
     auto result = sync_wait(std::move(fut));

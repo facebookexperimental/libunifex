@@ -18,13 +18,13 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/invoke.hpp>
-#include <unifex/task.hpp>
-#include <unifex/sync_wait.hpp>
+#  include <unifex/invoke.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
 
-#include <optional>
+#  include <optional>
 
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 
@@ -90,11 +90,13 @@ TEST(CoInvoke, WithLvalueArgumentsWithByRefCaptures) {
 }
 
 TEST(CoInvoke, WithLvalueFunctionObject) {
-  auto fn = []() -> task<int> { co_return 42; };
+  auto fn = []() -> task<int> {
+    co_return 42;
+  };
   task<int> t = co_invoke(fn);
   std::optional<int> result = sync_wait(std::move(t));
   ASSERT_TRUE(!!result);
   EXPECT_EQ(*result, 42);
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

@@ -41,10 +41,11 @@ using namespace unifex;
 TEST(Finally, Value) {
   timed_single_thread_context context;
 
-  auto res = just(42)
-    | finally(schedule(context.get_scheduler()))
-    | then([](int i){ return std::make_pair(i, std::this_thread::get_id() ); })
-    | sync_wait();
+  auto res = just(42) | finally(schedule(context.get_scheduler())) |
+      then([](int i) {
+               return std::make_pair(i, std::this_thread::get_id());
+             }) |
+      sync_wait();
 
   ASSERT_FALSE(!res);
   EXPECT_EQ(res->first, 42);
@@ -55,18 +56,15 @@ TEST(Finally, Ref) {
   {
     int a = 0;
 
-    auto sndr = just_from([&a]() -> int& { return a; })
-      | finally(just());
+    auto sndr = just_from([&a]() -> int& { return a; }) | finally(just());
     using Sndr = decltype(sndr);
 
     static_assert(std::is_same_v<
-     sender_value_types_t<Sndr, std::variant, std::tuple>,
-      std::variant<std::tuple<int&>>
-    >);
+                  sender_value_types_t<Sndr, std::variant, std::tuple>,
+                  std::variant<std::tuple<int&>>>);
     static_assert(std::is_same_v<
-      sender_error_types_t<Sndr, std::variant>,
-      std::variant<std::exception_ptr>
-    >);
+                  sender_error_types_t<Sndr, std::variant>,
+                  std::variant<std::exception_ptr>>);
     static_assert(!sender_traits<Sndr>::sends_done);
 
     auto res = std::move(sndr) | sync_wait();
@@ -78,9 +76,8 @@ TEST(Finally, Ref) {
   {
     int a = 0;
 
-    auto res = just_from([&a]() -> const int& { return a; })
-      | finally(just())
-      | sync_wait();
+    auto res = just_from([&a]() -> const int& { return a; }) | finally(just()) |
+        sync_wait();
 
     ASSERT_FALSE(!res);
     EXPECT_EQ(&res->get(), &a);
@@ -89,10 +86,8 @@ TEST(Finally, Ref) {
   {
     int a = 0;
 
-    auto res = just_from([&a]() -> int& { return a; })
-      | finally(just())
-      | then([](int& i) -> int& { return i; })
-      | sync_wait();
+    auto res = just_from([&a]() -> int& { return a; }) | finally(just()) |
+        then([](int& i) -> int& { return i; }) | sync_wait();
 
     ASSERT_FALSE(!res);
     EXPECT_EQ(&res->get(), &a);
@@ -100,10 +95,11 @@ TEST(Finally, Ref) {
 }
 
 struct sends_error_ref {
-
   template <
-    template <typename...> class Variant,
-    template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <template <typename...> class Variant>
@@ -122,13 +118,13 @@ struct sends_error_ref {
   };
 
   template <class Receiver>
-  friend auto tag_invoke(tag_t<connect>, sends_error_ref self, Receiver&& receiver) {
+  friend auto
+  tag_invoke(tag_t<connect>, sends_error_ref self, Receiver&& receiver) {
     return operation<Receiver>{self.val, std::forward<Receiver>(receiver)};
   }
 
   int& val;
 };
-
 
 TEST(Finally, ErrorRefDecays) {
   // TODO: Should errors also have references preserved in 'finally?' See the
@@ -138,23 +134,19 @@ TEST(Finally, ErrorRefDecays) {
   using Sndr = decltype(sndr);
 
   static_assert(std::is_same_v<
-    sender_value_types_t<Sndr, std::variant, std::tuple>,
-    std::variant<std::tuple<>>
-  >);
+                sender_value_types_t<Sndr, std::variant, std::tuple>,
+                std::variant<std::tuple<>>>);
   static_assert(std::is_same_v<
-    sender_error_types_t<Sndr, std::variant>,
-    std::variant<int, std::exception_ptr>
-  >);
+                sender_error_types_t<Sndr, std::variant>,
+                std::variant<int, std::exception_ptr>>);
   static_assert(!sender_traits<Sndr>::sends_done);
 }
 
 TEST(Finally, Done) {
   timed_single_thread_context context;
 
-  auto res = just_done()
-    | finally(schedule(context.get_scheduler()))
-    | let_done([](){ return just(std::this_thread::get_id()); })
-    | sync_wait();
+  auto res = just_done() | finally(schedule(context.get_scheduler())) |
+      let_done([]() { return just(std::this_thread::get_id()); }) | sync_wait();
 
   ASSERT_FALSE(!res);
   EXPECT_EQ(*res, context.get_thread_id());
@@ -163,10 +155,9 @@ TEST(Finally, Done) {
 TEST(Finally, Error) {
   timed_single_thread_context context;
 
-  auto res = just_error(-1)
-    | finally(schedule(context.get_scheduler()))
-    | let_error([](auto&&){ return just(std::this_thread::get_id()); })
-    | sync_wait();
+  auto res = just_error(-1) | finally(schedule(context.get_scheduler())) |
+      let_error([](auto&&) { return just(std::this_thread::get_id()); }) |
+      sync_wait();
 
   ASSERT_TRUE(res.has_value());
   EXPECT_EQ(*res, context.get_thread_id());

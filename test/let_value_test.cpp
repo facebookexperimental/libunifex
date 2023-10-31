@@ -41,24 +41,25 @@ using namespace std::chrono_literals;
 
 namespace {
 constexpr auto async = [](auto& context, auto&& func) {
-    return then(
-        schedule_after(context.get_scheduler(), 100ms),
-        (decltype(func))func);
+  return then(
+      schedule_after(context.get_scheduler(), 100ms), (decltype(func))func);
 };
 
 constexpr auto asyncVector = [](auto& context) {
-    return async(context, [] {
-        std::cout << "producing vector" << std::endl;
-        return std::vector<int>{1, 2, 3, 4};
-    });
+  return async(context, [] {
+    std::cout << "producing vector" << std::endl;
+    return std::vector<int>{1, 2, 3, 4};
+  });
 };
 
 namespace _never_block {
 template <typename... Values>
 struct sender {
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<Values...>>;
 
   template <template <typename...> class Variant>
@@ -72,19 +73,21 @@ struct sender {
 inline const struct _fn {
   template <typename... Values>
   constexpr auto operator()(Values&&... values) const noexcept {
-    return _never_block::sender{(Values&&)values...};
+    return _never_block::sender{(Values &&) values...};
   }
 
 } never_block{};
-} // namespace _never_block
+}  // namespace _never_block
 
 using _never_block::never_block;
 
 namespace _multi {
 struct _multi_sender {
   template <
-      template <typename...> class Variant,
-      template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<int>, Tuple<double>>;
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
@@ -97,9 +100,9 @@ inline const struct _fn {
     return _multi::_multi_sender{};
   }
 } multi_sender{};
-} // namespace _multi
+}  // namespace _multi
 using _multi::multi_sender;
-} // anonymous namespace
+}  // anonymous namespace
 
 TEST(Let, Simple) {
   timed_single_thread_context context;
@@ -129,7 +132,8 @@ TEST(Let, Nested) {
 
   sync_wait(then(
       when_all(
-          let_value(asyncVector(context),
+          let_value(
+              asyncVector(context),
               [&](std::vector<int>& v) {
                 return async(context, [&] {
                   std::cout << "printing vector" << std::endl;
@@ -139,11 +143,13 @@ TEST(Let, Nested) {
                   std::cout << std::endl;
                 });
               }),
-          let_value(just(42),
+          let_value(
+              just(42),
               [&](int& x) {
-                return let_value(async(context, [&] { return x / 2; }), [&](int& y) {
-                  return async(context, [&] { return x + y; });
-                });
+                return let_value(
+                    async(context, [&] { return x / 2; }), [&](int& y) {
+                      return async(context, [&] { return x + y; });
+                    });
               })),
       [](std::variant<std::tuple<>> a, std::variant<std::tuple<int>> b) {
         std::cout << "when_all finished - [" << a.index() << ", "
@@ -160,17 +166,16 @@ TEST(Let, Pipeable) {
   // Simple usage of 'let_value()'
   // - defines an async scope in which the result of one async
   //   operation is in-scope for the duration of a second operation.
-  std::optional<int> result = async(context, [] { return 42; })
-    | let_value(
-        [&](int& x) {
+  std::optional<int> result =
+      async(context, [] { return 42; }) | let_value([&](int& x) {
+        printf("addressof x = %p, val = %i\n", (void*)&x, x);
+        return async(context, [&]() -> int {
+          printf("successor tranform\n");
           printf("addressof x = %p, val = %i\n", (void*)&x, x);
-          return async(context, [&]() -> int {
-            printf("successor tranform\n");
-            printf("addressof x = %p, val = %i\n", (void*)&x, x);
-            return x;
-          });
-        })
-    | sync_wait();
+          return x;
+        });
+      }) |
+      sync_wait();
 
   EXPECT_TRUE(!!result);
   EXPECT_EQ(*result, 42);
@@ -204,9 +209,8 @@ TEST(Let, MaybeBlockingKind) {
 TEST(Let, PipeMaybeBlockingKind) {
   timed_single_thread_context context;
 
-  auto snd1 = just() | let_value([&] {
-    return schedule(context.get_scheduler());
-  });
+  auto snd1 =
+      just() | let_value([&] { return schedule(context.get_scheduler()); });
   using Snd1 = decltype(snd1);
   static_assert(blocking_kind::maybe == sender_traits<Snd1>::blocking);
 
@@ -245,7 +249,7 @@ TEST(Let, SimpleLetValueWithAllocate) {
   std::optional<int> result =
       sync_wait(let_value(unifex::just(42), [](int num) {
         return unifex::allocate(unifex::just(num));
-    }));
+      }));
 
   EXPECT_TRUE(!!result);
   EXPECT_EQ(*result, 42);
@@ -259,16 +263,24 @@ TEST(Let, SimpleLetValueVoidWithAllocate) {
 }
 
 TEST(Let, SimpleLetValueErrorWithAllocate) {
-  EXPECT_THROW(sync_wait(let_value(unifex::just(1), [](int) {
-    return unifex::allocate(unifex::just_error(std::invalid_argument("Throwing error for testing purposes")));
-  })), std::invalid_argument);
+  EXPECT_THROW(
+      sync_wait(let_value(
+          unifex::just(1),
+          [](int) {
+            return unifex::allocate(unifex::just_error(
+                std::invalid_argument("Throwing error for testing purposes")));
+          })),
+      std::invalid_argument);
 }
 
 TEST(Let, LetValueSuccessorWithException) {
-  EXPECT_THROW(sync_wait(unifex::just() | unifex::let_value([]() {
-    throw std::runtime_error("Throwing error for testing purposes");
-    return unifex::just();
-  })), std::runtime_error);
+  EXPECT_THROW(
+      sync_wait(unifex::just() | unifex::let_value([]() {
+                  throw std::runtime_error(
+                      "Throwing error for testing purposes");
+                  return unifex::just();
+                })),
+      std::runtime_error);
 }
 
 namespace {

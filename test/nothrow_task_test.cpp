@@ -18,31 +18,30 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <atomic>
+#  include <atomic>
 
-#include <unifex/static_thread_pool.hpp>
-#include <unifex/when_all.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
-#include <unifex/single_thread_context.hpp>
-#include <unifex/just_error.hpp>
-#include <unifex/stop_if_requested.hpp>
+#  include <unifex/just_error.hpp>
+#  include <unifex/single_thread_context.hpp>
+#  include <unifex/static_thread_pool.hpp>
+#  include <unifex/stop_if_requested.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/task.hpp>
+#  include <unifex/when_all.hpp>
 
-
-#include <gtest/gtest.h>
+#  include <gtest/gtest.h>
 
 using namespace unifex;
 
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-nothrow_task<void> child(Scheduler s, std::atomic<int>& x) {
+(requires scheduler<Scheduler>)
+    nothrow_task<void> child(Scheduler s, std::atomic<int>& x) {
   co_await unifex::then(schedule(s), []() noexcept {});
   ++x;
 }
 
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-nothrow_task<void> example(Scheduler s, std::atomic<int>& x) {
+(requires scheduler<Scheduler>)
+    nothrow_task<void> example(Scheduler s, std::atomic<int>& x) {
   ++x;
   co_await when_all(child(s, x), child(s, x));
 }
@@ -61,7 +60,7 @@ task<void> nothrowTaskBody() {
 }
 
 task<int> foo() {
-  co_await stop(); // sends a done signal, unwinds the coroutine stack
+  co_await stop();  // sends a done signal, unwinds the coroutine stack
   ADD_FAILURE();
   co_return 42;
 }
@@ -70,8 +69,7 @@ nothrow_task<int> bar() {
   try {
     co_await foo();
     ADD_FAILURE();
-  }
-  catch (...) {
+  } catch (...) {
     ADD_FAILURE();
   }
   co_return -1;
@@ -89,8 +87,8 @@ nothrow_task<bool> nothrowTryCatch() {
 // scheduler has NOT changed. Note that this behavior is different
 // for nothrow_task compared to regular task
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-nothrow_task<bool> test_current_scheduler(Scheduler s) {
+(requires scheduler<Scheduler>)
+    nothrow_task<bool> test_current_scheduler(Scheduler s) {
   auto before = co_await current_scheduler();
   co_await unifex::then(schedule(s), []() noexcept {});
   auto after = co_await current_scheduler();
@@ -101,16 +99,18 @@ nothrow_task<bool> test_current_scheduler(Scheduler s) {
 // scheduler is NOT inherited by child tasks. Note that this behavior
 // is different for nothrow_task compared to regular task
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-nothrow_task<std::pair<bool, std::thread::id>> test_current_scheduler_is_inherited_impl(Scheduler s) {
+(requires scheduler<Scheduler>)nothrow_task<std::pair<
+    bool,
+    std::thread::id>> test_current_scheduler_is_inherited_impl(Scheduler s) {
   any_scheduler s2 = co_await current_scheduler();
   bool sameScheduler = (s2 != s);
   co_return std::make_pair(sameScheduler, std::this_thread::get_id());
 }
 
 UNIFEX_TEMPLATE(typename Scheduler)
-  (requires scheduler<Scheduler>)
-nothrow_task<std::pair<bool, std::thread::id>> test_current_scheduler_is_inherited(Scheduler s) {
+(requires scheduler<Scheduler>)nothrow_task<std::pair<
+    bool,
+    std::thread::id>> test_current_scheduler_is_inherited(Scheduler s) {
   co_await unifex::then(schedule(s), []() noexcept {});
   co_return co_await test_current_scheduler_is_inherited_impl(s);
 }
@@ -138,7 +138,8 @@ TEST(NothrowTaskDeathTest, JustErrorCausesProgramTermination) {
 
 TEST(NothrowTaskSchedulerAffinityTest, CurrentSchedulerTest) {
   single_thread_context thread_ctx;
-  if(auto opt = sync_wait(test_current_scheduler(thread_ctx.get_scheduler()))) {
+  if (auto opt =
+          sync_wait(test_current_scheduler(thread_ctx.get_scheduler()))) {
     ASSERT_TRUE(opt.has_value());
     EXPECT_TRUE(*opt);
   } else {
@@ -148,7 +149,8 @@ TEST(NothrowTaskSchedulerAffinityTest, CurrentSchedulerTest) {
 
 TEST(NothrowTaskSchedulerAffinityTest, CurrentSchedulerIsInheritedTest) {
   single_thread_context thread_ctx;
-  if(auto opt = sync_wait(test_current_scheduler_is_inherited(thread_ctx.get_scheduler()))) {
+  if (auto opt = sync_wait(
+          test_current_scheduler_is_inherited(thread_ctx.get_scheduler()))) {
     ASSERT_TRUE(opt.has_value());
     auto [differentScheduler, thread_id] = *opt;
     EXPECT_TRUE(differentScheduler);
@@ -171,4 +173,4 @@ TEST(NothrowTaskTest, NothrowDoesNotTerminateWithTryCatch) {
   EXPECT_TRUE(sync_wait(nothrowTryCatch()));
 }
 
-#endif // !UNIFEX_NO_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES

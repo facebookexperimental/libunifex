@@ -41,20 +41,22 @@ using namespace std::chrono_literals;
 
 namespace {
 struct IntAndStringReceiver {
-    void set_value(int) noexcept {}
+  void set_value(int) noexcept {}
 
-    void set_value(std::string) noexcept {}
+  void set_value(std::string) noexcept {}
 
-    void set_done() noexcept {}
+  void set_done() noexcept {}
 
-    void set_error(std::exception_ptr) noexcept {}
+  void set_error(std::exception_ptr) noexcept {}
 };
 
-template<bool lvalueConnectNoexcept = true, bool rvalueConnectNoexcept = true>
+template <bool lvalueConnectNoexcept = true, bool rvalueConnectNoexcept = true>
 struct TestSender {
   template <
-    template <typename...> class Variant,
-    template <typename...> class Tuple>
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
   using value_types = Variant<Tuple<std::string>>;
 
   template <template <typename...> class Variant>
@@ -64,25 +66,26 @@ struct TestSender {
 
   struct op {};
 
-  template<typename Receiver>
+  template <typename Receiver>
   op connect([[maybe_unused]] Receiver&& r) & noexcept(lvalueConnectNoexcept) {
     return op{};
   }
 
-  template<typename Receiver>
+  template <typename Receiver>
   op connect([[maybe_unused]] Receiver&& r) && noexcept(rvalueConnectNoexcept) {
     return op{};
   }
 };
-} // namespace
+}  // namespace
 
 TEST(Variant, CombineJustAndError) {
-  auto func = [](bool v) -> variant_sender<decltype(just(5)), decltype(just_error(5))> {
-      if (v) {
-          return just(5);
-      } else {
-          return just_error(10);
-      }
+  auto func =
+      [](bool v) -> variant_sender<decltype(just(5)), decltype(just_error(5))> {
+    if (v) {
+      return just(5);
+    } else {
+      return just_error(10);
+    }
   };
 
   auto just_variant_sender = func(true);
@@ -93,24 +96,25 @@ TEST(Variant, CombineJustAndError) {
   EXPECT_EQ(*result, 5);
 
   try {
-      auto just_error_variant_sender = func(false);
-      EXPECT_FALSE(just_error_variant_sender.sends_done);
-      sync_wait(just_error_variant_sender);
-      EXPECT_FALSE(true);
+    auto just_error_variant_sender = func(false);
+    EXPECT_FALSE(just_error_variant_sender.sends_done);
+    sync_wait(just_error_variant_sender);
+    EXPECT_FALSE(true);
   } catch (int& v) {
-      EXPECT_EQ(v, 10);
+    EXPECT_EQ(v, 10);
   }
 
   std::cout << "variant_sender done " << *result << "\n";
 }
 
 TEST(Variant, CombineJustAndDone) {
-  auto func = [](bool v) -> variant_sender<decltype(just(5)), decltype(just_done())> {
-      if (v) {
-          return just(5);
-      } else {
-          return just_done();
-      }
+  auto func =
+      [](bool v) -> variant_sender<decltype(just(5)), decltype(just_done())> {
+    if (v) {
+      return just(5);
+    } else {
+      return just_done();
+    }
   };
 
   auto just_variant_sender = func(true);
@@ -129,12 +133,14 @@ TEST(Variant, CombineJustAndDone) {
 }
 
 TEST(Variant, CombineJustAndJust) {
-  auto func = [&](bool v) -> variant_sender<decltype(just(5)), decltype(dematerialize(materialize(just(42))))> {
-      if (v) {
-          return just(5);
-      } else {
-          return dematerialize(materialize(just(42)));
-      }
+  auto func = [&](bool v) -> variant_sender<
+                              decltype(just(5)),
+                              decltype(dematerialize(materialize(just(42))))> {
+    if (v) {
+      return just(5);
+    } else {
+      return dematerialize(materialize(just(42)));
+    }
   };
 
   auto just_variant_sender = func(true);
@@ -176,45 +182,60 @@ TEST(Variant, CombineFunctors) {
 }
 
 TEST(Variant, CombineJustAndJust_Invalid) {
-  auto func = [](bool v) -> variant_sender<decltype(just(5)), decltype(just(std::declval<std::string>()))> {
-      if (v) {
-          return just(5);
-      } else {
-          return just(std::string("Hello World"));
-      }
+  auto func = [](bool v) -> variant_sender<
+                             decltype(just(5)),
+                             decltype(just(std::declval<std::string>()))> {
+    if (v) {
+      return just(5);
+    } else {
+      return just(std::string("Hello World"));
+    }
   };
 
   IntAndStringReceiver rec;
 
   auto just_variant_sender = func(true);
   using JustInt = decltype(just_variant_sender);
-  static_assert(blocking_kind::always_inline == sender_traits<JustInt>::blocking);
+  static_assert(
+      blocking_kind::always_inline == sender_traits<JustInt>::blocking);
   EXPECT_FALSE(just_variant_sender.sends_done);
   auto op = unifex::connect(just_variant_sender, rec);
   unifex::start(op);
 
   auto just_string_sender = func(false);
   using JustString = decltype(just_variant_sender);
-  static_assert(blocking_kind::always_inline == sender_traits<JustString>::blocking);
+  static_assert(
+      blocking_kind::always_inline == sender_traits<JustString>::blocking);
   EXPECT_FALSE(just_variant_sender.sends_done);
   auto op2 = unifex::connect(just_string_sender, rec);
   unifex::start(op2);
 }
 
 namespace {
-template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept>
-using test_sender_t = variant_sender<TestSender<lvalueConnectNoexcept, rvalueConnectNoexcept>>;
+template <bool lvalueConnectNoexcept, bool rvalueConnectNoexcept>
+using test_sender_t =
+    variant_sender<TestSender<lvalueConnectNoexcept, rvalueConnectNoexcept>>;
 
-template<typename T, bool lvalue>
-using conditionally_lvalue_t = std::conditional_t<lvalue, std::add_lvalue_reference_t<T>, T>;
+template <typename T, bool lvalue>
+using conditionally_lvalue_t =
+    std::conditional_t<lvalue, std::add_lvalue_reference_t<T>, T>;
 
-template<bool lvalueConnectNoexcept, bool rvalueConnectNoexcept, bool isLvalueReference = true>
-using is_noexcept = unifex::is_nothrow_connectable<conditionally_lvalue_t<test_sender_t<lvalueConnectNoexcept, rvalueConnectNoexcept>, isLvalueReference>, IntAndStringReceiver>;
-} // namespace
+template <
+    bool lvalueConnectNoexcept,
+    bool rvalueConnectNoexcept,
+    bool isLvalueReference = true>
+using is_noexcept = unifex::is_nothrow_connectable<
+    conditionally_lvalue_t<
+        test_sender_t<lvalueConnectNoexcept, rvalueConnectNoexcept>,
+        isLvalueReference>,
+    IntAndStringReceiver>;
+}  // namespace
 
 TEST(Variant, BlockingKind) {
   // default
-  static_assert(blocking_kind::maybe == sender_traits<test_sender_t<true, true>>::blocking);
+  static_assert(
+      blocking_kind::maybe ==
+      sender_traits<test_sender_t<true, true>>::blocking);
 }
 
 TEST(Variant, TestNoexcept) {

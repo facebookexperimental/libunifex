@@ -15,10 +15,10 @@
  */
 
 #include <unifex/allocate.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
-#include <unifex/scheduler_concepts.hpp>
 
 #include <array>
 #include <cstdio>
@@ -33,8 +33,7 @@ TEST(Allocate, Smoke) {
   auto thread = threadContext.get_scheduler();
   int count = 0;
 
-  sync_wait(allocate(then(
-      schedule(thread), [&] { ++count; })));
+  sync_wait(allocate(then(schedule(thread), [&] { ++count; })));
 
   EXPECT_EQ(count, 1);
 }
@@ -45,10 +44,7 @@ TEST(Allocate, Pipeable) {
   auto thread = threadContext.get_scheduler();
   int count = 0;
 
-  schedule(thread)
-    | then([&] { ++count; })
-    | allocate()
-    | sync_wait();
+  schedule(thread) | then([&] { ++count; }) | allocate() | sync_wait();
 
   EXPECT_EQ(count, 1);
 }

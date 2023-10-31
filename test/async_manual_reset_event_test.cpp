@@ -24,16 +24,16 @@
 #include <unifex/then.hpp>
 #include <unifex/with_query_value.hpp>
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include <exception>
 #include <memory>
 #include <stdexcept>
 #include <thread>
 
-using testing::Invoke;
 using testing::_;
+using testing::Invoke;
 using unifex::async_manual_reset_event;
 using unifex::connect;
 using unifex::get_scheduler;
@@ -60,30 +60,25 @@ struct mock_receiver_impl {
 // macros make the type non-movable, non-copyable. Receivers must be movable.
 struct mock_receiver {
   mock_receiver(inline_scheduler& scheduler)
-      : impl(std::make_unique<mock_receiver_impl>()), scheduler(&scheduler) {}
+    : impl(std::make_unique<mock_receiver_impl>())
+    , scheduler(&scheduler) {}
 
-  void set_value() {
-    impl->set_value();
-  }
+  void set_value() { impl->set_value(); }
 
-  void set_error(std::exception_ptr e) noexcept {
-    impl->set_error(e);
-  }
+  void set_error(std::exception_ptr e) noexcept { impl->set_error(e); }
 
-  void set_done() noexcept {
-    std::terminate();
-  }
+  void set_done() noexcept { std::terminate(); }
 
   std::unique_ptr<mock_receiver_impl> impl;
   inline_scheduler* scheduler;
 
-  friend inline_scheduler tag_invoke(
-      tag_t<get_scheduler>, const mock_receiver& self) noexcept {
+  friend inline_scheduler
+  tag_invoke(tag_t<get_scheduler>, const mock_receiver& self) noexcept {
     return *self.scheduler;
   }
 };
 
-} // namespace
+}  // namespace
 
 struct async_manual_reset_event_test : testing::Test {
   inline_scheduler scheduler;
@@ -91,7 +86,8 @@ struct async_manual_reset_event_test : testing::Test {
   mock_receiver_impl& receiverImpl = *receiver.impl;
 };
 
-TEST_F(async_manual_reset_event_test, default_constructor_leaves_baton_unready) {
+TEST_F(
+    async_manual_reset_event_test, default_constructor_leaves_baton_unready) {
   async_manual_reset_event evt;
 
   EXPECT_FALSE(evt.ready());
@@ -111,7 +107,9 @@ TEST_F(async_manual_reset_event_test, set_makes_unready_baton_ready) {
   EXPECT_TRUE(evt.ready());
 }
 
-TEST_F(async_manual_reset_event_test, sender_completes_after_set_when_connected_to_unready_baton) {
+TEST_F(
+    async_manual_reset_event_test,
+    sender_completes_after_set_when_connected_to_unready_baton) {
   async_manual_reset_event evt;
 
   auto op = connect(evt.async_wait(), std::move(receiver));
@@ -129,7 +127,9 @@ TEST_F(async_manual_reset_event_test, sender_completes_after_set_when_connected_
   evt.set();
 }
 
-TEST_F(async_manual_reset_event_test, sender_completes_inline_when_connected_to_ready_baton) {
+TEST_F(
+    async_manual_reset_event_test,
+    sender_completes_inline_when_connected_to_ready_baton) {
   async_manual_reset_event evt{true};
 
   auto op = connect(evt.async_wait(), std::move(receiver));
@@ -140,15 +140,15 @@ TEST_F(async_manual_reset_event_test, sender_completes_inline_when_connected_to_
   start(op);
 }
 
-TEST_F(async_manual_reset_event_test, exception_from_set_value_sent_to_set_error) {
+TEST_F(
+    async_manual_reset_event_test, exception_from_set_value_sent_to_set_error) {
   async_manual_reset_event evt{true};
 
   auto op = connect(evt.async_wait(), std::move(receiver));
 
-  EXPECT_CALL(receiverImpl, set_value())
-      .WillOnce(Invoke([]() -> void {
-        throw std::runtime_error("from set_value()");
-      }));
+  EXPECT_CALL(receiverImpl, set_value()).WillOnce(Invoke([]() -> void {
+    throw std::runtime_error("from set_value()");
+  }));
 
   EXPECT_CALL(receiverImpl, set_error(_))
       .WillOnce(Invoke([](std::exception_ptr eptr) noexcept {
@@ -164,15 +164,15 @@ TEST_F(async_manual_reset_event_test, exception_from_set_value_sent_to_set_error
 
 template <typename Scheduler>
 static std::thread::id getThreadId(Scheduler& scheduler) {
-  return sync_wait(then(schedule(scheduler), [] {
-    return std::this_thread::get_id();
-  })).value();
+  return sync_wait(then(
+                       schedule(scheduler),
+                       [] { return std::this_thread::get_id(); }))
+      .value();
 }
 
 TEST_F(
     async_manual_reset_event_test,
     set_value_reschedules_when_invoked_from_async_wait) {
-
   single_thread_context thread;
   auto scheduler = thread.get_scheduler();
 
@@ -182,9 +182,12 @@ TEST_F(
 
   async_manual_reset_event evt{true};
 
-  auto actualThreadId = sync_wait(then(
-      with_query_value(evt.async_wait(), get_scheduler, scheduler),
-      [] { return std::this_thread::get_id(); })).value();
+  auto actualThreadId =
+      sync_wait(
+          then(
+              with_query_value(evt.async_wait(), get_scheduler, scheduler),
+              [] { return std::this_thread::get_id(); }))
+          .value();
 
   EXPECT_EQ(expectedThreadId, actualThreadId);
 }
@@ -192,7 +195,6 @@ TEST_F(
 TEST_F(
     async_manual_reset_event_test,
     set_value_reschedules_when_invoked_from_set) {
-
   single_thread_context thread;
   auto scheduler = thread.get_scheduler();
 
@@ -226,7 +228,6 @@ TEST_F(
 TEST_F(
     async_manual_reset_event_test,
     set_value_ignores_the_receivers_stop_token_when_rescheduling) {
-
   inplace_stop_source stopSource;
 
   stopSource.request_stop();

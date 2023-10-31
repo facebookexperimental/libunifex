@@ -15,8 +15,8 @@
  */
 #include <unifex/schedule_with_subscheduler.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 #include <gtest/gtest.h>
 
@@ -38,12 +38,11 @@ TEST(schedule_with_subscheduler, Pipeable) {
   timed_single_thread_context context;
   auto scheduler = context.get_scheduler();
 
-  std::optional<bool> result = scheduler
-    | schedule_with_subscheduler()
-    | then([&](auto subScheduler) noexcept { 
-        return subScheduler == scheduler; 
-      })
-    | sync_wait();
+  std::optional<bool> result = scheduler | schedule_with_subscheduler() |
+      then([&](auto subScheduler) noexcept {
+                                 return subScheduler == scheduler;
+                               }) |
+      sync_wait();
 
   EXPECT_TRUE(result.has_value());
   EXPECT_TRUE(result.value());
