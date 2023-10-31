@@ -22,10 +22,10 @@
 namespace unifex::win32 {
 
 void safe_handle::reset() noexcept {
-    handle_t h = std::exchange(handle_, nullptr);
-    if (h != nullptr && h != INVALID_HANDLE_VALUE) {
-        ::CloseHandle(h);
-    }
+  handle_t h = std::exchange(handle_, nullptr);
+  if (h != nullptr && h != INVALID_HANDLE_VALUE) {
+    ::CloseHandle(h);
+  }
 }
 
-} // namespace unifex::win32
+}  // namespace unifex::win32

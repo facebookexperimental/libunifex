@@ -22,52 +22,61 @@
 
 namespace unifex::win32 {
 
-windows_thread_pool::windows_thread_pool() noexcept
-: threadPool_(nullptr)
-{}
+windows_thread_pool::windows_thread_pool() noexcept : threadPool_(nullptr) {
+}
 
-windows_thread_pool::windows_thread_pool(std::uint32_t minThreadCount, std::uint32_t maxThreadCount)
-: threadPool_(::CreateThreadpool(nullptr)) {
-    if (threadPool_ == nullptr) {
-        DWORD errorCode = ::GetLastError();
-        throw_(std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadPool()"});
-    }
+windows_thread_pool::windows_thread_pool(
+    std::uint32_t minThreadCount, std::uint32_t maxThreadCount)
+  : threadPool_(::CreateThreadpool(nullptr)) {
+  if (threadPool_ == nullptr) {
+    DWORD errorCode = ::GetLastError();
+    throw_(std::system_error{
+        static_cast<int>(errorCode),
+        std::system_category(),
+        "CreateThreadPool()"});
+  }
 
-    ::SetThreadpoolThreadMaximum(threadPool_, maxThreadCount);
-    if (!::SetThreadpoolThreadMinimum(threadPool_, minThreadCount)) {
-        DWORD errorCode = ::GetLastError();
-        ::CloseThreadpool(threadPool_);
-        throw_(std::system_error{static_cast<int>(errorCode), std::system_category(), "SetThreadpoolThreadMinimum()"});
-    }
+  ::SetThreadpoolThreadMaximum(threadPool_, maxThreadCount);
+  if (!::SetThreadpoolThreadMinimum(threadPool_, minThreadCount)) {
+    DWORD errorCode = ::GetLastError();
+    ::CloseThreadpool(threadPool_);
+    throw_(std::system_error{
+        static_cast<int>(errorCode),
+        std::system_category(),
+        "SetThreadpoolThreadMinimum()"});
+  }
 }
 
 windows_thread_pool::~windows_thread_pool() {
-    if (threadPool_ != nullptr){
-        ::CloseThreadpool(threadPool_);
-    }
+  if (threadPool_ != nullptr) {
+    ::CloseThreadpool(threadPool_);
+  }
 }
 
 windows_thread_pool::schedule_op_base::~schedule_op_base() {
-    ::CloseThreadpoolWork(work_);
-    ::DestroyThreadpoolEnvironment(&environ_);
+  ::CloseThreadpoolWork(work_);
+  ::DestroyThreadpoolEnvironment(&environ_);
 }
 
 void windows_thread_pool::schedule_op_base::start() & noexcept {
-    ::SubmitThreadpoolWork(work_);
+  ::SubmitThreadpoolWork(work_);
 }
 
-windows_thread_pool::schedule_op_base::schedule_op_base(windows_thread_pool& pool, PTP_WORK_CALLBACK workCallback)
-{
-    ::InitializeThreadpoolEnvironment(&environ_);
-    ::SetThreadpoolCallbackPool(&environ_, pool.threadPool_);
-    work_ = ::CreateThreadpoolWork(workCallback, this, &environ_);
-    if (work_ == nullptr) {
-        // TODO: Should we just cache the error and deliver via set_error(receiver_, std::error_code{})
-        // upon start()?
-        DWORD errorCode = ::GetLastError();
-        ::DestroyThreadpoolEnvironment(&environ_);
-        throw_(std::system_error{static_cast<int>(errorCode), std::system_category(), "CreateThreadpoolWork()"});
-    }
+windows_thread_pool::schedule_op_base::schedule_op_base(
+    windows_thread_pool& pool, PTP_WORK_CALLBACK workCallback) {
+  ::InitializeThreadpoolEnvironment(&environ_);
+  ::SetThreadpoolCallbackPool(&environ_, pool.threadPool_);
+  work_ = ::CreateThreadpoolWork(workCallback, this, &environ_);
+  if (work_ == nullptr) {
+    // TODO: Should we just cache the error and deliver via set_error(receiver_,
+    // std::error_code{}) upon start()?
+    DWORD errorCode = ::GetLastError();
+    ::DestroyThreadpoolEnvironment(&environ_);
+    throw_(std::system_error{
+        static_cast<int>(errorCode),
+        std::system_category(),
+        "CreateThreadpoolWork()"});
+  }
 }
 
-} // namespace unifex::win32
+}  // namespace unifex::win32

@@ -22,14 +22,14 @@
 namespace unifex::win32 {
 
 filetime_clock::time_point filetime_clock::now() noexcept {
-    FILETIME filetime;
-    ::GetSystemTimeAsFileTime(&filetime);
+  FILETIME filetime;
+  ::GetSystemTimeAsFileTime(&filetime);
 
-    ULARGE_INTEGER ticks;
-    ticks.HighPart = filetime.dwHighDateTime;
-    ticks.LowPart = filetime.dwLowDateTime;
+  ULARGE_INTEGER ticks;
+  ticks.HighPart = filetime.dwHighDateTime;
+  ticks.LowPart = filetime.dwLowDateTime;
 
-    return time_point::from_ticks(ticks.QuadPart);
+  return time_point::from_ticks(ticks.QuadPart);
 }
 
-} // namespace unifex::win32
+}  // namespace unifex::win32

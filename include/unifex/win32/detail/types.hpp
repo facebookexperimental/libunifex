@@ -17,15 +17,14 @@
 
 #include <cstdint>
 
-namespace unifex::win32
-{
-  using handle_t = void*;              // HANDLE
-  using ulong_ptr_t = std::uintptr_t;  // ULONG_PTR
-  using long_ptr_t = std::intptr_t;    // LONG_PTR
-  using dword_t = unsigned long;       // DWORD
-  using socket_t = std::uintptr_t;     // SOCKET
-  using ulong_t = unsigned long;       // ULONG
-  using long_t = long;                 // LONG
+namespace unifex::win32 {
+using handle_t = void*;              // HANDLE
+using ulong_ptr_t = std::uintptr_t;  // ULONG_PTR
+using long_ptr_t = std::intptr_t;    // LONG_PTR
+using dword_t = unsigned long;       // DWORD
+using socket_t = std::uintptr_t;     // SOCKET
+using ulong_t = unsigned long;       // ULONG
+using long_t = long;                 // LONG
 
 #if defined(_MSC_VER)
 #  if defined(__clang__)
@@ -47,18 +46,18 @@ namespace unifex::win32
 #else
 #  define UNIFEX_NAMELESS_UNION
 #endif
-  struct overlapped {
-    ulong_ptr_t Internal;
-    ulong_ptr_t InternalHigh;
-    UNIFEX_NAMELESS_UNION union {
-      struct {
-        dword_t Offset;
-        dword_t OffsetHigh;
-      };
-      void* Pointer;
+struct overlapped {
+  ulong_ptr_t Internal;
+  ulong_ptr_t InternalHigh;
+  UNIFEX_NAMELESS_UNION union {
+    struct {
+      dword_t Offset;
+      dword_t OffsetHigh;
     };
-    handle_t hEvent;
+    void* Pointer;
   };
+  handle_t hEvent;
+};
 #undef UNIFEX_NAMELESS_UNION
 #if defined(_MSC_VER)
 #  if defined(__clang__)
@@ -68,15 +67,15 @@ namespace unifex::win32
 #  endif
 #endif
 
-  struct wsabuf {
-    constexpr wsabuf() noexcept : len(0), buf(nullptr) {}
+struct wsabuf {
+  constexpr wsabuf() noexcept : len(0), buf(nullptr) {}
 
-    wsabuf(void* p, ulong_t sz) noexcept
-      : len(sz)
-      , buf(reinterpret_cast<char*>(p)) {}
+  wsabuf(void* p, ulong_t sz) noexcept
+    : len(sz)
+    , buf(reinterpret_cast<char*>(p)) {}
 
-    ulong_t len;
-    char* buf;
-  };
+  ulong_t len;
+  char* buf;
+};
 
 }  // namespace unifex::win32
