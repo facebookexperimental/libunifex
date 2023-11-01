@@ -17,12 +17,12 @@
 #include <unifex/for_each.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/range_stream.hpp>
+#include <unifex/scheduler_concepts.hpp>
+#include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/via_stream.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/then.hpp>
-#include <unifex/stop_when.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -37,17 +37,17 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  sync_wait(
-      stop_when(
-          for_each(
-              delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
-              [startTime](int value) {
-                auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
-                std::printf("[%i ms] %i\n", (int)ms.count(), value);
-              }),
-          then(
-            schedule_after(context.get_scheduler(), 500ms),
-            [] { std::printf("cancelling\n"); })));
+  sync_wait(stop_when(
+      for_each(
+          delay(range_stream{0, 100}, context.get_scheduler(), 100ms),
+          [startTime](int value) {
+            auto ms =
+                duration_cast<milliseconds>(steady_clock::now() - startTime);
+            std::printf("[%i ms] %i\n", (int)ms.count(), value);
+          }),
+      then(schedule_after(context.get_scheduler(), 500ms), [] {
+        std::printf("cancelling\n");
+      })));
 
   return 0;
 }

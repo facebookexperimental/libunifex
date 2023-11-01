@@ -15,8 +15,8 @@
  */
 #include <unifex/schedule_with_subscheduler.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 using namespace unifex;
 
@@ -24,9 +24,10 @@ int main() {
   timed_single_thread_context context;
   auto schedr = context.get_scheduler();
 
-  std::optional<bool> result = sync_wait(then(
-      schedule_with_subscheduler(schedr),
-      [&](auto subScheduler) noexcept { return subScheduler == schedr; }));
+  std::optional<bool> result = sync_wait(
+      then(schedule_with_subscheduler(schedr), [&](auto subScheduler) noexcept {
+        return subScheduler == schedr;
+      }));
 
   if (result.has_value() && result.value()) {
     // Success

@@ -17,10 +17,10 @@
 #include <unifex/on_stream.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/single_thread_context.hpp>
-#include <unifex/type_erased_stream.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
 #include <unifex/transform_stream.hpp>
+#include <unifex/type_erased_stream.hpp>
 #include <unifex/via_stream.hpp>
 
 #include <cstdio>
@@ -33,14 +33,13 @@ int main() {
 
   sync_wait(then(
       for_each(
-            type_erase<int>(
-                via_stream(
-                    context1.get_scheduler(),
-                    on_stream(
-                        context2.get_scheduler(),
-                        transform_stream(
-                            range_stream{0, 10},
-                            [](int value) { return value * value; })))),
+          type_erase<int>(via_stream(
+              context1.get_scheduler(),
+              on_stream(
+                  context2.get_scheduler(),
+                  transform_stream(
+                      range_stream{0, 10},
+                      [](int value) { return value * value; })))),
           [](int value) { std::printf("got %i\n", value); }),
       []() { std::printf("done\n"); }));
 

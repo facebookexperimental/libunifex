@@ -36,16 +36,15 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  [[maybe_unused]] std::optional<unit> result =
-      eventLoop.sync_wait(for_each(
-          take_until(
-              stop_immediately<int>(
-                  delay(range_stream{0, 100}, eventLoop.get_scheduler(), 50ms)),
-              single(schedule_after(eventLoop.get_scheduler(), 500ms))),
-          [startTime](int value) {
-            auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
-            std::printf("[%i ms] %i\n", (int)ms.count(), value);
-          }));
+  [[maybe_unused]] std::optional<unit> result = eventLoop.sync_wait(for_each(
+      take_until(
+          stop_immediately<int>(
+              delay(range_stream{0, 100}, eventLoop.get_scheduler(), 50ms)),
+          single(schedule_after(eventLoop.get_scheduler(), 500ms))),
+      [startTime](int value) {
+        auto ms = duration_cast<milliseconds>(steady_clock::now() - startTime);
+        std::printf("[%i ms] %i\n", (int)ms.count(), value);
+      }));
 
   return 0;
 }

@@ -27,22 +27,22 @@
 #include <thread>
 
 struct trace_construction_destruction {
-    static std::atomic<int> instanceCount; 
+  static std::atomic<int> instanceCount;
 
-    trace_construction_destruction() {
-        ++instanceCount;
-        std::stringstream s;
-        s << "thread_local at address " << (void*)this
-          << " constructing on thread " << std::this_thread::get_id() << "\n";
-        std::cout << s.str();
-    }
-    ~trace_construction_destruction() {
-        --instanceCount;
-        std::stringstream s;
-        s << "thread_local at address " << (void*)this
-          << " destructing on thread " << std::this_thread::get_id() << "\n";
-        std::cout << s.str();
-    }
+  trace_construction_destruction() {
+    ++instanceCount;
+    std::stringstream s;
+    s << "thread_local at address " << (void*)this << " constructing on thread "
+      << std::this_thread::get_id() << "\n";
+    std::cout << s.str();
+  }
+  ~trace_construction_destruction() {
+    --instanceCount;
+    std::stringstream s;
+    s << "thread_local at address " << (void*)this << " destructing on thread "
+      << std::this_thread::get_id() << "\n";
+    std::cout << s.str();
+  }
 };
 
 std::atomic<int> trace_construction_destruction::instanceCount = 0;
@@ -52,24 +52,21 @@ int main() {
     unifex::new_thread_context ctx;
 
     auto makeThreadTask = [&](int i) {
-        return unifex::then(
-            unifex::schedule(ctx.get_scheduler()),
-            [i] {
-                std::stringstream s;
-                s << "Task " << i << " running on thread " << std::this_thread::get_id()
-                  << "\n";
-                std::cout << s.str();
+      return unifex::then(unifex::schedule(ctx.get_scheduler()), [i] {
+        std::stringstream s;
+        s << "Task " << i << " running on thread " << std::this_thread::get_id()
+          << "\n";
+        std::cout << s.str();
 
-                thread_local trace_construction_destruction t;
-            });
+        thread_local trace_construction_destruction t;
+      });
     };
 
-    unifex::sync_wait(
-        unifex::when_all(
-            makeThreadTask(1),
-            makeThreadTask(2),
-            makeThreadTask(3),
-            makeThreadTask(4)));
+    unifex::sync_wait(unifex::when_all(
+        makeThreadTask(1),
+        makeThreadTask(2),
+        makeThreadTask(3),
+        makeThreadTask(4)));
 
     std::cout << "shutting down new_thread_context\n";
   }

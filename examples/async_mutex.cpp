@@ -21,12 +21,12 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/task.hpp>
-#include <unifex/when_all.hpp>
-#include <unifex/single_thread_context.hpp>
+#  include <unifex/scheduler_concepts.hpp>
+#  include <unifex/single_thread_context.hpp>
+#  include <unifex/task.hpp>
+#  include <unifex/when_all.hpp>
 
-#include <cstdio>
+#  include <cstdio>
 
 using namespace unifex;
 
@@ -48,8 +48,8 @@ int main() {
   single_thread_context ctx1;
   single_thread_context ctx2;
 
-  sync_wait(when_all(makeTask(ctx1.get_scheduler()),
-                     makeTask(ctx2.get_scheduler())));
+  sync_wait(
+      when_all(makeTask(ctx1.get_scheduler()), makeTask(ctx2.get_scheduler())));
 
   if (sharedState != 200'000) {
     std::printf("error: incorrect result %i, expected 2000000\n", sharedState);
@@ -59,18 +59,18 @@ int main() {
   return 0;
 }
 
-#else // UNIFEX_NO_COROUTINES
+#else  // UNIFEX_NO_COROUTINES
 
-#include <cstdio>
+#  include <cstdio>
 
 int main() {
-    // Very simple usage of async_mutex.
+  // Very simple usage of async_mutex.
 
-    unifex::async_mutex m;
-    unifex::sync_wait(m.async_lock());
-    m.unlock();
-    
-    return 0;
+  unifex::async_mutex m;
+  unifex::sync_wait(m.async_lock());
+  m.unlock();
+
+  return 0;
 }
 
-#endif // UNIFEX_NO_COROUTINES
+#endif  // UNIFEX_NO_COROUTINES

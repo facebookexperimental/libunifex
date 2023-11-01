@@ -17,29 +17,29 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#include <unifex/delay.hpp>
-#include <unifex/range_stream.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/single.hpp>
-#include <unifex/stop_immediately.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/take_until.hpp>
-#include <unifex/task.hpp>
-#include <unifex/timed_single_thread_context.hpp>
-#include <unifex/via_stream.hpp>
-#include <unifex/let_done.hpp>
-#include <unifex/then.hpp>
-#include <unifex/just.hpp>
-#include <unifex/done_as_optional.hpp>
+#  include <unifex/delay.hpp>
+#  include <unifex/done_as_optional.hpp>
+#  include <unifex/just.hpp>
+#  include <unifex/let_done.hpp>
+#  include <unifex/range_stream.hpp>
+#  include <unifex/scheduler_concepts.hpp>
+#  include <unifex/single.hpp>
+#  include <unifex/stop_immediately.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/take_until.hpp>
+#  include <unifex/task.hpp>
+#  include <unifex/then.hpp>
+#  include <unifex/timed_single_thread_context.hpp>
+#  include <unifex/via_stream.hpp>
 
-#include <chrono>
-#include <cstdio>
+#  include <chrono>
+#  include <cstdio>
 
 using namespace unifex;
 
-template<typename Sender>
+template <typename Sender>
 auto done_as_void(Sender&& sender) {
-  return let_done((Sender&&)sender, [] { return just(); });
+  return let_done((Sender &&) sender, [] { return just(); });
 }
 
 int main() {
@@ -78,9 +78,9 @@ int main() {
   return 0;
 }
 
-#else // UNIFEX_NO_COROUTINES
+#else  // UNIFEX_NO_COROUTINES
 
-#include <cstdio>
+#  include <cstdio>
 
 int main() {
   std::printf(
@@ -88,4 +88,4 @@ int main() {
   return 0;
 }
 
-#endif // UNIFEX_NO_COROUTINES
+#endif  // UNIFEX_NO_COROUTINES
