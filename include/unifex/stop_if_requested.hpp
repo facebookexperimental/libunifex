@@ -18,6 +18,7 @@
 #include <unifex/config.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/coroutine.hpp>
+#include <unifex/get_stop_token.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/type_traits.hpp>
 
