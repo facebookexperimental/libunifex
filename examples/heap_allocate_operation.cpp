@@ -15,10 +15,10 @@
  */
 
 #include <unifex/allocate.hpp>
+#include <unifex/scheduler_concepts.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
-#include <unifex/scheduler_concepts.hpp>
 
 #include <array>
 #include <cstdio>
@@ -30,8 +30,8 @@ int main() {
 
   auto thread = threadContext.get_scheduler();
 
-  sync_wait(allocate(then(
-      schedule(thread), [] { std::printf("hello libunifex!\n"); })));
+  sync_wait(allocate(
+      then(schedule(thread), [] { std::printf("hello libunifex!\n"); })));
 
   return 0;
 }

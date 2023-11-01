@@ -18,32 +18,32 @@
 
 #if !UNIFEX_NO_LIBURING
 
-#include <unifex/inplace_stop_token.hpp>
-#include <unifex/just.hpp>
-#include <unifex/let_value_with.hpp>
-#include <unifex/linux/io_uring_context.hpp>
-#include <unifex/scheduler_concepts.hpp>
-#include <unifex/scope_guard.hpp>
-#include <unifex/sequence.hpp>
-#include <unifex/sync_wait.hpp>
-#include <unifex/then.hpp>
-#include <unifex/when_all.hpp>
-#include <unifex/with_query_value.hpp>
-#include <unifex/just_from.hpp>
+#  include <unifex/inplace_stop_token.hpp>
+#  include <unifex/just.hpp>
+#  include <unifex/just_from.hpp>
+#  include <unifex/let_value_with.hpp>
+#  include <unifex/linux/io_uring_context.hpp>
+#  include <unifex/scheduler_concepts.hpp>
+#  include <unifex/scope_guard.hpp>
+#  include <unifex/sequence.hpp>
+#  include <unifex/sync_wait.hpp>
+#  include <unifex/then.hpp>
+#  include <unifex/when_all.hpp>
+#  include <unifex/with_query_value.hpp>
 
-#include <chrono>
-#include <cstdio>
-#include <string>
-#include <thread>
-#include <vector>
+#  include <chrono>
+#  include <cstdio>
+#  include <string>
+#  include <thread>
+#  include <vector>
 
 using namespace unifex;
 using namespace unifex::linuxos;
 using namespace std::chrono_literals;
 
-template<typename S>
+template <typename S>
 auto discard_value(S&& s) {
-  return then((S&&)s, [](auto&&...) noexcept {});
+  return then((S &&) s, [](auto&&...) noexcept {});
 }
 
 static constexpr unsigned char data[6] = {'h', 'e', 'l', 'l', 'o', '\n'};
@@ -97,7 +97,9 @@ int main() {
   io_uring_context ctx;
 
   inplace_stop_source stopSource;
-  std::thread t{[&] { ctx.run(stopSource.get_token()); }};
+  std::thread t{[&] {
+    ctx.run(stopSource.get_token());
+  }};
   scope_guard stopOnExit = [&]() noexcept {
     stopSource.request_stop();
     t.join();
@@ -109,8 +111,7 @@ int main() {
     {
       auto startTime = std::chrono::steady_clock::now();
       inplace_stop_source timerStopSource;
-      sync_wait(
-        with_query_value(
+      sync_wait(with_query_value(
           when_all(
               then(
                   schedule_at(scheduler, now(scheduler) + 1s),
@@ -153,12 +154,12 @@ int main() {
   return 0;
 }
 
-#else // UNIFEX_NO_LIBURING
+#else  // UNIFEX_NO_LIBURING
 
-#include <cstdio>
+#  include <cstdio>
 int main() {
   printf("liburing support not found\n");
   return 0;
 }
 
-#endif // UNIFEX_NO_LIBURING
+#endif  // UNIFEX_NO_LIBURING

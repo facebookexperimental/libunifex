@@ -13,24 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <unifex/sync_wait.hpp>
-#include <unifex/transform_stream.hpp>
-#include <unifex/reduce_stream.hpp>
-#include <unifex/then.hpp>
 #include <unifex/range_stream.hpp>
+#include <unifex/reduce_stream.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/then.hpp>
+#include <unifex/transform_stream.hpp>
 
 #include <cstdio>
 
 using namespace unifex;
 
 int main() {
-
   int finalResult;
   sync_wait(then(
       reduce_stream(
           transform_stream(
-              range_stream{0, 10},
-              [](int value) { return value * value; }),
+              range_stream{0, 10}, [](int value) { return value * value; }),
           0,
           [](int state, int value) { return state + value; }),
       [&](int result) { finalResult = result; }));

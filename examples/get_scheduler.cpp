@@ -33,8 +33,7 @@ int main() {
 
   // Check that the schedule() operation can pick up the current
   // scheduler from the receiver which we inject by using 'with_query_value()'.
-  sync_wait(with_query_value(schedule(), get_scheduler,
-                             ctx.get_scheduler()));
+  sync_wait(with_query_value(schedule(), get_scheduler, ctx.get_scheduler()));
 
   // Check that the schedule_after(d) operation can pick up the current
   // scheduler from the receiver.
@@ -45,14 +44,16 @@ int main() {
   // composed operations.
   sync_wait(with_query_value(
       then(
-          for_each(via_stream(current_scheduler,
-                              transform_stream(range_stream{0, 10},
-                                               [](int value) {
-                                                 return value * value;
-                                               })),
-                   [](int value) { std::printf("got %i\n", value); }),
+          for_each(
+              via_stream(
+                  current_scheduler,
+                  transform_stream(
+                      range_stream{0, 10},
+                      [](int value) { return value * value; })),
+              [](int value) { std::printf("got %i\n", value); }),
           []() { std::printf("done\n"); }),
-      get_scheduler, ctx.get_scheduler()));
+      get_scheduler,
+      ctx.get_scheduler()));
 
   return 0;
 }

@@ -15,8 +15,8 @@
  */
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>

@@ -19,9 +19,9 @@
 #include <unifex/on_stream.hpp>
 #include <unifex/range_stream.hpp>
 #include <unifex/scheduler_concepts.hpp>
-#include <unifex/timed_single_thread_context.hpp>
-#include <unifex/sync_wait.hpp>
 #include <unifex/stop_when.hpp>
+#include <unifex/sync_wait.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 
 #include <chrono>
 #include <cstdio>
@@ -37,17 +37,18 @@ int main() {
 
   auto startTime = steady_clock::now();
 
-  auto op = on_stream(current_scheduler, range_stream{0, 20})
-    | for_each([](int value) {
-        // Simulate some work
-        std::printf("processing %i\n", value);
-        std::this_thread::sleep_for(10ms);
-      })
-    | stop_when(schedule_after(100ms));
+  auto op = on_stream(current_scheduler, range_stream{0, 20}) |
+      for_each([](int value) {
+              // Simulate some work
+              std::printf("processing %i\n", value);
+              std::this_thread::sleep_for(10ms);
+            }) |
+      stop_when(schedule_after(100ms));
   sync_wait(on(context.get_scheduler(), std::move(op)));
 
   auto endTime = steady_clock::now();
 
   std::printf(
-      "took %i ms\n", (int)duration_cast<milliseconds>(endTime - startTime).count());
+      "took %i ms\n",
+      (int)duration_cast<milliseconds>(endTime - startTime).count());
 }

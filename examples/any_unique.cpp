@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 #include <unifex/any_unique.hpp>
-#include <unifex/type_traits.hpp>
 #include <unifex/memory_resource.hpp>
 #include <unifex/type_index.hpp>
+#include <unifex/type_traits.hpp>
 
+#include <atomic>
 #include <string>
 #include <typeindex>
-#include <atomic>
 
 template <typename T>
 using is_type_index = std::is_same<std::type_index, T>;
@@ -35,21 +35,18 @@ inline constexpr struct get_typeid_cpo {
   }
 
   template <typename T>
-  auto operator()(const T& x) const noexcept ->
-      unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
-    static_assert(
-      std::is_same_v<
-          unifex::type_index,
-          unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
+  auto operator()(const T& x) const noexcept
+      -> unifex::tag_invoke_result_t<get_typeid_cpo, const T&> {
+    static_assert(std::is_same_v<
+                  unifex::type_index,
+                  unifex::tag_invoke_result_t<get_typeid_cpo, const T&>>);
     return tag_invoke(get_typeid_cpo{}, x);
   }
 } get_typeid;
 
 struct destructor {
   explicit destructor(bool& x) : ref_(x) {}
-  ~destructor() {
-    ref_ = true;
-  }
+  ~destructor() { ref_ = true; }
   bool& ref_;
 };
 
@@ -57,22 +54,20 @@ struct destructor {
 using namespace unifex::pmr;
 
 class counting_memory_resource : public memory_resource {
- public:
+public:
   explicit counting_memory_resource(memory_resource* r) noexcept : inner_(r) {}
 
-  std::size_t total_allocated_bytes() const {
-    return allocated_.load();
-  }
+  std::size_t total_allocated_bytes() const { return allocated_.load(); }
 
- private:
+private:
   void* do_allocate(std::size_t bytes, std::size_t alignment) override {
     void* p = inner_->allocate(bytes, alignment);
     allocated_ += bytes;
     return p;
   }
 
-  void do_deallocate(void* p, std::size_t bytes, std::size_t alignment)
-      override {
+  void
+  do_deallocate(void* p, std::size_t bytes, std::size_t alignment) override {
     allocated_ -= bytes;
     inner_->deallocate(p, bytes, alignment);
   }

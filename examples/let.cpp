@@ -18,8 +18,8 @@
 #include <unifex/let_value_with.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/then.hpp>
+#include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
 
 #include <chrono>
@@ -34,8 +34,7 @@ int main() {
 
   auto async = [&](auto&& func) {
     return then(
-        schedule_after(context.get_scheduler(), 100ms),
-        (decltype(func))func);
+        schedule_after(context.get_scheduler(), 100ms), (decltype(func))func);
   };
 
   // Simple usage of 'let_value()'
@@ -63,7 +62,8 @@ int main() {
 
   sync_wait(then(
       when_all(
-          let_value(asyncVector(),
+          let_value(
+              asyncVector(),
               [&](std::vector<int>& v) {
                 return async([&] {
                   std::cout << "printing vector" << std::endl;
@@ -73,7 +73,8 @@ int main() {
                   std::cout << std::endl;
                 });
               }),
-          let_value(just(42),
+          let_value(
+              just(42),
               [&](int& x) {
                 return let_value(async([&] { return x / 2; }), [&](int& y) {
                   return async([&] { return x + y; });
@@ -89,8 +90,9 @@ int main() {
   // Simple usage of 'let_value_with()'
   // - defines an async scope in which the result of a passed invocable
   //   is in-scope for the duration of an operation.
-  std::optional<int> let_with_result =
-      sync_wait(let_value_with([] { return 42; }, [&](int& x) {
+  std::optional<int> let_with_result = sync_wait(let_value_with(
+      [] { return 42; },
+      [&](int& x) {
         printf("addressof x = %p, val = %i\n", (void*)&x, x);
         return async([&]() -> int {
           printf("successor tranform\n");
@@ -101,23 +103,23 @@ int main() {
 
   std::cout << "let_value_with done " << *let_with_result << "\n";
 
-   // let_value_with example showing use with a non-moveable type and
-   // in-place construction.
-  std::optional<int> let_with_atomic_result =
-      sync_wait(let_value_with([] { return std::atomic<int>{42}; },
-        [&](std::atomic<int>& x) {
+  // let_value_with example showing use with a non-moveable type and
+  // in-place construction.
+  std::optional<int> let_with_atomic_result = sync_wait(let_value_with(
+      [] { return std::atomic<int>{42}; },
+      [&](std::atomic<int>& x) {
+        ++x;
+        printf("addressof x = %p, val = %i\n", (void*)&x, x.load());
+        return async([&]() -> int {
           ++x;
+          printf("successor tranform\n");
           printf("addressof x = %p, val = %i\n", (void*)&x, x.load());
-          return async([&]() -> int {
-            ++x;
-            printf("successor tranform\n");
-            printf("addressof x = %p, val = %i\n", (void*)&x, x.load());
-            return x.load();
-          });
+          return x.load();
+        });
       }));
 
-  std::cout <<
-    "let_value_with on atomic type " << *let_with_atomic_result << "\n";
+  std::cout << "let_value_with on atomic type " << *let_with_atomic_result
+            << "\n";
 
   return 0;
 }
