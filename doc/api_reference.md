@@ -1252,7 +1252,9 @@ namespace unifex
     // i.e. cancellation of all outstanding work
     void request_stop() noexcept;
 
-    // Implemented as (void)spawn(sender).
+    // Connects and starts the given Sender with no way to observe the result.
+    //
+    // Implemented as spawn_detached(spawn(sender)).
     void detached_spawn(sender);
 
     // Implemented as detached_spawn(on(scheduler, sender)).
