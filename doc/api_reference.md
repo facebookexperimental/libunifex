@@ -430,7 +430,7 @@ Note that `completion` sender must complete with an empty value pack
 if it completes with `set_value`.
 ie. it must be a `void`-value sender.
 
-### `via(Scheduler scheduler, Sender sender) -> Sender`
+### `via(Sender sender, Scheduler scheduler) -> Sender`
 
 Returns a sender that produces the result from `sender` on the
 execution context associated with `scheduler`.
@@ -438,13 +438,6 @@ execution context associated with `scheduler`.
 If the result of `schedule(scheduler)` completes with `set_done()` then
 `set_done()` is sent. If the result of `schedule(scheduler)` completes with
 `set_error()` then its error is sent. Otherwise sends the result of `sender`.
-
-### `typed_via(Sender source, Scheduler scheduler) -> Sender`
-
-Returns a sender that produces the result from `source`, which must
-declare the nested `value_types`/`error_types` type aliases which describe which
-overloads of `set_value()`/`set_error()` they will call, on the execution context
-associated with `scheduler`.
 
 ### `on(Scheduler scheduler, Sender sender) -> Sender`
 
