@@ -118,7 +118,7 @@ public:
       (sender_traits<Senders>::is_always_scheduler_affine && ...);
 
   template (typename ConcreteSender)
-    (requires is_one_of_v<std::decay_t<ConcreteSender>, Senders...>)
+    (requires is_one_of_v<remove_cvref_t<ConcreteSender>, Senders...>)
   type(ConcreteSender&& concreteSender) noexcept(
       std::is_nothrow_constructible_v<
           std::variant<Senders...>,
