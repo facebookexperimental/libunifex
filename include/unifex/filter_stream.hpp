@@ -15,19 +15,10 @@
  */
 #pragma once
 
-#include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
-#include <unifex/exception.hpp>
-#include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
-#include <unifex/receiver_concepts.hpp>
-#include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/stream_concepts.hpp>
-#include <unifex/type_list.hpp>
-#include <unifex/type_traits.hpp>
-#include <unifex/unstoppable_token.hpp>
 
 #include <exception>
 #include <functional>
@@ -49,108 +40,6 @@ using operation = typename _op<
     remove_cvref_t<Receiver>>::type;
 
 template <typename StreamSender, typename FilterFunc, typename Receiver>
-struct _error_cleanup_receiver {
-  struct type;
-};
-template <typename StreamSender, typename FilterFunc, typename Receiver>
-using error_cleanup_receiver = typename _error_cleanup_receiver<
-    remove_cvref_t<StreamSender>,
-    remove_cvref_t<FilterFunc>,
-    remove_cvref_t<Receiver>>::type;
-
-template <typename StreamSender, typename FilterFunc, typename Receiver>
-struct _error_cleanup_receiver<StreamSender, FilterFunc, Receiver>::type {
-  operation<StreamSender, FilterFunc, Receiver>& op_;
-  std::exception_ptr ex_;
-
-  // No value() in cleanup receiver
-
-  template <typename Error>
-  void set_error(Error error) noexcept {
-    auto& op = op_;
-    unifex::deactivate_union_member(op.errorCleanup_);
-    unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
-  }
-
-  void set_done() noexcept {
-    auto& op = op_;
-    auto ex = std::move(ex_);
-    unifex::deactivate_union_member(op.errorCleanup_);
-    unifex::set_error(static_cast<Receiver&&>(op.receiver_), std::move(ex));
-  }
-
-  template(typename CPO)                       //
-      (requires is_receiver_query_cpo_v<CPO>)  //
-      friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.op_.receiver_));
-  }
-
-  friend unstoppable_token
-  tag_invoke(tag_t<get_stop_token>, const type&) noexcept {
-    return {};
-  }
-
-#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
-  template <typename Func>
-  friend void
-  tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
-    std::invoke(func, r.op_.receiver_);
-  }
-#endif
-};
-
-template <typename StreamSender, typename FilterFunc, typename Receiver>
-struct _done_cleanup_receiver {
-  struct type;
-};
-template <typename StreamSender, typename FilterFunc, typename Receiver>
-using done_cleanup_receiver = typename _done_cleanup_receiver<
-    remove_cvref_t<StreamSender>,
-    remove_cvref_t<FilterFunc>,
-    remove_cvref_t<Receiver>>::type;
-
-template <typename StreamSender, typename FilterFunc, typename Receiver>
-struct _done_cleanup_receiver<StreamSender, FilterFunc, Receiver>::type {
-  operation<StreamSender, FilterFunc, Receiver>& op_;
-
-  template <typename Error>
-  void set_error(Error error) && noexcept {
-    auto& op = op_;
-    unifex::deactivate_union_member(op.doneCleanup_);
-    unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
-  }
-
-  void set_done() && noexcept {
-    auto& op = op_;
-    unifex::deactivate_union_member(op.doneCleanup_);
-    unifex::set_done(std::move(op.receiver_));
-  }
-
-  template(typename CPO)                       //
-      (requires is_receiver_query_cpo_v<CPO>)  //
-      friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
-    return std::move(cpo)(std::as_const(r.op_.receiver_));
-  }
-
-  friend unstoppable_token
-  tag_invoke(tag_t<get_stop_token>, const type&) noexcept {
-    return {};
-  }
-
-#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
-  template <typename Func>
-  friend void
-  tag_invoke(tag_t<visit_continuations>, const type& r, Func&& func) {
-    std::invoke(func, r.op_.receiver_);
-  }
-#endif
-};
-
-template <typename StreamSender, typename FilterFunc, typename Receiver>
 struct _next_receiver {
   struct type;
 };
@@ -162,10 +51,6 @@ using next_receiver = typename _next_receiver<
 
 template <typename StreamSender, typename FilterFunc, typename Receiver>
 struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
-  using error_cleanup_receiver_t =
-      error_cleanup_receiver<StreamSender, FilterFunc, Receiver>;
-  using done_cleanup_receiver_t =
-      done_cleanup_receiver<StreamSender, FilterFunc, Receiver>;
   using next_receiver_t = next_receiver<StreamSender, FilterFunc, Receiver>;
   operation<StreamSender, FilterFunc, Receiver>& op_;
 
@@ -188,12 +73,12 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
   template <typename... Values>
   void set_value(Values... values) && noexcept {
     auto& op = op_;
-    unifex::deactivate_union_member(op.next_);
+    op.next_.destruct();
     UNIFEX_TRY {
       const bool doFilter = !std::invoke(op.filter_, (Values &&) values...);
 
       if (doFilter) {
-        unifex::activate_union_member_with(op.next_, [&] {
+        op.next_.construct_with([&] {
           return unifex::connect(next(op.stream_), next_receiver_t{op});
         });
         unifex::start(op.next_.get());
@@ -203,32 +88,19 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
     }
     UNIFEX_CATCH(...) {
       unifex::set_error(std::move(op.receiver_), std::current_exception());
-      // unifex::activate_union_member_with(op.errorCleanup_, [&] {
-      //   return unifex::connect(
-      //       cleanup(op.stream_),
-      //       error_cleanup_receiver_t{op, std::current_exception()});
-      // });
-      // unifex::start(op.errorCleanup_.get());
     }
   }
 
   void set_done() && noexcept {
     auto& op = op_;
-    unifex::deactivate_union_member(op.next_);
-    unifex::activate_union_member_with(op.doneCleanup_, [&] {
-      return unifex::connect(cleanup(op.stream_), done_cleanup_receiver_t{op});
-    });
-    unifex::start(op.doneCleanup_.get());
+    op.next_.destruct();
+    unifex::set_done(std::move(op.receiver_));
   }
 
   void set_error(std::exception_ptr ex) && noexcept {
     auto& op = op_;
-    unifex::deactivate_union_member(op.next_);
-    unifex::activate_union_member_with(op.errorCleanup_, [&] {
-      return unifex::connect(
-          cleanup(op.stream_), error_cleanup_receiver_t{op, std::move(ex)});
-    });
-    unifex::start(op.errorCleanup_.get());
+    op.next_.destruct();
+    unifex::set_error(std::move(op.receiver_), std::move(ex));
   }
 
   template <typename Error>
@@ -244,23 +116,10 @@ struct _op<StreamSender, FilterFunc, Receiver>::type {
   Receiver receiver_;
 
   using next_receiver_t = next_receiver<StreamSender, FilterFunc, Receiver>;
-  using error_cleanup_receiver_t =
-      error_cleanup_receiver<StreamSender, FilterFunc, Receiver>;
-  using done_cleanup_receiver_t =
-      done_cleanup_receiver<StreamSender, FilterFunc, Receiver>;
-
   using next_op =
       manual_lifetime<next_operation_t<StreamSender, next_receiver_t>>;
-  using error_op = manual_lifetime<
-      cleanup_operation_t<StreamSender, error_cleanup_receiver_t>>;
-  using done_op = manual_lifetime<
-      cleanup_operation_t<StreamSender, done_cleanup_receiver_t>>;
 
-  union {
-    next_op next_;
-    error_op errorCleanup_;
-    done_op doneCleanup_;
-  };
+  next_op next_;
 
   template <typename StreamSender2, typename FilterFunc2, typename Receiver2>
   explicit type(
@@ -269,11 +128,13 @@ struct _op<StreamSender, FilterFunc, Receiver>::type {
     , filter_(std::forward<FilterFunc2>(filter))
     , receiver_(std::forward<Receiver2>(receiver)) {}
 
+  // Question to @ispeters: This didn't make a lot of sense to me, but now that
+  // we don't have a union, do we want to remove this?
   ~type() {}  // Due to the union member, this is load-bearing. DO NOT DELETE.
 
   void start() noexcept {
     UNIFEX_TRY {
-      unifex::activate_union_member_with(next_, [&] {
+      next_.construct_with([&] {
         return unifex::connect(next(stream_), next_receiver_t{*this});
       });
       unifex::start(next_.get());
@@ -306,8 +167,8 @@ struct _sender<StreamSender, FilterFunc>::type {
       class Variant,
       template <typename...>
       class Tuple>
-  using value_types = sender_value_types_t<next_sender_t<
-      StreamSender>, Variant, Tuple>;
+  using value_types =
+      sender_value_types_t<next_sender_t<StreamSender>, Variant, Tuple>;
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
@@ -320,22 +181,12 @@ struct _sender<StreamSender, FilterFunc>::type {
   using operation_t = operation<StreamSender, FilterFunc, Receiver>;
   template <typename Receiver>
   using next_receiver_t = next_receiver<StreamSender, FilterFunc, Receiver>;
-  template <typename Receiver>
-  using error_cleanup_receiver_t =
-      error_cleanup_receiver<StreamSender, FilterFunc, Receiver>;
-  template <typename Receiver>
-  using done_cleanup_receiver_t =
-      done_cleanup_receiver<StreamSender, FilterFunc, Receiver>;
 
   template(typename Self, typename Receiver)  //
       (requires same_as<remove_cvref_t<Self>, type> AND receiver<Receiver> AND
-           sender_to<next_sender_t<StreamSender>, next_receiver_t<Receiver>> AND
-               sender_to<
-                   cleanup_sender_t<StreamSender>,
-                   error_cleanup_receiver_t<Receiver>> AND
-                   sender_to<
-                       cleanup_sender_t<StreamSender>,
-                       done_cleanup_receiver_t<Receiver>>)  //
+           sender_to<
+               next_sender_t<StreamSender>,
+               next_receiver_t<Receiver>>)  //
       friend operation_t<Receiver> tag_invoke(
           tag_t<connect>, Self&& self, Receiver&& receiver) {
     return operation_t<Receiver>{
@@ -365,12 +216,21 @@ struct _filter_stream<StreamSender, FilterFunc>::type {
   friend auto tag_invoke(tag_t<cleanup>, type& s) { return cleanup(s.stream_); }
 };
 
+template <typename StreamSender, typename FilterFunc>
+using filter_stream = typename _filter_stream<
+    remove_cvref_t<StreamSender>,
+    remove_cvref_t<FilterFunc>>::type;
+
 struct _fn {
-  // TODO add a type requirement that filterFunc's return is boolean
   template <typename StreamSender, typename FilterFunc>
-  auto operator()(StreamSender&& stream, FilterFunc&& filterFunc) const {
-    return typename _filter_stream<StreamSender, FilterFunc>::type{
-        std::forward<StreamSender>(stream), std::forward<FilterFunc>(filterFunc)};
+  auto operator()(StreamSender&& stream, FilterFunc&& filterFunc) const
+      noexcept(std::is_nothrow_constructible_v<
+               filter_stream<StreamSender, FilterFunc>,
+               StreamSender,
+               FilterFunc>) -> filter_stream<StreamSender, FilterFunc> {
+    return filter_stream<StreamSender, FilterFunc>{
+        std::forward<StreamSender>(stream),
+        std::forward<FilterFunc>(filterFunc)};
   }
 
   template <typename FilterFunc>
