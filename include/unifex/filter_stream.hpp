@@ -202,12 +202,13 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
       }
     }
     UNIFEX_CATCH(...) {
-      unifex::activate_union_member_with(op.errorCleanup_, [&] {
-        return unifex::connect(
-            cleanup(op.stream_),
-            error_cleanup_receiver_t{op, std::current_exception()});
-      });
-      unifex::start(op.errorCleanup_.get());
+      unifex::set_error(std::move(op.receiver_), std::current_exception());
+      // unifex::activate_union_member_with(op.errorCleanup_, [&] {
+      //   return unifex::connect(
+      //       cleanup(op.stream_),
+      //       error_cleanup_receiver_t{op, std::current_exception()});
+      // });
+      // unifex::start(op.errorCleanup_.get());
     }
   }
 
@@ -305,12 +306,13 @@ struct _sender<StreamSender, FilterFunc>::type {
       class Variant,
       template <typename...>
       class Tuple>
-  using value_types = typename next_sender_t<
-      StreamSender>::template value_types<Variant, Tuple>;
+  using value_types = sender_value_types_t<next_sender_t<
+      StreamSender>, Variant, Tuple>;
 
   template <template <typename...> class Variant>
-  using error_types =
-      typename next_sender_t<StreamSender>::template error_types<Variant>;
+  using error_types = typename concat_type_lists_unique_t<
+      sender_error_types_t<next_sender_t<StreamSender>, type_list>,
+      type_list<std::exception_ptr>>::template apply<Variant>;
 
   static constexpr bool sends_done = false;
 
@@ -368,14 +370,14 @@ struct _fn {
   template <typename StreamSender, typename FilterFunc>
   auto operator()(StreamSender&& stream, FilterFunc&& filterFunc) const {
     return typename _filter_stream<StreamSender, FilterFunc>::type{
-        (StreamSender &&) stream, (FilterFunc &&) filterFunc};
+        std::forward<StreamSender>(stream), std::forward<FilterFunc>(filterFunc)};
   }
 
   template <typename FilterFunc>
   constexpr auto operator()(FilterFunc&& filterFunc) const
       noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, FilterFunc>)
           -> bind_back_result_t<_fn, FilterFunc> {
-    return bind_back(*this, (FilterFunc &&) filterFunc);
+    return bind_back(*this, std::forward<FilterFunc>(filterFunc));
   }
 };
 
