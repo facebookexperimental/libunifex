@@ -75,7 +75,8 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
     auto& op = op_;
     op.next_.destruct();
     UNIFEX_TRY {
-      const bool doFilter = !std::invoke(op.filter_, (Values &&) values...);
+      const bool doFilter =
+          !std::invoke(op.filter_, std::forward<Values>(values)...);
 
       if (doFilter) {
         op.next_.construct_with([&] {
@@ -105,7 +106,7 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
 
   template <typename Error>
   void set_error(Error&& e) && noexcept {
-    std::move(*this).set_error(make_exception_ptr((Error &&) e));
+    std::move(*this).set_error(make_exception_ptr(std::forward<Error>(e)));
   }
 };
 
@@ -140,8 +141,7 @@ struct _op<StreamSender, FilterFunc, Receiver>::type {
       unifex::start(next_.get());
     }
     UNIFEX_CATCH(...) {
-      unifex::set_error(
-          static_cast<Receiver&&>(receiver_), std::current_exception());
+      unifex::set_error(std::move(receiver_), std::current_exception());
     }
   }
 };
@@ -191,8 +191,8 @@ struct _sender<StreamSender, FilterFunc>::type {
           tag_t<connect>, Self&& self, Receiver&& receiver) {
     return operation_t<Receiver>{
         self.stream_,
-        static_cast<Self&&>(self).filter_,
-        (Receiver &&) receiver};
+        std::move(self).filter_,
+        std::forward<Receiver>(receiver)};
   }
 };
 }  // namespace _filter
