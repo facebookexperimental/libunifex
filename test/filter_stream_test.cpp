@@ -8,7 +8,6 @@
 #include <unifex/task.hpp>
 #include <unifex/then.hpp>
 #include <unifex/trampoline_scheduler.hpp>
-#include <unifex/transform_stream.hpp>
 #include <unifex/via_stream.hpp>
 
 #include <gtest/gtest.h>
