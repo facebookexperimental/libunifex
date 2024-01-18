@@ -152,6 +152,7 @@ TEST(filter_stream, StreamOfReferences) {
       transform_stream([&](int idx) -> int& { return ints[idx]; }) |
       filter_stream([](int val) { return val % 2 == 0; }) |
       transform_stream([&](int& val) {
+               // ensuring we're propagating the referenceness correctly
                if (val == 2) {
                  EXPECT_TRUE(&val == &ints[1]);
                } else if (val == 4) {
