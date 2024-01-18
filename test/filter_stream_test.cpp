@@ -8,6 +8,7 @@
 #include <unifex/task.hpp>
 #include <unifex/then.hpp>
 #include <unifex/trampoline_scheduler.hpp>
+#include <unifex/transform_stream.hpp>
 #include <unifex/via_stream.hpp>
 
 #include <gtest/gtest.h>
@@ -64,7 +65,7 @@ struct ThrowingStream {
     return unifex::next(underlyingStream_);
   }
 
-  auto cleanup() { unifex::cleanup(underlyingStream_); }
+  auto cleanup() { return unifex::cleanup(underlyingStream_); }
 
   range_stream underlyingStream_{1, 10};
   size_t i = 0;
@@ -142,6 +143,27 @@ TEST(filter_stream, MoveOnlyObjects) {
 
   ASSERT_TRUE(sumOfNonNulls);
   EXPECT_EQ(3, *sumOfNonNulls);
+}
+
+TEST(filter_stream, StreamOfReferences) {
+  std::array<int, 5> ints{1, 2, 3, 4, 5};
+
+  auto res = range_stream{0, 4} |
+      transform_stream([&](int idx) -> int& { return ints[idx]; }) |
+      filter_stream([](int val) { return val % 2 == 0; }) |
+      transform_stream([&](int& val) {
+               if (val == 2) {
+                 EXPECT_TRUE(&val == &ints[1]);
+               } else if (val == 4) {
+                 EXPECT_TRUE(&val == &ints[3]);
+               }
+               return val;
+             }) |
+      reduce_stream(0, [](int state, int val) { return state + val; }) |
+      sync_wait();
+
+  ASSERT_TRUE(res);
+  EXPECT_EQ(6, *res);
 }
 
 TEST(filter_stream, StackExhaustion) {

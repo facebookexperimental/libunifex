@@ -71,20 +71,22 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
 #endif
 
   template <typename... Values>
-  void set_value(Values... values) && noexcept {
+  void set_value(Values&&... values) && noexcept {
     auto& op = op_;
     op.next_.destruct();
     UNIFEX_TRY {
-      const bool doFilter =
-          !std::invoke(op.filter_, std::forward<Values>(values)...);
+      const bool doFilter = !std::invoke(op.filter_, std::as_const(values)...);
 
       if (doFilter) {
+        op.next_.destruct();
+        op.nextEngaged_ = false;
         op.next_.construct_with([&] {
           return unifex::connect(next(op.stream_), next_receiver_t{op});
         });
         unifex::start(op.next_.get());
       } else {
-        unifex::set_value(std::move(op.receiver_), std::move(values)...);
+        unifex::set_value(
+            std::move(op.receiver_), std::forward<Values>(values)...);
       }
     }
     UNIFEX_CATCH(...) {
@@ -92,21 +94,11 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
     }
   }
 
-  void set_done() && noexcept {
-    auto& op = op_;
-    op.next_.destruct();
-    unifex::set_done(std::move(op.receiver_));
-  }
-
-  void set_error(std::exception_ptr ex) && noexcept {
-    auto& op = op_;
-    op.next_.destruct();
-    unifex::set_error(std::move(op.receiver_), std::move(ex));
-  }
+  void set_done() && noexcept { unifex::set_done(std::move(op_.receiver_)); }
 
   template <typename Error>
   void set_error(Error&& e) && noexcept {
-    std::move(*this).set_error(make_exception_ptr(std::forward<Error>(e)));
+    unifex::set_error(std::move(op_.receiver_), std::forward<Error>(e));
   }
 };
 
@@ -121,6 +113,7 @@ struct _op<StreamSender, FilterFunc, Receiver>::type {
       manual_lifetime<next_operation_t<StreamSender, next_receiver_t>>;
 
   next_op next_;
+  bool nextEngaged_{false};
 
   template <typename StreamSender2, typename FilterFunc2, typename Receiver2>
   explicit type(
@@ -138,6 +131,7 @@ struct _op<StreamSender, FilterFunc, Receiver>::type {
       next_.construct_with([&] {
         return unifex::connect(next(stream_), next_receiver_t{*this});
       });
+      nextEngaged_ = true;
       unifex::start(next_.get());
     }
     UNIFEX_CATCH(...) {
@@ -175,7 +169,8 @@ struct _sender<StreamSender, FilterFunc>::type {
       sender_error_types_t<next_sender_t<StreamSender>, type_list>,
       type_list<std::exception_ptr>>::template apply<Variant>;
 
-  static constexpr bool sends_done = false;
+  static constexpr bool sends_done =
+      sender_traits<next_sender_t<StreamSender>>::sends_done;
 
   template <typename Receiver>
   using operation_t = operation<StreamSender, FilterFunc, Receiver>;
@@ -209,11 +204,17 @@ struct _filter_stream<StreamSender, FilterFunc>::type {
   StreamSender stream_;
   FilterFunc filter_;
 
-  friend auto tag_invoke(tag_t<next>, type& s) {
+  friend auto tag_invoke(tag_t<next>, type& s) noexcept(
+      std::is_nothrow_constructible_v<
+          _filter::sender<StreamSender, FilterFunc>,
+          StreamSender&,
+          FilterFunc&>) {
     return _filter::sender<StreamSender, FilterFunc>{s.stream_, s.filter_};
   }
-
-  friend auto tag_invoke(tag_t<cleanup>, type& s) { return cleanup(s.stream_); }
+  friend auto
+  tag_invoke(tag_t<cleanup>, type& s) noexcept(noexcept(cleanup(s.stream_))) {
+    return cleanup(s.stream_);
+  }
 };
 
 template <typename StreamSender, typename FilterFunc>
