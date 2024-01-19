@@ -5,7 +5,6 @@
 #include <unifex/range_stream.hpp>
 #include <unifex/reduce_stream.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
 #include <unifex/then.hpp>
 #include <unifex/trampoline_scheduler.hpp>
 #include <unifex/transform_stream.hpp>
