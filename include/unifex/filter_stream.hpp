@@ -73,7 +73,6 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
   template <typename... Values>
   void set_value(Values&&... values) && noexcept {
     auto& op = op_;
-    op.next_.destruct();
     UNIFEX_TRY {
       const bool doFilter = !std::invoke(op.filter_, std::as_const(values)...);
 
@@ -106,7 +105,7 @@ struct _next_receiver<StreamSender, FilterFunc, Receiver>::type {
 template <typename StreamSender, typename FilterFunc, typename Receiver>
 struct _op<StreamSender, FilterFunc, Receiver>::type {
   StreamSender& stream_;
-  FilterFunc filter_;
+  FilterFunc& filter_;
   Receiver receiver_;
 
   using next_receiver_t = next_receiver<StreamSender, FilterFunc, Receiver>;
@@ -116,26 +115,19 @@ struct _op<StreamSender, FilterFunc, Receiver>::type {
   next_op next_;
   bool nextEngaged_{false};
 
-  template <typename StreamSender2, typename FilterFunc2, typename Receiver2>
+  template <typename Receiver2>
   explicit type(
-      StreamSender2&& stream,
-      FilterFunc2&& filter,
-      Receiver2&&
-          receiver) noexcept(std::
-                                 is_nothrow_constructible_v<
-                                     StreamSender,
-                                     StreamSender2>&&
-                                     std::is_nothrow_constructible_v<
-                                         FilterFunc,
-                                         FilterFunc2>&&
-                                         std::is_nothrow_constructible_v<
+      StreamSender& stream,
+      FilterFunc& filter,
+      Receiver2&& receiver) noexcept(std::
+                                         is_nothrow_constructible_v<
                                              Receiver,
                                              Receiver2>&&
                                              is_nothrow_connectable_v<
                                                  next_sender_t<StreamSender>,
                                                  Receiver&>)
-    : stream_(std::forward<StreamSender2>(stream))
-    , filter_(std::forward<FilterFunc2>(filter))
+    : stream_(stream)
+    , filter_(filter)
     , receiver_(std::forward<Receiver2>(receiver)) {
     next_.construct_with(
         [&] { return unifex::connect(next(stream_), next_receiver_t{*this}); });
