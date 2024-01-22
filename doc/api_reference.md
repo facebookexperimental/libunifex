@@ -844,6 +844,11 @@ of `tag_invoke(tag_t<for_each>, your_stream_type, Func)`.
 Returns a stream that produces values that are the result of calling
 `func(value)` on each value produced by the input stream.
 
+### `filter_stream(Stream stream, FilterFunc filterFunc) -> Stream`
+
+Returns a stream that contains the values from the input stream that evaluate 
+true on the predicate `filterFunc(val)`.
+
 ### `via_stream(Scheduler scheduler, Stream stream) -> Stream`
 
 Returns a stream that calls the receiver methods on the specified scheduler's
