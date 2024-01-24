@@ -18,10 +18,8 @@
 #include <unifex/defer.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
-#include <unifex/single_thread_context.hpp>
 #include <unifex/stop_on_request.hpp>
 #include <unifex/sync_wait.hpp>
-#include <unifex/task.hpp>
 #include <unifex/then.hpp>
 #include <unifex/when_all.hpp>
 #include <unifex/when_all_range.hpp>
@@ -30,6 +28,51 @@
 #include <optional>
 
 #include <gtest/gtest.h>
+
+#if !UNIFEX_NO_COROUTINES
+
+#  include <unifex/single_thread_context.hpp>
+#  include <unifex/task.hpp>
+
+TEST(StopOnRequest, MultiThreadedCancellations) {
+  constexpr size_t iterations = 10;
+  constexpr size_t numSources = 5;
+  unifex::inplace_stop_source stopSources[iterations * numSources];
+
+  auto makeTask = [](unifex::inplace_stop_source& stopSource)
+      -> unifex::nothrow_task<void> {
+    stopSource.request_stop();
+    co_return;
+  };
+
+  bool wasCancelled = false;
+
+  for (size_t i = 0; i < iterations; i++) {
+    std::vector<unifex::any_sender_of<>> tasks;
+    unifex::single_thread_context threads[numSources];
+    for (size_t j = 0; j < numSources; j++) {
+      tasks.emplace_back(unifex::on(
+          threads[j].get_scheduler(),
+          makeTask(stopSources[i * numSources + j])));
+    }
+    auto cancellationSender = unifex::stop_on_request(
+                                  stopSources[i * numSources].get_token(),
+                                  stopSources[i * numSources + 1].get_token(),
+                                  stopSources[i * numSources + 2].get_token(),
+                                  stopSources[i * numSources + 3].get_token(),
+                                  stopSources[i * numSources + 4].get_token()) |
+        unifex::let_done([&]() {
+                                wasCancelled = true;
+                                return unifex::just();
+                              });
+    unifex::sync_wait(unifex::when_all(
+        unifex::when_all_range(std::move(tasks)), cancellationSender));
+    EXPECT_TRUE(wasCancelled);
+    wasCancelled = false;
+  }
+}
+
+#endif  // !UNIFEX_NO_COROUTINES
 
 // Dummy stop source and token class to test callback construction exception
 // handling
@@ -244,44 +287,6 @@ TEST(StopOnRequest, ReceiverAndStopSourceCancellationsBeforeConstruction) {
            });
   }));
   EXPECT_TRUE(wasCancelled);
-}
-
-TEST(StopOnRequest, MultiThreadedCancellations) {
-  constexpr size_t iterations = 10;
-  constexpr size_t numSources = 5;
-  unifex::inplace_stop_source stopSources[iterations * numSources];
-
-  auto makeTask = [](unifex::inplace_stop_source& stopSource)
-      -> unifex::nothrow_task<void> {
-    stopSource.request_stop();
-    co_return;
-  };
-
-  bool wasCancelled = false;
-
-  for (size_t i = 0; i < iterations; i++) {
-    std::vector<unifex::any_sender_of<>> tasks;
-    unifex::single_thread_context threads[numSources];
-    for (size_t j = 0; j < numSources; j++) {
-      tasks.emplace_back(unifex::on(
-          threads[j].get_scheduler(),
-          makeTask(stopSources[i * numSources + j])));
-    }
-    auto cancellationSender = unifex::stop_on_request(
-                                  stopSources[i * numSources].get_token(),
-                                  stopSources[i * numSources + 1].get_token(),
-                                  stopSources[i * numSources + 2].get_token(),
-                                  stopSources[i * numSources + 3].get_token(),
-                                  stopSources[i * numSources + 4].get_token()) |
-        unifex::let_done([&]() {
-                                wasCancelled = true;
-                                return unifex::just();
-                              });
-    unifex::sync_wait(unifex::when_all(
-        unifex::when_all_range(std::move(tasks)), cancellationSender));
-    EXPECT_TRUE(wasCancelled);
-    wasCancelled = false;
-  }
 }
 
 TEST(StopOnRequest, StopAfterComplete) {
