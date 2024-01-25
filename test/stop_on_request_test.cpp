@@ -27,6 +27,7 @@
 #include <unifex/when_all.hpp>
 #include <unifex/when_all_range.hpp>
 
+#include <array>
 #include <exception>
 #include <optional>
 
