@@ -154,6 +154,8 @@ struct _op<Receiver, StopTokens...>::type {
       destructOnError.release();
     }
     UNIFEX_CATCH(...) {
+      // all the stop callbacks have been destroyed by the time we get here
+      // so it's not possible for a callback to race with this load
       if (callbackState_.load(std::memory_order_acquire) ==
           _callback_state::AT_LEAST_ONE_CALLED) {
         // we received a stop request before we experienced an error
@@ -168,12 +170,14 @@ struct _op<Receiver, StopTokens...>::type {
     auto expected = _callback_state::INIT;
     // Update state to mark that all callbacks have been constructed only if the
     // previous state was INIT. If the previous state was AT_LEAST_ONE_CALLED,
-    // don't change the state
+    // don't change the state, but invoke complete() on behalf of the callback
+    // that was invoked
     if (!callbackState_.compare_exchange_strong(
             expected,
             _callback_state::ALL_CONSTRUCTED_NOT_CALLED,
             std::memory_order_acq_rel)) {
       // complete if we transitioned from AT_LEAST_ONE_CALLED
+      UNIFEX_ASSERT(expected == _callback_state::AT_LEAST_ONE_CALLED);
       complete();
     }
     // otherwise let the other callbacks handle the completion
