@@ -165,17 +165,18 @@ struct _op<Receiver, StopTokens...>::type {
       return;
     }
 
-    // update state to mark that all callbacks have been constructed
-    auto oldState = callbackState_.exchange(
-        _callback_state::ALL_CONSTRUCTED_NOT_CALLED, std::memory_order_acq_rel);
-    if (oldState == _callback_state::AT_LEAST_ONE_CALLED) {
-      // if a stop callback was already called, then we can handle completion
+    auto expected = _callback_state::INIT;
+    // Update state to mark that all callbacks have been constructed only if the
+    // previous state was INIT. If the previous state was AT_LEAST_ONE_CALLED,
+    // don't change the state
+    if (!callbackState_.compare_exchange_strong(
+            expected,
+            _callback_state::ALL_CONSTRUCTED_NOT_CALLED,
+            std::memory_order_acq_rel)) {
+      // complete if we transitioned from AT_LEAST_ONE_CALLED
       complete();
-    } else {
-      // otherwise, let the callback eventually handle completion in
-      // request_stopped()
-      UNIFEX_ASSERT(oldState == _callback_state::INIT);
     }
+    // otherwise let the other callbacks handle the completion
   }
 };
 
