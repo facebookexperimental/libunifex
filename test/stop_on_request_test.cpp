@@ -16,8 +16,11 @@
 #include <unifex/stop_when.hpp>
 
 #include <unifex/defer.hpp>
+#include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/on.hpp>
+#include <unifex/single_thread_context.hpp>
 #include <unifex/stop_on_request.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
@@ -29,50 +32,40 @@
 
 #include <gtest/gtest.h>
 
-#if !UNIFEX_NO_COROUTINES
-
-#  include <unifex/single_thread_context.hpp>
-#  include <unifex/task.hpp>
-
 TEST(StopOnRequest, MultiThreadedCancellations) {
   constexpr size_t iterations = 10;
   constexpr size_t numSources = 5;
-  unifex::inplace_stop_source stopSources[iterations * numSources];
-
-  auto makeTask = [](unifex::inplace_stop_source& stopSource)
-      -> unifex::nothrow_task<void> {
-    stopSource.request_stop();
-    co_return;
-  };
-
-  bool wasCancelled = false;
-
   for (size_t i = 0; i < iterations; i++) {
-    std::vector<unifex::any_sender_of<>> tasks;
-    unifex::single_thread_context threads[numSources];
+    std::array<unifex::single_thread_context, numSources> threads{};
+    std::array<unifex::inplace_stop_source, numSources> stopSources{};
+    auto makeTask = [&](size_t index) noexcept {
+      auto& thread = threads[index];
+      auto* stopSource = &stopSources[index];
+      return unifex::on(
+          thread.get_scheduler(), unifex::just_from([stopSource]() noexcept {
+            stopSource->request_stop();
+          }));
+    };
+    std::vector<decltype(makeTask(0))> tasks;
     for (size_t j = 0; j < numSources; j++) {
-      tasks.emplace_back(unifex::on(
-          threads[j].get_scheduler(),
-          makeTask(stopSources[i * numSources + j])));
+      tasks.push_back(makeTask(j));
     }
-    auto cancellationSender = unifex::stop_on_request(
-                                  stopSources[i * numSources].get_token(),
-                                  stopSources[i * numSources + 1].get_token(),
-                                  stopSources[i * numSources + 2].get_token(),
-                                  stopSources[i * numSources + 3].get_token(),
-                                  stopSources[i * numSources + 4].get_token()) |
-        unifex::let_done([&]() {
-                                wasCancelled = true;
-                                return unifex::just();
-                              });
+    bool wasCancelled = false;
+    auto cancellationSender = std::apply(
+        [&](auto&... stopSources) noexcept {
+          return unifex::stop_on_request(stopSources.get_token()...) |
+              unifex::let_done([&]() {
+                   wasCancelled = true;
+                   return unifex::just();
+                 });
+        },
+        stopSources);
     unifex::sync_wait(unifex::when_all(
-        unifex::when_all_range(std::move(tasks)), cancellationSender));
+        unifex::when_all_range(std::move(tasks)),
+        std::move(cancellationSender)));
     EXPECT_TRUE(wasCancelled);
-    wasCancelled = false;
   }
 }
-
-#endif  // !UNIFEX_NO_COROUTINES
 
 // Dummy stop source and token class to test callback construction exception
 // handling
