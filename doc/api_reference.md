@@ -56,6 +56,7 @@
   * [`reduce_stream()`](#reduce_streamstream-stream-t-initialstate-func-reducer---sendert)
   * [`for_each()`](#for_eachstream-stream-func-func---sendervoid)
   * [`transform_stream()`](#transform_streamstream-stream-func-func---stream)
+  * [`filter_stream()`](#filter_streamstream-stream-filterfunc-filterfunc---stream)
   * [`via_stream()`](#via_streamscheduler-scheduler-stream-stream---stream)
   * [`typed_via_stream()`](#typed_via_streamscheduler-scheduler-stream-stream---stream)
   * [`on_stream()`](#on_streamscheduler-scheduler-stream-stream---stream)
