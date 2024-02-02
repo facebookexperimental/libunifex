@@ -15,8 +15,10 @@
  */
 #pragma once
 
+#include <unifex/get_completion_scheduler.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
+#include <unifex/tag_invoke.hpp>
 
 #include <atomic>
 #include <condition_variable>
@@ -64,6 +66,8 @@ private:
   template <class Receiver>
   friend struct _op;
 
+  class scheduler;
+
   class schedule_sender {
   public:
     template <
@@ -87,6 +91,13 @@ private:
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& r) const {
       return operation<Receiver>{context_, (Receiver &&) r};
+    }
+
+    template <typename CPO>
+    friend auto tag_invoke(
+        _get_completion_scheduler::_fn<CPO>,
+        schedule_sender const& sender) noexcept -> scheduler {
+      return scheduler{sender.context_};
     }
 
   private:
