@@ -34,6 +34,17 @@
 
 #include <unifex/detail/prologue.hpp>
 
+// There are reports of the asserts on cleanup_ firing when a let_value
+// operation state is constructed in one shared libary and completed in another.
+// The asserts fire because the addresses of two otherwise identical functions
+// differ. If you have this problem, you can suppress the asserts by defining
+// UNIFEX_DISABLE_LET_VALUE_CLEANUP_ASSERTS.
+#if defined(UNIFEX_DISABLE_LET_VALUE_CLEANUP_ASSERTS)
+#  define UNIFEX_ASSERT_CLEANUP(cond) ((void)0)
+#else
+#  define UNIFEX_ASSERT_CLEANUP(cond) UNIFEX_ASSERT(cond)
+#endif
+
 namespace unifex {
 namespace _let_v {
 template <typename... Values>
@@ -58,21 +69,21 @@ struct _successor_receiver<Operation, Values...>::type {
 
   template <typename... SuccessorValues>
   void set_value(SuccessorValues&&... values) && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == expectedCleanup);
+    UNIFEX_ASSERT_CLEANUP(op_.cleanup_ == expectedCleanup);
 
     unifex::set_value(
         std::move(op_.receiver_), std::forward<SuccessorValues>(values)...);
   }
 
   void set_done() && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == expectedCleanup);
+    UNIFEX_ASSERT_CLEANUP(op_.cleanup_ == expectedCleanup);
 
     unifex::set_done(std::move(op_.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == expectedCleanup);
+    UNIFEX_ASSERT_CLEANUP(op_.cleanup_ == expectedCleanup);
 
     unifex::set_error(std::move(op_.receiver_), std::forward<Error>(error));
   }
@@ -130,7 +141,7 @@ struct _predecessor_receiver<Operation>::type {
   void set_value(Values&&... values) && noexcept {
     auto& op = op_;
     UNIFEX_TRY {
-      UNIFEX_ASSERT(op_.cleanup_ == op_.deactivatePredOp);
+      UNIFEX_ASSERT_CLEANUP(op_.cleanup_ == op_.deactivatePredOp);
       // if we throw while constructing values_ then the default
       // cleanup_ will destroy predOp_
       auto& valueTuple =
@@ -177,19 +188,19 @@ struct _predecessor_receiver<Operation>::type {
     UNIFEX_CATCH(...) {
       // depending on where the exception came from, cleanup_
       // could be any valid cleanup function
-      UNIFEX_ASSERT(op.cleanup_ != nullptr);
+      UNIFEX_ASSERT_CLEANUP(op.cleanup_ != nullptr);
       unifex::set_error(std::move(op.receiver_), std::current_exception());
     }
   }
 
   void set_done() && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == op_.deactivatePredOp);
+    UNIFEX_ASSERT_CLEANUP(op_.cleanup_ == op_.deactivatePredOp);
     unifex::set_done(std::move(op_.receiver_));
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    UNIFEX_ASSERT(op_.cleanup_ == op_.deactivatePredOp);
+    UNIFEX_ASSERT_CLEANUP(op_.cleanup_ == op_.deactivatePredOp);
     unifex::set_error(std::move(op_.receiver_), std::forward<Error>(error));
   }
 
@@ -451,5 +462,7 @@ struct _fn {
 inline constexpr _let_v::_cpo::_fn let_value{};
 
 }  // namespace unifex
+
+#undef UNIFEX_ASSERT_CLEANUP
 
 #include <unifex/detail/epilogue.hpp>
