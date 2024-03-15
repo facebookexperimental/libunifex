@@ -36,18 +36,24 @@ class inplace_stop_token;
 template <typename F>
 class inplace_stop_callback;
 
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
+// defining UNIFEX_LOG_DANGLING_STOP_CALLBACKS changes the ABI so let's turn
+// that into a link-time error instead of a runtime ODR issue
+#  define inplace_stop_callback_base inplace_stop_callback_base_d
+#endif
+
 class inplace_stop_callback_base {
 public:
   void execute() noexcept { this->execute_(this); }
 
-#ifndef NDEBUG
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
   char const* type_name() const noexcept { return type_name_; }
 #endif
 
 protected:
   using execute_fn = void(inplace_stop_callback_base* cb) noexcept;
 
-#ifndef NDEBUG
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
   explicit inplace_stop_callback_base(
       inplace_stop_source* source,
       execute_fn* execute,
@@ -72,7 +78,7 @@ protected:
   inplace_stop_callback_base** prevPtr_ = nullptr;
   bool* removedDuringCallback_ = nullptr;
   std::atomic<bool> callbackCompleted_{false};
-#ifndef NDEBUG
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
   char const* type_name_ = nullptr;
 #endif
 };
@@ -174,7 +180,7 @@ public:
       explicit inplace_stop_callback(
           inplace_stop_token token,
           T&& func) noexcept(std::is_nothrow_constructible_v<F, T>)
-#ifndef NDEBUG
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
     : inplace_stop_callback_base(
           token.source_,
           &inplace_stop_callback::execute_impl,
