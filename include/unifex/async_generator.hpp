@@ -22,8 +22,8 @@
 
 #  include <unifex/any_scheduler.hpp>
 #  include <unifex/async_scope.hpp>
-#  include <unifex/at_coroutine_exit.hpp>
 #  include <unifex/await_transform.hpp>
+#  include <unifex/create.hpp>
 #  include <unifex/defer.hpp>
 #  include <unifex/inline_scheduler.hpp>
 #  include <unifex/just_void_or_done.hpp>
@@ -40,43 +40,141 @@ template <typename T>
 class async_generator;
 
 namespace detail {
-template <typename T>
-class async_generator_iterator;
-class async_generator_yield_operation;
-class async_generator_advance_operation;
 
-class async_generator_promise_base {
+// TODO: read_scheduler should be generalized to the read() sender factory from
+// p2300, so we can do things like read(get_scheduler), read(get_stop_token),
+// etc.
+struct _read_scheduler_sender {
+  template <
+      template <typename...>
+      class Variant,
+      template <typename...>
+      class Tuple>
+  using value_types = Variant<Tuple<any_scheduler>>;
+
+  template <template <typename...> class Variant>
+  using error_types = Variant<std::exception_ptr>;
+
+  static constexpr bool sends_done = false;
+
+  static constexpr auto blocking = blocking_kind::always_inline;
+
+  template <class R>
+  struct _op_state {
+    R r_;
+
+    friend void tag_invoke(tag_t<start>, _op_state& op) noexcept {
+      try {
+        set_value(std::move(op.r_), get_scheduler(op.r_));
+      } catch (...) {
+        set_error(std::move(op.r_), std::current_exception());
+      }
+    }
+  };
+
+  template <typename R>
+  friend _op_state<std::decay_t<R>>
+  tag_invoke(tag_t<connect>, _read_scheduler_sender, R&& r) {
+    return {std::forward<R>(r)};
+  }
+};
+
+struct _read_scheduler_t {
+  constexpr _read_scheduler_sender operator()() const noexcept { return {}; }
+};
+
+inline constexpr _read_scheduler_t read_scheduler{};
+
+template <typename Promise>
+struct reschedule_receiver {
+  std::optional<typename Promise::value_type> value_;
+  unifex::coro::coroutine_handle<Promise> genCoro_;
+
+  // set_value implies we are back on the correct scheduler => wake up the
+  // receiver with the value from the generator
+  void set_value() noexcept {
+    if (value_) {
+      unifex::set_value(std::move(*genCoro_.promise().receiverOpt_), *value_);
+    } else {
+      unifex::set_done(std::move(*genCoro_.promise().receiverOpt_));
+    }
+  }
+
+  // set_done and set_error is just a forward into the receiver
+  void set_done() noexcept {
+    unifex::set_done(std::move(*genCoro_.promise().receiverOpt_));
+  }
+
+  template <typename E>
+  void set_error(E&& err) noexcept {
+    unifex::set_error(
+        std::move(*genCoro_.promise().receiverOpt_), std::forward<E>(err));
+  }
+};
+
+// Note this is also used in final_suspend, since it handles moving
+// back to the consumer's scheduler, instead of using at_coroutine_exit
+// as in unifex::task<>
+template <typename T>
+class async_generator_yield_operation {
 public:
-  async_generator_promise_base() noexcept : m_exception(nullptr) {
+  using value_type = std::remove_reference_t<T>;
+
+  async_generator_yield_operation(std::optional<value_type> value = {}) noexcept
+    : value_{std::move(value)} {}
+
+  bool await_ready() const noexcept { return false; }
+
+  template <typename Promise>
+  void await_suspend([[maybe_unused]] unifex::coro::coroutine_handle<Promise>
+                         genCoro) noexcept {
+    const auto& consumerSched = genCoro.promise().consumerSched_;
+    if (unifex::get_scheduler(genCoro.promise()) != consumerSched) {
+      genCoro.promise().rescheduleOpSt_ = unifex::connect(
+          unifex::schedule(consumerSched),
+          reschedule_receiver<Promise>{std::move(value_), genCoro});
+      unifex::start(*genCoro.promise().rescheduleOpSt_);
+      return;
+    }
+
+    if (value_) {
+      unifex::set_value(std::move(*genCoro.promise().receiverOpt_), *value_);
+    } else {
+      unifex::set_done(std::move(*genCoro.promise().receiverOpt_));
+    }
+  }
+
+  void await_resume() noexcept {}
+
+private:
+  std::optional<value_type> value_;
+};
+
+template <typename T>
+class async_generator_promise {
+public:
+  using value_type = std::remove_reference_t<T>;
+  using Promise = async_generator_promise<T>;
+
+  async_generator_promise() noexcept : exception_(nullptr) {
     // Other variables left intentionally uninitialised as they're
     // only referenced in certain states by which time they should
     // have been initialised.
   }
 
-  async_generator_promise_base(const async_generator_promise_base& other) =
-      delete;
-  async_generator_promise_base&
-  operator=(const async_generator_promise_base& other) = delete;
+  async_generator_promise(const async_generator_promise& other) = delete;
+  async_generator_promise&
+  operator=(const async_generator_promise& other) = delete;
 
   std::suspend_always initial_suspend() const noexcept { return {}; }
 
-  async_generator_yield_operation final_suspend() noexcept;
-
-  void unhandled_exception() noexcept {
-    m_exception = std::current_exception();
-  }
+  void unhandled_exception() noexcept { exception_ = std::current_exception(); }
 
   void return_void() noexcept {}
 
-  /// Query if the generator has reached the end of the sequence.
-  ///
-  /// Only valid to call after resuming from an awaited advance operation.
-  /// i.e. Either a begin() or iterator::operator++() operation.
-  bool finished() const noexcept { return m_currentValue == nullptr; }
-
   void rethrow_if_unhandled_exception() {
-    if (m_exception) {
-      std::rethrow_exception(std::move(m_exception));
+    if (exception_) {
+      std::rethrow_exception(std::move(exception_));
     }
   }
 
@@ -84,195 +182,36 @@ public:
   // "access" the current scheduler of our promise.
   friend unifex::any_scheduler tag_invoke(
       unifex::tag_t<unifex::get_scheduler>,
-      const async_generator_promise_base& p) noexcept {
-    return p.sched_;
+      const async_generator_promise& p) noexcept {
+    return *p.sched_;
   }
 
   // This is needed for at_coroutine_exit to do the async clean up
   friend unifex::continuation_handle<> tag_invoke(
       const unifex::tag_t<unifex::exchange_continuation>&,
-      async_generator_promise_base& p,
+      async_generator_promise& p,
       unifex::continuation_handle<> action) noexcept {
     return std::exchange(p.continuation_, std::move(action));
   }
 
   unifex::coro::coroutine_handle<> unhandled_done() noexcept {
-    return continuation_.done();
+    unifex::set_done(std::move(*receiverOpt_));
+    return coro::noop_coroutine();
   }
 
-protected:
-  template <typename P>
-  friend struct async_gen_initial_suspend;
-
-  async_generator_yield_operation internal_yield_value() noexcept;
-
-  // Needed for jumping back on the generator's scheduler, in cases
-  // where the consumer coroutine is executing elsewhere.
-  unifex::async_scope scope_;
-
-  // Keep track of the consumer scheduler
-  unifex::any_scheduler consumerSched_{_default_scheduler};
-  // The scheduler we currently run on
-  unifex::any_scheduler sched_{_default_scheduler};
-  bool rescheduledBefore_{false};
-
-private:
-  friend class async_generator_yield_operation;
-  friend class async_generator_advance_operation;
-
-  inline static constexpr unifex::inline_scheduler _default_scheduler{};
-
-  std::exception_ptr m_exception;
-
-  // In this case, this keeps the consumer coroutine + a done() continuation.
-  // it's needed for at_coroutine exit for now, but also whenw e handle stop
-  // requests.
-  unifex::continuation_handle<> continuation_;
-
-protected:
-  void* m_currentValue;
-};
-
-class async_generator_yield_operation final {
-public:
-  async_generator_yield_operation(
-      unifex::continuation_handle<> continuation) noexcept
-    : continuation_(continuation) {}
-
-  bool await_ready() const noexcept { return false; }
-
-  template <typename Promise>
-  unifex::coro::coroutine_handle<>
-  await_suspend([[maybe_unused]] unifex::coro::coroutine_handle<Promise>
-                    producer) noexcept {
-    // simplest case => no need to reschedule at all, just resume the cosumer
-    // coroutine
-    if (producer.promise().sched_ == producer.promise().consumerSched_) {
-      return continuation_.handle();
-    }
-
-    // need to reschedule back onto the consumer coro; kick off an async event &
-    // return no-op
-    producer.promise().scope_.detached_spawn_call_on(
-        producer.promise().consumerSched_,
-        [consumerCoro = continuation_.handle()]() noexcept {
-          consumerCoro.resume();
-        });
-    return unifex::coro::noop_coroutine();
+  async_generator<T> get_return_object() noexcept {
+    return async_generator<T>{*this};
   }
 
-  void await_resume() noexcept {}
+  async_generator_yield_operation<T> final_suspend() noexcept { return {}; }
 
-private:
-  unifex::continuation_handle<> continuation_;
-};
-
-// await_suspend when we yield from the generator
-inline async_generator_yield_operation
-async_generator_promise_base::final_suspend() noexcept {
-  // The same is done for unifex::task (check the cpp). This was confusing to
-  // read, but all we're doing is at the very last suspend, we want to clear up
-  // the async scope and schedule back onto the consumer's schedule.
-  auto cleanupTask = unifex::at_coroutine_exit([this]() -> unifex::task<void> {
-    co_await scope_.complete();
-
-    if (consumerSched_ != sched_) {
-      co_await unifex::schedule(consumerSched_);
-    }
-  });
-
-  cleanupTask.await_suspend_impl_(*this);
-  (void)cleanupTask.await_resume();
-
-  m_currentValue = nullptr;
-  return internal_yield_value();
-}
-
-inline async_generator_yield_operation
-async_generator_promise_base::internal_yield_value() noexcept {
-  return async_generator_yield_operation{continuation_};
-}
-
-class async_generator_advance_operation {
-protected:
-  async_generator_advance_operation(std::nullptr_t) noexcept
-    : m_promise(nullptr)
-    , m_producerCoroutine(nullptr) {}
-
-  async_generator_advance_operation(
-      async_generator_promise_base& promise,
-      unifex::coro::coroutine_handle<> producerCoroutine) noexcept
-    : m_promise(std::addressof(promise))
-    , m_producerCoroutine(producerCoroutine) {}
-
-public:
-  bool await_ready() const noexcept { return false; }
-
-  // await_suspend during co_await ++itr;
-  template <typename Promise>
-  unifex::coro::coroutine_handle<> await_suspend(
-      unifex::coro::coroutine_handle<Promise> consumerCoroutine) noexcept {
-    m_promise->continuation_ = consumerCoroutine;
-
-    auto consumerScheduler = unifex::get_scheduler(consumerCoroutine.promise());
-
-    // simplest case => no need to reschedule at all, just resume the producer
-    // coroutine
-    if (consumerScheduler == m_promise->sched_) {
-      m_promise->consumerSched_ = consumerScheduler;
-      return m_producerCoroutine;
-    }
-
-    // consumerScheduler != producerScheduler and the generator hasn't been
-    // rescheduled
-    // => continue executing on the consumer's schedule
-    if (!m_promise->rescheduledBefore_) {
-      m_promise->consumerSched_ = consumerScheduler;
-      m_promise->sched_ = consumerScheduler;
-      return m_producerCoroutine;
-    }
-
-    // consumerScheduler != producerScheduler and the generator has been
-    // rescheduled => we need to resume onto the generator's scheduler; return
-    // no-op + kick off an async event to hop onto the generator's scheduler
-    m_promise->scope_.detached_spawn_call_on(
-        m_promise->sched_,
-        [prodCoro = unifex::coro::coroutine_handle<
-             async_generator_promise_base>::from_promise(*m_promise),
-         consumerSched = std::move(consumerScheduler)]() noexcept {
-          // update consumerSched_ so we can re-hop onto the correct scheduler
-          prodCoro.promise().consumerSched_ = consumerSched;
-          // prodCoro.promise().sched_ already points to the correct scheduler
-          prodCoro.resume();
-        });
-    return unifex::coro::noop_coroutine();
+  async_generator_yield_operation<T> yield_value(value_type& value) noexcept {
+    return async_generator_yield_operation<T>{value};
   }
 
-protected:
-  async_generator_promise_base* m_promise;
-  unifex::coro::coroutine_handle<> m_producerCoroutine;
-};
-
-template <typename T>
-class async_generator_promise final : public async_generator_promise_base {
-  using value_type = std::remove_reference_t<T>;
-  using Promise = async_generator_promise<T>;
-
-public:
-  async_generator_promise() noexcept = default;
-
-  async_generator<T> get_return_object() noexcept;
-
-  async_generator_yield_operation yield_value(value_type& value) noexcept {
-    m_currentValue = std::addressof(value);
-    return internal_yield_value();
-  }
-
-  async_generator_yield_operation yield_value(value_type&& value) noexcept {
+  async_generator_yield_operation<T> yield_value(value_type&& value) noexcept {
     return yield_value(value);
   }
-
-  T& value() const noexcept { return *static_cast<T*>(m_currentValue); }
 
   template <typename Value>
   decltype(auto) await_transform(Value&& value) {
@@ -287,7 +226,7 @@ public:
       return unifex::await_transform(
           *this,
           unifex::with_scheduler_affinity(
-              static_cast<Value&&>(value), this->sched_));
+              static_cast<Value&&>(value), *this->sched_));
     }
     // Either await_transform has been customized or Value is an awaitable.
     // Either way, we can dispatch to the await_transform CPO, then insert a
@@ -301,7 +240,7 @@ public:
       return unifex::with_scheduler_affinity(
           *this,
           unifex::await_transform(*this, static_cast<Value&&>(value)),
-          this->sched_);
+          *this->sched_);
     } else {
       // Otherwise, we don't know how to await this type. Just return it and
       // let the compiler issue a diagnostic.
@@ -309,9 +248,8 @@ public:
     }
   }
 
+private:
   void transform_schedule_sender_impl_(unifex::any_scheduler newSched) {
-    // this->consumerSched_ points to the correct scheduler
-    this->rescheduledBefore_ = true;
     this->sched_ = std::move(newSched);
   }
 
@@ -327,131 +265,49 @@ public:
     return unifex::await_transform(
         *this, std::forward<ScheduleSender>(snd).base());
   }
+
+  // Friends with access to private fields
+  friend class async_generator<T>;
+  friend class async_generator_yield_operation<T>;
+  friend class reschedule_receiver<Promise>;
+
+  inline static constexpr unifex::inline_scheduler _default_scheduler{};
+
+  std::optional<unifex::any_operation_state_for<reschedule_receiver<Promise>>>
+      rescheduleOpSt_;
+  std::optional<unifex::any_scheduler> sched_;
+  // Keep track of the consumer scheduler
+  unifex::any_scheduler consumerSched_{_default_scheduler};
+  std::exception_ptr exception_;
+  // In this case, this keeps the consumer coroutine + a done() continuation.
+  // it's needed for at_coroutine exit for now, but also whenw e handle stop
+  // requests.
+  unifex::continuation_handle<> continuation_;
+  std::optional<any_receiver_ref<T&>> receiverOpt_;
 };
 
-template <typename T>
-class async_generator_increment_operation final
-  : public async_generator_advance_operation {
-public:
-  async_generator_increment_operation(
-      async_generator_iterator<T>& iterator) noexcept
-    : async_generator_advance_operation(
-          iterator.m_coroutine.promise(), iterator.m_coroutine)
-    , m_iterator(iterator) {}
-
-  async_generator_iterator<T>& await_resume();
-
-private:
-  async_generator_iterator<T>& m_iterator;
-};
-
-template <typename T>
-class async_generator_iterator final {
-  using promise_type = async_generator_promise<T>;
-  using handle_type = unifex::coro::coroutine_handle<promise_type>;
-
-public:
-  using iterator_category = std::input_iterator_tag;
-  // Not sure what type should be used for difference_type as we don't
-  // allow calculating difference between two iterators.
-  using difference_type = std::ptrdiff_t;
-  using value_type = std::remove_reference_t<T>;
-  using reference = std::add_lvalue_reference_t<T>;
-  using pointer = std::add_pointer_t<value_type>;
-
-  async_generator_iterator(std::nullptr_t) noexcept : m_coroutine(nullptr) {}
-
-  async_generator_iterator(handle_type coroutine) noexcept
-    : m_coroutine(coroutine) {}
-
-  async_generator_increment_operation<T> operator++() noexcept {
-    return async_generator_increment_operation<T>{*this};
-  }
-
-  reference operator*() const noexcept { return m_coroutine.promise().value(); }
-
-  bool operator==(const async_generator_iterator& other) const noexcept {
-    return m_coroutine == other.m_coroutine;
-  }
-
-  bool operator!=(const async_generator_iterator& other) const noexcept {
-    return !(*this == other);
-  }
-
-private:
-  friend class async_generator_increment_operation<T>;
-
-  handle_type m_coroutine;
-};
-
-template <typename T>
-async_generator_iterator<T>&
-async_generator_increment_operation<T>::await_resume() {
-  if (m_promise->finished()) {
-    // Update iterator to end()
-    m_iterator = async_generator_iterator<T>{nullptr};
-    m_promise->rethrow_if_unhandled_exception();
-  }
-
-  return m_iterator;
-}
-
-template <typename T>
-class async_generator_begin_operation final
-  : public async_generator_advance_operation {
-  using promise_type = async_generator_promise<T>;
-  using handle_type = unifex::coro::coroutine_handle<promise_type>;
-
-public:
-  async_generator_begin_operation(std::nullptr_t) noexcept
-    : async_generator_advance_operation(nullptr) {}
-
-  async_generator_begin_operation(handle_type producerCoroutine) noexcept
-    : async_generator_advance_operation(
-          producerCoroutine.promise(), producerCoroutine) {}
-
-  bool await_ready() const noexcept {
-    return m_promise == nullptr ||
-        async_generator_advance_operation::await_ready();
-  }
-
-  async_generator_iterator<T> await_resume() {
-    if (m_promise == nullptr) {
-      // Called begin() on the empty generator.
-      return async_generator_iterator<T>{nullptr};
-    } else if (m_promise->finished()) {
-      // Completed without yielding any values.
-      m_promise->rethrow_if_unhandled_exception();
-      return async_generator_iterator<T>{nullptr};
-    }
-
-    return async_generator_iterator<T>{
-        handle_type::from_promise(*static_cast<promise_type*>(m_promise))};
-  }
-};
 }  // namespace detail
 
 template <typename T>
 class [[nodiscard]] async_generator {
 public:
   using promise_type = detail::async_generator_promise<T>;
-  using iterator = detail::async_generator_iterator<T>;
 
-  async_generator() noexcept : m_coroutine(nullptr) {}
+  async_generator() noexcept : coroutine_(nullptr) {}
 
   explicit async_generator(promise_type& promise) noexcept
-    : m_coroutine(
+    : coroutine_(
           unifex::coro::coroutine_handle<promise_type>::from_promise(promise)) {
   }
 
   async_generator(async_generator&& other) noexcept
-    : m_coroutine(other.m_coroutine) {
-    other.m_coroutine = nullptr;
+    : coroutine_(other.coroutine_) {
+    other.coroutine_ = nullptr;
   }
 
   ~async_generator() {
-    if (m_coroutine) {
-      m_coroutine.destroy();
+    if (coroutine_) {
+      coroutine_.destroy();
     }
   }
 
@@ -464,43 +320,39 @@ public:
   async_generator(const async_generator&) = delete;
   async_generator& operator=(const async_generator&) = delete;
 
+  // Potential problem: not sure if get_scheduler(gen.next()) would return
+  // the right thing here. Perhaps we need a wrapper sender that also records
+  // each next sender's scheduler and customizes get_scheduler(...)
   auto next() noexcept {
-    // defer checking whether it_ has been initialized until next() is
-    // awaited it's not entirely clear whether this is necessary
-    return unifex::defer([this]() noexcept {
-      // just_void_or_done() tends to be a bit cheaper than a
-      // variant_sender so map "has it_ been initialized?" into the done
-      // and value channels so we can evaluate the equivalent of
-      // it_ = co_await this->begin() only once
-      return unifex::just_void_or_done(it_.has_value()) |
-          // this let_value runs when it_.has_value() is true so
-          // increment the iterator and return the new iterator value
-          unifex::let_value(
-                 [this]() noexcept { return unifex::as_sender(++*it_); }) |
-          // this let_done runs when it_.has_value() is false so
-          // initialize it_ to the result of awaiting begin() an then
-          // return the result
-          unifex::let_done([this]() noexcept {
-               return unifex::as_sender(this->begin()) |
-                   unifex::then([this](auto it) noexcept {
-                        it_ = it;
-                        return *it_;
+    // grab the receiver's scheduler; assume that the next-sender
+    // is always started on the corresponding context
+    return detail::read_scheduler() | let_value([this](auto sched) {
+             if (!coroutine_.promise().sched_) {
+               // capture the receiver's scheduler as the stream's
+               // scheduler on the first run of the next-sender
+               coroutine_.promise().sched_ = sched;
+             }
+             coroutine_.promise().consumerSched_ = sched;
+
+             // check to see if we're currently running on the saved scheduler
+             return just_void_or_done(coroutine_.promise().sched_ == sched)
+                 // get back on the desired scheduler when we're not already
+                 // there
+                 | let_done([this]() {
+                      return schedule(*coroutine_.promise().sched_);
+                    }) |
+                 let_value([this]() {
+                      // once we're on the right scheduler, use create<>()
+                      // to resume the generator's coroutine_handle<> after
+                      // saving the create-receiver in the promise so we can
+                      // complete create-sender from within the generator
+                      return create<T>([this](auto& rec) {
+                        any_receiver_ref<T&> r{inplace_stop_token{}, &rec};
+                        coroutine_.promise().receiverOpt_ = r;
+                        coroutine_.resume();
                       });
-             }) |
-          // given the recently-incremented iterator as an argument,
-          // translate the state of that iterator into either the value
-          // it points to or a done signal
-          unifex::let_value([this](auto it) noexcept {
-               // we want a done signal if it points past the end of the
-               // range
-               return unifex::just_void_or_done(it != this->end()) |
-                   // we'll only evaluate the then sender if it !=
-                   // this->end(), which means it's safe to
-                   // dereference it
-                   unifex::then(
-                          [it]() noexcept -> decltype(auto) { return *it; });
-             });
-    });
+                    });
+           });
   }
 
   auto cleanup() noexcept {
@@ -509,35 +361,11 @@ public:
 
   void swap(async_generator& other) noexcept {
     using std::swap;
-    swap(m_coroutine, other.m_coroutine);
+    swap(coroutine_, other.coroutine_);
   }
 
-private:
-  // My general feeling is let's just make those private & push just for a
-  // stream-based processing approach. Within the implementation, it's still
-  // convenient to deal with the iterator-based processing, though I also
-  // wouldn't mind removing this altogether.
-  // private:  <--
-  auto begin() noexcept {
-    if (!m_coroutine) {
-      return detail::async_generator_begin_operation<T>{nullptr};
-    }
-
-    return detail::async_generator_begin_operation<T>{m_coroutine};
-  }
-
-  auto end() noexcept { return iterator{nullptr}; }
-
-  unifex::coro::coroutine_handle<promise_type> m_coroutine;
-  std::optional<iterator> it_;
+  unifex::coro::coroutine_handle<promise_type> coroutine_;
 };
-
-namespace detail {
-template <typename T>
-async_generator<T> async_generator_promise<T>::get_return_object() noexcept {
-  return async_generator<T>{*this};
-}
-}  // namespace detail
 
 }  // namespace unifex
 

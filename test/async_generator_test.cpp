@@ -1,15 +1,12 @@
 #include <gtest/gtest.h>
 
 #include <unifex/async_generator.hpp>
-#include <unifex/coroutine_concepts.hpp>
 #include <unifex/for_each.hpp>
 #include <unifex/just.hpp>
-#include <unifex/range_stream.hpp>
-#include <unifex/reduce_stream.hpp>
+#include <unifex/just_done.hpp>
 #include <unifex/single_thread_context.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/task.hpp>
-#include <unifex/transform_stream.hpp>
 
 using namespace unifex;
 
@@ -59,6 +56,31 @@ TEST(async_generator, gen_with_stream_op) {
       });
   auto result = unifex::sync_wait(std::move(lazyReduced));
   EXPECT_EQ(10, result);
+}
+
+TEST(async_generator, gen_interaction_with_next) {
+  static unifex::single_thread_context callback_context;
+
+  auto makeInts = [](int n) -> async_generator<int> {
+    co_await unifex::schedule(callback_context.get_scheduler());
+    for (int i = 1; i <= n; ++i) {
+      co_yield i;
+    }
+    co_return;
+  };
+
+  auto myTask = [&makeInts]() mutable -> task<void> {
+    auto gen = makeInts(3);
+
+    auto val = co_await gen.next();
+    EXPECT_EQ(1, val);
+    val = co_await gen.next();
+    EXPECT_EQ(2, val);
+    val = co_await gen.next();
+    EXPECT_EQ(3, val);
+    co_return;
+  };
+  unifex::sync_wait(std::move(myTask)());
 }
 
 // Resuming the generator happens on the expected scheduler (similar semantics
@@ -135,4 +157,21 @@ TEST(async_generator, test_gen_affinity) {
 
   ASSERT_TRUE(result);
   EXPECT_EQ(10, result);
+}
+
+TEST(async_generator, await_just_done_in_async_generator) {
+  // a done signal from an awaiting sender gets propagated through
+  // the stack
+  static auto gen = []() -> async_generator<int> {
+    co_yield 1;
+    co_yield 2;
+    co_await just_done();
+    co_yield 3;
+  };
+
+  int sum = 0;
+  unifex::sync_wait([&sum]() mutable -> task<void> {
+    co_await unifex::for_each(gen(), [&sum](int el) mutable { sum += el; });
+  }());
+  EXPECT_EQ(3, sum);
 }
