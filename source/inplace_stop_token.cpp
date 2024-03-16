@@ -17,7 +17,7 @@
 
 #include <unifex/spin_wait.hpp>
 
-#ifndef NDEBUG
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
 #  include <stdio.h>
 #endif
 
@@ -25,7 +25,9 @@ namespace unifex {
 
 inplace_stop_source::~inplace_stop_source() {
   UNIFEX_ASSERT((state_.load(std::memory_order_relaxed) & locked_flag) == 0);
-#ifndef NDEBUG
+#if UNIFEX_LOG_DANGLING_STOP_CALLBACKS
+  // consume the last writes made under the lock
+  (void)state_.load(std::memory_order_acquire);
   for (auto* cb = callbacks_; cb != nullptr; cb = cb->next_) {
     printf("dangling inplace_stop_callback: %s\n", cb->type_name());
     fflush(stdout);

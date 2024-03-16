@@ -278,3 +278,13 @@
 #else
   #define UNIFEX_DEPRECATED_HEADER(MSG) /**/
 #endif
+
+#if !defined(UNIFEX_LOG_DANGLING_STOP_CALLBACKS)
+#  if !defined(NDEBUG)
+// logging not already specified and this is a debug build so default on
+#    define UNIFEX_LOG_DANGLING_STOP_CALLBACKS 1
+#  else
+// logging not already specified and this is a release build so default off
+#    define UNIFEX_LOG_DANGLING_STOP_CALLBACKS 0
+#  endif
+#endif
