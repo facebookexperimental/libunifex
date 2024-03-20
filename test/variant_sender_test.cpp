@@ -283,3 +283,9 @@ TEST(Variant, TestMSVCCpp20RegressionScenario) {
 
   ASSERT_TRUE(ret.has_value());
 }
+
+TEST(Variant, CopyableAndMovable) {
+  variant_sender<decltype(just(5)), decltype(just(1.0))> just_variant_sender(just(5));
+  auto other = just_variant_sender;
+  other = std::move(just_variant_sender);
+}
