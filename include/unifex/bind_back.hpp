@@ -137,10 +137,12 @@ inline const struct _fn {
   template <typename Cpo, typename... ArgN>
   constexpr auto operator()(Cpo cpo, ArgN&&... argN) const
       noexcept(noexcept(_result<Cpo, std::decay_t<ArgN>...>{
-          {}, (Cpo &&) cpo, std::tuple{(ArgN &&) argN...}}))
+          {},
+          (Cpo &&) cpo,
+          std::tuple<std::decay_t<ArgN>...>{(ArgN &&) argN...}}))
           -> _result<Cpo, std::decay_t<ArgN>...> {
     return _result<Cpo, std::decay_t<ArgN>...>{
-        {}, (Cpo &&) cpo, std::tuple{(ArgN &&) argN...}};
+        {}, (Cpo &&) cpo, std::tuple<std::decay_t<ArgN>...>{(ArgN &&) argN...}};
   }
 } bind_back{};
 

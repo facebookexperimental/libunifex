@@ -93,3 +93,52 @@ TEST(TransformDone, WithValue) {
   ASSERT_TRUE(multiple.has_value());
   EXPECT_EQ(*multiple, std::tuple(42, 1, 2));
 }
+
+static auto just42() {
+  return just(42);
+}
+
+TEST(TransformDone, WithFunction) {
+  auto freeFunction = just_done() | let_done(just42) | sync_wait();
+
+  ASSERT_TRUE(freeFunction.has_value());
+  EXPECT_EQ(*freeFunction, 42);
+
+  struct StaticMemberFunction {
+    static auto call() { return just(42, 1, 2); }
+  };
+
+  auto staticMemberFunction =
+      just_done() | let_done(StaticMemberFunction::call) | sync_wait();
+
+  ASSERT_TRUE(staticMemberFunction.has_value());
+  EXPECT_EQ(*staticMemberFunction, std::tuple(42, 1, 2));
+}
+
+TEST(TransformDone, WithExplicitCopyMove) {
+  struct ExplicitCopy {
+    ExplicitCopy() = default;
+
+    explicit ExplicitCopy(const ExplicitCopy& other) = default;
+
+    auto operator()() { return just(42, 1, 2); }
+  };
+
+  auto explicitCopy = just_done() | let_done(ExplicitCopy{}) | sync_wait();
+
+  ASSERT_TRUE(explicitCopy.has_value());
+  EXPECT_EQ(*explicitCopy, std::tuple(42, 1, 2));
+
+  struct ExplicitMove {
+    ExplicitMove() = default;
+
+    explicit ExplicitMove(ExplicitMove&& other) = default;
+
+    auto operator()() { return just(42, 1, 2); }
+  };
+
+  auto explicitMove = just_done() | let_done(ExplicitMove{}) | sync_wait();
+
+  ASSERT_TRUE(explicitMove.has_value());
+  EXPECT_EQ(*explicitMove, std::tuple(42, 1, 2));
+}
