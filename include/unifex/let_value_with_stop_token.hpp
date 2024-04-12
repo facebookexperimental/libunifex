@@ -91,8 +91,8 @@ public:
       (requires is_receiver_query_cpo_v<CPO>  //
            AND same_as<Self, type>)           //
       friend auto tag_invoke(CPO cpo, const Self& self) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return cpo(self.receiver_);
   }
 
@@ -101,7 +101,7 @@ public:
       tag_t<visit_continuations>,
       const type& r,
       VisitFunc&&
-          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
+          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
     func(r.receiver_);
   }
 

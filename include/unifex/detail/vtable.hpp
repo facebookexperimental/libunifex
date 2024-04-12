@@ -32,12 +32,12 @@ inline constexpr bool supports_type_erased_cpo_v = false;
 
 template <typename T, typename CPO, typename Ret, typename... Args>
 inline constexpr bool supports_type_erased_cpo_v<T, CPO, Ret(Args...)> =
-    is_callable_r_v<Ret, CPO, replace_this_t<Args, T>...>;
+    std::is_invocable_r_v<Ret, CPO, replace_this_t<Args, T>...>;
 
 template <typename T, typename CPO, typename Ret, typename... Args>
 inline constexpr bool
     supports_type_erased_cpo_v<T, CPO, Ret(Args...) noexcept> =
-        is_nothrow_callable_r_v<Ret, CPO, replace_this_t<Args, T>...>;
+        std::is_nothrow_invocable_r_v<Ret, CPO, replace_this_t<Args, T>...>;
 
 template <typename T, typename... CPOs>
 inline constexpr bool supports_type_erased_cpos_v =

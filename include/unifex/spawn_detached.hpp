@@ -158,7 +158,7 @@ public:
   template <typename Scope, typename Alloc = std::allocator<std::byte>>
   constexpr auto operator()(Scope& scope, const Alloc& alloc = {}) const
       noexcept(
-          is_nothrow_callable_v<tag_t<bind_back>, deref, Scope*, const Alloc&>)
+          std::is_nothrow_invocable_v<tag_t<bind_back>, deref, Scope*, const Alloc&>)
           -> std::enable_if_t<
               is_allocator_v<Alloc>,
               bind_back_result_t<deref, Scope*, const Alloc&>>;
@@ -176,7 +176,7 @@ struct _spawn_detached_fn::deref final {
 template <typename Scope, typename Alloc>
 inline constexpr auto
 _spawn_detached_fn::operator()(Scope& scope, const Alloc& alloc) const noexcept(
-    is_nothrow_callable_v<tag_t<bind_back>, deref, Scope*, const Alloc&>)
+    std::is_nothrow_invocable_v<tag_t<bind_back>, deref, Scope*, const Alloc&>)
     -> std::enable_if_t<
         is_allocator_v<Alloc>,
         bind_back_result_t<deref, Scope*, const Alloc&>> {

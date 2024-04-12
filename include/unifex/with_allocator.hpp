@@ -30,7 +30,7 @@ struct _fn {
   }
   template <typename Allocator>
   constexpr auto operator()(Allocator&& allocator) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Allocator>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Allocator>)
           -> bind_back_result_t<_fn, Allocator> {
     return bind_back(*this, (Allocator &&) allocator);
   }

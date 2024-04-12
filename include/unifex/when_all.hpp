@@ -176,12 +176,12 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
 
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           same_as<R, element_receiver> AND is_callable_v<
+           same_as<R, element_receiver> AND std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 

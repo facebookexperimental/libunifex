@@ -115,12 +115,12 @@ public:
 
 private:
   template(typename CPO)  //
-      (requires is_receiver_query_cpo_v<CPO> AND is_callable_v<
+      (requires is_receiver_query_cpo_v<CPO> AND std::is_invocable_v<
           CPO,
           const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_rcvr());
   }
 
@@ -299,7 +299,7 @@ inline const struct repeat_effect_until_cpo {
   }
   template <typename Predicate>
   constexpr auto operator()(Predicate&& predicate) const
-      noexcept(is_nothrow_callable_v<
+      noexcept(std::is_nothrow_invocable_v<
                tag_t<bind_back>,
                repeat_effect_until_cpo,
                Predicate>)
@@ -332,7 +332,7 @@ inline const struct repeat_effect_cpo {
         (Source &&) source, forever{}};
   }
   constexpr auto operator()() const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, repeat_effect_cpo>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, repeat_effect_cpo>)
           -> bind_back_result_t<repeat_effect_cpo> {
     return bind_back(*this);
   }

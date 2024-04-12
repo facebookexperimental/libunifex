@@ -187,7 +187,7 @@ struct _with<CPOs...>::any_scheduler {
 
     template(typename Receiver)  //
         (requires receiver_of<Receiver> AND(
-            invocable<CPOs, const Receiver&>&&...))  //
+            std::is_invocable_v<CPOs, const Receiver&>&&...))  //
         any_operation_state_for<Receiver> connect(Receiver rec) && {
       any_scheduler_impl<CPOs...> const& impl = sched_.impl_;
       return any_operation_state_for<Receiver>{
@@ -281,7 +281,7 @@ struct _with<CPOs...>::any_scheduler_ref {
 
     template(typename Receiver)  //
         (requires receiver_of<Receiver> AND(
-            invocable<CPOs, const Receiver&>&&...))  //
+            std::is_invocable_v<CPOs, const Receiver&>&&...))  //
         any_operation_state_for<Receiver> connect(Receiver rec) && {
       any_scheduler_ref_impl<CPOs...> const& impl = sched_.impl_;
       return any_operation_state_for<Receiver>{

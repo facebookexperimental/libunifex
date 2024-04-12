@@ -465,7 +465,7 @@ struct _fn final {
     return _type_erase::stream<Ts...>{(Stream &&) strm};
   }
   constexpr auto operator()() const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
           -> bind_back_result_t<_fn> {
     return bind_back(*this);
   }

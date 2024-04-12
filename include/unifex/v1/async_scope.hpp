@@ -314,7 +314,7 @@ struct async_scope {
    * Equivalent to spawn_on((Scheduler&&)scheduler, just_from((Fun&&)fun)).
    */
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       auto spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     return spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
@@ -348,11 +348,11 @@ struct async_scope {
    * just_from((Fun&&)fun)).
    */
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       void detached_spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     static_assert(
-        is_nothrow_callable_v<Fun>,
-        "Please annotate your callable with noexcept.");
+        std::is_nothrow_invocable_v<Fun>,
+        "Please annotate your invocable with noexcept.");
 
     detached_spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
@@ -378,7 +378,7 @@ struct async_scope {
    * Equivalent to attach(just_from((Fun&&)fun)).
    */
   template(typename Fun)        //
-      (requires callable<Fun>)  //
+      (requires std::is_invocable_v<Fun>)  //
       [[nodiscard]] auto attach_call(Fun&& fun) noexcept(
           noexcept(attach(just_from((Fun &&) fun)))) {
     return attach(just_from((Fun &&) fun));
@@ -398,7 +398,7 @@ struct async_scope {
    * Equivalent to attach_on((Scheduler&&)scheduler, just_from((Fun&&)fun)).
    */
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       [[nodiscard]] auto attach_call_on(Scheduler&& scheduler, Fun&& fun) noexcept(
           noexcept(
               attach_on((Scheduler &&) scheduler, just_from((Fun &&) fun)))) {

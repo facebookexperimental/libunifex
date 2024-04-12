@@ -107,14 +107,14 @@ public:
   }
 
   template(typename CPO, UNIFEX_DECLARE_NON_DEDUCED_TYPE(R, type))  //
-      (requires is_receiver_query_cpo_v<CPO> AND is_callable_v<
+      (requires is_receiver_query_cpo_v<CPO> AND std::is_invocable_v<
           CPO,
           const Receiver&>)  //
       friend auto tag_invoke(
           CPO cpo,
           const UNIFEX_USE_NON_DEDUCED_TYPE(R, type) &
-              r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+              r) noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(std::as_const(r.receiver_));
   }
 
@@ -255,7 +255,7 @@ public:
     return _mat::sender<Source>{(Source &&) source};
   }
   constexpr auto operator()() const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
           -> bind_back_result_t<_fn> {
     return bind_back(*this);
   }

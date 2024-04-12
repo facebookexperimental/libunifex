@@ -165,10 +165,10 @@ struct _die_on_done_rec {
 
     template(typename CPO)  //
         (requires is_receiver_query_cpo_v<CPO> AND
-             is_callable_v<CPO, const Receiver&>)  //
+             std::is_invocable_v<CPO, const Receiver&>)  //
         friend auto tag_invoke(CPO cpo, const type& p) noexcept(
-            is_nothrow_callable_v<CPO, const Receiver&>)
-            -> callable_result_t<CPO, const Receiver&> {
+            std::is_nothrow_invocable_v<CPO, const Receiver&>)
+            -> std::invoke_result_t<CPO, const Receiver&> {
       return cpo(p.rec_);
     }
   };
@@ -313,7 +313,7 @@ private:
 
 public:
   template(typename Action, typename... Ts)                           //
-      (requires callable<std::decay_t<Action>, std::decay_t<Ts>...>)  //
+      (requires std::is_invocable_v<std::decay_t<Action>, std::decay_t<Ts>...>)  //
       _cleanup_task<std::decay_t<Ts>...>
       operator()(Action&& action, Ts&&... ts) const {
     return _fn::at_coroutine_exit((Action &&) action, (Ts &&) ts...);

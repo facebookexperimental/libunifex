@@ -91,8 +91,8 @@ struct _receiver<Receiver, Func>::type {
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return (CPO &&)(cpo)(std::as_const(r.receiver_));
   }
 
@@ -220,7 +220,7 @@ private:
 
 public:
   template(typename Sender, typename Func)                             //
-      (requires invocable<Func> AND tag_invocable<_fn, Sender, Func>)  //
+      (requires std::is_invocable_v<Func> AND tag_invocable<_fn, Sender, Func>)  //
       auto
       operator()(Sender&& predecessor, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
@@ -229,7 +229,7 @@ public:
   }
 
   template(typename Sender, typename Func)                               //
-      (requires(!tag_invocable<_fn, Sender, Func>) AND invocable<Func>)  //
+      (requires(!tag_invocable<_fn, Sender, Func>) AND std::is_invocable_v<Func>)  //
       auto
       operator()(Sender&& predecessor, Func&& func) const
       noexcept(std::is_nothrow_constructible_v<
@@ -240,10 +240,10 @@ public:
         (Sender &&)(predecessor), (Func &&)(func)};
   }
   template(typename Func)         //
-      (requires invocable<Func>)  //
+      (requires std::is_invocable_v<Func>)  //
       constexpr auto
       operator()(Func&& func) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&)(func));
   }

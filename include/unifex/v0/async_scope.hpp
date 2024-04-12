@@ -169,11 +169,11 @@ public:
   }
 
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       void spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     static_assert(
-        is_nothrow_callable_v<Fun>,
-        "Please annotate your callable with noexcept.");
+        std::is_nothrow_invocable_v<Fun>,
+        "Please annotate your invocable with noexcept.");
     spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
   }
 

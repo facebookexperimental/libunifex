@@ -48,13 +48,13 @@ private:
   }
 
   template(typename OtherCPO, typename Self, typename... Args)  //
-      (requires same_as<remove_cvref_t<Self>, type> AND callable<
+      (requires same_as<remove_cvref_t<Self>, type> AND std::is_invocable_v<
           OtherCPO,
           member_t<Self, Receiver>,
           Args...>)  //
       friend auto tag_invoke(OtherCPO cpo, Self&& self, Args&&... args) noexcept(
-          is_nothrow_callable_v<OtherCPO, member_t<Self, Receiver>, Args...>)
-          -> callable_result_t<OtherCPO, member_t<Self, Receiver>, Args...> {
+          std::is_nothrow_invocable_v<OtherCPO, member_t<Self, Receiver>, Args...>)
+          -> std::invoke_result_t<OtherCPO, member_t<Self, Receiver>, Args...> {
     return static_cast<OtherCPO&&>(cpo)(
         static_cast<Self&&>(self).receiver_, static_cast<Args&&>(args)...);
   }
@@ -176,7 +176,7 @@ inline const struct _fn {
   }
   template <typename CPO, typename Value>
   constexpr auto operator()(const CPO&, Value&& value) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, CPO, Value>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, CPO, Value>)
           -> bind_back_result_t<_fn, CPO, Value> {
     return bind_back(*this, CPO{}, (Value &&) value);
   }

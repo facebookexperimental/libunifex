@@ -92,8 +92,8 @@ private:
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -142,8 +142,8 @@ private:
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -406,7 +406,7 @@ struct _fn {
   }
   template <typename Trigger>
   constexpr auto operator()(Trigger&& trigger) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Trigger>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Trigger>)
           -> bind_back_result_t<_fn, Trigger> {
     return bind_back(*this, (Trigger &&) trigger);
   }

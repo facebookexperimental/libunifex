@@ -147,12 +147,12 @@ public:
 
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, value_receiver> AND
-           is_callable_v<
+           std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(r.get_receiver());
   }
 
@@ -256,12 +256,12 @@ public:
 
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, error_receiver> AND
-           is_callable_v<
+           std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(r.get_receiver());
   }
 
@@ -320,12 +320,12 @@ public:
 
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, done_receiver> AND
-           is_callable_v<
+           std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(r.get_receiver());
   }
 
@@ -454,12 +454,12 @@ public:
 
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, type> AND
-           is_callable_v<
+           std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(r.get_receiver());
   }
 
@@ -716,7 +716,7 @@ struct _fn {
   }
   template <typename CompletionSender>
   constexpr auto operator()(CompletionSender&& completion) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, CompletionSender>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, CompletionSender>)
           -> bind_back_result_t<_fn, CompletionSender> {
     return bind_back(*this, (CompletionSender &&) completion);
   }

@@ -307,11 +307,11 @@ using connect_result_t =
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =
-    is_nothrow_callable_v<tag_t<connect>, Sender, Receiver>;
+    std::is_nothrow_invocable_v<tag_t<connect>, Sender, Receiver>;
 
 template <typename Sender, typename Receiver>
 using is_nothrow_connectable =
-    is_nothrow_callable<tag_t<connect>, Sender, Receiver>;
+    std::is_nothrow_invocable<tag_t<connect>, Sender, Receiver>;
 
 template <
     typename Sender,

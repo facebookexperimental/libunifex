@@ -95,10 +95,10 @@ public:
 
     template(typename CPO)  //
         (requires is_receiver_query_cpo_v<CPO> AND
-             is_callable_v<CPO, const Receiver&>)  //
+             std::is_invocable_v<CPO, const Receiver&>)  //
         friend auto tag_invoke(CPO cpo, const promise_type& p) noexcept(
-            is_nothrow_callable_v<CPO, const Receiver&>)
-            -> callable_result_t<CPO, const Receiver&> {
+            std::is_nothrow_invocable_v<CPO, const Receiver&>)
+            -> std::invoke_result_t<CPO, const Receiver&> {
       return cpo(std::as_const(p.receiver_));
     }
 
@@ -148,7 +148,7 @@ private:
       // awaitable through unifex::await_transform. So take that into
       // consideration when computing the result type:
       using promise_type = typename _await::sender_task<Receiver>::promise_type;
-      using awaitable_type = callable_result_t<
+      using awaitable_type = std::invoke_result_t<
           tag_t<unifex::await_transform>,
           promise_type&,
           Awaitable>;

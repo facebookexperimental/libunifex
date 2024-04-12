@@ -67,25 +67,25 @@ public:
 private:
   template(typename CPO, typename R, typename... Args)  //
       (requires is_receiver_cpo_v<CPO> AND same_as<R, successor_receiver> AND
-           is_callable_v<
+           std::is_invocable_v<
                CPO,
                Receiver,
                Args...>)  //
       friend auto tag_invoke(CPO cpo, R&& r, Args&&... args) noexcept(
-          is_nothrow_callable_v<CPO, Receiver, Args...>)
-          -> callable_result_t<CPO, Receiver, Args...> {
+          std::is_nothrow_invocable_v<CPO, Receiver, Args...>)
+          -> std::invoke_result_t<CPO, Receiver, Args...> {
     return static_cast<CPO&&>(cpo)(
         r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
   }
 
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           same_as<R, successor_receiver> AND is_callable_v<
+           same_as<R, successor_receiver> AND std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(r.get_const_receiver());
   }
 
@@ -173,12 +173,12 @@ public:
 private:
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           same_as<R, predecessor_receiver> AND is_callable_v<
+           same_as<R, predecessor_receiver> AND std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return static_cast<CPO&&>(cpo)(r.get_const_receiver());
   }
 
@@ -407,14 +407,14 @@ struct _fn {
       auto
       operator()(First&& first, Second&& second, Third&& third, Rest&&... rest)
           const noexcept(
-              is_nothrow_callable_v<_fn, First, Second>&& is_nothrow_callable_v<
+              std::is_nothrow_invocable_v<_fn, First, Second>&& std::is_nothrow_invocable_v<
                   _fn,
-                  callable_result_t<_fn, First, Second>,
+                  std::invoke_result_t<_fn, First, Second>,
                   Third,
                   Rest...>)
-              -> callable_result_t<
+              -> std::invoke_result_t<
                   _fn,
-                  callable_result_t<_fn, First, Second>,
+                  std::invoke_result_t<_fn, First, Second>,
                   Third,
                   Rest...> {
     // Fall-back to pair-wise invocation of the sequence() CPO.

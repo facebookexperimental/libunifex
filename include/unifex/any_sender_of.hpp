@@ -174,9 +174,9 @@ struct _op_for<Receiver>::type {
   // to the receiver after unsubscribing the stop token.
   template(typename CPO, typename... Args)  //
       (requires is_receiver_cpo_v<CPO> AND
-           is_callable_v<CPO, Receiver, Args...>)  //
+           std::is_invocable_v<CPO, Receiver, Args...>)  //
       friend void tag_invoke(CPO cpo, type&& self, Args&&... args) noexcept(
-          is_nothrow_callable_v<CPO, Receiver, Args...>) {
+          std::is_nothrow_invocable_v<CPO, Receiver, Args...>) {
     self.subscription_.unsubscribe();
     cpo(std::move(self).rec_, (Args &&) args...);
   }
@@ -184,10 +184,10 @@ struct _op_for<Receiver>::type {
   // Forward other receiver queries
   template(typename CPO)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           is_callable_v<CPO, const Receiver&>)  //
+           std::is_invocable_v<CPO, const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const type& self) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(self.rec_);
   }
 
@@ -238,7 +238,7 @@ struct _with<CPOs...>::_sender<Values...>::type
 
   template(typename Receiver)  //
       (requires receiver_of<Receiver, Values...> AND(
-          invocable<CPOs, Receiver const&>&&...))  //
+          std::is_invocable_v<CPOs, Receiver const&>&&...))  //
       _operation_state_for<Receiver> connect(Receiver r) && {
     any_unique_t<_connect<type_list<CPOs...>, Values...>>& self = *this;
     return _operation_state_for<Receiver>{

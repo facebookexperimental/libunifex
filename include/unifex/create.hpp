@@ -87,10 +87,10 @@ struct _op {
     // Forward other receiver queries
     template(typename CPO)  //
         (requires is_receiver_query_cpo_v<CPO> AND
-             is_callable_v<CPO, const Receiver&>)  //
+             std::is_invocable_v<CPO, const Receiver&>)  //
         friend auto tag_invoke(CPO cpo, const type& self) noexcept(
-            is_nothrow_callable_v<CPO, const Receiver&>)
-            -> callable_result_t<CPO, const Receiver&> {
+            std::is_nothrow_invocable_v<CPO, const Receiver&>)
+            -> std::invoke_result_t<CPO, const Receiver&> {
       return std::move(cpo)(self.rec_);
     }
 
@@ -219,7 +219,7 @@ struct _fn {
  * \endcode
  * \tparam ValueTypes The value types of the resulting sender. Should be the
  * list of value type(s) accepted by the callback (with the exception of the
- * void* context). \param[in] fn A void-returning callable that accepts an
+ * void* context). \param[in] fn A void-returning invocable that accepts an
  * lvalue reference to an object whose type satisfies the \c
  * unifex::receiver_of<ValueTypes...> concept. This function should dispatch to
  * the C-style callback (see example). \param[in] ctx An optional extra bit of

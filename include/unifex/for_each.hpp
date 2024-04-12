@@ -29,7 +29,7 @@ template <typename Func>
 struct _map {
   Func func_;
   template(typename... Ts)                //
-      (requires invocable<Func&, Ts...>)  //
+      (requires std::is_invocable_v<Func&, Ts...>)  //
       unit
       operator()(unit s, Ts&&... values) noexcept(
           std::is_nothrow_invocable_v<Func&, Ts...>) {
@@ -80,7 +80,7 @@ public:
   }
   template <typename Func>
   constexpr auto operator()(Func&& f) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&) f);
   }

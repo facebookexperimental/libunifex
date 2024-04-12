@@ -61,7 +61,7 @@ public:
 
   template <typename Scope>
   constexpr auto operator()(Scope& scope) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, deref, Scope*>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, deref, Scope*>)
           -> bind_back_result_t<deref, Scope*>;
 } nest{};
 
@@ -76,7 +76,7 @@ struct _nest_fn::deref final {
 
 template <typename Scope>
 inline constexpr auto _nest_fn::operator()(Scope& scope) const
-    noexcept(is_nothrow_callable_v<tag_t<bind_back>, deref, Scope*>)
+    noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, deref, Scope*>)
         -> bind_back_result_t<deref, Scope*> {
   // bind_back will try to store a copy of any lvalue references it's passed,
   // which doesn't work for us here so we have to pass a scope pointer instead

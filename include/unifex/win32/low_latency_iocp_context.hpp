@@ -361,7 +361,7 @@ private:
       }
     }
 
-    if constexpr (is_nothrow_callable_v<tag_t<unifex::set_value>, Receiver>) {
+    if constexpr (std::is_nothrow_invocable_v<tag_t<unifex::set_value>, Receiver>) {
       unifex::set_value(std::move(self.receiver_));
     } else {
       UNIFEX_TRY { unifex::set_value(std::move(self.receiver_)); }
@@ -505,7 +505,7 @@ private:
     // TODO: Should we be sending tuple of (bytesTransferred, ec) here
     // instead?
     if (!ec || totalBytesTransferred > 0) {
-      if constexpr (is_nothrow_callable_v<
+      if constexpr (std::is_nothrow_invocable_v<
                         tag_t<set_value>,
                         Receiver,
                         std::size_t>) {
@@ -683,7 +683,7 @@ private:
     // TODO: Should we be sending tuple of (bytesTransferred, ec) here
     // instead?
     if (!ec || totalBytesTransferred > 0) {
-      if constexpr (is_nothrow_callable_v<
+      if constexpr (std::is_nothrow_invocable_v<
                         tag_t<set_value>,
                         Receiver,
                         std::size_t>) {

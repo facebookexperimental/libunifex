@@ -108,7 +108,7 @@ public:
     auto op = op_;
     UNIFEX_ASSERT(op != nullptr);
 
-    using final_sender_t = callable_result_t<Func, remove_cvref_t<ErrorValue>&>;
+    using final_sender_t = std::invoke_result_t<Func, remove_cvref_t<ErrorValue>&>;
     using final_op_t = connect_result_t<
         final_sender_t,
         final_receiver<remove_cvref_t<ErrorValue>>>;
@@ -140,12 +140,12 @@ public:
 private:
   template(typename CPO, typename Self)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           same_as<remove_cvref_t<Self>, type> AND is_callable_v<
+           same_as<remove_cvref_t<Self>, type> AND std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, Self&& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -155,7 +155,7 @@ private:
       tag_t<visit_continuations>,
       const type& r,
       VisitFunc&&
-          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
+          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -218,7 +218,7 @@ public:
 
 private:
   static void cleanup(operation* op) noexcept {
-    using final_sender_t = callable_result_t<Func, Error&>;
+    using final_sender_t = std::invoke_result_t<Func, Error&>;
     using final_op_t = connect_result_t<final_sender_t, type>;
     UNIFEX_ASSERT(op != nullptr);
     unifex::deactivate_union_member<final_op_t>(op->finalOp_);
@@ -227,10 +227,10 @@ private:
 
   template(typename CPO)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           is_callable_v<CPO, const Receiver&>)  //
+           std::is_invocable_v<CPO, const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -240,7 +240,7 @@ private:
       tag_t<visit_continuations>,
       const type& r,
       VisitFunc&&
-          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
+          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -297,7 +297,7 @@ private:
   using source_op_t = connect_result_t<Source, source_receiver>;
 
   template <typename Error>
-  using final_sender_t = callable_result_t<Func, remove_cvref_t<Error>&>;
+  using final_sender_t = std::invoke_result_t<Func, remove_cvref_t<Error>&>;
 
   template <typename Error>
   using final_receiver_t =
@@ -346,7 +346,7 @@ struct max_blocking_kind {
 template <typename Source, typename Func>
 class _sndr<Source, Func>::type final {
   template <typename Error>
-  using final_sender = callable_result_t<Func, remove_cvref_t<Error>&>;
+  using final_sender = std::invoke_result_t<Func, remove_cvref_t<Error>&>;
 
   using final_senders_list =
       map_type_list_t<sender_error_type_list_t<Source>, final_sender>;
@@ -473,7 +473,7 @@ struct _fn final {
   }
   template <typename Func>
   constexpr auto operator()(Func&& func) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&) func);
   }

@@ -49,7 +49,7 @@ template <typename StateFactory, typename SuccessorFactory>
 class _sender<StateFactory, SuccessorFactory>::type {
 public:
   using InnerOp =
-      std::invoke_result_t<SuccessorFactory, callable_result_t<StateFactory>&>;
+      std::invoke_result_t<SuccessorFactory, std::invoke_result_t<StateFactory>&>;
 
   template <
       template <typename...>
@@ -79,15 +79,15 @@ public:
           tag_t<unifex::connect>,
           Self&& self,
           Receiver&&
-              r) noexcept(is_nothrow_callable_v<member_t<Self, StateFactory>>&&
+              r) noexcept(std::is_nothrow_invocable_v<member_t<Self, StateFactory>>&&
                               std::is_nothrow_invocable_v<
                                   member_t<Self, SuccessorFactory>,
-                                  callable_result_t<
+                                  std::invoke_result_t<
                                       member_t<Self, StateFactory>>&>&&
                                   is_nothrow_connectable_v<
-                                      callable_result_t<
+                                      std::invoke_result_t<
                                           member_t<Self, SuccessorFactory>,
-                                          callable_result_t<
+                                          std::invoke_result_t<
                                               member_t<Self, StateFactory>>&>,
                                       remove_cvref_t<Receiver>>) {
     return operation<StateFactory, SuccessorFactory, Receiver>(
@@ -119,9 +119,9 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
 
   StateFactory stateFactory_;
   SuccessorFactory func_;
-  callable_result_t<StateFactory> state_;
+  std::invoke_result_t<StateFactory> state_;
   connect_result_t<
-      callable_result_t<SuccessorFactory, callable_result_t<StateFactory>&>,
+      std::invoke_result_t<SuccessorFactory, std::invoke_result_t<StateFactory>&>,
       remove_cvref_t<Receiver>>
       innerOp_;
 };
@@ -129,12 +129,12 @@ struct _operation<StateFactory, SuccessorFactory, Receiver>::type {
 namespace _cpo {
 struct _fn {
   template(typename StateFactory, typename SuccessorFactory)  //
-      (requires callable<std::decay_t<StateFactory>> AND callable<
+      (requires std::is_invocable_v<std::decay_t<StateFactory>> AND std::is_invocable_v<
           std::decay_t<SuccessorFactory>,
-          callable_result_t<std::decay_t<StateFactory>>&> AND
-           sender<callable_result_t<
+          std::invoke_result_t<std::decay_t<StateFactory>>&> AND
+           sender<std::invoke_result_t<
                std::decay_t<SuccessorFactory>,
-               callable_result_t<std::decay_t<StateFactory>>&>>)  //
+               std::invoke_result_t<std::decay_t<StateFactory>>&>>)  //
       auto
       operator()(
           StateFactory&& stateFactory,

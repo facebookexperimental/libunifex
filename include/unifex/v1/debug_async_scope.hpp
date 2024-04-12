@@ -44,7 +44,7 @@ struct debug_async_scope final {
   }
 
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       auto spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     return spawn_on(
         static_cast<Scheduler&&>(scheduler),
@@ -64,11 +64,11 @@ struct debug_async_scope final {
   }
 
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       void detached_spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     static_assert(
-        is_nothrow_callable_v<Fun>,
-        "Please annotate your callable with noexcept.");
+        std::is_nothrow_invocable_v<Fun>,
+        "Please annotate your invocable with noexcept.");
 
     detached_spawn_on(
         static_cast<Scheduler&&>(scheduler),
@@ -90,7 +90,7 @@ struct debug_async_scope final {
   }
 
   template(typename Fun)        //
-      (requires callable<Fun>)  //
+      (requires std::is_invocable_v<Fun>)  //
       [[nodiscard]] auto attach_call(Fun&& fun) noexcept(
           noexcept(attach(just_from(static_cast<Fun&&>(fun))))) {
     return attach(just_from(static_cast<Fun&&>(fun)));
@@ -107,7 +107,7 @@ struct debug_async_scope final {
   }
 
   template(typename Scheduler, typename Fun)             //
-      (requires scheduler<Scheduler> AND callable<Fun>)  //
+      (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       [[nodiscard]] auto attach_call_on(Scheduler&& scheduler, Fun&& fun) noexcept(
           noexcept(attach_on(
               static_cast<Scheduler&&>(scheduler),
