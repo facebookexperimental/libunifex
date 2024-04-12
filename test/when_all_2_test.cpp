@@ -194,7 +194,7 @@ TEST(WhenAll2, ResultsAreDecayCopied) {
       std::variant<std::tuple<std::string>>>>
       result = sync_wait(
           when_all(string_const_ref_sender{}, string_const_ref_sender{}));
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
   EXPECT_EQ(
       "hello world", std::get<0>(std::get<0>(std::get<0>(result.value()))));
   EXPECT_EQ(

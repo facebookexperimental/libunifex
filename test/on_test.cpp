@@ -66,7 +66,7 @@ TEST(On, Smoke) {
                              })));
   EXPECT_NE(id1, id2);
   EXPECT_EQ(id2, thread.get_thread_id());
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
 }
 
 TEST(On, Tag) {
@@ -77,5 +77,5 @@ TEST(On, Tag) {
   auto result = sync_wait(on(thread.get_scheduler(), c));
   EXPECT_NE(id1, c.id2);
   EXPECT_EQ(c.id2, thread.get_thread_id());
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
 }

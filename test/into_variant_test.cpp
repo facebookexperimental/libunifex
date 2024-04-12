@@ -84,7 +84,7 @@ TEST(IntoVariant, Working) {
                                         return d + 1;
                                       }))));
   EXPECT_TRUE(called);
-  EXPECT_TRUE(x.has_value());
+  ASSERT_TRUE(x.has_value());
   const auto& [vt_first_val, vt_second_val] = std::get<0>(x.value());
   const auto& [first_val] = std::get<0>(vt_first_val);
   const auto [second_val] = std::get<0>(vt_second_val);
@@ -100,7 +100,7 @@ TEST(IntoVariant, Pipeable) {
                               })) |
       into_variant() | sync_wait();
   EXPECT_TRUE(called);
-  EXPECT_TRUE(x.has_value());
+  ASSERT_TRUE(x.has_value());
   const auto& [vt_first_val, vt_second_val] = std::get<0>(x.value());
   const auto& [first_val] = std::get<0>(vt_first_val);
   const auto [second_val] = std::get<0>(vt_second_val);
@@ -116,7 +116,7 @@ TEST(IntoVariant, OneOfPossibleValues) {
            }) |
       into_variant() | sync_wait();
   EXPECT_FALSE(called);
-  EXPECT_TRUE(x.has_value());
+  ASSERT_TRUE(x.has_value());
   const auto& [val] = std::get<0>(x.value());
   EXPECT_EQ(val, 42);
 }

@@ -41,7 +41,7 @@ TEST(awaitable_senders, non_void) {
 
   std::optional<int> answer = sync_wait(makeTask());
 
-  EXPECT_TRUE(answer.has_value());
+  ASSERT_TRUE(answer.has_value());
   EXPECT_EQ(42, *answer);
 }
 
@@ -70,7 +70,7 @@ TEST(awaitable_senders, void) {
 
   std::optional<unifex::unit> answer = sync_wait(makeTask());
 
-  EXPECT_TRUE(answer.has_value());
+  ASSERT_TRUE(answer.has_value());
 }
 
 TEST(awaitable_senders, task_cancellation) {

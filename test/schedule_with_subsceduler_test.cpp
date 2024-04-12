@@ -30,7 +30,7 @@ TEST(schedule_with_subscheduler, Smoke) {
       schedule_with_subscheduler(scheduler),
       [&](auto subScheduler) noexcept { return subScheduler == scheduler; }));
 
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
   EXPECT_TRUE(result.value());
 }
 
@@ -44,6 +44,6 @@ TEST(schedule_with_subscheduler, Pipeable) {
                                }) |
       sync_wait();
 
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
   EXPECT_TRUE(result.value());
 }
