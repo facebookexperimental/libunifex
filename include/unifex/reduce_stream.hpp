@@ -105,8 +105,8 @@ struct _error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
@@ -168,8 +168,8 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
@@ -223,8 +223,8 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.op_.receiver_));
   }
 
@@ -427,7 +427,7 @@ inline const struct _fn {
   }
   template <typename State, typename ReducerFunc>
   constexpr auto operator()(State&& initialState, ReducerFunc&& reducer) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, State, ReducerFunc>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, State, ReducerFunc>)
           -> bind_back_result_t<_fn, State, ReducerFunc> {
     return bind_back(*this, (State &&) initialState, (ReducerFunc &&) reducer);
   }

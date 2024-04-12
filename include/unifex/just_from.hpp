@@ -25,10 +25,10 @@ namespace unifex {
 namespace _just_from {
 inline const struct _fn {
   template(typename Callable)        //
-      (requires callable<Callable>)  //
+      (requires std::is_invocable_v<Callable>)  //
       constexpr auto
-      operator()(Callable&& callable) const {
-    return then(just(), (Callable &&) callable);
+      operator()(Callable&& invocable) const {
+    return then(just(), (Callable &&) invocable);
   }
 } just_from{};
 }  // namespace _just_from

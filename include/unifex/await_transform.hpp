@@ -122,10 +122,10 @@ struct _awaitable_base<Promise, Value>::type {
 
     template(typename CPO)  //
         (requires is_receiver_query_cpo_v<CPO> AND
-             is_callable_v<CPO, const Promise&>)  //
+             std::is_invocable_v<CPO, const Promise&>)  //
         friend auto tag_invoke(CPO cpo, const _rec& r) noexcept(
-            is_nothrow_callable_v<CPO, const Promise&>)
-            -> callable_result_t<CPO, const Promise&> {
+            std::is_nothrow_invocable_v<CPO, const Promise&>)
+            -> std::invoke_result_t<CPO, const Promise&> {
       const Promise& p = r.continuation_.promise();
       return std::move(cpo)(p);
     }

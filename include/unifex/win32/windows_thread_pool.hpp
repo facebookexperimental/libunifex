@@ -161,7 +161,7 @@ private:
   static void CALLBACK
   work_callback(PTP_CALLBACK_INSTANCE, void* workContext, PTP_WORK) noexcept {
     auto& op = *static_cast<type*>(workContext);
-    if constexpr (is_nothrow_callable_v<
+    if constexpr (std::is_nothrow_invocable_v<
                       decltype(unifex::set_value),
                       Receiver>) {
       unifex::set_value(std::move(op.receiver_));
@@ -419,7 +419,7 @@ public:
 
 private:
   void set_value_impl() noexcept override {
-    if constexpr (is_nothrow_callable_v<
+    if constexpr (std::is_nothrow_invocable_v<
                       decltype(unifex::set_value),
                       Receiver>) {
       unifex::set_value(std::move(receiver_));
@@ -703,7 +703,7 @@ public:
 
 private:
   void set_value_impl() noexcept override {
-    if constexpr (unifex::is_nothrow_callable_v<
+    if constexpr (std::is_nothrow_invocable_v<
                       decltype(unifex::set_value),
                       Receiver>) {
       unifex::set_value(std::move(receiver_));
@@ -791,7 +791,7 @@ public:
 
 private:
   void set_value_impl() noexcept override {
-    if constexpr (unifex::is_nothrow_callable_v<
+    if constexpr (std::is_nothrow_invocable_v<
                       decltype(unifex::set_value),
                       Receiver>) {
       unifex::set_value(std::move(receiver_));

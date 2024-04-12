@@ -121,7 +121,7 @@ TEST_F(LetWithStopToken, InplaceStoppableStopSourceMayThrow) {
     });
   };
   static_assert(!is_nothrow_connectable_v<
-                callable_result_t<
+                std::invoke_result_t<
                     decltype(let_value_with_stop_source),
                     decltype(stopSourceFunctor)>,
                 InplaceStoppableIntReceiver>);
@@ -155,7 +155,7 @@ TEST_F(LetWithStopToken, InplaceStoppableStopSourceNoexcept) {
     });
   };
   static_assert(is_nothrow_connectable_v<
-                callable_result_t<
+                std::invoke_result_t<
                     decltype(let_value_with_stop_source),
                     decltype(stopSourceFunctor)>,
                 InplaceStoppableIntReceiver>);
@@ -190,7 +190,7 @@ TEST_F(LetWithStopToken, InplaceStoppableMayThrow) {
         });
   };
   static_assert(!is_nothrow_connectable_v<
-                callable_result_t<
+                std::invoke_result_t<
                     decltype(let_value_with_stop_token),
                     decltype(stop_token_functor)>,
                 InplaceStoppableIntReceiver>);
@@ -224,7 +224,7 @@ TEST_F(LetWithStopToken, InplaceStoppableNoexcept) {
         });
   };
   static_assert(is_nothrow_connectable_v<
-                callable_result_t<
+                std::invoke_result_t<
                     decltype(let_value_with_stop_token),
                     decltype(stop_token_functor)>,
                 InplaceStoppableIntReceiver>);
@@ -356,7 +356,7 @@ TEST_F(LetWithStopToken, PreserveOperationStateUnstoppable) {
       return destructionCountingLetValueWithStopToken(stopSource);
     };
     static_assert(is_nothrow_connectable_v<
-                  callable_result_t<
+                  std::invoke_result_t<
                       decltype(let_value_with_stop_source),
                       decltype(stopSourceFunctor)>,
                   UnstoppableSimpleIntReceiver>);

@@ -47,7 +47,7 @@ private:
 
   template <typename Scheduler>
   using _default_result_t = _then::sender<
-      callable_result_t<tag_t<schedule>, Scheduler&>,
+      std::invoke_result_t<tag_t<schedule>, Scheduler&>,
       _return_value<Scheduler>>;
   template <typename Scheduler>
   using _result_t = typename conditional_t<
@@ -73,7 +73,7 @@ public:
         static_cast<decltype(scheduleOp)>(scheduleOp), {(Scheduler &&) sched}};
   }
   constexpr auto operator()() const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
           -> bind_back_result_t<_fn> {
     return bind_back(*this);
   }

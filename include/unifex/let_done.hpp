@@ -69,7 +69,7 @@ template <typename Source, typename Done, typename Receiver>
 class _rcvr<Source, Done, Receiver>::type {
   using operation = operation_type<Source, Done, Receiver>;
   using final_receiver = final_receiver_type<Source, Done, Receiver>;
-  using final_sender_t = callable_result_t<Done&>;
+  using final_sender_t = std::invoke_result_t<Done&>;
 
 public:
   explicit type(operation* op) noexcept : op_(op) {}
@@ -88,7 +88,7 @@ public:
     UNIFEX_ASSERT(op_ != nullptr);
     auto op = op_;  // preserve pointer value.
     if constexpr (
-        is_nothrow_callable_v<Done> &&
+        std::is_nothrow_invocable_v<Done> &&
         is_nothrow_connectable_v<final_sender_t, final_receiver>) {
       op->startedOp_ = 0;
       unifex::deactivate_union_member(op->sourceOp_);
@@ -123,12 +123,12 @@ public:
 private:
   template(typename CPO, typename Self)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           same_as<remove_cvref_t<Self>, type> AND is_callable_v<
+           same_as<remove_cvref_t<Self>, type> AND std::is_invocable_v<
                CPO,
                const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, Self&& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -138,7 +138,7 @@ private:
       tag_t<visit_continuations>,
       const type& r,
       VisitFunc&&
-          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
+          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -183,10 +183,10 @@ public:
 private:
   template(typename CPO)  //
       (requires is_receiver_query_cpo_v<CPO> AND
-           is_callable_v<CPO, const Receiver&>)  //
+           std::is_invocable_v<CPO, const Receiver&>)  //
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(r.get_receiver());
   }
 
@@ -196,7 +196,7 @@ private:
       tag_t<visit_continuations>,
       const type& r,
       VisitFunc&&
-          func) noexcept(is_nothrow_callable_v<VisitFunc&, const Receiver&>) {
+          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -245,7 +245,7 @@ private:
 
   using source_op_t = connect_result_t<Source, source_receiver>;
 
-  using final_sender_t = callable_result_t<Done>;
+  using final_sender_t = std::invoke_result_t<Done>;
 
   using final_op_t = connect_result_t<final_sender_t, final_receiver>;
 
@@ -260,7 +260,7 @@ private:
 
 template <typename Source, typename Done>
 class _sndr<Source, Done>::type {
-  using final_sender_t = callable_result_t<Done>;
+  using final_sender_t = std::invoke_result_t<Done>;
 
 public:
   template <
@@ -342,8 +342,8 @@ namespace _cpo {
 struct _fn {
   template(typename Source, typename Done)  //
       (requires tag_invocable<_fn, Source, Done> AND sender<Source> AND
-           callable<remove_cvref_t<Done>> AND
-               sender<callable_result_t<remove_cvref_t<Done>>>)  //
+           std::is_invocable_v<remove_cvref_t<Done>> AND
+               sender<std::invoke_result_t<remove_cvref_t<Done>>>)  //
       auto
       operator()(Source&& source, Done&& done) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Source, Done>)
@@ -355,8 +355,8 @@ struct _fn {
       (requires(!tag_invocable<_fn, Source, Done>) AND sender<Source> AND
            constructible_from<remove_cvref_t<Source>, Source> AND
                constructible_from<remove_cvref_t<Done>, Done> AND
-                   callable<remove_cvref_t<Done>> AND
-                       sender<callable_result_t<remove_cvref_t<Done>>>)  //
+                   std::is_invocable_v<remove_cvref_t<Done>> AND
+                       sender<std::invoke_result_t<remove_cvref_t<Done>>>)  //
       auto
       operator()(Source&& source, Done&& done) const
       noexcept(std::is_nothrow_constructible_v<
@@ -367,11 +367,11 @@ struct _fn {
         (Source &&) source, (Done &&) done};
   }
   template(typename Done)  //
-      (requires callable<remove_cvref_t<Done>> AND
-           sender<callable_result_t<remove_cvref_t<Done>>>)  //
+      (requires std::is_invocable_v<Done> AND
+           sender<std::invoke_result_t<Done>>)  //
       constexpr auto
       operator()(Done&& done) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Done>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Done>)
           -> bind_back_result_t<_fn, Done> {
     return bind_back(*this, (Done &&) done);
   }

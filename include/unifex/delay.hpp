@@ -43,7 +43,7 @@ inline const struct _fn {
   template <typename Scheduler, typename Duration>
   constexpr auto operator()(Scheduler&& scheduler, Duration&& duration) const
       noexcept(
-          is_nothrow_callable_v<tag_t<bind_back>, _fn, Scheduler, Duration>)
+          std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Scheduler, Duration>)
           -> bind_back_result_t<_fn, Scheduler, Duration> {
     return bind_back(*this, (Scheduler &&) scheduler, (Duration &&) duration);
   }

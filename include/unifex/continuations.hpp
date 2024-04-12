@@ -31,11 +31,11 @@ namespace _visit_continuations_cpo {
 inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
   template(typename Promise, typename Func)                                  //
-      (requires(!same_as<Promise, void>) AND callable<_fn, Promise&, Func>)  //
+      (requires(!same_as<Promise, void>) AND std::is_invocable_v<_fn, Promise&, Func>)  //
       friend void tag_invoke(
           _fn cpo,
           coro::coroutine_handle<Promise> h,
-          Func&& func) noexcept(is_nothrow_callable_v<_fn, Promise&, Func>) {
+          Func&& func) noexcept(std::is_nothrow_invocable_v<_fn, Promise&, Func>) {
     cpo(h.promise(), (Func &&) func);
   }
 #endif  // UNIFEX_NO_COROUTINES

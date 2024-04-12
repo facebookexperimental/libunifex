@@ -129,8 +129,8 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
             R,
             unpack_receiver<OutputReceiver>>)  //
         friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-            is_nothrow_callable_v<CPO, const OutputReceiver&>)
-            -> callable_result_t<CPO, const OutputReceiver&> {
+            std::is_nothrow_invocable_v<CPO, const OutputReceiver&>)
+            -> std::invoke_result_t<CPO, const OutputReceiver&> {
       return std::move(cpo)(std::as_const(r.output_receiver_));
     }
   };
@@ -305,8 +305,8 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
   template(typename CPO, typename R)                                //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, type>)  //
       friend auto tag_invoke(CPO cpo, const R& r) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return std::move(cpo)(std::as_const(r.receiver_));
   }
 
@@ -329,7 +329,7 @@ struct _operation_state {
 
   template <typename... Ts>
   using find_if_apply_t = connect_result_t<
-      callable_result_t<
+      std::invoke_result_t<
           typename receiver_type::find_if_helper,
           std::decay_t<get_scheduler_result_t<const Receiver&>>&&,
           FuncPolicy,
@@ -486,7 +486,7 @@ public:
   }
   template <typename Func, typename FuncPolicy>
   constexpr auto operator()(Func&& f, const FuncPolicy& policy) const noexcept(
-      is_nothrow_callable_v<tag_t<bind_back>, _fn, Func, const FuncPolicy&>)
+      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func, const FuncPolicy&>)
       -> bind_back_result_t<_fn, Func, const FuncPolicy&> {
     return bind_back(*this, (Func &&) f, policy);
   }

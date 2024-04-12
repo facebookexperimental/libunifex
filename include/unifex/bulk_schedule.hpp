@@ -239,7 +239,7 @@ struct _fn {
   }
   template <typename Integral>
   constexpr auto operator()(Integral n) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Integral>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Integral>)
           -> bind_back_result_t<_fn, Integral> {
     return bind_back(*this, n);
   }

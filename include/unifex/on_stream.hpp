@@ -49,7 +49,7 @@ inline const struct _fn {
       (requires scheduler<Scheduler>)  //
       constexpr auto
       operator()(Scheduler&& scheduler) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Scheduler>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Scheduler>)
           -> bind_back_result_t<_fn, Scheduler> {
     return bind_back(*this, (Scheduler &&) scheduler);
   }

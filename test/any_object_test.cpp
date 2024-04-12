@@ -340,7 +340,7 @@ static_assert(std::is_convertible_v<foo_supported, any_foo>);
 static_assert(!std::is_convertible_v<int, any_foo>);
 
 // Some other checks about the nature of the type-erased wrapper.
-static_assert(unifex::callable<get_foo_cpo, const any_foo&>);
+static_assert(std::is_invocable_v<get_foo_cpo, const any_foo&>);
 static_assert(std::is_nothrow_move_constructible_v<any_foo>);
 static_assert(!std::is_copy_constructible_v<any_foo>);
 

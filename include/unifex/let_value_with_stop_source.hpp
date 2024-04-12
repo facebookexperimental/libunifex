@@ -86,8 +86,8 @@ public:
           Self,
           type>)  //
       friend auto tag_invoke(CPO cpo, const Self& self) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return cpo(self.receiver_);
   }
 
@@ -196,7 +196,7 @@ public:
   UNIFEX_NO_UNIQUE_ADDRESS SuccessorFactory func_;
   UNIFEX_NO_UNIQUE_ADDRESS stop_token_type receiverToken_;
   UNIFEX_NO_UNIQUE_ADDRESS connect_result_t<
-      callable_result_t<SuccessorFactory, stop_source_type&>,
+      std::invoke_result_t<SuccessorFactory, stop_source_type&>,
       receiver_t>
       innerOp_;
 

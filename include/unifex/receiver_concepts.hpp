@@ -241,18 +241,18 @@ UNIFEX_CONCEPT     //
 
 template <typename R, typename... An>
 inline constexpr bool is_nothrow_receiver_of_v =
-    receiver_of<R, An...>&& is_nothrow_callable_v<tag_t<set_value>, R, An...>;
+    receiver_of<R, An...>&& std::is_nothrow_invocable_v<tag_t<set_value>, R, An...>;
 
 //////////////////
 // Metafunctions for checking callability of specific receiver methods
 
 template <typename R, typename... An>
 inline constexpr bool is_next_receiver_v =
-    is_callable_v<decltype(set_next), R&, An...>;
+    std::is_invocable_v<decltype(set_next), R&, An...>;
 
 template <typename R, typename... An>
 inline constexpr bool is_nothrow_next_receiver_v =
-    is_nothrow_callable_v<decltype(set_next), R&, An...>;
+    std::is_nothrow_invocable_v<decltype(set_next), R&, An...>;
 
 }  // namespace unifex
 

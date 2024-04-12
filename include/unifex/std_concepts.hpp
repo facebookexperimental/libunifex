@@ -231,11 +231,6 @@ UNIFEX_CONCEPT semiregular = copyable<T>&& default_constructible<T>;
 template <typename T>
 UNIFEX_CONCEPT regular = semiregular<T>&& equality_comparable<T>;
 
-template <typename Fn, typename... As>
-UNIFEX_CONCEPT   //
-    invocable =  //
-    std::is_invocable_v<Fn, As...>;
-
 }  // namespace unifex
 
 #include <unifex/detail/epilogue.hpp>

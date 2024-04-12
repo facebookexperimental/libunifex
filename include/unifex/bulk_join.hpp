@@ -74,8 +74,8 @@ public:
           Self,
           type>)  //
       friend auto tag_invoke(CPO cpo, const Self& self) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return cpo(self.receiver_);
   }
 
@@ -166,7 +166,7 @@ struct _fn {
     return join_sender<remove_cvref_t<Source>>{(Source &&) source};
   }
   constexpr auto operator()() const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
           -> bind_back_result_t<_fn> {
     return bind_back(*this);
   }

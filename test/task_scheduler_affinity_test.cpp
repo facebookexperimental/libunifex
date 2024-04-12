@@ -220,7 +220,7 @@ TEST_F(
   auto ret = unifex::sync_wait(
       unifex::let_value_with_stop_source(awaitSenderThatIgnoresDone));
 
-  EXPECT_TRUE(ret.has_value());
+  ASSERT_TRUE(ret.has_value());
 }
 
 namespace {
@@ -295,7 +295,7 @@ TEST_F(
   auto ret = unifex::sync_wait(
       unifex::let_value_with_stop_source(awaitAwaitableThatIgnoresDone));
 
-  EXPECT_TRUE(ret.has_value());
+  ASSERT_TRUE(ret.has_value());
 }
 
 namespace {

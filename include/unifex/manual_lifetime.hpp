@@ -44,9 +44,9 @@ public:
 
   template <typename Func>
   [[maybe_unused]] T&
-  construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  construct_with(Func&& func) noexcept(std::is_nothrow_invocable_v<Func>) {
     static_assert(
-        std::is_same_v<callable_result_t<Func>, T>,
+        std::is_same_v<std::invoke_result_t<Func>, T>,
         "Return type of func() must be exactly T to permit copy-elision.");
     return *::new (static_cast<void*>(std::addressof(value_)))
         T(((Func &&) func)());
@@ -78,8 +78,8 @@ public:
 
   template <typename Func>
   [[maybe_unused]] T&
-  construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    static_assert(std::is_same_v<callable_result_t<Func>, T&>);
+  construct_with(Func&& func) noexcept(std::is_nothrow_invocable_v<Func>) {
+    static_assert(std::is_same_v<std::invoke_result_t<Func>, T&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
   }
@@ -105,8 +105,8 @@ public:
 
   template <typename Func>
   [[maybe_unused]] T&&
-  construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    static_assert(std::is_same_v<callable_result_t<Func>, T&&>);
+  construct_with(Func&& func) noexcept(std::is_nothrow_invocable_v<Func>) {
+    static_assert(std::is_same_v<std::invoke_result_t<Func>, T&&>);
     value_ = std::addressof(((Func &&) func)());
     return get();
   }
@@ -127,8 +127,8 @@ public:
 
   void construct() noexcept {}
   template <typename Func>
-  void construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
-    static_assert(std::is_void_v<callable_result_t<Func>>);
+  void construct_with(Func&& func) noexcept(std::is_nothrow_invocable_v<Func>) {
+    static_assert(std::is_void_v<std::invoke_result_t<Func>>);
     ((Func &&) func)();
   }
   void destruct() noexcept {}
@@ -162,7 +162,7 @@ inline void activate_union_member(manual_lifetime<void>& box) noexcept {
 template <typename T, typename Func>
 [[maybe_unused]] //
 T& activate_union_member_with(manual_lifetime<T>& box, Func&& func) noexcept(
-    is_nothrow_callable_v<Func>) {
+    std::is_nothrow_invocable_v<Func>) {
   auto* p = ::new (&box) manual_lifetime<T>{};
   scope_guard guard = [=]() noexcept {
     p->~manual_lifetime();

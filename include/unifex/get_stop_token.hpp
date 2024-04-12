@@ -51,7 +51,7 @@ private:
             Tag,
             tag_t<await_transform>>)  //
         friend auto tag_invoke(Tag, Promise& promise, _awaitable) noexcept {
-      return _awaiter<callable_result_t<_fn, Promise&>>{_fn{}(promise)};
+      return _awaiter<std::invoke_result_t<_fn, Promise&>>{_fn{}(promise)};
     }
   };
 
@@ -83,7 +83,7 @@ public:
 using _get_stop_token::get_stop_token;
 
 template <typename T>
-using get_stop_token_result_t = callable_result_t<tag_t<get_stop_token>, T>;
+using get_stop_token_result_t = std::invoke_result_t<tag_t<get_stop_token>, T>;
 
 template <typename Receiver>
 using stop_token_type_t = remove_cvref_t<get_stop_token_result_t<Receiver>>;

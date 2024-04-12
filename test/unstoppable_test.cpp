@@ -34,5 +34,5 @@ TEST(Unstoppable, Smoke) {
 
         return unstoppable(on(thread.get_scheduler(), just()));
       }));
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
 }

@@ -100,8 +100,8 @@ private:
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
-          is_nothrow_callable_v<CPO, const typename Operation::receiver_type&>)
-          -> callable_result_t<CPO, const typename Operation::receiver_type&> {
+          std::is_nothrow_invocable_v<CPO, const typename Operation::receiver_type&>)
+          -> std::invoke_result_t<CPO, const typename Operation::receiver_type&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
@@ -207,8 +207,8 @@ struct _predecessor_receiver<Operation>::type {
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const predecessor_receiver& r) noexcept(
-          is_nothrow_callable_v<CPO, const receiver_type&>)
-          -> callable_result_t<CPO, const receiver_type&> {
+          std::is_nothrow_invocable_v<CPO, const receiver_type&>)
+          -> std::invoke_result_t<CPO, const receiver_type&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
@@ -451,7 +451,7 @@ struct _fn {
   }
   template <typename SuccessorFactory>
   constexpr auto operator()(SuccessorFactory&& func) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, SuccessorFactory>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, SuccessorFactory>)
           -> bind_back_result_t<_fn, SuccessorFactory> {
     return bind_back(*this, (SuccessorFactory &&) func);
   }

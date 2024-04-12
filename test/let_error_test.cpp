@@ -185,7 +185,7 @@ TEST(TransformError, WithTask) {
       | let_done([]() { return just(-2); })          //
       | sync_wait();
 
-  EXPECT_TRUE(value.has_value());
+  ASSERT_TRUE(value.has_value());
   EXPECT_EQ(*value, 42);
 
 #  if !UNIFEX_NO_EXCEPTIONS
@@ -200,7 +200,7 @@ TEST(TransformError, WithTask) {
       | let_done([]() { return just(-2); })          //
       | sync_wait();
 
-  EXPECT_TRUE(error.has_value());
+  ASSERT_TRUE(error.has_value());
   EXPECT_EQ(*error, -1);
 #  endif  // !UNIFEX_NO_EXCEPTIONS
 
@@ -215,7 +215,7 @@ TEST(TransformError, WithTask) {
       | let_done([]() { return just(-2); })         //
       | sync_wait();
 
-  EXPECT_TRUE(done.has_value());
+  ASSERT_TRUE(done.has_value());
   EXPECT_EQ(*done, -2);
 }
 #endif  // !UNIFEX_NO_COROUTINES

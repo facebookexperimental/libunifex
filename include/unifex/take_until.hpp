@@ -143,8 +143,8 @@ private:
               friend auto tag_invoke(
                   CPO cpo,
                   const receiver_wrapper&
-                      r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-                  -> callable_result_t<CPO, const Receiver&> {
+                      r) noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&>)
+                  -> std::invoke_result_t<CPO, const Receiver&> {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
@@ -247,8 +247,8 @@ private:
               friend auto tag_invoke(
                   CPO cpo,
                   const source_receiver&
-                      r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-                  -> callable_result_t<CPO, const Receiver&> {
+                      r) noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&>)
+                  -> std::invoke_result_t<CPO, const Receiver&> {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
@@ -288,8 +288,8 @@ private:
               friend auto tag_invoke(
                   CPO cpo,
                   const trigger_receiver&
-                      r) noexcept(is_nothrow_callable_v<CPO, const Receiver&>)
-                  -> callable_result_t<CPO, const Receiver&> {
+                      r) noexcept(std::is_nothrow_invocable_v<CPO, const Receiver&>)
+                  -> std::invoke_result_t<CPO, const Receiver&> {
             return std::move(cpo)(std::as_const(r.op_.receiver_));
           }
 
@@ -499,7 +499,7 @@ inline const struct _fn {
   }
   template <typename TriggerStream>
   constexpr auto operator()(TriggerStream&& trigger) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, TriggerStream>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, TriggerStream>)
           -> bind_back_result_t<_fn, TriggerStream> {
     return bind_back(*this, (TriggerStream &&) trigger);
   }

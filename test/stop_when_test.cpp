@@ -54,7 +54,7 @@ TEST(StopWhen, SourceCompletesFirst) {
           unifex::then(
               unifex::schedule_after(1s), [&] { triggerExecuted = true; }))));
 
-  EXPECT_TRUE(result.has_value());
+  ASSERT_TRUE(result.has_value());
   EXPECT_EQ(42, result.value());
 
   EXPECT_TRUE(sourceExecuted);

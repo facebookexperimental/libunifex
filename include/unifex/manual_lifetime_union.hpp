@@ -40,7 +40,7 @@ public:
   }
   template <typename T, typename Func>
   [[maybe_unused]] T&
-  construct_with(Func&& func) noexcept(is_nothrow_callable_v<Func>) {
+  construct_with(Func&& func) noexcept(std::is_nothrow_invocable_v<Func>) {
     return unifex::activate_union_member_with(
         *static_cast<manual_lifetime<T>*>(static_cast<void*>(&storage_)),
         static_cast<Func&&>(func));
@@ -100,7 +100,7 @@ T& activate_union_member(manual_lifetime_union<Ts...>& box, Args&&... args) //
 template <typename T, typename... Ts, typename Func>
 [[maybe_unused]] //
 T& activate_union_member_with(manual_lifetime_union<Ts...>& box, Func&& func)
-    noexcept(is_nothrow_callable_v<Func>) {
+    noexcept(std::is_nothrow_invocable_v<Func>) {
   auto* p = ::new (&box) manual_lifetime_union<Ts...>{};
   scope_guard guard = [=]() noexcept {
     p->~manual_lifetime_union();

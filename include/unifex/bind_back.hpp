@@ -31,9 +31,9 @@ namespace _compose {
 struct _fn {
   template <typename Target, typename Other, typename Self>
   auto operator()(Target&& target, Other&& other, Self&& self) const noexcept(
-      is_nothrow_callable_v<Other, Target>&&
-          is_nothrow_callable_v<Self, callable_result_t<Other, Target>>)
-      -> callable_result_t<Self, callable_result_t<Other, Target>> {
+      std::is_nothrow_invocable_v<Other, Target>&&
+          std::is_nothrow_invocable_v<Self, std::invoke_result_t<Other, Target>>)
+      -> std::invoke_result_t<Self, std::invoke_result_t<Other, Target>> {
     return ((Self &&) self)(((Other &&) other)((Target &&) target));
   }
 };
@@ -56,11 +56,11 @@ struct _apply_fn_impl<Cpo, Target>::type {
   Target&& target_;
 
   template(typename... ArgN)                     //
-      (requires callable<Cpo, Target, ArgN...>)  //
+      (requires std::is_invocable_v<Cpo, Target, ArgN...>)  //
       auto
       operator()(ArgN&&... argN) noexcept(
-          is_nothrow_callable_v<Cpo, Target, ArgN...>)
-          -> callable_result_t<Cpo, Target, ArgN...> {
+          std::is_nothrow_invocable_v<Cpo, Target, ArgN...>)
+          -> std::invoke_result_t<Cpo, Target, ArgN...> {
     return ((Cpo &&) cpo_)((Target &&) target_, (ArgN &&) argN...);
   }
 };
@@ -82,19 +82,19 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
 
   template(typename Target)  //
       (requires(!derived_from<remove_cvref_t<Target>, _result_base>)
-           AND callable<Cpo const&, Target, ArgN const&...>)  //
+           AND std::is_invocable_v<Cpo const&, Target, ArgN const&...>)  //
       decltype(auto)
       operator()(Target&& target) const& noexcept(
-          is_nothrow_callable_v<Cpo const&, Target, ArgN const&...>) {
+          std::is_nothrow_invocable_v<Cpo const&, Target, ArgN const&...>) {
     return std::apply(
         _apply_fn<Cpo const&, Target>{cpo_, (Target &&) target}, argN_);
   }
   template(typename Target)  //
       (requires(!derived_from<remove_cvref_t<Target>, _result_base>)
-           AND callable<Cpo, Target, ArgN...>)  //
+           AND std::is_invocable_v<Cpo, Target, ArgN...>)  //
       decltype(auto)
       operator()(Target&& target) && noexcept(
-          is_nothrow_callable_v<Cpo, Target, ArgN...>) {
+          std::is_nothrow_invocable_v<Cpo, Target, ArgN...>) {
     return std::apply(
         _apply_fn<Cpo, Target>{(Cpo &&) cpo_, (Target &&) target},
         std::move(argN_));
@@ -104,10 +104,10 @@ struct _result_impl<Cpo, ArgN...>::type : _result_base {
       (requires(!derived_from<
                 remove_cvref_t<Target>,
                 _result_base>) AND same_as<remove_cvref_t<Self>, type> AND
-           callable<member_t<Self, Cpo>, Target, member_t<Self, ArgN>...>)  //
+           std::is_invocable_v<member_t<Self, Cpo>, Target, member_t<Self, ArgN>...>)  //
       friend decltype(auto)
       operator|(Target&& target, Self&& self) noexcept(
-          is_nothrow_callable_v<
+          std::is_nothrow_invocable_v<
               member_t<Self, Cpo>,
               Target,
               member_t<Self, ArgN>...>) {
@@ -137,10 +137,12 @@ inline const struct _fn {
   template <typename Cpo, typename... ArgN>
   constexpr auto operator()(Cpo cpo, ArgN&&... argN) const
       noexcept(noexcept(_result<Cpo, std::decay_t<ArgN>...>{
-          {}, (Cpo &&) cpo, std::tuple{(ArgN &&) argN...}}))
+          {},
+          (Cpo &&) cpo,
+          std::tuple<std::decay_t<ArgN>...>{(ArgN &&) argN...}}))
           -> _result<Cpo, std::decay_t<ArgN>...> {
     return _result<Cpo, std::decay_t<ArgN>...>{
-        {}, (Cpo &&) cpo, std::tuple{(ArgN &&) argN...}};
+        {}, (Cpo &&) cpo, std::tuple<std::decay_t<ArgN>...>{(ArgN &&) argN...}};
   }
 } bind_back{};
 

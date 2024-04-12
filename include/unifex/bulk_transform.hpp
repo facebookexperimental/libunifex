@@ -47,7 +47,7 @@ public:
     , policy_(std::move(policy)) {}
 
   template(typename... Values)  //
-      (requires invocable<Func&, Values...> AND
+      (requires std::is_invocable_v<Func&, Values...> AND
            std::is_void_v<std::invoke_result_t<
                Func&,
                Values...>>)  //
@@ -59,7 +59,7 @@ public:
   }
 
   template(typename... Values)  //
-      (requires invocable<Func&, Values...> AND(
+      (requires std::is_invocable_v<Func&, Values...> AND(
           !std::is_void_v<std::invoke_result_t<
               Func&,
               Values...>>))  //
@@ -115,8 +115,8 @@ public:
           Self,
           type>)  //
       friend auto tag_invoke(CPO cpo, const Self& self) noexcept(
-          is_nothrow_callable_v<CPO, const Receiver&>)
-          -> callable_result_t<CPO, const Receiver&> {
+          std::is_nothrow_invocable_v<CPO, const Receiver&>)
+          -> std::invoke_result_t<CPO, const Receiver&> {
     return cpo(self.receiver_);
   }
 
@@ -238,8 +238,8 @@ struct _fn {
       (requires bulk_sender<Source>)                              //
       auto
       operator()(Source&& s, Func&& f) const
-      noexcept(is_nothrow_callable_v<_fn, Source, Func, FuncPolicy>)
-          -> callable_result_t<_fn, Source, Func, FuncPolicy> {
+      noexcept(std::is_nothrow_invocable_v<_fn, Source, Func, FuncPolicy>)
+          -> std::invoke_result_t<_fn, Source, Func, FuncPolicy> {
     return operator()((Source &&) s, (Func &&) f, get_execution_policy(f));
   }
 
@@ -271,13 +271,13 @@ struct _fn {
   }
   template <typename Func>
   constexpr auto operator()(Func&& f) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&) f);
   }
   template <typename Func, typename FuncPolicy>
   constexpr auto operator()(Func&& f, FuncPolicy policy) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func, FuncPolicy>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func, FuncPolicy>)
           -> bind_back_result_t<_fn, Func, FuncPolicy> {
     return bind_back(*this, (Func &&) f, (FuncPolicy &&) policy);
   }

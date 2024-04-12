@@ -36,7 +36,7 @@ struct _fn {
   }
   template <typename Func>
   constexpr auto operator()(Func&& func) const
-      noexcept(is_nothrow_callable_v<tag_t<bind_back>, _fn, Func>)
+      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
     return bind_back(*this, (Func &&) func);
   }

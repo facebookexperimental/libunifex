@@ -52,18 +52,18 @@ struct sender_for {
   // Forward all tag_invokes:
   template(typename CPO, typename Self, typename... Args)  //
       (requires same_as<sender_for, remove_cvref_t<Self>> AND(
-          !callable<const Context&, CPO>)
-           AND callable<CPO, member_t<Self, Sender>, Args...>)  //
+          !std::is_invocable_v<const Context&, CPO>)
+           AND std::is_invocable_v<CPO, member_t<Self, Sender>, Args...>)  //
 
       UNIFEX_ALWAYS_INLINE friend decltype(auto)
           tag_invoke(CPO cpo, Self&& self, Args&&... args) noexcept(
-              is_nothrow_callable_v<CPO, member_t<Self, Sender>, Args...>) {
+              std::is_nothrow_invocable_v<CPO, member_t<Self, Sender>, Args...>) {
     return ((CPO &&) cpo)(((Self &&) self).snd_, (Args &&) args...);
   }
 
   // Handle custom property queries by consulting the context:
   template(typename CPO)                        //
-      (requires callable<const Context&, CPO>)  //
+      (requires std::is_invocable_v<const Context&, CPO>)  //
 
       UNIFEX_ALWAYS_INLINE friend decltype(auto)
           tag_invoke(CPO cpo, const sender_for& self) noexcept {
