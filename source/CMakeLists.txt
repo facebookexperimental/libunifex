@@ -65,10 +65,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
 endif()
 
-configure_file(
-  ../include/unifex/config.hpp.in
-  "${PROJECT_BINARY_DIR}/include/unifex/config.hpp")
-
 include(GNUInstallDirs)
 target_include_directories(unifex
     PUBLIC
@@ -87,8 +83,6 @@ configure_file(unifex.pc.in unifex.pc @ONLY)
 # install unifex with its configure file into the default paths
 
 install(TARGETS unifex EXPORT unifexTargets)
-install(FILES ${PROJECT_BINARY_DIR}/include/unifex/config.hpp
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/unifex/)
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
         TYPE INCLUDE
         PATTERN "*.in" EXCLUDE)
