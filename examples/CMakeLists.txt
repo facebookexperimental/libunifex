@@ -12,10 +12,6 @@ foreach(file-path ${example-sources})
     add_test(NAME "example-${file-name}" COMMAND ${file-name})
 endforeach()
 
-if(CXX_MEMORY_RESOURCE_HAVE_PMR)
-  target_link_libraries(any_unique PUBLIC std::memory_resource)
-endif()
-
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
   file(GLOB linux-example-sources "linux/*.cpp")
   foreach(file-path ${linux-example-sources})

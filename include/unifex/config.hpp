@@ -24,13 +24,13 @@
 
 #include <cassert>
 
-// the configured options and settings for unifex
-#define UNIFEX_VERSION_MAJOR @libunifex_VERSION_MAJOR@
-#define UNIFEX_VERSION_MINOR @libunifex_VERSION_MINOR@
-
-#cmakedefine01 UNIFEX_NO_MEMORY_RESOURCE
-#cmakedefine UNIFEX_MEMORY_RESOURCE_HEADER <@UNIFEX_MEMORY_RESOURCE_HEADER@>
-#cmakedefine UNIFEX_MEMORY_RESOURCE_NAMESPACE @UNIFEX_MEMORY_RESOURCE_NAMESPACE@
+#if __has_include(<memory_resource>)
+#  define UNIFEX_NO_MEMORY_RESOURCE 0
+#  define UNIFEX_MEMORY_RESOURCE_HEADER <memory_resource>
+#  define UNIFEX_MEMORY_RESOURCE_NAMESPACE std::pmr
+#else
+#  define UNIFEX_NO_MEMORY_RESOURCE 1
+#endif
 
 #if !defined(__has_cpp_attribute)
 #define UNIFEX_NO_UNIQUE_ADDRESS
@@ -60,8 +60,7 @@
 #  if __has_include(<coroutine>) && defined(__cpp_lib_coroutine)
 #    define UNIFEX_COROUTINES_HEADER <coroutine>
 #    define UNIFEX_COROUTINES_NAMESPACE std
-#  elif __has_include(<experimental/coroutine>) && \
-        !(defined(_MSC_VER) && defined(__clang__)) // clang-cl.exe
+#  elif __has_include(<experimental/coroutine>)
 #    define UNIFEX_COROUTINES_HEADER <experimental/coroutine>
 #    define UNIFEX_COROUTINES_NAMESPACE std::experimental
 #  else
@@ -80,7 +79,11 @@
 #endif
 
 #if !defined(UNIFEX_NO_EPOLL)
-#cmakedefine01 UNIFEX_NO_EPOLL
+#  if __has_include(<sys/epoll.h>)
+#    define UNIFEX_NO_EPOLL 0
+#  else
+#    define UNIFEX_NO_EPOLL 1
+#  endif
 #endif
 
 #if !defined(UNIFEX_NO_LIBURING)

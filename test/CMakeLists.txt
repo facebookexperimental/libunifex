@@ -12,10 +12,6 @@ foreach(file-path ${test-sources})
     add_test(NAME "test-${file-name}" COMMAND ${file-name})
 endforeach()
 
-if(CXX_MEMORY_RESOURCE_HAVE_PMR)
-  target_link_libraries(any_unique_test PUBLIC std::memory_resource)
-endif()
-
 target_link_libraries(any_sender_of_test PUBLIC GTest::gmock_main)
 target_link_libraries(async_manual_reset_event_test PUBLIC GTest::gmock_main)
 target_link_libraries(async_scope_test PUBLIC GTest::gmock_main)
