@@ -23,7 +23,7 @@
 namespace unifex {
 
 template <typename Func>
-struct scope_guard {
+struct [[nodiscard]] scope_guard {
 private:
   static_assert(std::is_nothrow_move_constructible_v<Func>);
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
