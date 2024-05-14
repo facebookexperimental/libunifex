@@ -110,7 +110,7 @@ public:
   explicit type(coro::coroutine_handle<promise_type> coro) noexcept
     : coro_(coro) {}
 
-  type(type&& other) noexcept : coro_(std::exchange(other.coro_, {})) {}
+  type(type&&) = delete;
 
   ~type() {
     if (coro_)
