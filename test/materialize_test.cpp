@@ -32,6 +32,17 @@ using namespace unifex;
 TEST(Materialize, Smoke) {
   single_thread_context ctx;
 
+  using Sender =
+      std::decay_t<decltype(dematerialize(materialize(just_error(0))))>;
+  static_assert(std::is_same_v<
+                std::variant<>,
+                typename sender_traits<
+                    Sender>::template value_types<std::variant, std::tuple>>);
+  static_assert(
+      std::is_same_v<
+          std::variant<int, std::exception_ptr>,
+          typename sender_traits<Sender>::template error_types<std::variant>>);
+
   std::optional<int> result = sync_wait(dematerialize(
       materialize(then(schedule(ctx.get_scheduler()), []() { return 42; }))));
 
