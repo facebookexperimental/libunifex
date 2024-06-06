@@ -100,15 +100,22 @@ private:
 template <typename CPO, template <typename...> class Tuple>
 struct tuple {
 private:
+  template <bool, class... Rest>
+  struct tuple_or_empty {
+    using type = type_list<Tuple<Rest...>>;
+  };
+
+  template <class... Rest>
+  struct tuple_or_empty<false, Rest...> {
+    using type = type_list<>;
+  };
+
   template <typename... Values>
   struct apply_impl;
 
   template <typename First, typename... Rest>
   struct apply_impl<First, Rest...>
-    : std::conditional<
-          std::is_base_of_v<CPO, std::decay_t<First>>,
-          type_list<Tuple<Rest...>>,
-          type_list<>> {};
+    : tuple_or_empty<std::is_base_of_v<CPO, std::decay_t<First>>, Rest...> {};
 
 public:
   template <typename... Values>
@@ -118,8 +125,7 @@ public:
 template <template <typename...> class Variant>
 struct variant {
   template <typename... Lists>
-  using apply =
-      typename concat_type_lists<Lists...>::type::template apply<Variant>;
+  using apply = typename concat_type_lists_t<Lists...>::template apply<Variant>;
 };
 
 template <typename Source>
@@ -139,7 +145,7 @@ class _sender<Source>::type {
       // Concatenate and deduplicate errors from value_types, error_types along
       // with std::exception_ptr.
       template <typename... OtherErrors>
-      using apply = typename concat_type_lists_unique<
+      using apply = typename concat_type_lists_unique_t<
           type_list<Errors...>,
           type_list<OtherErrors...>,
           type_list<std::exception_ptr>>::template apply<Variant>;
