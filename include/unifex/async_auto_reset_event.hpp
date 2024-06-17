@@ -12,6 +12,7 @@
 #include <unifex/sender_concepts.hpp>
 
 #include <mutex>
+#include <optional>
 
 namespace unifex {
 
@@ -139,11 +140,12 @@ struct async_auto_reset_event::stream_view final {
                 typename stop_token_t::template callback_type<
                     decltype(stopCallback)>;
 
-            return stop_callback_t{stopToken, stopCallback};
+            return std::optional<stop_callback_t>{std::in_place, stopToken, stopCallback};
           },
-          [evt](auto&) noexcept {
+          [evt](auto& stopCallback) noexcept {
             return unifex::let_value(
-                evt->event_.async_wait(), [evt]() noexcept {
+                evt->event_.async_wait(), [evt, &stopCallback]() noexcept {
+                  stopCallback.reset();
                   return unifex::just_void_or_done(evt->try_reset());
                 });
           });
