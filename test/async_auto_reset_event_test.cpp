@@ -7,6 +7,8 @@
 #include <unifex/next_adapt_stream.hpp>
 #include <unifex/reduce_stream.hpp>
 #include <unifex/scope_guard.hpp>
+#include <unifex/stop_on_request.hpp>
+#include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
 
 using event = unifex::async_auto_reset_event;
@@ -157,4 +159,22 @@ TEST_F(
 
   ASSERT_TRUE(result);
   EXPECT_EQ(*result, 3);
+}
+
+TEST_F(AsyncAutoResetEventTests, nextWrappedInStopWhen_doesNotCancelTheStream) {
+  event evt;
+  auto stream = evt.stream();
+
+  auto consumeOneEvent = [&] {
+    evt.set();
+    auto ret = unifex::sync_wait(
+        unifex::stop_when(unifex::next(stream), unifex::stop_on_request()));
+
+    return ret.has_value();
+  };
+
+  ASSERT_TRUE(consumeOneEvent());
+  ASSERT_TRUE(consumeOneEvent());
+
+  unifex::sync_wait(unifex::cleanup(stream));
 }
