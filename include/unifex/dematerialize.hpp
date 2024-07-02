@@ -174,7 +174,8 @@ public:
   static constexpr bool is_always_scheduler_affine =
       sender_traits<Source>::is_always_scheduler_affine;
 
-  template <typename Source2>
+  template (typename Source2)
+      (requires (!same_as<remove_cvref_t<Source2>, type>))
   explicit type(Source2&& source) noexcept(
       std::is_nothrow_constructible_v<Source, Source2>)
     : source_(static_cast<Source2&&>(source)) {}
