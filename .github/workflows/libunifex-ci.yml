@@ -18,21 +18,21 @@ jobs:
         config:
         - {
             name: "Linux GCC 11 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-20.04,
+            os: ubuntu-22.04,
             io_sys: io_uring,
             build_type: Debug,
             cc: "gcc-11", cxx: "g++-11"
           }
         - {
             name: "Linux GCC 11 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-20.04,
+            os: ubuntu-22.04,
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "gcc-11", cxx: "g++-11"
           }
         - {
             name: "Linux GCC 11 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-20.04,
+            os: ubuntu-22.04,
             io_sys: io_uring,
             build_type: Debug,
             cc: "gcc-11", cxx: "g++-11",
@@ -40,7 +40,7 @@ jobs:
           }
         - {
             name: "Linux GCC 11 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-20.04,
+            os: ubuntu-22.04,
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "gcc-11", cxx: "g++-11",
@@ -78,21 +78,21 @@ jobs:
           }
         - {
             name: "Linux GCC 13 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-24.04,
             io_sys: io_uring,
             build_type: Debug,
             cc: "gcc-13", cxx: "g++-13"
           }
         - {
             name: "Linux GCC 13 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-24.04,
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "gcc-13", cxx: "g++-13"
           }
         - {
             name: "Linux GCC 13 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-24.04,
             io_sys: io_uring,
             build_type: Debug,
             cc: "gcc-13", cxx: "g++-13",
@@ -100,7 +100,7 @@ jobs:
           }
         - {
             name: "Linux GCC 13 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-24.04,
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "gcc-13", cxx: "g++-13",
