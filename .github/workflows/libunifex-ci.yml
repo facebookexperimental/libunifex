@@ -536,6 +536,16 @@ jobs:
         sudo apt update
         sudo apt install g++-13 gcc-13
 
+    - name: Install GCC 14
+      id: install_gcc_14
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-14' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
+        sudo apt update
+        sudo apt install g++-14 gcc-14
+
     - name: Install liburing 
       id: install_liburing
       if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.io_sys == 'io_uring' )
