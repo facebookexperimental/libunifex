@@ -107,6 +107,36 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
+            name: "Linux GCC 14 Debug (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-14", cxx: "g++-14"
+          }
+        - {
+            name: "Linux GCC 14 Optimised (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-14", cxx: "g++-14"
+          }
+        - {
+            name: "Linux GCC 14 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-14", cxx: "g++-14",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 14 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-14", cxx: "g++-14",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
             name: "Linux Clang 12 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-20.04,
             io_sys: io_uring,
@@ -505,6 +535,16 @@ jobs:
         sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
         sudo apt update
         sudo apt install g++-13 gcc-13
+
+    - name: Install GCC 14
+      id: install_gcc_14
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-14' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
+        sudo apt update
+        sudo apt install g++-14 gcc-14
 
     - name: Install liburing 
       id: install_liburing

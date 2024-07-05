@@ -193,26 +193,28 @@ TEST_F(async_scope_test, discarding_a_future_requests_cancellation) {
 
   std::atomic<bool> wasStopped{false};
 
-  std::optional<future<>> optFuture = scope.spawn_on(
-      thread.get_scheduler(),
-      let_value_with_stop_token([&](auto stoken) noexcept {
-        return let_value_with(
-            [&wasStopped, stoken]() mutable noexcept {
-              return make_stop_callback(
-                  stoken, [&wasStopped]() noexcept { wasStopped = true; });
-            },
-            [&scheduled, &finished](auto&) noexcept {
-              return sequence(
-                  just_from([&scheduled]() noexcept { scheduled.set(); }),
-                  finished.async_wait());
-            });
-      }));
+  {
+    auto future = scope.spawn_on(
+        thread.get_scheduler(),
+        let_value_with_stop_token([&](auto stoken) noexcept {
+          return let_value_with(
+              [&wasStopped, stoken]() mutable noexcept {
+                return make_stop_callback(
+                    stoken, [&wasStopped]() noexcept { wasStopped = true; });
+              },
+              [&scheduled, &finished](auto&) noexcept {
+                return sequence(
+                    just_from([&scheduled]() noexcept { scheduled.set(); }),
+                    finished.async_wait());
+              });
+        }));
 
-  // ensure the spawned work is actually spawned before...
-  sync_wait(scheduled.async_wait());
+    // ensure the spawned work is actually spawned before...
+    sync_wait(scheduled.async_wait());
 
-  // ...dropping the future
-  optFuture.reset();
+    // ...dropping the future
+    (void)future;
+  }
 
   // we know that the stop callback has been registered (that happens before the
   // spawned work sets the scheduled event) so dropping the future ought to
