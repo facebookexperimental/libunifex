@@ -291,3 +291,9 @@
 #    define UNIFEX_LOG_DANGLING_STOP_CALLBACKS 0
 #  endif
 #endif
+
+#if defined(__has_builtin)
+#define UNIFEX_HAS_BUILTIN(...) __has_builtin(__VA_ARGS__)
+#else
+#define UNIFEX_HAS_BUILTIN(...) 0
+#endif
