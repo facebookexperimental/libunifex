@@ -26,8 +26,10 @@
 #include <gtest/gtest.h>
 
 TEST(AsyncStack, ScopedAsyncStackRoot) {
-  void* const stackFramePtr = FOLLY_ASYNC_STACK_FRAME_POINTER();
-  void* const returnAddress = FOLLY_ASYNC_STACK_RETURN_ADDRESS();
+  unifex::frame_ptr const stackFramePtr =
+      unifex::frame_ptr::read_frame_pointer();
+  unifex::instruction_ptr const returnAddress =
+      unifex::instruction_ptr::read_return_address();
 
   ASSERT_TRUE(unifex::tryGetCurrentAsyncStackRoot() == nullptr);
 

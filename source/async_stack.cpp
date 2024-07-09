@@ -48,8 +48,7 @@ namespace {
 // Folly's async stack library uses Folly's benchmarking tools to force a
 // non-inlining of this function; we can come back to this and make it better
 // later if necessary
-UNIFEX_NO_INLINE void compiler_must_not_elide(void*) {
-
+UNIFEX_NO_INLINE void compiler_must_not_elide(instruction_ptr) {
 }
 
 #if FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD
@@ -108,7 +107,7 @@ exchangeCurrentAsyncStackRoot(AsyncStackRoot* newRoot) noexcept {
 namespace detail {
 
 ScopedAsyncStackRoot::ScopedAsyncStackRoot(
-    void* framePointer, void* returnAddress) noexcept {
+    frame_ptr framePointer, instruction_ptr returnAddress) noexcept {
   root_.setStackFrameContext(framePointer, returnAddress);
   root_.nextRoot = currentThreadAsyncStackRoot.get();
   currentThreadAsyncStackRoot.set(&root_);
@@ -125,15 +124,15 @@ ScopedAsyncStackRoot::~ScopedAsyncStackRoot() {
 
 namespace unifex {
 
-UNIFEX_NO_INLINE static void* get_return_address() noexcept {
-  return FOLLY_ASYNC_STACK_RETURN_ADDRESS();
+UNIFEX_NO_INLINE static instruction_ptr get_return_address() noexcept {
+  return instruction_ptr::read_return_address();
 }
 
 // This function is a special function that returns an address
 // that can be used as a return-address and that will resolve
 // debug-info to itself.
-UNIFEX_NO_INLINE static void* detached_task() noexcept {
-  void* p = get_return_address();
+UNIFEX_NO_INLINE static instruction_ptr detached_task() noexcept {
+  instruction_ptr p = get_return_address();
 
   // Add this after the call to prevent the compiler from
   // turning the call to get_return_address() into a tailcall.

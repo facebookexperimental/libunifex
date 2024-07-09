@@ -75,7 +75,7 @@ inline std::size_t getAsyncStackTraceFromInitialFrame(
   for (auto* frame = initialFrame; frame != nullptr && numFrames < maxAddresses;
        frame = frame->getParentFrame()) {
     addresses[numFrames++] =
-        reinterpret_cast<std::uintptr_t>(frame->getReturnAddress());
+        static_cast<std::uintptr_t>(frame->getReturnAddress());
   }
   return numFrames;
 }
@@ -106,11 +106,11 @@ inline AsyncStackRoot* AsyncStackFrame::getStackRoot() noexcept {
   return stackRoot;
 }
 
-inline void AsyncStackFrame::setReturnAddress(void* p) noexcept {
+inline void AsyncStackFrame::setReturnAddress(instruction_ptr p) noexcept {
   instructionPointer = p;
 }
 
-inline void* AsyncStackFrame::getReturnAddress() const noexcept {
+inline instruction_ptr AsyncStackFrame::getReturnAddress() const noexcept {
   return instructionPointer;
 }
 
@@ -125,17 +125,17 @@ inline AsyncStackFrame* AsyncStackRoot::getTopFrame() const noexcept {
   return topFrame.load(std::memory_order_relaxed);
 }
 
-inline void
-AsyncStackRoot::setStackFrameContext(void* framePtr, void* ip) noexcept {
+inline void AsyncStackRoot::setStackFrameContext(
+    frame_ptr framePtr, instruction_ptr ip) noexcept {
   stackFramePtr = framePtr;
   returnAddress = ip;
 }
 
-inline void* AsyncStackRoot::getStackFramePointer() const noexcept {
+inline frame_ptr AsyncStackRoot::getStackFramePointer() const noexcept {
   return stackFramePtr;
 }
 
-inline void* AsyncStackRoot::getReturnAddress() const noexcept {
+inline instruction_ptr AsyncStackRoot::getReturnAddress() const noexcept {
   return returnAddress;
 }
 

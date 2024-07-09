@@ -26,28 +26,6 @@
 
 namespace unifex {
 
-// Gets the instruction pointer of the return-address of the current function.
-//
-// Generally a function that uses this macro should be declared FOLLY_NOINLINE
-// to prevent this returning surprising results in cases where the function
-// is inlined.
-#if UNIFEX_HAS_BUILTIN(__builtin_return_address)
-#  define FOLLY_ASYNC_STACK_RETURN_ADDRESS() __builtin_return_address(0)
-#else
-#  define FOLLY_ASYNC_STACK_RETURN_ADDRESS() static_cast<void*>(nullptr)
-#endif
-
-// Gets pointer to the current function invocation's stack-frame.
-//
-// Generally a function that uses this macro should be declared FOLLY_NOINLINE
-// to prevent this returning surprising results in cases where the function
-// is inlined.
-#if UNIFEX_HAS_BUILTIN(__builtin_frame_address)
-#  define FOLLY_ASYNC_STACK_FRAME_POINTER() __builtin_frame_address(0)
-#else
-#  define FOLLY_ASYNC_STACK_FRAME_POINTER() static_cast<void*>(nullptr)
-#endif
-
 // This header defines data-structures used to represent an async stack-trace.
 //
 // These data-structures are intended for use by coroutines (and possibly other
@@ -280,6 +258,75 @@ void resumeCoroutineWithNewAsyncStackRoot(
 
 #endif  // FOLLY_HAS_COROUTINES
 
+struct instruction_ptr final {
+  constexpr instruction_ptr(std::nullptr_t = nullptr) noexcept : p_(nullptr) {}
+
+  explicit constexpr instruction_ptr(void* p) noexcept : p_(p) {}
+
+  // Gets the instruction pointer of the return-address of the current function.
+  //
+  // Generally a function that uses this macro should be declared FOLLY_NOINLINE
+  // to prevent this returning surprising results in cases where the function
+  // is inlined.
+#if UNIFEX_HAS_BUILTIN(__builtin_return_address)
+  static constexpr instruction_ptr
+  read_return_address(void* p = __builtin_return_address(0)) noexcept {
+#else
+  static constexpr instruction_ptr
+  read_return_address(void* p = nullptr) noexcept {
+#endif
+    return instruction_ptr{p};
+  }
+
+  explicit operator std::uintptr_t() const noexcept {
+    return reinterpret_cast<std::uintptr_t>(p_);
+  }
+
+private:
+  void* p_;
+
+  friend constexpr bool
+  operator==(instruction_ptr lhs, instruction_ptr rhs) noexcept {
+    return lhs.p_ == rhs.p_;
+  }
+
+  friend constexpr bool
+  operator!=(instruction_ptr lhs, instruction_ptr rhs) noexcept {
+    return !(lhs == rhs);
+  }
+};
+
+struct frame_ptr {
+  constexpr frame_ptr(std::nullptr_t = nullptr) noexcept : p_(nullptr) {}
+
+  explicit constexpr frame_ptr(void* p) noexcept : p_(p) {}
+
+  // Gets pointer to the current function invocation's stack-frame.
+  //
+  // Generally a function that uses this macro should be declared FOLLY_NOINLINE
+  // to prevent this returning surprising results in cases where the function
+  // is inlined.
+#if UNIFEX_HAS_BUILTIN(__builtin_frame_address)
+  static constexpr frame_ptr
+  read_frame_pointer(void* p = __builtin_frame_address(0)) noexcept {
+#else
+  static constexpr frame_ptr read_frame_pointer(void* p = nullptr) noexcept {
+#endif
+    return frame_ptr{p};
+  }
+
+private:
+  void* p_;
+
+  friend constexpr bool operator==(frame_ptr lhs, frame_ptr rhs) noexcept {
+    return lhs.p_ == rhs.p_;
+  }
+
+  friend constexpr bool operator!=(frame_ptr lhs, frame_ptr rhs) noexcept {
+    return !(lhs == rhs);
+  }
+};
+
 // An async stack frame contains information about a particular
 // invocation of an asynchronous operation.
 //
@@ -311,8 +358,9 @@ public:
   // The return address is generallty the address of the code in the
   // caller that will be executed when the operation owning the current
   // frame completes.
-  void setReturnAddress(void* p = FOLLY_ASYNC_STACK_RETURN_ADDRESS()) noexcept;
-  void* getReturnAddress() const noexcept;
+  void setReturnAddress(
+      instruction_ptr p = instruction_ptr::read_return_address()) noexcept;
+  instruction_ptr getReturnAddress() const noexcept;
 
 private:
   friend AsyncStackRoot;
@@ -343,8 +391,8 @@ private:
   // if the address is not known.
   //
   // Typically initialised with the result of a call to
-  // FOLLY_ASYNC_STACK_RETURN_ADDRESS().
-  void* instructionPointer = nullptr;
+  // instruction_ptr::read_return_address().
+  instruction_ptr instructionPointer;
 
   // Pointer to the stack-root for the current thread.
   // Cache this in each async-stack frame so we don't have to
@@ -395,10 +443,10 @@ public:
   // about where the async-stack-trace should be spliced into the
   // normal stack-trace.
   void setStackFrameContext(
-      void* framePtr = FOLLY_ASYNC_STACK_FRAME_POINTER(),
-      void* ip = FOLLY_ASYNC_STACK_RETURN_ADDRESS()) noexcept;
-  void* getStackFramePointer() const noexcept;
-  void* getReturnAddress() const noexcept;
+      frame_ptr fp = frame_ptr::read_frame_pointer(),
+      instruction_ptr ip = instruction_ptr::read_return_address()) noexcept;
+  frame_ptr getStackFramePointer() const noexcept;
+  instruction_ptr getReturnAddress() const noexcept;
 
   const AsyncStackRoot* getNextRoot() const noexcept;
   void setNextRoot(AsyncStackRoot* next) noexcept;
@@ -436,13 +484,13 @@ private:
   // Anything prior to this frame on the stack in the current thread
   // is potentially unrelated to the call-chain of the current async-stack.
   //
-  // Typically initialised with FOLLY_ASYNC_STACK_FRAME_POINTER() or
+  // Typically initialised with frame_ptr::read_frame_pointer() or
   // setStackFrameContext().
-  void* stackFramePtr = nullptr;
+  frame_ptr stackFramePtr;
 
-  // Typically initialise with FOLLY_ASYNC_STACK_RETURN_ADDRESS() or
+  // Typically initialise with instruction_ptr::read_return_address() or
   // setStackFrameContext().
-  void* returnAddress = nullptr;
+  instruction_ptr returnAddress;
 };
 
 namespace detail {
@@ -450,8 +498,9 @@ namespace detail {
 class ScopedAsyncStackRoot {
 public:
   explicit ScopedAsyncStackRoot(
-      void* framePointer = FOLLY_ASYNC_STACK_FRAME_POINTER(),
-      void* returnAddress = FOLLY_ASYNC_STACK_RETURN_ADDRESS()) noexcept;
+      frame_ptr framePointer = frame_ptr::read_frame_pointer(),
+      instruction_ptr returnAddress =
+          instruction_ptr::read_return_address()) noexcept;
   ~ScopedAsyncStackRoot();
 
   void activateFrame(AsyncStackFrame& frame) noexcept {
