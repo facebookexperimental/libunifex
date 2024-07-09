@@ -219,61 +219,28 @@ inline const struct _fn {
 using _start_cpo::start;
 
 namespace _connect {
-template <typename Sender, typename Receiver>
-using _member_connect_result_t =
-    decltype((UNIFEX_DECLVAL(Sender &&)).connect(UNIFEX_DECLVAL(Receiver &&)));
-
-template <typename Sender, typename Receiver>
-UNIFEX_CONCEPT_FRAGMENT(   //
-    _has_member_connect_,  //
-    requires()(            //
-        typename(_member_connect_result_t<Sender, Receiver>)));
-template <typename Sender, typename Receiver>
-UNIFEX_CONCEPT              //
-    _with_member_connect =  //
-    sender<Sender>&&
-        UNIFEX_FRAGMENT(_connect::_has_member_connect_, Sender, Receiver);
-
-template <typename Sender, typename Receiver>
-UNIFEX_CONCEPT          //
-    _with_tag_invoke =  //
-    sender<Sender>&& tag_invocable<_cpo::_fn, Sender, Receiver>;
-
 namespace _cpo {
 struct _fn {
-private:
-  template <typename Sender, typename Receiver>
-  static auto _select() {
-    if constexpr (_with_tag_invoke<Sender, Receiver>) {
-      return meta_tag_invoke_result<_fn>{};
-    } else if constexpr (_with_member_connect<Sender, Receiver>) {
-      return meta_quote2<_member_connect_result_t>{};
-    } else {
-      return type_always<void>{};
-    }
-  }
-
-  template <typename Sender, typename Receiver>
-  using _result_t = typename decltype(_fn::_select<Sender, Receiver>())::
-      template apply<Sender, Receiver>;
-
-public:
-  template(typename Sender, typename Receiver)                              //
-      (requires receiver<Receiver> AND _with_tag_invoke<Sender, Receiver>)  //
+  template(typename Sender, typename Receiver)  //
+      (requires sender<Sender> AND receiver<Receiver> AND
+           tag_invocable<_fn, Sender, Receiver>)  //
       auto
       operator()(Sender&& s, Receiver&& r) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>)
-          -> _result_t<Sender, Receiver> {
-    return unifex::tag_invoke(_fn{}, (Sender &&) s, (Receiver &&) r);
+          -> tag_invoke_result_t<_fn, Sender, Receiver> {
+    return unifex::tag_invoke(
+        _fn{}, std::forward<Sender>(s), std::forward<Receiver>(r));
   }
+
   template(typename Sender, typename Receiver)  //
-      (requires receiver<Receiver> AND(!_with_tag_invoke<Sender, Receiver>)
-           AND _with_member_connect<Sender, Receiver>)  //
+      (requires sender<Sender> AND
+           receiver<Receiver> AND(!tag_invocable<_fn, Sender, Receiver>))  //
       auto
       operator()(Sender&& s, Receiver&& r) const
-      noexcept(noexcept(((Sender &&) s).connect((Receiver &&) r)))
-          -> _result_t<Sender, Receiver> {
-    return ((Sender &&) s).connect((Receiver &&) r);
+      noexcept(noexcept(std::forward<Sender>(s).connect(std::forward<Receiver>(
+          r)))) -> decltype(std::forward<Sender>(s)
+                                .connect(std::forward<Receiver>(r))) {
+    return std::forward<Sender>(s).connect(std::forward<Receiver>(r));
   }
 };
 }  // namespace _cpo
