@@ -148,7 +148,8 @@ public:
 
   template(typename Self, typename Receiver)  //
       (requires same_as<remove_cvref_t<Self>, type> AND
-           constructible_from<Value, member_t<Self, Value>> AND sender_to<
+           constructible_from<Value, member_t<Self, Value>> AND receiver<Receiver> AND
+           sender_to<
                member_t<Self, Sender>,
                receiver_wrapper<
                    CPO,
