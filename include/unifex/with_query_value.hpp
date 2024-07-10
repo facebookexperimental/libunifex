@@ -42,22 +42,45 @@ public:
     : receiver_((Receiver2 &&) receiver)
     , val_(&val) {}
 
+  template <typename... T>
+  void set_value(T&&... ts) noexcept {
+    UNIFEX_TRY {
+      unifex::set_value(std::move(receiver_), std::forward<T>(ts)...);
+    }
+    UNIFEX_CATCH(...) {
+      unifex::set_error(std::move(receiver_), std::current_exception());
+    }
+  }
+
+  template <typename E>
+  void set_error(E&& e) noexcept {
+    unifex::set_error(std::move(receiver_), std::forward<E>(e));
+  }
+
+  void set_done() noexcept {
+    unifex::set_done(std::move(receiver_));
+  }
+
 private:
   friend const Value& tag_invoke(CPO, const type& r) noexcept {
     return *r.val_;
   }
 
-  template(typename OtherCPO, typename Self, typename... Args)  //
-      (requires same_as<remove_cvref_t<Self>, type> AND std::is_invocable_v<
-          OtherCPO,
-          member_t<Self, Receiver>,
-          Args...>)  //
-      friend auto tag_invoke(OtherCPO cpo, Self&& self, Args&&... args) noexcept(
-          std::is_nothrow_invocable_v<OtherCPO, member_t<Self, Receiver>, Args...>)
-          -> std::invoke_result_t<OtherCPO, member_t<Self, Receiver>, Args...> {
-    return static_cast<OtherCPO&&>(cpo)(
-        static_cast<Self&&>(self).receiver_, static_cast<Args&&>(args)...);
+  template(typename OtherCPO, typename R)                                //
+      (requires is_receiver_query_cpo_v<OtherCPO> AND same_as<R, type>)  //
+      friend auto tag_invoke(OtherCPO cpo, const R& r) noexcept(
+          std::is_nothrow_invocable_v<OtherCPO, const Receiver&>)
+          -> std::invoke_result_t<OtherCPO, const Receiver&> {
+    return std::move(cpo)(std::as_const(r.receiver_));
   }
+
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
+  template <typename Visit>
+  friend void
+  tag_invoke(tag_t<visit_continuations>, const type& r, Visit&& visit) {
+    std::invoke(visit, r.receiver_);
+  }
+#endif
 
   Receiver receiver_;
   const Value* val_;

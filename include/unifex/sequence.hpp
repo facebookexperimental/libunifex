@@ -64,20 +64,26 @@ public:
 
   type(type&& other) noexcept : op_(std::exchange(other.op_, nullptr)) {}
 
-private:
-  template(typename CPO, typename R, typename... Args)  //
-      (requires is_receiver_cpo_v<CPO> AND same_as<R, successor_receiver> AND
-           std::is_invocable_v<
-               CPO,
-               Receiver,
-               Args...>)  //
-      friend auto tag_invoke(CPO cpo, R&& r, Args&&... args) noexcept(
-          std::is_nothrow_invocable_v<CPO, Receiver, Args...>)
-          -> std::invoke_result_t<CPO, Receiver, Args...> {
-    return static_cast<CPO&&>(cpo)(
-        r.get_receiver_rvalue(), static_cast<Args&&>(args)...);
+  template <typename... T>
+  void set_value(T&&... ts) noexcept {
+    UNIFEX_TRY {
+      unifex::set_value(std::move(op_->receiver_), std::forward<T>(ts)...);
+    }
+    UNIFEX_CATCH(...) {
+      unifex::set_error(std::move(op_->receiver_), std::current_exception());
+    }
   }
 
+  template <typename E>
+  void set_error(E&& e) noexcept {
+    unifex::set_error(std::move(op_->receiver_), std::forward<E>(e));
+  }
+
+  void set_done() noexcept {
+    unifex::set_done(std::move(op_->receiver_));
+  }
+
+private:
   template(typename CPO, typename R)  //
       (requires is_receiver_query_cpo_v<CPO> AND
            same_as<R, successor_receiver> AND std::is_invocable_v<
@@ -96,10 +102,6 @@ private:
     std::invoke(func, r.get_const_receiver());
   }
 #endif
-
-  Receiver&& get_receiver_rvalue() noexcept {
-    return static_cast<Receiver&&>(op_->receiver_);
-  }
 
   const Receiver& get_const_receiver() const noexcept { return op_->receiver_; }
 
