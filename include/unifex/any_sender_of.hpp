@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -99,18 +99,27 @@ private:
 template <typename CPOs, typename... Values>
 using _receiver_ref = typename _rec_ref<CPOs, Values...>::type;
 
-// For in-place constructing non-movable operation states.
-// Relies on C++17's guaranteed copy elision.
-template <typename Sender, typename Receiver>
-struct _rvo {
-  Sender&& s;
-  Receiver r;
-  operator connect_result_t<Sender, Receiver>() {
-    return connect((Sender &&) s, std::move(r));
-  }
+template <typename Op>
+struct _op_wrapper final {
+  struct type;
 };
-template <typename Sender, typename Receiver>
-_rvo(Sender&&, Receiver) -> _rvo<Sender, Receiver>;
+
+template <typename Op>
+struct _op_wrapper<Op>::type final {
+  template(typename Fn)                   //
+      (requires std::is_invocable_v<Fn>)  //
+      explicit type(Fn&& fn)
+    : op_(std::forward<Fn>(fn)()) {}
+
+  type(type&&) = delete;
+
+  ~type() = default;
+
+  void start() & noexcept { unifex::start(op_); }
+
+private:
+  Op op_;
+};
 
 template <typename CPOs, typename... Values>
 struct _connect_fn {
@@ -126,9 +135,18 @@ struct _connect_fn<CPOs, Values...>::type {
       (requires sender_to<Sender, _rec_ref_t>)  //
       friend _operation_state
       tag_invoke(const type&, Sender&& s, _rec_ref_t r) {
-    using Op = connect_result_t<Sender, _rec_ref_t>;
-    return _operation_state{
-        std::in_place_type<Op>, _rvo{(Sender &&) s, std::move(r)}};
+    // MSVC can't resolve std::forward<Sender>(s) inside the lambda, but
+    // saving Sender into sender_t and then invoking std::forward<sender_t>(s)
+    // works just fine ¯\_(ツ)_/¯
+    using sender_t = Sender;
+    auto cnct = [&]() {
+      return unifex::connect(std::forward<sender_t>(s), std::move(r));
+    };
+
+    using inner_op_t = decltype(cnct());
+    using wrapper_t = typename _op_wrapper<inner_op_t>::type;
+
+    return _operation_state{std::in_place_type<wrapper_t>, std::move(cnct)};
   }
 
 #ifdef _MSC_VER
@@ -137,14 +155,14 @@ struct _connect_fn<CPOs, Values...>::type {
   template <typename Self>
   tag_invoke_result_t<type, Self, _rec_ref_t>
   operator()(Self&& s, _rec_ref_t r) const {
-    return tag_invoke(*this, (Self &&) s, std::move(r));
+    return tag_invoke(*this, (Self&&)s, std::move(r));
   }
 #else
   template(typename Self)                               //
       (requires tag_invocable<type, Self, _rec_ref_t>)  //
       _operation_state
       operator()(Self&& s, _rec_ref_t r) const {
-    return tag_invoke(*this, (Self &&) s, std::move(r));
+    return tag_invoke(*this, (Self&&)s, std::move(r));
   }
 #endif
 };
@@ -164,7 +182,7 @@ template <typename Receiver>
 struct _op_for<Receiver>::type {
   template <typename Fn>
   explicit type(Receiver r, Fn fn)
-    : rec_((Receiver &&) r)
+    : rec_((Receiver&&)r)
     , state_{
           fn({subscription_.subscribe(unifex::get_stop_token(rec_)), this})} {}
 
@@ -178,7 +196,7 @@ struct _op_for<Receiver>::type {
       friend void tag_invoke(CPO cpo, type&& self, Args&&... args) noexcept(
           std::is_nothrow_invocable_v<CPO, Receiver, Args...>) {
     self.subscription_.unsubscribe();
-    cpo(std::move(self).rec_, (Args &&) args...);
+    cpo(std::move(self).rec_, (Args&&)args...);
   }
 
   // Forward other receiver queries
