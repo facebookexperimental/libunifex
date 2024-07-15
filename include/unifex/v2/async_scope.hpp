@@ -433,16 +433,16 @@ struct _nest_sender<Sender>::type final {
           tag_t<connect>,
           const type& s,
           Receiver&& r) noexcept(nothrow_connect<const type&, Receiver>)
-          -> nest_op<Sender, remove_cvref_t<Receiver>> {
+          -> nest_op<const Sender&, remove_cvref_t<Receiver>> {
     // make a copy of the scope_reference, which will try to record the start of
     // a new nested operation
     auto scope = s.scope_;
 
     if (scope) {
-      return nest_op<Sender, remove_cvref_t<Receiver>>{
+      return nest_op<const Sender&, remove_cvref_t<Receiver>>{
           s.sender_.get(), static_cast<Receiver&&>(r), std::move(scope)};
     } else {
-      return nest_op<Sender, remove_cvref_t<Receiver>>{
+      return nest_op<const Sender&, remove_cvref_t<Receiver>>{
           static_cast<Receiver&&>(r)};
     }
   }

@@ -94,7 +94,7 @@ struct throwing_sender final {
   (requires unifex::sender_to<decltype(unifex::just()), Receiver>)  //
       friend auto tag_invoke(
           unifex::tag_t<unifex::connect>,
-          throwing_sender&&,
+          throwing_sender,
           Receiver&& receiver) noexcept(false) {
     return unifex::connect(unifex::just(), std::forward<Receiver>(receiver));
   }

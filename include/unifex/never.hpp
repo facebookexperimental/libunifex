@@ -91,7 +91,7 @@ struct sender {
   static constexpr bool is_always_scheduler_affine = true;
 
   template <typename Receiver>
-  operation<Receiver> connect(Receiver&& receiver) {
+  operation<Receiver> connect(Receiver&& receiver) const {
     return operation<Receiver>{(Receiver &&) receiver};
   }
 };
