@@ -507,6 +507,16 @@ public:
     unifex::activateAsyncStackFrame(root_, frame);
   }
 
+  void ensureFrameDeactivated(
+      [[maybe_unused]] AsyncStackFrame* possiblyDeadFrame) noexcept {
+    // this is like deactivateAsyncStackFrame(*possibleDeadFrame) but it
+    // doesn't make assertions about the state of the possibly-dead frame
+    assert(tryGetCurrentAsyncStackRoot() == &root_);
+    [[maybe_unused]] auto topFrame =
+        root_.topFrame.exchange(nullptr, std::memory_order_relaxed);
+    assert(topFrame == possiblyDeadFrame);
+  }
+
 private:
   AsyncStackRoot root_;
 };
