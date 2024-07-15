@@ -146,7 +146,7 @@ public:
                                   Receiver>...>) {
     // MSVC needs this type alias declared outside the lambda below to reliably
     // compile the visit() expression as C++20
-    using op_t = operation<connect_result_t<Senders, Receiver>...>;
+    using op_t = operation<connect_result_t<member_t<This, Senders>, Receiver>...>;
     return std::visit(
         [&r](auto&& sender) noexcept(
             unifex::is_nothrow_connectable_v<decltype(sender), Receiver>) {
