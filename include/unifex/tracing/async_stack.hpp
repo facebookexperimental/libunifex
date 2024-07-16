@@ -258,6 +258,8 @@ void resumeCoroutineWithNewAsyncStackRoot(
 
 #endif  // FOLLY_HAS_COROUTINES
 
+// The following lldb command will make instruction_ptrs more legible
+//  type summary add unifex::instruction_ptr --summary-string "${var.p_%A}"
 struct instruction_ptr final {
   constexpr instruction_ptr(std::nullptr_t = nullptr) noexcept : p_(nullptr) {}
 
