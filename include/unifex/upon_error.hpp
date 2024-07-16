@@ -93,7 +93,7 @@ struct _receiver<Receiver, Func>::type {
       friend auto tag_invoke(CPO cpo, const type& r) noexcept(
           std::is_nothrow_invocable_v<CPO, const Receiver&>)
           -> std::invoke_result_t<CPO, const Receiver&> {
-    return (CPO &&)(cpo)(std::as_const(r.receiver_));
+    return std::move(cpo)(std::as_const(r.receiver_));
   }
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
