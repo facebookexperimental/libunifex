@@ -18,7 +18,6 @@
 #include <unifex/config.hpp>
 
 #include <unifex/blocking.hpp>
-#include <unifex/detail/unifex_fwd.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
 #include <unifex/tracing/async_stack.hpp>
@@ -27,6 +26,7 @@
 #include <unifex/tracing/inject_async_stack.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 
 #if !UNIFEX_NO_COROUTINES
 #  include <unifex/coroutine_concepts.hpp>
@@ -271,18 +271,31 @@ private:
     }
   };
 
+#if UNIFEX_NO_ASYNC_STACKS
+public:
+  template(typename S, typename R)          //
+      (requires sender<S> AND receiver<R>)  //
+      auto
+      operator()(S&& s, R&& r) const
+      noexcept(noexcept(_impl{}(std::forward<S>(s), std::forward<R>(r))))
+          -> decltype(_impl{}(std::forward<S>(s), std::forward<R>(r))) {
+    return _impl{}(std::forward<S>(s), std::forward<R>(r));
+  }
+#else
   template <typename S, typename R>
   using op_t = _inject::
       op_wrapper<std::invoke_result_t<_impl, S, _inject::receiver_t<R>>, R>;
 
 public:
-  template(typename S, typename R)  //
-      (requires sender<S> AND receiver<R>) auto
+  template(typename S, typename R)          //
+      (requires sender<S> AND receiver<R>)  //
+      auto
       operator()(S&& s, R&& r) const noexcept(noexcept(_inject::make_op_wrapper(
           std::forward<S>(s), std::forward<R>(r), _impl{}))) -> op_t<S, R> {
     return _inject::make_op_wrapper(
         std::forward<S>(s), std::forward<R>(r), _impl{});
   }
+#endif
 };
 
 }  // namespace _cpo
