@@ -64,7 +64,9 @@ struct TestSender {
 
   static constexpr bool sends_done = true;
 
-  struct op {};
+  struct op {
+    void start() & noexcept {}
+  };
 
   template <typename Receiver>
   op connect([[maybe_unused]] Receiver&& r) & noexcept(lvalueConnectNoexcept) {
