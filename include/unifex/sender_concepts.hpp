@@ -20,6 +20,10 @@
 #include <unifex/blocking.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/tracing/async_stack.hpp>
+#include <unifex/tracing/get_async_stack_frame.hpp>
+#include <unifex/tracing/get_return_address.hpp>
+#include <unifex/tracing/inject_async_stack.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/detail/unifex_fwd.hpp>
@@ -195,7 +199,7 @@ template <typename S>
 inline constexpr bool typed_bulk_sender = bulk_sender<S>;
 
 namespace _start_cpo {
-inline const struct _fn {
+struct _fn {
   template(typename Operation)                   //
       (requires tag_invocable<_fn, Operation&>)  //
       auto
@@ -214,35 +218,86 @@ inline const struct _fn {
         noexcept(op.start()), "start() customisation must be noexcept");
     return op.start();
   }
-} start{};
+};
 }  // namespace _start_cpo
-using _start_cpo::start;
+inline const _start_cpo::_fn start{};
 
 namespace _connect {
-namespace _cpo {
-struct _fn {
-  template(typename Sender, typename Receiver)  //
-      (requires sender<Sender> AND receiver<Receiver> AND
-           tag_invocable<_fn, Sender, Receiver>)  //
-      auto
-      operator()(Sender&& s, Receiver&& r) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Receiver>)
-          -> tag_invoke_result_t<_fn, Sender, Receiver> {
-    return unifex::tag_invoke(
-        _fn{}, std::forward<Sender>(s), std::forward<Receiver>(r));
-  }
 
-  template(typename Sender, typename Receiver)  //
-      (requires sender<Sender> AND
-           receiver<Receiver> AND(!tag_invocable<_fn, Sender, Receiver>))  //
+template <typename Sender, typename Receiver>
+using _member_connect_result_t =
+    decltype((UNIFEX_DECLVAL(Sender&&)).connect(UNIFEX_DECLVAL(Receiver&&)));
+
+template <typename Sender, typename Receiver>
+UNIFEX_CONCEPT_FRAGMENT(   //
+    _has_member_connect_,  //
+    requires()(            //
+        typename(_member_connect_result_t<Sender, Receiver>)));
+
+template <typename Sender, typename Receiver>
+UNIFEX_CONCEPT                //
+    _is_member_connectible =  //
+    sender<Sender> &&
+    UNIFEX_FRAGMENT(_connect::_has_member_connect_, Sender, Receiver);
+
+template <typename Sender, typename Receiver>
+UNIFEX_CONCEPT                        //
+    _is_nothrow_member_connectible =  //
+    _is_member_connectible<Sender, Receiver> &&
+    noexcept(UNIFEX_DECLVAL(Sender&&).connect(UNIFEX_DECLVAL(Receiver&&)));
+
+namespace _cpo {
+
+struct _fn {
+private:
+  struct _impl {
+    template(typename S, typename R)         //
+        (requires tag_invocable<_fn, S, R>)  //
+        auto
+        operator()(S&& s, R&& r) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, S, R>)
+            -> tag_invoke_result_t<_fn, S, R> {
+      return unifex::tag_invoke(_fn{}, std::forward<S>(s), std::forward<R>(r));
+    }
+
+    template(typename S, typename R)  //
+        (requires(!tag_invocable<_fn, S, R>)
+             AND _is_member_connectible<S, R>)  //
+        auto
+        operator()(S&& s, R&& r) const
+        noexcept(_is_nothrow_member_connectible<S, R>)
+            -> _member_connect_result_t<S, R> {
+      return std::forward<S>(s).connect(std::forward<R>(r));
+    }
+  };
+
+#if UNIFEX_NO_ASYNC_STACKS
+public:
+  template(typename S, typename R)          //
+      (requires sender<S> AND receiver<R>)  //
       auto
-      operator()(Sender&& s, Receiver&& r) const
-      noexcept(noexcept(std::forward<Sender>(s).connect(std::forward<Receiver>(
-          r)))) -> decltype(std::forward<Sender>(s)
-                                .connect(std::forward<Receiver>(r))) {
-    return std::forward<Sender>(s).connect(std::forward<Receiver>(r));
+      operator()(S&& s, R&& r) const
+      noexcept(noexcept(_impl{}(std::forward<S>(s), std::forward<R>(r))))
+          -> decltype(_impl{}(std::forward<S>(s), std::forward<R>(r))) {
+    return _impl{}(std::forward<S>(s), std::forward<R>(r));
   }
+#else
+  template <typename S, typename R>
+  using op_t = _inject::
+      op_wrapper<std::invoke_result_t<_impl, S, _inject::receiver_t<R>>, R>;
+
+public:
+  template(typename S, typename R)          //
+      (requires sender<S> AND receiver<R>)  //
+      auto
+      operator()(S&& s, R&& r) const noexcept(noexcept(_inject::make_op_wrapper(
+          std::forward<S>(s), std::forward<R>(r), _impl{}))) -> op_t<S, R> {
+    return _inject::make_op_wrapper(
+        std::forward<S>(s), std::forward<R>(r), _impl{});
+  }
+#endif
 };
+
 }  // namespace _cpo
 }  // namespace _connect
 inline const _connect::_cpo::_fn connect{};

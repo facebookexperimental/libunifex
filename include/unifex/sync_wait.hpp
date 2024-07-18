@@ -22,6 +22,8 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/tracing/async_stack.hpp>
+#include <unifex/tracing/get_async_stack_frame.hpp>
 #include <unifex/with_query_value.hpp>
 
 #include <condition_variable>
@@ -62,11 +64,12 @@ struct _receiver {
   struct type {
     promise<T>& promise_;
     manual_event_loop& ctx_;
+    AsyncStackFrame& frame_;
 
     template <typename... Values>
     void set_value(Values&&... values) && noexcept {
       UNIFEX_TRY {
-        unifex::activate_union_member(promise_.value_, (Values &&) values...);
+        unifex::activate_union_member(promise_.value_, (Values&&)values...);
         promise_.state_ = promise<T>::state::value;
       }
       UNIFEX_CATCH(...) {
@@ -91,7 +94,7 @@ struct _receiver {
 
     template <typename Error>
     void set_error(Error&& e) && noexcept {
-      std::move(*this).set_error(make_exception_ptr((Error &&) e));
+      std::move(*this).set_error(make_exception_ptr((Error&&)e));
     }
 
     void set_done() && noexcept {
@@ -103,6 +106,11 @@ struct _receiver {
       return r.ctx_.get_scheduler();
     }
 
+    friend constexpr AsyncStackFrame*
+    tag_invoke(tag_t<get_async_stack_frame>, const type& r) noexcept {
+      return &r.frame_;
+    }
+
   private:
     void signal_complete() noexcept { ctx_.stop(); }
   };
@@ -111,19 +119,40 @@ struct _receiver {
 template <typename T>
 using receiver_t = typename _receiver<T>::type;
 
+struct initial_stack_root {
+  explicit initial_stack_root(
+      frame_ptr frameAddress, instruction_ptr returnAddress) noexcept
+    : root{frameAddress, returnAddress} {
+    frame.setReturnAddress(returnAddress);
+
+    root.activateFrame(frame);
+  }
+
+  ~initial_stack_root() { deactivateAsyncStackFrame(frame); }
+
+  AsyncStackFrame frame;
+  unifex::detail::ScopedAsyncStackRoot root;
+};
+
 template <typename Result, typename Sender>
-UNIFEX_CLANG_DISABLE_OPTIMIZATION std::optional<Result> _impl(Sender&& sender) {
+UNIFEX_CLANG_DISABLE_OPTIMIZATION std::optional<Result>
+_impl(Sender&& sender, frame_ptr frameAddress, instruction_ptr returnAddress) {
   using promise_t = _sync_wait::promise<Result>;
   promise_t promise;
   manual_event_loop ctx;
 
-  // Store state for the operation on the stack.
-  auto operation =
-      connect((Sender &&) sender, _sync_wait::receiver_t<Result>{promise, ctx});
+  {
+    initial_stack_root stackRoot{frameAddress, returnAddress};
 
-  start(operation);
+    // Store state for the operation on the stack.
+    auto operation = connect(
+        (Sender&&)sender,
+        _sync_wait::receiver_t<Result>{promise, ctx, stackRoot.frame});
 
-  ctx.run();
+    start(operation);
+
+    ctx.run();
+  }
 
   switch (promise.state_) {
     case promise_t::state::done: return std::nullopt;
@@ -136,19 +165,44 @@ UNIFEX_CLANG_DISABLE_OPTIMIZATION std::optional<Result> _impl(Sender&& sender) {
 }  // namespace _sync_wait
 
 namespace _sync_wait_cpo {
-struct _fn {
+class _fn {
+  struct impl_fn {
+    template <typename Sender>
+    auto operator()(
+        Sender&& sender,
+        frame_ptr frameAddress,
+        instruction_ptr returnAddress) const
+        -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
+      using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
+      return _sync_wait::_impl<Result>(
+          std::forward<Sender>(sender), frameAddress, returnAddress);
+    }
+  };
+
+public:
   template(typename Sender)      //
       (requires sender<Sender>)  //
       auto
       operator()(Sender&& sender) const
       -> std::optional<sender_single_value_result_t<remove_cvref_t<Sender>>> {
-    using Result = sender_single_value_result_t<remove_cvref_t<Sender>>;
-    return _sync_wait::_impl<Result>((Sender &&) sender);
+    return impl_fn{}(
+        std::forward<Sender>(sender),
+        frame_ptr::read_frame_pointer(),
+        instruction_ptr::read_return_address());
   }
-  constexpr auto operator()() const
-      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
-          -> bind_back_result_t<_fn> {
-    return bind_back(*this);
+
+  // Not constexpr anymore because __builtin_frame_address(0) (and, presumably,
+  // __builtin_return_address(0)) isn't constexpr in Clang constexpr
+  auto operator()() const noexcept(std::is_nothrow_invocable_v<
+                                   tag_t<bind_back>,
+                                   _fn,
+                                   frame_ptr,
+                                   instruction_ptr>)
+      -> bind_back_result_t<impl_fn, frame_ptr, instruction_ptr> {
+    return bind_back(
+        impl_fn{},
+        frame_ptr::read_frame_pointer(),
+        instruction_ptr::read_return_address());
   }
 };
 }  // namespace _sync_wait_cpo
@@ -163,7 +217,10 @@ struct _fn {
       decltype(auto)
       operator()(Sender&& sender) const {
     using Result2 = non_void_t<wrap_reference_t<decay_rvalue_t<Result>>>;
-    return _sync_wait::_impl<Result2>((Sender &&) sender);
+    return _sync_wait::_impl<Result2>(
+        (Sender&&)sender,
+        frame_ptr::read_frame_pointer(),
+        instruction_ptr::read_return_address());
   }
 };
 }  // namespace _sync_wait_r_cpo

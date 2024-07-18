@@ -53,6 +53,11 @@ extern const struct _fn submit;
 }  // namespace _submit_cpo
 using _submit_cpo::submit;
 
+namespace _start_cpo {
+struct _fn;
+}
+extern const _start_cpo::_fn start;
+
 namespace _connect::_cpo {
 struct _fn;
 }  // namespace _connect::_cpo

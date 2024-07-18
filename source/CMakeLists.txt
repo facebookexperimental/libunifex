@@ -13,6 +13,7 @@ target_sources(unifex
     async_auto_reset_event.cpp
     async_manual_reset_event.cpp
     async_mutex.cpp
+    async_stack.cpp
     exception.cpp
     inplace_stop_token.cpp
     manual_event_loop.cpp
