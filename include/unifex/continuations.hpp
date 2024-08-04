@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -30,13 +30,15 @@ namespace unifex {
 namespace _visit_continuations_cpo {
 inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
-  template(typename Promise, typename Func)                                  //
-      (requires(!same_as<Promise, void>) AND std::is_invocable_v<_fn, Promise&, Func>)  //
+  template(typename Promise, typename Func)  //
+      (requires(!same_as<Promise, void>)
+           AND std::is_invocable_v<_fn, Promise&, Func>)  //
       friend void tag_invoke(
           _fn cpo,
           coro::coroutine_handle<Promise> h,
-          Func&& func) noexcept(std::is_nothrow_invocable_v<_fn, Promise&, Func>) {
-    cpo(h.promise(), (Func &&) func);
+          Func&&
+              func) noexcept(std::is_nothrow_invocable_v<_fn, Promise&, Func>) {
+    cpo(h.promise(), (Func&&)func);
   }
 #endif  // UNIFEX_NO_COROUTINES
 
@@ -48,7 +50,7 @@ inline const struct _fn {
     static_assert(
         std::is_void_v<tag_invoke_result_t<_fn, const Continuation&, Func&&>>,
         "tag_invoke() overload for visit_continuations() must return void");
-    return tag_invoke(_fn{}, c, (Func &&) func);
+    return tag_invoke(_fn{}, c, (Func&&)func);
   }
 
   template(typename Continuation, typename Func)                  //
@@ -173,9 +175,9 @@ void _visit_for(
 #endif
 
 template <typename Continuation>
-inline constexpr _continuation_info_vtable _vtable_for {
+inline constexpr _continuation_info_vtable _vtable_for{
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
-  &_type_index_getter_for<Continuation>, &_visit_for<Continuation>
+    &_type_index_getter_for<Continuation>, &_visit_for<Continuation>
 #endif
 };
 
@@ -212,8 +214,7 @@ struct continuation_handle<void> {
       (requires(!same_as<Promise, void>))  //
       /*implicit*/ continuation_handle(
           coro::coroutine_handle<Promise> continuation) noexcept
-    : continuation_handle(
-          0, (coro::coroutine_handle<Promise> &&) continuation) {}
+    : continuation_handle(0, (coro::coroutine_handle<Promise>&&)continuation) {}
 
   explicit operator bool() const noexcept { return handle_ != nullptr; }
 
@@ -298,7 +299,7 @@ inline constexpr _continuation_handle_vtable _vtable_for{
 template <typename Promise>
 continuation_handle<void>::continuation_handle(
     int, coro::coroutine_handle<Promise> continuation) noexcept
-  : handle_((coro::coroutine_handle<Promise> &&) continuation)
+  : handle_((coro::coroutine_handle<Promise>&&)continuation)
   , vtable_(&_vtable_for<Promise>) {
 }
 
@@ -308,7 +309,7 @@ struct continuation_handle {
 
   /*implicit*/ continuation_handle(
       coro::coroutine_handle<Promise> continuation) noexcept
-    : self_((coro::coroutine_handle<Promise> &&) continuation) {}
+    : self_((coro::coroutine_handle<Promise>&&)continuation) {}
 
   explicit operator bool() const noexcept { return !!self_; }
 
@@ -333,7 +334,7 @@ struct continuation_handle {
       tag_t<visit_continuations>,
       const continuation_handle<Promise>& c,
       F&& f) {
-    visit_continuations(c.self_, (F &&) f);
+    visit_continuations(c.self_, (F&&)f);
   }
 #  endif
 

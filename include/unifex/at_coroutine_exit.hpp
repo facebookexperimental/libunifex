@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -50,7 +50,7 @@ inline constexpr struct _fn {
           ParentPromise& parent,
           continuation_handle<ChildPromise> action) const noexcept {
     return tag_invoke(
-        *this, parent, (continuation_handle<ChildPromise> &&) action);
+        *this, parent, (continuation_handle<ChildPromise>&&)action);
   }
 } exchange_continuation{};
 }  // namespace _xchg_cont
@@ -119,7 +119,7 @@ struct _cleanup_promise_base {
   friend void tag_invoke(
       tag_t<visit_continuations>, const _cleanup_promise_base& p, Func&& func) {
     // Skip cleanup actions when visiting continuations:
-    visit_continuations(p.continuation_, (Func &&) func);
+    visit_continuations(p.continuation_, (Func&&)func);
   }
 #endif
 
@@ -151,12 +151,12 @@ struct _die_on_done_rec {
         (requires receiver_of<Receiver, Ts...>)  //
         void set_value(Ts&&... ts) && noexcept(
             is_nothrow_receiver_of_v<Receiver, Ts...>) {
-      unifex::set_value((Receiver &&) rec_, (Ts &&) ts...);
+      unifex::set_value((Receiver&&)rec_, (Ts&&)ts...);
     }
     template(typename E)                  //
         (requires receiver<Receiver, E>)  //
         void set_error(E&& e) && noexcept {
-      unifex::set_error((Receiver &&) rec_, (E &&) e);
+      unifex::set_error((Receiver&&)rec_, (E&&)e);
     }
     [[noreturn]] void set_done() && noexcept {
       UNIFEX_ASSERT(!"A cleanup action tried to cancel. Calling terminate...");
@@ -206,7 +206,7 @@ struct _die_on_done {
             is_nothrow_connectable_v<Sender, _die_on_done_rec_t<Receiver>>)
             -> connect_result_t<Sender, _die_on_done_rec_t<Receiver>> {
       return unifex::connect(
-          (Sender &&) sender_, _die_on_done_rec_t<Receiver>{(Receiver &&) rec});
+          (Sender&&)sender_, _die_on_done_rec_t<Receiver>{(Receiver&&)rec});
     }
 
     UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
@@ -222,12 +222,12 @@ struct _die_on_done_fn {
       _die_on_done_t<Value>
       operator()(Value&& value) /*mutable*/
       noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Value>, Value>) {
-    return _die_on_done_t<Value>{(Value &&) value};
+    return _die_on_done_t<Value>{(Value&&)value};
   }
 
   template <typename Value>
   Value&& operator()(Value&& value) const noexcept {
-    return (Value &&) value;
+    return (Value&&)value;
   }
 };
 
@@ -255,8 +255,8 @@ struct _cleanup_promise : _cleanup_promise_base {
 
   template <typename Value>
   decltype(auto) await_transform(Value&& value) noexcept(noexcept(
-      unifex::await_transform(*this, _die_on_done_fn{}((Value &&) value)))) {
-    return unifex::await_transform(*this, _die_on_done_fn{}((Value &&) value));
+      unifex::await_transform(*this, _die_on_done_fn{}((Value&&)value)))) {
+    return unifex::await_transform(*this, _die_on_done_fn{}((Value&&)value));
   }
 
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Ts&...> args_;
@@ -312,11 +312,12 @@ private:
   }
 
 public:
-  template(typename Action, typename... Ts)                           //
-      (requires std::is_invocable_v<std::decay_t<Action>, std::decay_t<Ts>...>)  //
+  template(typename Action, typename... Ts)  //
+      (requires std::
+           is_invocable_v<std::decay_t<Action>, std::decay_t<Ts>...>)  //
       _cleanup_task<std::decay_t<Ts>...>
       operator()(Action&& action, Ts&&... ts) const {
-    return _fn::at_coroutine_exit((Action &&) action, (Ts &&) ts...);
+    return _fn::at_coroutine_exit((Action&&)action, (Ts&&)ts...);
   }
 } at_coroutine_exit{};
 }  // namespace _at_coroutine_exit

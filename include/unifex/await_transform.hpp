@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -99,7 +99,7 @@ struct _awaitable_base<Promise, Value>::type {
         void set_value(Us&&... us) && noexcept(
             std::is_nothrow_constructible_v<Value, Us...> ||
             std::is_void_v<Value>) {
-      unifex::activate_union_member(result_->value_, (Us &&) us...);
+      unifex::activate_union_member(result_->value_, (Us&&)us...);
       result_->state_ = _state::value;
       continuation_.resume();
     }
@@ -134,7 +134,7 @@ struct _awaitable_base<Promise, Value>::type {
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const _rec& r, Func&& func) {
-      visit_continuations(r.continuation_.promise(), (Func &&) func);
+      visit_continuations(r.continuation_.promise(), (Func&&)func);
     }
 #endif
 
@@ -175,7 +175,7 @@ private:
 public:
   explicit type(Sender&& sender, coro::coroutine_handle<Promise> h) noexcept(
       is_nothrow_connectable_v<Sender, _rec>)
-    : op_(unifex::connect((Sender &&) sender, _rec{&this->result_, h})) {}
+    : op_(unifex::connect((Sender&&)sender, _rec{&this->result_, h})) {}
 
   void await_suspend(coro::coroutine_handle<Promise>) noexcept {
     unifex::start(op_);
@@ -197,7 +197,7 @@ struct _fn {
         detail::_awaitable<tag_invoke_result_t<_fn, Promise&, Value>>,
         "The return type of a customization of unifex::await_transform() "
         "must satisfy the awaitable concept.");
-    return unifex::tag_invoke(_fn{}, promise, (Value &&) value);
+    return unifex::tag_invoke(_fn{}, promise, (Value&&)value);
   }
 
   // Default implementation.
@@ -209,19 +209,19 @@ struct _fn {
     // to avoid instantiating 'unifex::sender<Value>' concept check in
     // the case that _awaitable<Value> evaluates to true.
     if constexpr (detail::_awaitable<Value>) {
-      return (Value &&) value;
+      return (Value&&)value;
     } else if constexpr (unifex::sender<Value>) {
       if constexpr (unifex::sender_to<Value, _receiver_t<Promise, Value>>) {
         auto h = coro::coroutine_handle<Promise>::from_promise(promise);
-        return _as_awaitable<Promise, Value>{(Value &&) value, h};
+        return _as_awaitable<Promise, Value>{(Value&&)value, h};
       } else {
         static_assert(
             unifex::sender_to<Value, _receiver_t<Promise, Value>>,
             "This sender is not awaitable in this coroutine type.");
-        return (Value &&) value;
+        return (Value&&)value;
       }
     } else {
-      return (Value &&) value;
+      return (Value&&)value;
     }
   }
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -360,7 +360,7 @@ struct _promise final {
       } else {
         // Otherwise, we don't know how to await this type. Just return it and
         // let the compiler issue a diagnostic.
-        return (Value &&) value;
+        return (Value&&)value;
       }
     }
 
@@ -408,9 +408,11 @@ struct _sr_thunk_promise_base : _promise_base {
   struct deferred_stop_request final {
     _sr_thunk_promise_base* self;
 
-    auto operator()() noexcept -> decltype(unstoppable(on(
-        self->sched_,
-        just(&self->stopSource_) | then(&inplace_stop_source::request_stop)))) {
+    auto
+    operator()() noexcept -> decltype(unstoppable(on(
+                              self->sched_,
+                              just(&self->stopSource_) |
+                                  then(&inplace_stop_source::request_stop)))) {
       return unstoppable(on(
           self->sched_,
           just(&self->stopSource_) | then(&inplace_stop_source::request_stop)));
@@ -732,7 +734,7 @@ struct _task<T, nothrow>::type
       Args... args) noexcept(false) /* even if nothrow is true, ramp of a
                                        coroutine can still throw */
   {
-    co_return co_await std::invoke((Fn &&) fn, (Args &&) args...);
+    co_return co_await std::invoke((Fn&&)fn, (Args&&)args...);
   }
 
 private:
