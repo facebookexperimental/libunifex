@@ -22,6 +22,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/unhandled_done.hpp>
 
 #if UNIFEX_NO_COROUTINES
 #  error "Coroutine support is required to use <unifex/connect_awaitable.hpp>"
@@ -60,8 +61,7 @@ public:
     [[noreturn]] void return_void() noexcept { std::terminate(); }
 
     coro::coroutine_handle<> unhandled_done() noexcept {
-      unifex::set_done(std::move(receiver_));
-      return coro::noop_coroutine();
+      return doneCoro_.handle();
     }
 
     template <typename Func>
@@ -103,6 +103,8 @@ public:
     }
 
     Receiver& receiver_;
+    done_coro doneCoro_ = unifex::unhandled_done(
+        [this]() noexcept { unifex::set_done(std::move(receiver_)); });
   };
 
   coro::coroutine_handle<promise_type> coro_;

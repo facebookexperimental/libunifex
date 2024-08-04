@@ -22,6 +22,7 @@
 #endif
 
 #include <unifex/async_trace.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/coroutine_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
@@ -90,7 +91,7 @@ struct _awaitable_base<Promise, Value>::type {
 
     _rec(_rec&& r) noexcept
       : result_(std::exchange(r.result_, nullptr))
-      , continuation_(std::exchange(r.continuation_, nullptr)) {}
+      , continuation_(std::move(r.continuation_)) {}
 
     template(class... Us)  //
         (requires(
@@ -117,7 +118,7 @@ struct _awaitable_base<Promise, Value>::type {
 
     void set_done() && noexcept {
       result_->state_ = _state::done;
-      continuation_.promise().unhandled_done().resume();
+      continuation_.resume_done();
     }
 
     template(typename CPO)  //
@@ -140,7 +141,7 @@ struct _awaitable_base<Promise, Value>::type {
 
   private:
     _expected<Value>* result_;
-    coro::coroutine_handle<Promise> continuation_;
+    continuation_handle<Promise> continuation_;
   };
 
   bool await_ready() const noexcept { return false; }

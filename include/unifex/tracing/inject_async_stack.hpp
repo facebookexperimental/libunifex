@@ -19,6 +19,7 @@
 
 #if !UNIFEX_NO_ASYNC_STACKS
 
+#  include <unifex/continuations.hpp>
 #  include <unifex/receiver_concepts.hpp>
 #  include <unifex/tracing/async_stack.hpp>
 #  include <unifex/tracing/get_async_stack_frame.hpp>

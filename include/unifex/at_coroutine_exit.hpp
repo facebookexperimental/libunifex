@@ -25,6 +25,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/unhandled_done.hpp>
 #include <unifex/unstoppable_token.hpp>
 
 #if UNIFEX_NO_COROUTINES
@@ -111,7 +112,8 @@ struct _cleanup_promise_base {
   void return_void() noexcept {}
 
   coro::coroutine_handle<> next() const noexcept {
-    return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
+    return isUnhandledDone_ ? continuation_.done_handle()
+                            : continuation_.handle();
   }
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
@@ -237,7 +239,7 @@ struct _cleanup_task;
 template <typename... Ts>
 struct _cleanup_promise : _cleanup_promise_base {
   template <typename Action>
-  explicit _cleanup_promise(Action&&, Ts&... ts) noexcept : args_(ts...) {}
+  explicit _cleanup_promise(Action&&, Ts&... ts) : args_(ts...) {}
 
   _cleanup_task<Ts...> get_return_object() noexcept {
     return _cleanup_task<Ts...>(
@@ -245,12 +247,7 @@ struct _cleanup_promise : _cleanup_promise_base {
   }
 
   coro::coroutine_handle<> unhandled_done() noexcept {
-    // Record that we are processing an unhandled done signal. This is checked
-    // in the final_suspend of the cleanup action to know which subsequent
-    // continuation to resume.
-    isUnhandledDone_ = true;
-    // On unhandled_done, run the cleanup action:
-    return coro::coroutine_handle<_cleanup_promise>::from_promise(*this);
+    return doneCoro_.handle();
   }
 
   template <typename Value>
@@ -260,6 +257,14 @@ struct _cleanup_promise : _cleanup_promise_base {
   }
 
   UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Ts&...> args_;
+  done_coro doneCoro_ = unifex::unhandled_done([this]() noexcept {
+    // Record that we are processing an unhandled done signal. This is checked
+    // in the final_suspend of the cleanup action to know which subsequent
+    // continuation to resume.
+    isUnhandledDone_ = true;
+    // On unhandled_done, run the cleanup action:
+    return coro::coroutine_handle<_cleanup_promise>::from_promise(*this);
+  });
 };
 
 template <typename... Ts>

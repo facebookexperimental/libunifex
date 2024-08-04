@@ -36,6 +36,7 @@
 #include <unifex/then.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/unhandled_done.hpp>
 #include <unifex/unstoppable.hpp>
 #include <unifex/with_scheduler_affinity.hpp>
 
@@ -155,10 +156,19 @@ struct _final_suspend_awaiter_base {
  * Common behaviour and data for task<> and sr_thunk_task<>'s promise types.
  */
 struct _promise_base {
+  template(typename Func)                                        //
+      (requires(!same_as<_promise_base, remove_cvref_t<Func>>))  //
+      _promise_base(Func&& onDone)
+    : doneCoro_(unifex::unhandled_done(std::forward<Func>(onDone))) {}
+
   /**
    * Our coroutine types are lazy so initial_suspend() returns suspend_always.
    */
   coro::suspend_always initial_suspend() noexcept { return {}; }
+
+  coro::coroutine_handle<> unhandled_done() noexcept {
+    return doneCoro_.handle();
+  }
 
   friend any_scheduler
   tag_invoke(tag_t<get_scheduler>, const _promise_base& p) noexcept {
@@ -188,19 +198,21 @@ struct _promise_base {
   any_scheduler sched_{_default_scheduler};
   // a stop token from our receiver, possibly adapted through an adapter
   inplace_stop_token stoken_;
+  // the coroutine to resume when a child awaitable completes with done
+  done_coro doneCoro_;
 };
 
 /**
  * The parts of a task<T>'s promise that don't depend on T.
  */
 struct _task_promise_base : _promise_base {
+  _task_promise_base()
+    : _promise_base([this]() noexcept { return continuation_.done_handle(); }) {
+  }
+
   // the implementation of the magic of co_await schedule(s); this is to be
   // ripped out and replaced with something more explicit
   void transform_schedule_sender_impl_(any_scheduler newSched);
-
-  coro::coroutine_handle<> unhandled_done() noexcept {
-    return continuation_.done();
-  }
 
   void register_stop_callback() noexcept {}
 
@@ -386,17 +398,18 @@ struct _promise final {
 };
 
 struct _sr_thunk_promise_base : _promise_base {
-  coro::coroutine_handle<> unhandled_done() noexcept {
-    callback_.destruct();
+  _sr_thunk_promise_base()
+    : _promise_base([this]() noexcept -> coro::coroutine_handle<> {
+      callback_.destruct();
 
-    whoToContinue_ = continuation::DONE;
+      whoToContinue_ = continuation::DONE;
 
-    if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-      return continuation_.done();
-    } else {
-      return coro::noop_coroutine();
-    }
-  }
+      if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        return continuation_.done_handle();
+      } else {
+        return coro::noop_coroutine();
+      }
+    }) {}
 
   friend inplace_stop_token
   tag_invoke(tag_t<get_stop_token>, const _sr_thunk_promise_base& p) noexcept {
@@ -428,10 +441,10 @@ struct _sr_thunk_promise_base : _promise_base {
     void set_value(bool) noexcept {
       if (self->refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         if (self->whoToContinue_ == continuation::PRIMARY) {
-          self->continuation_.handle().resume();
+          self->continuation_.resume();
         } else {
           UNIFEX_ASSERT(self->whoToContinue_ == continuation::DONE);
-          self->continuation_.done().resume();
+          self->continuation_.resume_done();
         }
       }
     }
