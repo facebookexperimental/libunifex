@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -25,6 +25,7 @@
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
 #include <unifex/tag_invoke.hpp>
+#include <unifex/unhandled_done.hpp>
 #include <unifex/unstoppable_token.hpp>
 
 #if UNIFEX_NO_COROUTINES
@@ -50,7 +51,7 @@ inline constexpr struct _fn {
           ParentPromise& parent,
           continuation_handle<ChildPromise> action) const noexcept {
     return tag_invoke(
-        *this, parent, (continuation_handle<ChildPromise> &&) action);
+        *this, parent, (continuation_handle<ChildPromise>&&)action);
   }
 } exchange_continuation{};
 }  // namespace _xchg_cont
@@ -111,7 +112,8 @@ struct _cleanup_promise_base {
   void return_void() noexcept {}
 
   coro::coroutine_handle<> next() const noexcept {
-    return isUnhandledDone_ ? continuation_.done() : continuation_.handle();
+    return isUnhandledDone_ ? continuation_.done_handle()
+                            : continuation_.handle();
   }
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
@@ -119,7 +121,7 @@ struct _cleanup_promise_base {
   friend void tag_invoke(
       tag_t<visit_continuations>, const _cleanup_promise_base& p, Func&& func) {
     // Skip cleanup actions when visiting continuations:
-    visit_continuations(p.continuation_, (Func &&) func);
+    visit_continuations(p.continuation_, (Func&&)func);
   }
 #endif
 
@@ -151,12 +153,12 @@ struct _die_on_done_rec {
         (requires receiver_of<Receiver, Ts...>)  //
         void set_value(Ts&&... ts) && noexcept(
             is_nothrow_receiver_of_v<Receiver, Ts...>) {
-      unifex::set_value((Receiver &&) rec_, (Ts &&) ts...);
+      unifex::set_value((Receiver&&)rec_, (Ts&&)ts...);
     }
     template(typename E)                  //
         (requires receiver<Receiver, E>)  //
         void set_error(E&& e) && noexcept {
-      unifex::set_error((Receiver &&) rec_, (E &&) e);
+      unifex::set_error((Receiver&&)rec_, (E&&)e);
     }
     [[noreturn]] void set_done() && noexcept {
       UNIFEX_ASSERT(!"A cleanup action tried to cancel. Calling terminate...");
@@ -206,7 +208,7 @@ struct _die_on_done {
             is_nothrow_connectable_v<Sender, _die_on_done_rec_t<Receiver>>)
             -> connect_result_t<Sender, _die_on_done_rec_t<Receiver>> {
       return unifex::connect(
-          (Sender &&) sender_, _die_on_done_rec_t<Receiver>{(Receiver &&) rec});
+          (Sender&&)sender_, _die_on_done_rec_t<Receiver>{(Receiver&&)rec});
     }
 
     UNIFEX_NO_UNIQUE_ADDRESS Sender sender_;
@@ -222,12 +224,12 @@ struct _die_on_done_fn {
       _die_on_done_t<Value>
       operator()(Value&& value) /*mutable*/
       noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Value>, Value>) {
-    return _die_on_done_t<Value>{(Value &&) value};
+    return _die_on_done_t<Value>{(Value&&)value};
   }
 
   template <typename Value>
   Value&& operator()(Value&& value) const noexcept {
-    return (Value &&) value;
+    return (Value&&)value;
   }
 };
 
@@ -237,7 +239,7 @@ struct _cleanup_task;
 template <typename... Ts>
 struct _cleanup_promise : _cleanup_promise_base {
   template <typename Action>
-  explicit _cleanup_promise(Action&&, Ts&... ts) noexcept : args_(ts...) {}
+  explicit _cleanup_promise(Action&&, Ts&... ts) : args_(ts...) {}
 
   _cleanup_task<Ts...> get_return_object() noexcept {
     return _cleanup_task<Ts...>(
@@ -245,21 +247,24 @@ struct _cleanup_promise : _cleanup_promise_base {
   }
 
   coro::coroutine_handle<> unhandled_done() noexcept {
+    return doneCoro_.handle();
+  }
+
+  template <typename Value>
+  decltype(auto) await_transform(Value&& value) noexcept(noexcept(
+      unifex::await_transform(*this, _die_on_done_fn{}((Value&&)value)))) {
+    return unifex::await_transform(*this, _die_on_done_fn{}((Value&&)value));
+  }
+
+  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Ts&...> args_;
+  done_coro doneCoro_ = unifex::unhandled_done([this]() noexcept {
     // Record that we are processing an unhandled done signal. This is checked
     // in the final_suspend of the cleanup action to know which subsequent
     // continuation to resume.
     isUnhandledDone_ = true;
     // On unhandled_done, run the cleanup action:
     return coro::coroutine_handle<_cleanup_promise>::from_promise(*this);
-  }
-
-  template <typename Value>
-  decltype(auto) await_transform(Value&& value) noexcept(noexcept(
-      unifex::await_transform(*this, _die_on_done_fn{}((Value &&) value)))) {
-    return unifex::await_transform(*this, _die_on_done_fn{}((Value &&) value));
-  }
-
-  UNIFEX_NO_UNIQUE_ADDRESS std::tuple<Ts&...> args_;
+  });
 };
 
 template <typename... Ts>
@@ -312,11 +317,12 @@ private:
   }
 
 public:
-  template(typename Action, typename... Ts)                           //
-      (requires std::is_invocable_v<std::decay_t<Action>, std::decay_t<Ts>...>)  //
+  template(typename Action, typename... Ts)  //
+      (requires std::
+           is_invocable_v<std::decay_t<Action>, std::decay_t<Ts>...>)  //
       _cleanup_task<std::decay_t<Ts>...>
       operator()(Action&& action, Ts&&... ts) const {
-    return _fn::at_coroutine_exit((Action &&) action, (Ts &&) ts...);
+    return _fn::at_coroutine_exit((Action&&)action, (Ts&&)ts...);
   }
 } at_coroutine_exit{};
 }  // namespace _at_coroutine_exit

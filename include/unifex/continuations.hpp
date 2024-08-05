@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -30,13 +30,15 @@ namespace unifex {
 namespace _visit_continuations_cpo {
 inline const struct _fn {
 #if !UNIFEX_NO_COROUTINES
-  template(typename Promise, typename Func)                                  //
-      (requires(!same_as<Promise, void>) AND std::is_invocable_v<_fn, Promise&, Func>)  //
+  template(typename Promise, typename Func)  //
+      (requires(!same_as<Promise, void>)
+           AND std::is_invocable_v<_fn, Promise&, Func>)  //
       friend void tag_invoke(
           _fn cpo,
           coro::coroutine_handle<Promise> h,
-          Func&& func) noexcept(std::is_nothrow_invocable_v<_fn, Promise&, Func>) {
-    cpo(h.promise(), (Func &&) func);
+          Func&&
+              func) noexcept(std::is_nothrow_invocable_v<_fn, Promise&, Func>) {
+    cpo(h.promise(), (Func&&)func);
   }
 #endif  // UNIFEX_NO_COROUTINES
 
@@ -48,7 +50,7 @@ inline const struct _fn {
     static_assert(
         std::is_void_v<tag_invoke_result_t<_fn, const Continuation&, Func&&>>,
         "tag_invoke() overload for visit_continuations() must return void");
-    return tag_invoke(_fn{}, c, (Func &&) func);
+    return tag_invoke(_fn{}, c, (Func&&)func);
   }
 
   template(typename Continuation, typename Func)                  //
@@ -112,7 +114,11 @@ public:
   template <typename Promise>
   static continuation_info
   from_continuation(const continuation_handle<Promise>& c) noexcept {
-    return continuation_info{c.handle().address(), c.vtable_};
+    const _continuation_info_vtable* vtable = nullptr;
+#  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
+    vtable = c.vtable_;
+#  endif
+    return continuation_info{c.handle().address(), vtable};
   }
 #endif
 
@@ -173,9 +179,9 @@ void _visit_for(
 #endif
 
 template <typename Continuation>
-inline constexpr _continuation_info_vtable _vtable_for {
+inline constexpr _continuation_info_vtable _vtable_for{
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
-  &_type_index_getter_for<Continuation>, &_visit_for<Continuation>
+    &_type_index_getter_for<Continuation>, &_visit_for<Continuation>
 #endif
 };
 
@@ -190,15 +196,6 @@ using _ci::continuation_info;
 
 #if !UNIFEX_NO_COROUTINES
 namespace _ch {
-[[noreturn]] inline coro::coroutine_handle<>
-_default_done_callback(void*) noexcept {
-  std::terminate();
-}
-
-struct _continuation_handle_vtable : _ci::_continuation_info_vtable {
-  using done_callback_t = coro::coroutine_handle<>(void*) noexcept;
-  done_callback_t* doneCallback_;
-};
 
 template <>
 struct continuation_handle<void> {
@@ -212,24 +209,39 @@ struct continuation_handle<void> {
       (requires(!same_as<Promise, void>))  //
       /*implicit*/ continuation_handle(
           coro::coroutine_handle<Promise> continuation) noexcept
-    : continuation_handle(
-          0, (coro::coroutine_handle<Promise> &&) continuation) {}
+    : continuation_handle(0, (coro::coroutine_handle<Promise>&&)continuation) {}
 
   explicit operator bool() const noexcept { return handle_ != nullptr; }
 
   coro::coroutine_handle<> handle() const noexcept { return handle_; }
 
+  coro::coroutine_handle<> done_handle() const noexcept { return doneHandle_; }
+
   void resume() { handle_.resume(); }
 
-  coro::coroutine_handle<> done() const noexcept {
-    return vtable_->doneCallback_(handle_.address());
-  }
+  void resume_done() { doneHandle_.resume(); }
 
   continuation_info info() const noexcept {
     return continuation_info::from_continuation(*this);
   }
 
+private:
+  friend continuation_info;
+
+  template <typename Promise>
+  continuation_handle(
+      int, coro::coroutine_handle<Promise> continuation) noexcept;
+
+  coro::coroutine_handle<> handle_{};
+  coro::coroutine_handle<> doneHandle_{};
 #  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
+  inline static constexpr _ci::_continuation_info_vtable default_vtable_{
+      &_ci::_default_type_index_getter,
+      &_ci::_default_visit,
+  };
+
+  const _ci::_continuation_info_vtable* vtable_{&default_vtable_};
+
   template <typename F>
   friend void tag_invoke(
       tag_t<visit_continuations>, const continuation_handle<>& c, F&& f) {
@@ -241,25 +253,6 @@ struct continuation_handle<void> {
         const_cast<void*>(static_cast<const void*>(std::addressof(f))));
   }
 #  endif
-
-private:
-  friend continuation_info;
-
-  inline static constexpr _continuation_handle_vtable default_vtable_{
-      {
-#  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
-          &_ci::_default_type_index_getter,
-          &_ci::_default_visit,
-#  endif
-      },
-      &_default_done_callback};
-
-  template <typename Promise>
-  continuation_handle(
-      int, coro::coroutine_handle<Promise> continuation) noexcept;
-
-  coro::coroutine_handle<> handle_{};
-  const _continuation_handle_vtable* vtable_{&default_vtable_};
 };
 
 #  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
@@ -276,30 +269,22 @@ void _visit_for(
         cb(continuation_info::from_continuation(continuation), data);
       });
 }
-#  endif
 
 template <typename Promise>
-coro::coroutine_handle<> _done_callback_for(void* address) noexcept {
-  return coro::coroutine_handle<Promise>::from_address(address)
-      .promise()
-      .unhandled_done();
-}
-
-template <typename Promise>
-inline constexpr _continuation_handle_vtable _vtable_for{
-    {
-#  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
-        &_ci::_type_index_getter_for<Promise>,
-        &_visit_for<Promise>,
+inline constexpr _ci::_continuation_info_vtable _vtable_for{
+    &_ci::_type_index_getter_for<Promise>,
+    &_visit_for<Promise>,
+};
 #  endif
-    },
-    &_done_callback_for<Promise>};
 
 template <typename Promise>
 continuation_handle<void>::continuation_handle(
     int, coro::coroutine_handle<Promise> continuation) noexcept
-  : handle_((coro::coroutine_handle<Promise> &&) continuation)
-  , vtable_(&_vtable_for<Promise>) {
+  : handle_(continuation)
+  , doneHandle_(continuation.promise().unhandled_done()) {
+#  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
+  vtable_ = &_vtable_for<Promise>;
+#  endif
 }
 
 template <typename Promise>
@@ -308,7 +293,7 @@ struct continuation_handle {
 
   /*implicit*/ continuation_handle(
       coro::coroutine_handle<Promise> continuation) noexcept
-    : self_((coro::coroutine_handle<Promise> &&) continuation) {}
+    : self_((coro::coroutine_handle<Promise>&&)continuation) {}
 
   explicit operator bool() const noexcept { return !!self_; }
 
@@ -319,11 +304,15 @@ struct continuation_handle {
         self_.handle().address());
   }
 
+  coro::coroutine_handle<> done_handle() const noexcept {
+    return self_.done_handle();
+  }
+
   void resume() { self_.resume(); }
 
-  Promise& promise() const noexcept { return handle().promise(); }
+  void resume_done() { self_.resume_done(); }
 
-  coro::coroutine_handle<> done() const noexcept { return self_.done(); }
+  Promise& promise() const noexcept { return handle().promise(); }
 
   continuation_info info() const noexcept { return self_.info(); }
 
@@ -333,7 +322,7 @@ struct continuation_handle {
       tag_t<visit_continuations>,
       const continuation_handle<Promise>& c,
       F&& f) {
-    visit_continuations(c.self_, (F &&) f);
+    visit_continuations(c.self_, (F&&)f);
   }
 #  endif
 

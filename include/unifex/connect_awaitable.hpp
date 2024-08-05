@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -22,6 +22,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/unhandled_done.hpp>
 
 #if UNIFEX_NO_COROUTINES
 #  error "Coroutine support is required to use <unifex/connect_awaitable.hpp>"
@@ -60,8 +61,7 @@ public:
     [[noreturn]] void return_void() noexcept { std::terminate(); }
 
     coro::coroutine_handle<> unhandled_done() noexcept {
-      unifex::set_done(std::move(receiver_));
-      return coro::noop_coroutine();
+      return doneCoro_.handle();
     }
 
     template <typename Func>
@@ -70,7 +70,7 @@ public:
       bool await_ready() noexcept { return false; }
       void await_suspend(coro::coroutine_handle<promise_type>) noexcept(
           std::is_nothrow_invocable_v<Func>) {
-        ((Func &&) func_)();
+        ((Func&&)func_)();
       }
       [[noreturn]] void await_resume() noexcept { std::terminate(); }
     };
@@ -82,14 +82,14 @@ public:
 
     template <typename Value>
     auto await_transform(Value&& value) -> decltype(auto) {
-      return unifex::await_transform(*this, (Value &&) value);
+      return unifex::await_transform(*this, (Value&&)value);
     }
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const promise_type& p, Func&& func) {
-      visit_continuations(p.receiver_, (Func &&) func);
+      visit_continuations(p.receiver_, (Func&&)func);
     }
 #endif
 
@@ -103,6 +103,8 @@ public:
     }
 
     Receiver& receiver_;
+    done_coro doneCoro_ = unifex::unhandled_done(
+        [this]() noexcept { unifex::set_done(std::move(receiver_)); });
   };
 
   coro::coroutine_handle<promise_type> coro_;
@@ -131,7 +133,7 @@ private:
   struct _comma_hack {
     template <typename T>
     friend T&& operator,(T&& t, _comma_hack) noexcept {
-      return (T &&) t;
+      return (T&&)t;
     }
     operator unit() const noexcept { return {}; }
   };
@@ -175,7 +177,7 @@ private:
         // expression has type void. This could potentially run into trouble
         // if the type of the co_await expression itself overloads operator
         // comma, but that's pretty unlikely.
-      }((co_await(Awaitable &&) awaitable, _comma_hack{}));
+      }((co_await (Awaitable&&) awaitable, _comma_hack{}));
 #if !UNIFEX_NO_EXCEPTIONS
     } catch (...) {
       ex = std::current_exception();
@@ -190,7 +192,7 @@ public:
   template <typename Awaitable, typename Receiver>
   auto operator()(Awaitable&& awaitable, Receiver&& receiver) const
       -> _await::sender_task<remove_cvref_t<Receiver>> {
-    return connect_impl((Awaitable &&) awaitable, (Receiver &&) receiver);
+    return connect_impl((Awaitable&&)awaitable, (Receiver&&)receiver);
   }
 } connect_awaitable{};
 }  // namespace _await_cpo
@@ -214,13 +216,12 @@ struct _sndr {
 
     static constexpr bool sends_done = true;
 
-    type(Awaitable awaitable) : awaitable_((Awaitable &&) awaitable) {}
+    type(Awaitable awaitable) : awaitable_((Awaitable&&)awaitable) {}
 
     template(typename Receiver)                   //
         (requires receiver_of<Receiver, Result>)  //
         friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
-      return unifex::connect_awaitable(
-          ((type &&) t).awaitable_, (Receiver &&) r);
+      return unifex::connect_awaitable(((type&&)t).awaitable_, (Receiver&&)r);
     }
 
     // TODO: how do we make this property statically discoverable?
@@ -251,13 +252,12 @@ struct _sndr<Awaitable, void> {
 
     explicit type(Awaitable awaitable) noexcept(
         std::is_nothrow_move_constructible_v<Awaitable>)
-      : awaitable_((Awaitable &&) awaitable) {}
+      : awaitable_((Awaitable&&)awaitable) {}
 
     template(typename Receiver)           //
         (requires receiver_of<Receiver>)  //
         friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
-      return unifex::connect_awaitable(
-          ((type &&) t).awaitable_, (Receiver &&) r);
+      return unifex::connect_awaitable(((type&&)t).awaitable_, (Receiver&&)r);
     }
 
     // TODO: how do we make this property statically discoverable?
@@ -279,7 +279,7 @@ struct _fn {
       (requires detail::_awaitable<Awaitable>)  //
       _sender<remove_cvref_t<Awaitable>>
       operator()(Awaitable&& awaitable) const {
-    return _sender<remove_cvref_t<Awaitable>>{(Awaitable &&) awaitable};
+    return _sender<remove_cvref_t<Awaitable>>{(Awaitable&&)awaitable};
   }
 };
 }  // namespace _as_sender
