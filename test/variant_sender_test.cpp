@@ -81,8 +81,12 @@ struct TestSender {
 }  // namespace
 
 TEST(Variant, CombineJustAndError) {
-  auto func =
-      [](bool v) -> variant_sender<decltype(just(5)), decltype(just_error(5))> {
+  using combined_sender_t =
+      variant_sender<decltype(just(5)), decltype(just_error(5))>;
+  static_assert(std::is_same_v<
+                sender_traits<combined_sender_t>::template error_types<type_list>,
+                type_list<std::exception_ptr, int>>);
+  auto func = [](bool v) -> combined_sender_t {
     if (v) {
       return just(5);
     } else {

@@ -19,6 +19,7 @@
 #include <unifex/just_from.hpp>
 #include <unifex/let_done.hpp>
 #include <unifex/let_error.hpp>
+#include <unifex/never.hpp>
 #include <unifex/on.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/sequence.hpp>
@@ -174,6 +175,16 @@ TEST(TransformError, SequenceFwd) {
 }
 
 #if !UNIFEX_NO_COROUTINES
+TEST(TransformError, TaskAwaitable) {
+  auto value = []() -> task<int> {
+    co_return co_await (
+        just_error(42) | let_error(just_int{}) | stop_when(never_sender()));
+  }() |
+      sync_wait();
+  ASSERT_TRUE(value.has_value());
+  EXPECT_EQ(*value, 42);
+}
+
 TEST(TransformError, WithTask) {
   auto value = let_error(
                    then(
