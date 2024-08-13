@@ -106,8 +106,9 @@ public:
       template apply<Variant>;
 
   template <template <typename...> class Variant>
-  using error_types =
-      concat_type_lists_unique_t<sender_error_types_t<Senders, Variant>...>;
+  using error_types = typename concat_type_lists_unique_t<
+      sender_error_types_t<Senders, type_list>...>::
+      template apply<Variant>;
 
   static constexpr bool sends_done = std::disjunction_v<
       std::bool_constant<sender_traits<Senders>::sends_done>...>;

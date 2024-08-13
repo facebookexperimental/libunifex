@@ -378,7 +378,6 @@ public:
 
   template <template <typename...> class Variant>
   using error_types = typename concat_type_lists_unique_t<
-      sender_error_type_list_t<Source>,
       apply_to_type_list_t<
           concat_type_lists_unique_t,
           map_type_list_t<final_senders_list, sender_error_type_list_t>>,
