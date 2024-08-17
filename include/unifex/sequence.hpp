@@ -16,8 +16,8 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>

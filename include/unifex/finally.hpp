@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/manual_lifetime_union.hpp>
 #include <unifex/receiver_concepts.hpp>

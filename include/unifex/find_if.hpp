@@ -16,12 +16,12 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/bulk_join.hpp>
 #include <unifex/bulk_schedule.hpp>
 #include <unifex/bulk_transform.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/just.hpp>

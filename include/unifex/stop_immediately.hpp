@@ -15,8 +15,8 @@
  */
 #pragma once
 
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/exception.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/inplace_stop_token.hpp>
