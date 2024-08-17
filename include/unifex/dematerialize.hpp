@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -16,9 +16,9 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
@@ -180,10 +180,12 @@ public:
   static constexpr bool is_always_scheduler_affine =
       sender_traits<Source>::is_always_scheduler_affine;
 
-  template (typename Source2)
-      (requires (!same_as<remove_cvref_t<Source2>, type>))
-  explicit type(Source2&& source) noexcept(
-      std::is_nothrow_constructible_v<Source, Source2>)
+  template(typename Source2)  //
+      (requires(!same_as<
+                remove_cvref_t<Source2>,
+                type>))  //
+      explicit type(Source2&& source) noexcept(
+          std::is_nothrow_constructible_v<Source, Source2>)
     : source_(static_cast<Source2&&>(source)) {}
 
   template(typename Self, typename Receiver)  //
@@ -192,8 +194,8 @@ public:
       friend auto tag_invoke(tag_t<unifex::connect>, Self&& self, Receiver&& r) noexcept(
           is_nothrow_connectable_v<
               member_t<Self, Source>,
-              receiver_t<Receiver>>&& std::
-              is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+              receiver_t<Receiver>> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
           -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
     return unifex::connect(
         static_cast<Self&&>(self).source_,
@@ -225,7 +227,7 @@ public:
       auto
       operator()(Sender&& predecessor) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender>) -> _result_t<Sender> {
-    return unifex::tag_invoke(_fn{}, (Sender &&) predecessor);
+    return unifex::tag_invoke(_fn{}, (Sender&&)predecessor);
   }
   template(typename Sender)                    //
       (requires(!tag_invocable<_fn, Sender>))  //
@@ -233,7 +235,7 @@ public:
       operator()(Sender&& predecessor) const
       noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>)
           -> _result_t<Sender> {
-    return _demat::sender<Sender>{(Sender &&) predecessor};
+    return _demat::sender<Sender>{(Sender&&)predecessor};
   }
   constexpr auto operator()() const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)

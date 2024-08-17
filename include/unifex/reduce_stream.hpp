@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -16,8 +16,8 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/exception.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
@@ -92,7 +92,7 @@ struct _error_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::
   void set_error(Error error) noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.errorCleanup_);
-    unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
+    unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error&&)error);
   }
 
   void set_done() noexcept {
@@ -156,7 +156,7 @@ struct _done_cleanup_receiver<StreamSender, State, ReducerFunc, Receiver>::
   void set_error(Error error) && noexcept {
     auto& op = op_;
     unifex::deactivate_union_member(op.doneCleanup_);
-    unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error &&) error);
+    unifex::set_error(static_cast<Receiver&&>(op.receiver_), (Error&&)error);
   }
 
   void set_done() && noexcept {
@@ -242,7 +242,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
     unifex::deactivate_union_member(op.next_);
     UNIFEX_TRY {
       op.state_ =
-          std::invoke(op.reducer_, std::move(op.state_), (Values &&) values...);
+          std::invoke(op.reducer_, std::move(op.state_), (Values&&)values...);
       unifex::activate_union_member_with(op.next_, [&] {
         return unifex::connect(next(op.stream_), next_receiver_t{op});
       });
@@ -279,7 +279,7 @@ struct _next_receiver<StreamSender, State, ReducerFunc, Receiver>::type {
 
   template <typename Error>
   void set_error(Error&& e) && noexcept {
-    std::move(*this).set_error(make_exception_ptr((Error &&) e));
+    std::move(*this).set_error(make_exception_ptr((Error&&)e));
   }
 };
 
@@ -404,7 +404,7 @@ struct _sender<StreamSender, State, ReducerFunc>::type {
         static_cast<Self&&>(self).stream_,
         static_cast<Self&&>(self).initialState_,
         static_cast<Self&&>(self).reducer_,
-        (Receiver &&) receiver};
+        (Receiver&&)receiver};
   }
 };
 }  // namespace _reduce
@@ -421,15 +421,14 @@ inline const struct _fn {
                ReducerFunc>)
           -> _reduce::sender<StreamSender, State, ReducerFunc> {
     return _reduce::sender<StreamSender, State, ReducerFunc>{
-        (StreamSender &&) stream,
-        (State &&) initialState,
-        (ReducerFunc &&) reducer};
+        (StreamSender&&)stream, (State&&)initialState, (ReducerFunc&&)reducer};
   }
   template <typename State, typename ReducerFunc>
-  constexpr auto operator()(State&& initialState, ReducerFunc&& reducer) const
-      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, State, ReducerFunc>)
-          -> bind_back_result_t<_fn, State, ReducerFunc> {
-    return bind_back(*this, (State &&) initialState, (ReducerFunc &&) reducer);
+  constexpr auto
+  operator()(State&& initialState, ReducerFunc&& reducer) const noexcept(
+      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, State, ReducerFunc>)
+      -> bind_back_result_t<_fn, State, ReducerFunc> {
+    return bind_back(*this, (State&&)initialState, (ReducerFunc&&)reducer);
   }
 } reduce_stream{};
 }  // namespace _reduce_cpo

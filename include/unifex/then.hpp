@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -16,9 +16,9 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/blocking.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
@@ -63,33 +63,31 @@ struct _receiver<Receiver, Func>::type {
   void set_value(Values&&... values) && noexcept {
     using result_type = std::invoke_result_t<Func, Values...>;
     if constexpr (std::is_void_v<result_type>) {
-      if constexpr (noexcept(
-                        std::invoke((Func &&) func_, (Values &&) values...))) {
-        std::invoke((Func &&) func_, (Values &&) values...);
-        unifex::set_value((Receiver &&) receiver_);
+      if constexpr (noexcept(std::invoke((Func&&)func_, (Values&&)values...))) {
+        std::invoke((Func&&)func_, (Values&&)values...);
+        unifex::set_value((Receiver&&)receiver_);
       } else {
         UNIFEX_TRY {
-          std::invoke((Func &&) func_, (Values &&) values...);
-          unifex::set_value((Receiver &&) receiver_);
+          std::invoke((Func&&)func_, (Values&&)values...);
+          unifex::set_value((Receiver&&)receiver_);
         }
         UNIFEX_CATCH(...) {
-          unifex::set_error((Receiver &&) receiver_, std::current_exception());
+          unifex::set_error((Receiver&&)receiver_, std::current_exception());
         }
       }
     } else {
-      if constexpr (noexcept(
-                        std::invoke((Func &&) func_, (Values &&) values...))) {
+      if constexpr (noexcept(std::invoke((Func&&)func_, (Values&&)values...))) {
         unifex::set_value(
-            (Receiver &&) receiver_,
-            std::invoke((Func &&) func_, (Values &&) values...));
+            (Receiver&&)receiver_,
+            std::invoke((Func&&)func_, (Values&&)values...));
       } else {
         UNIFEX_TRY {
           unifex::set_value(
-              (Receiver &&) receiver_,
-              std::invoke((Func &&) func_, (Values &&) values...));
+              (Receiver&&)receiver_,
+              std::invoke((Func&&)func_, (Values&&)values...));
         }
         UNIFEX_CATCH(...) {
-          unifex::set_error((Receiver &&) receiver_, std::current_exception());
+          unifex::set_error((Receiver&&)receiver_, std::current_exception());
         }
       }
     }
@@ -97,10 +95,10 @@ struct _receiver<Receiver, Func>::type {
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    unifex::set_error((Receiver &&) receiver_, (Error &&) error);
+    unifex::set_error((Receiver&&)receiver_, (Error&&)error);
   }
 
-  void set_done() && noexcept { unifex::set_done((Receiver &&) receiver_); }
+  void set_done() && noexcept { unifex::set_done((Receiver&&)receiver_); }
 
   template(typename CPO, typename R)                                //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, type>)  //
@@ -171,20 +169,12 @@ public:
            sender_to<
                member_t<Sender, Predecessor>,
                receiver_t<remove_cvref_t<Receiver>>>)  //
-      friend auto tag_invoke(
-          tag_t<unifex::connect>,
-          Sender&& s,
-          Receiver&&
-              r) noexcept(std::
-                              is_nothrow_constructible_v<
-                                  remove_cvref_t<Receiver>,
-                                  Receiver>&&
-                                  std::is_nothrow_constructible_v<
-                                      Func,
-                                      member_t<Sender, Func>>&&
-                                      is_nothrow_connectable_v<
-                                          member_t<Sender, Predecessor>,
-                                          receiver_t<remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+          std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
+          is_nothrow_connectable_v<
+              member_t<Sender, Predecessor>,
+              receiver_t<remove_cvref_t<Receiver>>>)
           -> connect_result_t<
               member_t<Sender, Predecessor>,
               receiver_t<remove_cvref_t<Receiver>>> {
@@ -216,7 +206,7 @@ public:
       operator()(Sender&& predecessor, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
           -> _result_t<Sender, Func> {
-    return unifex::tag_invoke(_fn{}, (Sender &&) predecessor, (Func &&) func);
+    return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
   }
   template(typename Sender, typename Func)           //
       (requires(!tag_invocable<_fn, Sender, Func>))  //
@@ -226,13 +216,13 @@ public:
                _then::sender<Sender, Func>,
                Sender,
                Func>) -> _result_t<Sender, Func> {
-    return _then::sender<Sender, Func>{(Sender &&) predecessor, (Func &&) func};
+    return _then::sender<Sender, Func>{(Sender&&)predecessor, (Func&&)func};
   }
   template <typename Func>
   constexpr auto operator()(Func&& func) const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
-    return bind_back(*this, (Func &&) func);
+    return bind_back(*this, (Func&&)func);
   }
 };
 }  // namespace _cpo

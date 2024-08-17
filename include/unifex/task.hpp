@@ -16,7 +16,6 @@
 #pragma once
 
 #include <unifex/any_scheduler.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/await_transform.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/connect_awaitable.hpp>

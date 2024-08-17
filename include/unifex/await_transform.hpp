@@ -21,7 +21,6 @@
 #  error "Coroutine support is required to use <unifex/await_transform.hpp>"
 #endif
 
-#include <unifex/async_trace.hpp>
 #include <unifex/continuations.hpp>
 #include <unifex/coroutine_concepts.hpp>
 #include <unifex/manual_lifetime.hpp>

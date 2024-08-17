@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -16,12 +16,12 @@
 #pragma once
 
 #include <unifex/config.hpp>
-#include <unifex/async_trace.hpp>
 #include <unifex/bind_back.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/bulk_join.hpp>
 #include <unifex/bulk_schedule.hpp>
 #include <unifex/bulk_transform.hpp>
+#include <unifex/continuations.hpp>
 #include <unifex/execution_policy.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/just.hpp>
@@ -94,7 +94,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
         Tuple&& t,
         std::index_sequence<Idx...>) {
       unifex::set_value(
-          (OutputReceiver &&) output_receiver, std::move(std::get<Idx>(t))...);
+          (OutputReceiver&&)output_receiver, std::move(std::get<Idx>(t))...);
     }
 
     template <typename Iterator, typename... Values>
@@ -102,26 +102,26 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
       operation_state_.cleanup();
       UNIFEX_TRY {
         unpack_helper(
-            (OutputReceiver &&) output_receiver_,
+            (OutputReceiver&&)output_receiver_,
             std::move(packedResult),
             std::make_index_sequence<
                 std::tuple_size_v<std::tuple<Iterator, Values...>>>{});
       }
       UNIFEX_CATCH(...) {
         unifex::set_error(
-            (OutputReceiver &&) output_receiver_, std::current_exception());
+            (OutputReceiver&&)output_receiver_, std::current_exception());
       }
     }
 
     template <typename Error>
     void set_error(Error&& error) && noexcept {
       operation_state_.cleanup();
-      unifex::set_error((OutputReceiver &&) output_receiver_, (Error &&) error);
+      unifex::set_error((OutputReceiver&&)output_receiver_, (Error&&)error);
     }
 
     void set_done() && noexcept {
       operation_state_.cleanup();
-      unifex::set_done((OutputReceiver &&) output_receiver_);
+      unifex::set_done((OutputReceiver&&)output_receiver_);
     }
 
     template(typename CPO, typename R)  //
@@ -150,7 +150,7 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
           unifex::just(std::forward<Values>(values)...),
           [this, begin_it, end_it](auto... values) {
             for (auto it = begin_it; it != end_it; ++it) {
-              if (std::invoke((Func &&) func_, *it, values...)) {
+              if (std::invoke((Func&&)func_, *it, values...)) {
                 return std::tuple<Iterator, Values...>(
                     it, std::move(values)...);
               }
@@ -297,10 +297,10 @@ struct _receiver<Predecessor, Receiver, Func, FuncPolicy>::type {
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    unifex::set_error((Receiver &&) receiver_, (Error &&) error);
+    unifex::set_error((Receiver&&)receiver_, (Error&&)error);
   }
 
-  void set_done() && noexcept { unifex::set_done((Receiver &&) receiver_); }
+  void set_done() && noexcept { unifex::set_done((Receiver&&)receiver_); }
 
   template(typename CPO, typename R)                                //
       (requires is_receiver_query_cpo_v<CPO> AND same_as<R, type>)  //
@@ -376,10 +376,10 @@ template <typename Iterator, typename... Values>
 void _receiver<Predecessor, Receiver, Func, FuncPolicy>::type::set_value(
     Iterator begin_it, Iterator end_it, Values&&... values) && noexcept {
   auto sched = unifex::get_scheduler(receiver_);
-  unpack_receiver<Receiver> unpack{(Receiver &&) receiver_, operation_state_};
+  unpack_receiver<Receiver> unpack{(Receiver&&)receiver_, operation_state_};
   UNIFEX_TRY {
     auto find_if_implementation_sender = find_if_helper{std::move(func_)}(
-        std::move(sched), funcPolicy_, begin_it, end_it, (Values &&) values...);
+        std::move(sched), funcPolicy_, begin_it, end_it, (Values&&)values...);
     // Store nested operation state inside find_if's operation state
     operation_state_.innerOp_.construct_with([&]() mutable {
       return unifex::connect(
@@ -437,20 +437,12 @@ struct _sender<Predecessor, Func, FuncPolicy>::type {
   template(typename Sender, typename Receiver)  //
       (requires same_as<remove_cvref_t<Sender>, type> AND
            receiver<Receiver>)  //
-      friend auto tag_invoke(
-          tag_t<unifex::connect>,
-          Sender&& s,
-          Receiver&& r) noexcept(std::
-                                     is_nothrow_constructible_v<
-                                         remove_cvref_t<Receiver>,
-                                         Receiver>&&
-                                         std::is_nothrow_constructible_v<
-                                             Func,
-                                             member_t<Sender, Func>>&&
-                                             is_nothrow_connectable_v<
-                                                 member_t<Sender, Predecessor>,
-                                                 receiver_type<
-                                                     remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+          std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
+          is_nothrow_connectable_v<
+              member_t<Sender, Predecessor>,
+              receiver_type<remove_cvref_t<Receiver>>>)
           -> _operation_state<Predecessor, Receiver, Func, FuncPolicy> {
     return _operation_state<Predecessor, Receiver, Func, FuncPolicy>{
         static_cast<Sender&&>(s), static_cast<Receiver&&>(r)};
@@ -468,27 +460,33 @@ public:
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func, FuncPolicy>)
           -> tag_invoke_result_t<_fn, Sender, Func, FuncPolicy> {
     return unifex::tag_invoke(
-        _fn{}, (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy);
+        _fn{}, (Sender&&)predecessor, (Func&&)func, (FuncPolicy&&)policy);
   }
   template(typename Sender, typename Func, typename FuncPolicy)  //
       (requires(!tag_invocable<_fn, Sender, Func, FuncPolicy>))  //
       auto
       operator()(Sender&& predecessor, Func&& func, FuncPolicy policy) const
-      noexcept(std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender>&&
-                   std::is_nothrow_constructible_v<remove_cvref_t<Func>, Func>&&
-                       std::is_nothrow_constructible_v<
-                           remove_cvref_t<FuncPolicy>,
-                           FuncPolicy>) -> _find_if::
-          sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy> {
+      noexcept(
+          std::is_nothrow_constructible_v<remove_cvref_t<Sender>, Sender> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Func>, Func> &&
+          std::is_nothrow_constructible_v<
+              remove_cvref_t<FuncPolicy>,
+              FuncPolicy>)
+          -> _find_if::
+              sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy> {
     return _find_if::
         sender_t<remove_cvref_t<Sender>, std::decay_t<Func>, FuncPolicy>{
-            (Sender &&) predecessor, (Func &&) func, (FuncPolicy &&) policy};
+            (Sender&&)predecessor, (Func&&)func, (FuncPolicy&&)policy};
   }
   template <typename Func, typename FuncPolicy>
-  constexpr auto operator()(Func&& f, const FuncPolicy& policy) const noexcept(
-      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func, const FuncPolicy&>)
-      -> bind_back_result_t<_fn, Func, const FuncPolicy&> {
-    return bind_back(*this, (Func &&) f, policy);
+  constexpr auto operator()(Func&& f, const FuncPolicy& policy) const
+      noexcept(std::is_nothrow_invocable_v<
+               tag_t<bind_back>,
+               _fn,
+               Func,
+               const FuncPolicy&>)
+          -> bind_back_result_t<_fn, Func, const FuncPolicy&> {
+    return bind_back(*this, (Func&&)f, policy);
   }
 } find_if{};
 }  // namespace _find_if_cpo
