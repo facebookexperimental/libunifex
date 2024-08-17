@@ -74,8 +74,8 @@ struct _operation_tuple<Index, Receiver, First, Rest...>::type
   : operation_tuple<Index + 1, Receiver, Rest...> {
   template <typename Parent>
   explicit type(Parent& parent, First&& first, Rest&&... rest)
-    : operation_tuple<Index + 1, Receiver, Rest...>{parent, (Rest &&) rest...}
-    , op_(connect((First &&) first, Receiver<Index>{parent})) {}
+    : operation_tuple<Index + 1, Receiver, Rest...>{parent, (Rest&&)rest...}
+    , op_(connect((First&&)first, Receiver<Index>{parent})) {}
 
   void start() noexcept {
     unifex::start(op_);
@@ -149,17 +149,19 @@ struct _element_receiver<Index, Receiver, Senders...>::type final {
       std::get<Index>(op_.values_)
           .emplace(
               std::in_place_type<std::tuple<std::decay_t<Values>...>>,
-              (Values &&) values...);
+              (Values&&)values...);
       op_.element_complete();
     }
-    UNIFEX_CATCH(...) { this->set_error(std::current_exception()); }
+    UNIFEX_CATCH(...) {
+      this->set_error(std::current_exception());
+    }
   }
 
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
       op_.error_.emplace(
-          std::in_place_type<std::decay_t<Error>>, (Error &&) error);
+          std::in_place_type<std::decay_t<Error>>, (Error&&)error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
@@ -210,8 +212,8 @@ struct _op<Receiver, Senders...>::type {
 
   template <typename Receiver2, typename... Senders2>
   explicit type(Receiver2&& receiver, Senders2&&... senders)
-    : receiver_((Receiver2 &&) receiver)
-    , ops_(*this, (Senders2 &&) senders...) {}
+    : receiver_((Receiver2&&)receiver)
+    , ops_(*this, (Senders2&&)senders...) {}
 
   void start() noexcept {
     stopCallback_.construct(
@@ -344,7 +346,7 @@ public:
       (sender_traits<Senders>::is_always_scheduler_affine && ...);
 
   template <typename... Senders2>
-  explicit type(Senders2&&... senders) : senders_((Senders2 &&) senders...) {}
+  explicit type(Senders2&&... senders) : senders_((Senders2&&)senders...) {}
 
   template(typename CPO, typename Sender, typename Receiver)  //
       (requires same_as<CPO, tag_t<unifex::connect>> AND
@@ -359,8 +361,7 @@ public:
     return std::apply(
         [&](auto&&... senders) {
           return operation<Receiver, member_t<Sender, Senders>...>{
-              (Receiver &&) receiver,
-              static_cast<decltype(senders)>(senders)...};
+              (Receiver&&)receiver, static_cast<decltype(senders)>(senders)...};
         },
         static_cast<Sender&&>(sender).senders_);
   }
@@ -390,14 +391,14 @@ struct _fn {
       auto
       operator()(Senders&&... senders) const
       -> tag_invoke_result_t<_fn, Senders...> {
-    return tag_invoke(*this, (Senders &&) senders...);
+    return tag_invoke(*this, (Senders&&)senders...);
   }
   template(typename... Senders)  //
       (requires(unifex::sender<Senders>&&...)
            AND(!tag_invocable<_fn, Senders...>))  //
       auto
       operator()(Senders&&... senders) const -> _when_all::sender<Senders...> {
-    return _when_all::sender<Senders...>{(Senders &&) senders...};
+    return _when_all::sender<Senders...>{(Senders&&)senders...};
   }
 };
 }  // namespace _cpo

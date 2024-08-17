@@ -91,8 +91,7 @@ public:
         unifex::start(sourceOp);
       }
       UNIFEX_CATCH(...) {
-        unifex::set_error(
-            (Receiver &&) op->receiver_, std::current_exception());
+        unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
       }
     }
   }
@@ -104,7 +103,7 @@ public:
 
     auto* const op = op_;
     destroy_trigger_op();
-    unifex::set_done((Receiver &&) op->receiver_);
+    unifex::set_done((Receiver&&)op->receiver_);
   }
 
   template(typename Error)                  //
@@ -118,7 +117,7 @@ public:
     // to be valid after we destroy the operation-state that sent it.
     destroy_trigger_op();
 
-    unifex::set_error((Receiver &&) op->receiver_, (Error &&) error);
+    unifex::set_error((Receiver&&)op->receiver_, (Error&&)error);
   }
 
 private:
@@ -171,7 +170,7 @@ public:
       void set_value(Values&&... values) noexcept(
           is_nothrow_receiver_of_v<Receiver, Values...>) {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
+    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   void set_done() noexcept {
@@ -202,8 +201,7 @@ public:
       auto& triggerOp = unifex::activate_union_member_with<trigger_op_t>(
           op->triggerOps_, [&]() noexcept {
             return unifex::connect(
-                std::invoke(op->func_, (Error &&) error),
-                trigger_receiver_t{op});
+                std::invoke(op->func_, (Error&&)error), trigger_receiver_t{op});
           });
       unifex::start(triggerOp);
     } else {
@@ -211,14 +209,13 @@ public:
         auto& triggerOp = unifex::activate_union_member_with<trigger_op_t>(
             op->triggerOps_, [&]() {
               return unifex::connect(
-                  std::invoke(op->func_, (Error &&) error),
+                  std::invoke(op->func_, (Error&&)error),
                   trigger_receiver_t{op});
             });
         unifex::start(triggerOp);
       }
       UNIFEX_CATCH(...) {
-        unifex::set_error(
-            (Receiver &&) op->receiver_, std::current_exception());
+        unifex::set_error((Receiver&&)op->receiver_, std::current_exception());
       }
     }
   }
@@ -263,13 +260,13 @@ class _op<Source, Func, Receiver>::type {
 public:
   template <typename Source2, typename Func2, typename Receiver2>
   explicit type(Source2&& source, Func2&& func, Receiver2&& receiver) noexcept(
-      std::is_nothrow_constructible_v<Source, Source2>&&
-          std::is_nothrow_constructible_v<Func, Func2>&&
-              std::is_nothrow_constructible_v<Receiver, Receiver2>&&
-                  is_nothrow_connectable_v<Source&, source_receiver_t>)
-    : source_((Source2 &&) source)
-    , func_((Func2 &&) func)
-    , receiver_((Receiver &&) receiver) {
+      std::is_nothrow_constructible_v<Source, Source2> &&
+      std::is_nothrow_constructible_v<Func, Func2> &&
+      std::is_nothrow_constructible_v<Receiver, Receiver2> &&
+      is_nothrow_connectable_v<Source&, source_receiver_t>)
+    : source_((Source2&&)source)
+    , func_((Func2&&)func)
+    , receiver_((Receiver&&)receiver) {
     unifex::activate_union_member_with(sourceOp_, [&] {
       return unifex::connect(source_, source_receiver_t{this});
     });
@@ -370,10 +367,10 @@ public:
 
   template <typename Source2, typename Func2>
   explicit type(Source2&& source, Func2&& func) noexcept(
-      std::is_nothrow_constructible_v<Source, Source2>&&
-          std::is_nothrow_constructible_v<Func, Func2>)
-    : source_((Source2 &&) source)
-    , func_((Func2 &&) func) {}
+      std::is_nothrow_constructible_v<Source, Source2> &&
+      std::is_nothrow_constructible_v<Func, Func2>)
+    : source_((Source2&&)source)
+    , func_((Func2&&)func) {}
 
   // TODO: The connect() methods are currently under-constrained.
   // Ideally they should also check that func() invoked with each of the errors
@@ -390,31 +387,18 @@ public:
                                Source,
                                Func,
                                remove_cvref_t<Receiver>>>)  //
-      friend auto tag_invoke(
-          tag_t<connect>,
-          Self&& self,
-          Receiver&&
-              r) noexcept(std::
-                              is_nothrow_constructible_v<
-                                  Source,
-                                  member_t<Self, Source>>&&
-                                  std::is_nothrow_constructible_v<
-                                      Func,
-                                      member_t<Self, Func>>&&
-                                      std::is_nothrow_constructible_v<
-                                          remove_cvref_t<Receiver>,
-                                          Receiver>&&
-                                          is_nothrow_connectable_v<
-                                              Source&,
-                                              source_receiver<
-                                                  Source,
-                                                  Func,
-                                                  remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
+          std::is_nothrow_constructible_v<Source, member_t<Self, Source>> &&
+          std::is_nothrow_constructible_v<Func, member_t<Self, Func>> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+          is_nothrow_connectable_v<
+              Source&,
+              source_receiver<Source, Func, remove_cvref_t<Receiver>>>)
           -> operation<Source, Func, Receiver> {
     return operation<Source, Func, Receiver>{
         static_cast<Self&&>(self).source_,
         static_cast<Self&&>(self).func_,
-        (Receiver &&) r};
+        (Receiver&&)r};
   }
 
 private:
@@ -439,7 +423,7 @@ public:
       operator()(Source&& source, Func&& func) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Source, Func>)
           -> _result_t<Source, Func> {
-    return unifex::tag_invoke(_fn{}, (Source &&) source, (Func &&) func);
+    return unifex::tag_invoke(_fn{}, (Source&&)source, (Func&&)func);
   }
   template(typename Source, typename Func)  //
       (requires(!tag_invocable<_fn, Source, Func>)
@@ -451,14 +435,13 @@ public:
                _retry_when::sender<Source, Func>,
                Source,
                Func>) -> _result_t<Source, Func> {
-    return _retry_when::sender<Source, Func>{
-        (Source &&) source, (Func &&) func};
+    return _retry_when::sender<Source, Func>{(Source&&)source, (Func&&)func};
   }
   template <typename Func>
   constexpr auto operator()(Func&& func) const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
           -> bind_back_result_t<_fn, Func> {
-    return bind_back(*this, (Func &&) func);
+    return bind_back(*this, (Func&&)func);
   }
 } retry_when{};
 }  // namespace _retry_when_cpo

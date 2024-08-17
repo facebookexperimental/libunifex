@@ -118,7 +118,9 @@ private:
     // destroying before passing the values along to the next receiver.
     void set_value(Values... values) && noexcept {
       handle_signal([&](next_receiver_base* receiver) noexcept {
-        UNIFEX_TRY { std::move(*receiver).set_value((Values &&) values...); }
+        UNIFEX_TRY {
+          std::move(*receiver).set_value((Values&&)values...);
+        }
         UNIFEX_CATCH(...) {
           std::move(*receiver).set_error(std::current_exception());
         }
@@ -133,7 +135,7 @@ private:
 
     template <typename Error>
     void set_error(Error&& error) && noexcept {
-      std::move(*this).set_error(make_exception_ptr((Error &&) error));
+      std::move(*this).set_error(make_exception_ptr((Error&&)error));
     }
 
     void set_error(std::exception_ptr ex) && noexcept {
@@ -225,7 +227,7 @@ private:
 
           void set_value(Values&&... values) && noexcept final {
             op_.stopCallback_.destruct();
-            unifex::set_value(std::move(op_.receiver_), (Values &&) values...);
+            unifex::set_value(std::move(op_.receiver_), (Values&&)values...);
           }
 
           void set_done() && noexcept final {
@@ -252,7 +254,7 @@ private:
         explicit type(stream& strm, Receiver2&& receiver)
           : stream_(strm)
           , concreteReceiver_(*this)
-          , receiver_{(Receiver2 &&) receiver} {}
+          , receiver_{(Receiver2&&)receiver} {}
 
         void start() noexcept {
           auto stopToken = get_stop_token(receiver_);
@@ -297,7 +299,7 @@ private:
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{stream_, (Receiver &&) receiver};
+      return operation<Receiver>{stream_, (Receiver&&)receiver};
     }
     template <typename Receiver>
     void connect(Receiver&& receiver) const& = delete;
@@ -349,7 +351,7 @@ private:
               unifex::set_error(
                   std::move(op.receiver_), std::move(op.stream_.nextError_));
             } else {
-              unifex::set_error(std::move(op.receiver_), (Error &&) error);
+              unifex::set_error(std::move(op.receiver_), (Error&&)error);
             }
           }
         };
@@ -363,7 +365,7 @@ private:
         template <typename Receiver2>
         explicit type(stream& strm, Receiver2&& receiver)
           : stream_(strm)
-          , receiver_((Receiver2 &&) receiver) {}
+          , receiver_((Receiver2&&)receiver) {}
 
         void start() noexcept {
           auto oldState = stream_.state_.load(std::memory_order_acquire);
@@ -422,7 +424,7 @@ private:
 
     template <typename Receiver>
     operation<Receiver> connect(Receiver&& receiver) && {
-      return operation<Receiver>{stream_, (Receiver &&) receiver};
+      return operation<Receiver>{stream_, (Receiver&&)receiver};
     }
     template <typename Receiver>
     void connect(Receiver&& receiver) const& = delete;
@@ -438,7 +440,7 @@ private:
 
 public:
   template <typename SourceStream2>
-  explicit type(SourceStream2&& source) : source_((SourceStream2 &&) source) {}
+  explicit type(SourceStream2&& source) : source_((SourceStream2&&)source) {}
 
   type(type&& other) : source_(std::move(other.source_)) {}
 
@@ -453,8 +455,8 @@ template <typename... Values>
 struct _fn {
   template <typename SourceStream>
   auto operator()(SourceStream&& source) const {
-    return _stop_immediately::stream<SourceStream, Values...>{(SourceStream &&)
-                                                                  source};
+    return _stop_immediately::stream<SourceStream, Values...>{
+        (SourceStream&&)source};
   }
   constexpr auto operator()() const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)

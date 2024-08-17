@@ -110,7 +110,7 @@ public:
       (requires receiver<Receiver, Error>)  //
       void set_error(Error&& error) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error &&) error);
+    unifex::set_error(std::move(op_->receiver_), (Error&&)error);
   }
 
 private:
@@ -151,21 +151,14 @@ class _op<Source, Predicate, Receiver>::type {
 
 public:
   template <typename Source2, typename Predicate2, typename Receiver2>
-  explicit type(
-      Source2&& source,
-      Predicate2&& predicate,
-      Receiver2&&
-          dest) noexcept(std::is_nothrow_constructible_v<Receiver, Receiver2>&&
-                             std::is_nothrow_constructible_v<
-                                 Predicate,
-                                 Predicate2>&& std::
-                                 is_nothrow_constructible_v<Source, Source2>&&
-                                     is_nothrow_connectable_v<
-                                         Source&,
-                                         _receiver_t>)
-    : source_((Source2 &&) source)
-    , predicate_((Predicate2 &&) predicate)
-    , receiver_((Receiver2 &&) dest) {
+  explicit type(Source2&& source, Predicate2&& predicate, Receiver2&& dest) noexcept(
+      std::is_nothrow_constructible_v<Receiver, Receiver2> &&
+      std::is_nothrow_constructible_v<Predicate, Predicate2> &&
+      std::is_nothrow_constructible_v<Source, Source2> &&
+      is_nothrow_connectable_v<Source&, _receiver_t>)
+    : source_((Source2&&)source)
+    , predicate_((Predicate2&&)predicate)
+    , receiver_((Receiver2&&)dest) {
     sourceOp_.construct_with(
         [&] { return unifex::connect(source_, _receiver_t{this}); });
   }
@@ -215,43 +208,32 @@ public:
 
   template <typename Source2, typename Predicate2>
   explicit type(Source2&& source, Predicate2&& predicate) noexcept(
-      std::is_nothrow_constructible_v<Source, Source2>&&
-          std::is_nothrow_constructible_v<Predicate, Predicate2>)
-    : source_((Source2 &&) source)
-    , predicate_((Predicate2 &&) predicate) {}
+      std::is_nothrow_constructible_v<Source, Source2> &&
+      std::is_nothrow_constructible_v<Predicate, Predicate2>)
+    : source_((Source2&&)source)
+    , predicate_((Predicate2&&)predicate) {}
 
   template(typename Sender, typename Receiver)  //
       (requires same_as<remove_cvref_t<Sender>, type> AND
            constructible_from<remove_cvref_t<Receiver>, Receiver> AND sender_to<
                Source&,
                receiver_t<Source, Predicate, remove_cvref_t<Receiver>>>)  //
-      friend auto tag_invoke(
-          tag_t<unifex::connect>,
-          Sender&& s,
-          Receiver&&
-              r) noexcept(std::
-                              is_nothrow_constructible_v<
-                                  Source,
-                                  decltype((
-                                      static_cast<Sender&&>(s).source_))>&&
-                                  std::is_nothrow_constructible_v<
-                                      Predicate,
-                                      decltype((static_cast<Sender&&>(s)
-                                                    .predicate_))>&&
-                                      std::is_nothrow_constructible_v<
-                                          remove_cvref_t<Receiver>,
-                                          Receiver>&&
-                                          is_nothrow_connectable_v<
-                                              Source&,
-                                              receiver_t<
-                                                  Source,
-                                                  Predicate,
-                                                  remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
+          std::is_nothrow_constructible_v<
+              Source,
+              decltype((static_cast<Sender&&>(s).source_))> &&
+          std::is_nothrow_constructible_v<
+              Predicate,
+              decltype((static_cast<Sender&&>(s).predicate_))> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+          is_nothrow_connectable_v<
+              Source&,
+              receiver_t<Source, Predicate, remove_cvref_t<Receiver>>>)
           -> operation_type<Source, Predicate, remove_cvref_t<Receiver>> {
     return operation_type<Source, Predicate, remove_cvref_t<Receiver>>{
         static_cast<Sender&&>(s).source_,
         static_cast<Sender&&>(s).predicate_,
-        (Receiver &&) r};
+        (Receiver&&)r};
   }
 
   friend constexpr blocking_kind
@@ -275,7 +257,7 @@ inline const struct repeat_effect_until_cpo {
   auto operator()(Source&& source, Predicate&& predicate) const noexcept(
       is_nothrow_tag_invocable_v<repeat_effect_until_cpo, Source, Predicate>)
       -> tag_invoke_result_t<repeat_effect_until_cpo, Source, Predicate> {
-    return tag_invoke(*this, (Source &&) source, (Predicate &&) predicate);
+    return tag_invoke(*this, (Source&&)source, (Predicate&&)predicate);
   }
 
   template(typename Source, typename Predicate)  //
@@ -295,7 +277,7 @@ inline const struct repeat_effect_until_cpo {
               std::decay_t<Predicate>> {
     return repeat_effect_until_sender<
         remove_cvref_t<Source>,
-        std::decay_t<Predicate>>{(Source &&) source, (Predicate &&) predicate};
+        std::decay_t<Predicate>>{(Source&&)source, (Predicate&&)predicate};
   }
   template <typename Predicate>
   constexpr auto operator()(Predicate&& predicate) const
@@ -304,7 +286,7 @@ inline const struct repeat_effect_until_cpo {
                repeat_effect_until_cpo,
                Predicate>)
           -> bind_back_result_t<repeat_effect_until_cpo, Predicate> {
-    return bind_back(*this, (Predicate &&) predicate);
+    return bind_back(*this, (Predicate&&)predicate);
   }
 } repeat_effect_until{};
 
@@ -316,7 +298,7 @@ inline const struct repeat_effect_cpo {
   auto operator()(Source&& source) const
       noexcept(is_nothrow_tag_invocable_v<repeat_effect_cpo, Source>)
           -> tag_invoke_result_t<repeat_effect_cpo, Source> {
-    return tag_invoke(*this, (Source &&) source);
+    return tag_invoke(*this, (Source&&)source);
   }
 
   template(typename Source)  //
@@ -329,7 +311,7 @@ inline const struct repeat_effect_cpo {
                Source>)
           -> repeat_effect_until_sender<remove_cvref_t<Source>, forever> {
     return repeat_effect_until_sender<remove_cvref_t<Source>, forever>{
-        (Source &&) source, forever{}};
+        (Source&&)source, forever{}};
   }
   constexpr auto operator()() const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, repeat_effect_cpo>)

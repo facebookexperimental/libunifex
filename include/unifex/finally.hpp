@@ -648,16 +648,9 @@ public:
       sender_traits<CompletionSender>::is_always_scheduler_affine;
 
   template <typename SourceSender2, typename CompletionSender2>
-  explicit type(
-      SourceSender2&& source,
-      CompletionSender2&&
-          completion) noexcept(std::
-                                   is_nothrow_constructible_v<
-                                       SourceSender,
-                                       SourceSender2>&&
-                                       std::is_nothrow_constructible_v<
-                                           CompletionSender,
-                                           CompletionSender2>)
+  explicit type(SourceSender2&& source, CompletionSender2&& completion) noexcept(
+      std::is_nothrow_constructible_v<SourceSender, SourceSender2> &&
+      std::is_nothrow_constructible_v<CompletionSender, CompletionSender2>)
     : source_(static_cast<SourceSender2&&>(source))
     , completion_(static_cast<CompletionSender2&&>(completion)) {}
 
@@ -715,10 +708,10 @@ struct _fn {
         static_cast<CompletionSender&&>(completion)};
   }
   template <typename CompletionSender>
-  constexpr auto operator()(CompletionSender&& completion) const
-      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, CompletionSender>)
-          -> bind_back_result_t<_fn, CompletionSender> {
-    return bind_back(*this, (CompletionSender &&) completion);
+  constexpr auto operator()(CompletionSender&& completion) const noexcept(
+      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, CompletionSender>)
+      -> bind_back_result_t<_fn, CompletionSender> {
+    return bind_back(*this, (CompletionSender&&)completion);
   }
 };
 }  // namespace _cpo

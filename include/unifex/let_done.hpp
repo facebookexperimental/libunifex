@@ -81,7 +81,7 @@ public:
       void set_value(Values&&... values) noexcept(
           is_nothrow_receiver_of_v<Receiver, Values...>) {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
+    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   void set_done() noexcept {
@@ -117,7 +117,7 @@ public:
       (requires receiver<Receiver, Error>)  //
       void set_error(Error&& error) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error &&) error);
+    unifex::set_error(std::move(op_->receiver_), (Error&&)error);
   }
 
 private:
@@ -137,8 +137,10 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const type& r,
-      VisitFunc&&
-          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
+      VisitFunc&& func) noexcept(std::
+                                     is_nothrow_invocable_v<
+                                         VisitFunc&,
+                                         const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -165,7 +167,7 @@ public:
       void set_value(Values&&... values) noexcept(
           is_nothrow_receiver_of_v<Receiver, Values...>) {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_value(std::move(op_->receiver_), (Values &&) values...);
+    unifex::set_value(std::move(op_->receiver_), (Values&&)values...);
   }
 
   void set_done() noexcept {
@@ -177,7 +179,7 @@ public:
       (requires receiver<Receiver, Error>)  //
       void set_error(Error&& error) noexcept {
     UNIFEX_ASSERT(op_ != nullptr);
-    unifex::set_error(std::move(op_->receiver_), (Error &&) error);
+    unifex::set_error(std::move(op_->receiver_), (Error&&)error);
   }
 
 private:
@@ -195,8 +197,10 @@ private:
   friend void tag_invoke(
       tag_t<visit_continuations>,
       const type& r,
-      VisitFunc&&
-          func) noexcept(std::is_nothrow_invocable_v<VisitFunc&, const Receiver&>) {
+      VisitFunc&& func) noexcept(std::
+                                     is_nothrow_invocable_v<
+                                         VisitFunc&,
+                                         const Receiver&>) {
     func(r.get_receiver());
   }
 #endif
@@ -217,13 +221,13 @@ class _op<Source, Done, Receiver>::type {
 public:
   template <typename Done2, typename Receiver2>
   explicit type(Source&& source, Done2&& done, Receiver2&& dest) noexcept(
-      std::is_nothrow_move_constructible_v<Receiver>&&
-          std::is_nothrow_move_constructible_v<Done>&&
-              is_nothrow_connectable_v<Source, source_receiver>)
-    : done_((Done2 &&) done)
-    , receiver_((Receiver2 &&) dest) {
+      std::is_nothrow_move_constructible_v<Receiver> &&
+      std::is_nothrow_move_constructible_v<Done> &&
+      is_nothrow_connectable_v<Source, source_receiver>)
+    : done_((Done2&&)done)
+    , receiver_((Receiver2&&)dest) {
     unifex::activate_union_member_with(sourceOp_, [&] {
-      return unifex::connect((Source &&) source, source_receiver{this});
+      return unifex::connect((Source&&)source, source_receiver{this});
     });
     startedOp_ = 0 + 1;
   }
@@ -292,10 +296,10 @@ public:
 
   template <typename Source2, typename Done2>
   explicit type(Source2&& source, Done2&& done) noexcept(
-      std::is_nothrow_constructible_v<Source, Source2>&&
-          std::is_nothrow_constructible_v<Done, Done2>)
-    : source_((Source2 &&) source)
-    , done_((Done2 &&) done) {}
+      std::is_nothrow_constructible_v<Source, Source2> &&
+      std::is_nothrow_constructible_v<Done, Done2>)
+    : source_((Source2&&)source)
+    , done_((Done2&&)done) {}
 
   template(
       typename Sender,
@@ -312,11 +316,9 @@ public:
                            final_sender_t,
                            FinalReceiver>)  //
       friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
-          is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver>&&
-              std::is_nothrow_constructible_v<Done, member_t<Sender, Done>>&&
-                  std::is_nothrow_constructible_v<
-                      remove_cvref_t<Receiver>,
-                      Receiver>)
+          is_nothrow_connectable_v<member_t<Sender, Source>, SourceReceiver> &&
+          std::is_nothrow_constructible_v<Done, member_t<Sender, Done>> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
           -> operation_type<member_t<Sender, Source>, Done, Receiver> {
     return operation_type<member_t<Sender, Source>, Done, Receiver>{
         static_cast<Sender&&>(s).source_,
@@ -348,7 +350,7 @@ struct _fn {
       operator()(Source&& source, Done&& done) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Source, Done>)
           -> tag_invoke_result_t<_fn, Source, Done> {
-    return tag_invoke(*this, (Source &&) source, (Done &&) done);
+    return tag_invoke(*this, (Source&&)source, (Done&&)done);
   }
 
   template(typename Source, typename Done)  //
@@ -364,7 +366,7 @@ struct _fn {
                Source,
                Done>) -> _sender<remove_cvref_t<Source>, remove_cvref_t<Done>> {
     return _sender<remove_cvref_t<Source>, remove_cvref_t<Done>>{
-        (Source &&) source, (Done &&) done};
+        (Source&&)source, (Done&&)done};
   }
   template(typename Done)  //
       (requires std::is_invocable_v<Done> AND
@@ -373,7 +375,7 @@ struct _fn {
       operator()(Done&& done) const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Done>)
           -> bind_back_result_t<_fn, Done> {
-    return bind_back(*this, (Done &&) done);
+    return bind_back(*this, (Done&&)done);
   }
 };
 }  // namespace _cpo

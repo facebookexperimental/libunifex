@@ -47,17 +47,17 @@ struct _receiver<Receiver, VariantType>::type {
           Values...>)  //
       void set_value(Values&&... values) && {
     unifex::set_value(
-        (Receiver &&) receiver_,
-        VariantType(std::make_tuple((Values &&)(values)...)));
+        (Receiver&&)receiver_,
+        VariantType(std::make_tuple((Values&&)(values)...)));
   }
 
   template(typename Error)                  //
       (requires receiver<Receiver, Error>)  //
       void set_error(Error&& error) && noexcept {
-    unifex::set_error((Receiver &&)(receiver_), (Error &&)(error));
+    unifex::set_error((Receiver&&)(receiver_), (Error&&)(error));
   }
 
-  void set_done() && noexcept { unifex::set_done((Receiver &&) receiver_); }
+  void set_done() && noexcept { unifex::set_done((Receiver&&)receiver_); }
 
   template(typename CPO)  //
       (requires is_receiver_query_cpo_v<CPO> AND
@@ -122,17 +122,11 @@ struct _sender<Predecessor>::type {
            sender_to<
                member_t<Sender, Predecessor>,
                receiver_t<remove_cvref_t<Receiver>>>)  //
-      friend auto tag_invoke(
-          tag_t<unifex::connect>,
-          Sender&& s,
-          Receiver&&
-              r) noexcept(std::
-                              is_nothrow_constructible_v<
-                                  remove_cvref_t<Receiver>,
-                                  Receiver>&&
-                                  is_nothrow_connectable_v<
-                                      member_t<Sender, Predecessor>,
-                                      receiver_t<remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+          is_nothrow_connectable_v<
+              member_t<Sender, Predecessor>,
+              receiver_t<remove_cvref_t<Receiver>>>)
           -> connect_result_t<
               member_t<Sender, Predecessor>,
               receiver_t<remove_cvref_t<Receiver>>> {
@@ -157,7 +151,7 @@ public:
       auto
       operator()(Sender&& predecessor) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Sender>) -> _result_t<Sender> {
-    return unifex::tag_invoke(_fn{}, (Sender &&)(predecessor));
+    return unifex::tag_invoke(_fn{}, (Sender&&)(predecessor));
   }
 
   template(typename Sender)                    //
@@ -167,7 +161,7 @@ public:
       noexcept(std::is_nothrow_constructible_v<
                _into_variant::sender<Sender>,
                Sender>) -> _result_t<Sender> {
-    return _into_variant::sender<Sender>{(Sender &&) predecessor};
+    return _into_variant::sender<Sender>{(Sender&&)predecessor};
   }
   constexpr auto operator()() const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)

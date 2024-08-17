@@ -98,26 +98,26 @@ struct _receiver<Policy, Range, Func, Receiver>::type {
                           typename Range::iterator>::reference,
                       Values...>) {
       apply_func_with_policy(
-          policy_, (Range &&) range_, (Func &&) func_, values...);
-      unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+          policy_, (Range&&)range_, (Func&&)func_, values...);
+      unifex::set_value((Receiver&&)receiver_, (Values&&)values...);
     } else {
       UNIFEX_TRY {
         apply_func_with_policy(
-            policy_, (Range &&) range_, (Func &&) func_, values...);
-        unifex::set_value((Receiver &&) receiver_, (Values &&) values...);
+            policy_, (Range&&)range_, (Func&&)func_, values...);
+        unifex::set_value((Receiver&&)receiver_, (Values&&)values...);
       }
       UNIFEX_CATCH(...) {
-        unifex::set_error((Receiver &&) receiver_, std::current_exception());
+        unifex::set_error((Receiver&&)receiver_, std::current_exception());
       }
     }
   }
 
   template <typename Error>
   void set_error(Error&& error) && noexcept {
-    unifex::set_error((Receiver &&) receiver_, (Error &&) error);
+    unifex::set_error((Receiver&&)receiver_, (Error&&)error);
   }
 
-  void set_done() && noexcept { unifex::set_done((Receiver &&) receiver_); }
+  void set_done() && noexcept { unifex::set_done((Receiver&&)receiver_); }
 
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
@@ -185,10 +185,10 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
     return unifex::connect(
         std::move(pred_),
         _ifor::receiver_t<Policy, Range, Func, Receiver>{
-            (Func &&) func_,
-            (Policy &&) policy_,
-            (Range &&) range_,
-            (Receiver &&) receiver});
+            (Func&&)func_,
+            (Policy&&)policy_,
+            (Range&&)range_,
+            (Receiver&&)receiver});
   }
 };
 }  // namespace _ifor
@@ -196,21 +196,18 @@ struct _sender<Predecessor, Policy, Range, Func>::type {
 namespace _ifor_cpo {
 struct _fn {
   template <typename Sender, typename Policy, typename Range, typename Func>
-  auto operator()(
-      Sender&& predecessor, Policy&& policy, Range&& range, Func&& func) const
-      -> _ifor::sender<Sender, Policy, Range, Func> {
+  auto
+  operator()(Sender&& predecessor, Policy&& policy, Range&& range, Func&& func)
+      const -> _ifor::sender<Sender, Policy, Range, Func> {
     return _ifor::sender<Sender, Policy, Range, Func>{
-        (Sender &&) predecessor,
-        (Policy &&) policy,
-        (Range &&) range,
-        (Func &&) func};
+        (Sender&&)predecessor, (Policy&&)policy, (Range&&)range, (Func&&)func};
   }
   template <typename Policy, typename Range, typename Func>
-  constexpr auto operator()(Policy&& policy, Range&& range, Func&& f) const
-      noexcept(
-          std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Policy, Range, Func>)
-          -> bind_back_result_t<_fn, Policy, Range, Func> {
-    return bind_back(*this, (Policy &&) policy, (Range &&) range, (Func &&) f);
+  constexpr auto
+  operator()(Policy&& policy, Range&& range, Func&& f) const noexcept(
+      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Policy, Range, Func>)
+      -> bind_back_result_t<_fn, Policy, Range, Func> {
+    return bind_back(*this, (Policy&&)policy, (Range&&)range, (Func&&)f);
   }
 } indexed_for{};
 }  // namespace _ifor_cpo

@@ -79,9 +79,7 @@ public:
     unifex::set_error(std::move(op_->receiver_), std::forward<E>(e));
   }
 
-  void set_done() noexcept {
-    unifex::set_done(std::move(op_->receiver_));
-  }
+  void set_done() noexcept { unifex::set_done(std::move(op_->receiver_)); }
 
 private:
   template(typename CPO, typename R)  //
@@ -299,16 +297,9 @@ struct _sndr<Predecessor, Successor>::type {
            constructible_from<
                Successor,
                Successor2>)  //
-      explicit type(
-          Predecessor2&& predecessor,
-          Successor2&&
-              successor) noexcept(std::
-                                      is_nothrow_constructible_v<
-                                          Predecessor,
-                                          Predecessor2>&&
-                                          std::is_nothrow_constructible_v<
-                                              Successor,
-                                              Successor2>)
+      explicit type(Predecessor2&& predecessor, Successor2&& successor) noexcept(
+          std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
+          std::is_nothrow_constructible_v<Successor, Successor2>)
     : predecessor_(static_cast<Predecessor&&>(predecessor))
     , successor_(static_cast<Successor&&>(successor)) {}
 
@@ -341,7 +332,7 @@ struct _sndr<Predecessor, Successor>::type {
     return operation<member_t<Sender, Predecessor>, Successor, Receiver>{
         static_cast<Sender&&>(sender).predecessor_,
         static_cast<Sender&&>(sender).successor_,
-        (Receiver &&) receiver};
+        (Receiver&&)receiver};
   }
 
 private:
@@ -409,7 +400,8 @@ struct _fn {
       auto
       operator()(First&& first, Second&& second, Third&& third, Rest&&... rest)
           const noexcept(
-              std::is_nothrow_invocable_v<_fn, First, Second>&& std::is_nothrow_invocable_v<
+              std::is_nothrow_invocable_v<_fn, First, Second> &&
+              std::is_nothrow_invocable_v<
                   _fn,
                   std::invoke_result_t<_fn, First, Second>,
                   Third,
@@ -420,8 +412,10 @@ struct _fn {
                   Third,
                   Rest...> {
     // Fall-back to pair-wise invocation of the sequence() CPO.
-    return (
-        *this)((*this)(static_cast<First&&>(first), static_cast<Second&&>(second)), static_cast<Third&&>(third), static_cast<Rest&&>(rest)...);
+    return (*this)(
+        (*this)(static_cast<First&&>(first), static_cast<Second&&>(second)),
+        static_cast<Third&&>(third),
+        static_cast<Rest&&>(rest)...);
   }
 };
 }  // namespace _cpo

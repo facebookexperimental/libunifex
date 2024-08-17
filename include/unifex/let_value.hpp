@@ -100,8 +100,11 @@ private:
   template(typename CPO)                       //
       (requires is_receiver_query_cpo_v<CPO>)  //
       friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
-          std::is_nothrow_invocable_v<CPO, const typename Operation::receiver_type&>)
-          -> std::invoke_result_t<CPO, const typename Operation::receiver_type&> {
+          std::is_nothrow_invocable_v<
+              CPO,
+              const typename Operation::receiver_type&>)
+          -> std::
+              invoke_result_t<CPO, const typename Operation::receiver_type&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
@@ -250,11 +253,11 @@ struct _op<Predecessor, SuccessorFactory, Receiver>::type {
   template <typename SuccessorFactory2, typename Receiver2>
   explicit type(
       Predecessor&& pred, SuccessorFactory2&& func, Receiver2&& receiver)
-    : func_((SuccessorFactory2 &&) func)
-    , receiver_((Receiver2 &&) receiver) {
+    : func_((SuccessorFactory2&&)func)
+    , receiver_((Receiver2&&)receiver) {
     unifex::activate_union_member_with(predOp_, [&] {
       return unifex::connect(
-          (Predecessor &&) pred, predecessor_receiver<operation>{*this});
+          (Predecessor&&)pred, predecessor_receiver<operation>{*this});
     });
   }
 
@@ -401,10 +404,10 @@ public:
 public:
   template <typename Predecessor2, typename SuccessorFactory2>
   explicit type(Predecessor2&& pred, SuccessorFactory2&& func) noexcept(
-      std::is_nothrow_constructible_v<Predecessor, Predecessor2>&&
-          std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
-    : pred_((Predecessor2 &&) pred)
-    , func_((SuccessorFactory2 &&) func) {}
+      std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
+      std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
+    : pred_((Predecessor2&&)pred)
+    , func_((SuccessorFactory2&&)func) {}
 
   template(typename CPO, typename Sender, typename Receiver)  //
       (requires same_as<CPO, tag_t<unifex::connect>> AND same_as<
@@ -447,13 +450,13 @@ struct _fn {
                SuccessorFactory>)
           -> _let_v::sender<Predecessor, SuccessorFactory> {
     return _let_v::sender<Predecessor, SuccessorFactory>{
-        (Predecessor &&) pred, (SuccessorFactory &&) func};
+        (Predecessor&&)pred, (SuccessorFactory&&)func};
   }
   template <typename SuccessorFactory>
-  constexpr auto operator()(SuccessorFactory&& func) const
-      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, SuccessorFactory>)
-          -> bind_back_result_t<_fn, SuccessorFactory> {
-    return bind_back(*this, (SuccessorFactory &&) func);
+  constexpr auto operator()(SuccessorFactory&& func) const noexcept(
+      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, SuccessorFactory>)
+      -> bind_back_result_t<_fn, SuccessorFactory> {
+    return bind_back(*this, (SuccessorFactory&&)func);
   }
 };
 }  // namespace _cpo

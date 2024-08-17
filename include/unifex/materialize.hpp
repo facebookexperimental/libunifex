@@ -196,9 +196,8 @@ public:
       sender_traits<Source>::is_always_scheduler_affine;
 
   template(typename Source2)  //
-      (requires constructible_from<
-          Source,
-          Source2> AND (!same_as<remove_cvref_t<Source2>, type>))  //
+      (requires constructible_from<Source, Source2> AND(
+          !same_as<remove_cvref_t<Source2>, type>))  //
       explicit type(Source2&& source) noexcept(
           std::is_nothrow_constructible_v<Source, Source2>)
     : source_(static_cast<Source2&&>(source)) {}
@@ -211,8 +210,8 @@ public:
       friend auto tag_invoke(tag_t<connect>, Self&& self, Receiver&& r) noexcept(
           is_nothrow_connectable_v<
               member_t<Self, Source>,
-              receiver_t<Receiver>>&& std::
-              is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
+              receiver_t<Receiver>> &&
+          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver>)
           -> connect_result_t<member_t<Self, Source>, receiver_t<Receiver>> {
     return unifex::connect(
         static_cast<Self&&>(self).source_,
@@ -244,7 +243,7 @@ public:
       auto
       operator()(Source&& source) const
       noexcept(is_nothrow_tag_invocable_v<_fn, Source>) -> _result_t<Source> {
-    return unifex::tag_invoke(_fn{}, (Source &&) source);
+    return unifex::tag_invoke(_fn{}, (Source&&)source);
   }
   template(typename Source)                    //
       (requires(!tag_invocable<_fn, Source>))  //
@@ -252,7 +251,7 @@ public:
       operator()(Source&& source) const
       noexcept(std::is_nothrow_constructible_v<_mat::sender<Source>, Source>)
           -> _result_t<Source> {
-    return _mat::sender<Source>{(Source &&) source};
+    return _mat::sender<Source>{(Source&&)source};
   }
   constexpr auto operator()() const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
