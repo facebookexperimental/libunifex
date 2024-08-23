@@ -189,17 +189,9 @@ struct _attach_op<Sender, Receiver>::type final
   using op_t = connect_result_t<Sender, receiver_t>;
 
   template <typename Sender2, typename Receiver2>
-  explicit type(
-      inplace_stop_token stoken,
-      Sender2&& sender,
-      Receiver2&& receiver) noexcept(std::
-                                         is_nothrow_constructible_v<
-                                             base_t,
-                                             inplace_stop_token&,
-                                             Receiver2>&&
-                                             is_nothrow_connectable_v<
-                                                 Sender2,
-                                                 receiver_t>)
+  explicit type(inplace_stop_token stoken, Sender2&& sender, Receiver2&& receiver) noexcept(
+      std::is_nothrow_constructible_v<base_t, inplace_stop_token&, Receiver2> &&
+      is_nothrow_connectable_v<Sender2, receiver_t>)
     : base_t{stoken, static_cast<Receiver2&&>(receiver)}
     , op_(connect(static_cast<Sender2&&>(sender), receiver_t{this})) {}
 
@@ -306,17 +298,17 @@ struct async_scope {
   template(typename Sender, typename Scheduler)  //
       (requires scheduler<Scheduler>)            //
       auto spawn_on(Scheduler&& scheduler, Sender&& sender)
-          -> decltype(spawn(on((Scheduler &&) scheduler, (Sender &&) sender))) {
-    return spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
+          -> decltype(spawn(on((Scheduler&&)scheduler, (Sender&&)sender))) {
+    return spawn(on((Scheduler&&)scheduler, (Sender&&)sender));
   }
 
   /**
    * Equivalent to spawn_on((Scheduler&&)scheduler, just_from((Fun&&)fun)).
    */
-  template(typename Scheduler, typename Fun)             //
+  template(typename Scheduler, typename Fun)                        //
       (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       auto spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
-    return spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
+    return spawn_on((Scheduler&&)scheduler, just_from((Fun&&)fun));
   }
 
   /**
@@ -326,7 +318,7 @@ struct async_scope {
    * error.
    */
   template <typename Sender>
-  auto detached_spawn(Sender&& sender)
+  UNIFEX_ALWAYS_INLINE auto detached_spawn(Sender&& sender)
       -> decltype(spawn_detached(static_cast<Sender&&>(sender), *this)) {
     spawn_detached(static_cast<Sender&&>(sender), *this);
   }
@@ -337,24 +329,26 @@ struct async_scope {
    */
   template(typename Sender, typename Scheduler)  //
       (requires scheduler<Scheduler>)            //
+      UNIFEX_ALWAYS_INLINE
       auto detached_spawn_on(Scheduler&& scheduler, Sender&& sender)
           -> decltype(detached_spawn(
-              on((Scheduler &&) scheduler, (Sender &&) sender))) {
-    detached_spawn(on((Scheduler &&) scheduler, (Sender &&) sender));
+              on((Scheduler&&)scheduler, (Sender&&)sender))) {
+    detached_spawn(on((Scheduler&&)scheduler, (Sender&&)sender));
   }
 
   /**
    * Equivalent to detached_spawn_on((Scheduler&&)scheduler,
    * just_from((Fun&&)fun)).
    */
-  template(typename Scheduler, typename Fun)             //
+  template(typename Scheduler, typename Fun)                        //
       (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
+      UNIFEX_ALWAYS_INLINE
       void detached_spawn_call_on(Scheduler&& scheduler, Fun&& fun) {
     static_assert(
         std::is_nothrow_invocable_v<Fun>,
         "Please annotate your invocable with noexcept.");
 
-    detached_spawn_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
+    detached_spawn_on((Scheduler&&)scheduler, just_from((Fun&&)fun));
   }
 
   /**
@@ -377,11 +371,11 @@ struct async_scope {
   /**
    * Equivalent to attach(just_from((Fun&&)fun)).
    */
-  template(typename Fun)        //
+  template(typename Fun)                   //
       (requires std::is_invocable_v<Fun>)  //
       [[nodiscard]] auto attach_call(Fun&& fun) noexcept(
-          noexcept(attach(just_from((Fun &&) fun)))) {
-    return attach(just_from((Fun &&) fun));
+          noexcept(attach(just_from((Fun&&)fun)))) {
+    return attach(just_from((Fun&&)fun));
   }
 
   /**
@@ -390,19 +384,18 @@ struct async_scope {
   template(typename Sender, typename Scheduler)           //
       (requires scheduler<Scheduler> AND sender<Sender>)  //
       [[nodiscard]] auto attach_on(Scheduler&& scheduler, Sender&& sender) noexcept(
-          noexcept(attach(on((Scheduler &&) scheduler, (Sender &&) sender)))) {
-    return attach(on((Scheduler &&) scheduler, (Sender &&) sender));
+          noexcept(attach(on((Scheduler&&)scheduler, (Sender&&)sender)))) {
+    return attach(on((Scheduler&&)scheduler, (Sender&&)sender));
   }
 
   /**
    * Equivalent to attach_on((Scheduler&&)scheduler, just_from((Fun&&)fun)).
    */
-  template(typename Scheduler, typename Fun)             //
+  template(typename Scheduler, typename Fun)                        //
       (requires scheduler<Scheduler> AND std::is_invocable_v<Fun>)  //
       [[nodiscard]] auto attach_call_on(Scheduler&& scheduler, Fun&& fun) noexcept(
-          noexcept(
-              attach_on((Scheduler &&) scheduler, just_from((Fun &&) fun)))) {
-    return attach_on((Scheduler &&) scheduler, just_from((Fun &&) fun));
+          noexcept(attach_on((Scheduler&&)scheduler, just_from((Fun&&)fun)))) {
+    return attach_on((Scheduler&&)scheduler, just_from((Fun&&)fun));
   }
 
   /**
