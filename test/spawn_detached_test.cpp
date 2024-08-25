@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -186,5 +186,96 @@ TEST(
   unifex::sync_wait(scope.join());
 }
 #endif
+
+struct read_async_stack_frame {
+  template <
+      template <typename...>
+      typename Variant,
+      template <typename...>
+      typename Tuple>
+  using value_types = Variant<Tuple<unifex::AsyncStackFrame*>>;
+
+  template <template <typename...> typename Variant>
+  using error_types = Variant<>;
+
+  static constexpr bool sends_done = false;
+
+  static constexpr unifex::blocking_kind blocking =
+      unifex::blocking_kind::always_inline;
+
+  template <typename Receiver>
+  struct op {
+    Receiver receiver;
+
+    void start() & noexcept {
+      auto frame = unifex::get_async_stack_frame(receiver);
+      unifex::set_value(std::move(receiver), frame);
+    }
+  };
+
+  template <typename Receiver>
+  using op_t = op<unifex::remove_cvref_t<Receiver>>;
+
+  template <typename Receiver>
+  op_t<Receiver> connect(Receiver&& receiver) const noexcept {
+    return {std::forward<Receiver>(receiver)};
+  }
+
+  UNIFEX_TEMPLATE(typename Self)                            //
+  (requires unifex::same_as<Self, read_async_stack_frame>)  //
+      friend unifex::instruction_ptr tag_invoke(
+          unifex::tag_t<unifex::get_return_address>,
+          const Self& self) noexcept {
+    return self.returnAddress;
+  }
+
+  unifex::instruction_ptr returnAddress;
+};
+
+TEST(spawn_detached_test, capstone_receiver_has_expected_async_stack_depth) {
+  identity_scope scope;
+
+  // this is a meaningless but unique address that we can check for in our test
+  auto returnAddress = unifex::instruction_ptr::read_return_address();
+
+  unifex::spawn_detached(
+      unifex::then(
+          read_async_stack_frame{returnAddress},
+          [&](auto* frame) noexcept {
+            if constexpr (!UNIFEX_NO_ASYNC_STACKS) {
+              // the expected structure of this operation is:
+              // op = connect(then-sender, capstone-receiver)
+              //   child = connect(read-sender, then-receiver)
+              //
+              // There's no nest-sender because we're using an identity_scope,
+              // which implements nest() by returning its argument.
+              //
+              // Each connect() wraps the resulting operation in a stack
+              // frame-injecting operation state/receiver pair so we expect the
+              // read-sender to get a non-null frame from its wrapper-receiver;
+              // the parent of that frame should come from the then-sender's
+              // wrapper-receiver; the parent of that frame should come from the
+              // spawn_detached capstone receiver.
+
+              // the read-sender's frame
+              ASSERT_NE(frame, nullptr);
+              EXPECT_EQ(frame->getReturnAddress(), returnAddress);
+
+              // the then-sender's frame
+              ASSERT_NE(frame->getParentFrame(), nullptr);
+
+              // the capstone receiver's frame
+              ASSERT_NE(frame->getParentFrame()->getParentFrame(), nullptr);
+
+              // there should be no further frames
+              EXPECT_EQ(
+                  frame->getParentFrame()->getParentFrame()->getParentFrame(),
+                  nullptr);
+            } else {
+              EXPECT_EQ(frame, nullptr);
+            }
+          }),
+      scope);
+}
 
 }  // namespace
