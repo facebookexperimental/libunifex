@@ -221,9 +221,11 @@ struct read_async_stack_frame {
     return {std::forward<Receiver>(receiver)};
   }
 
-  friend unifex::instruction_ptr tag_invoke(
-      unifex::tag_t<unifex::get_return_address>,
-      const read_async_stack_frame& self) noexcept {
+  UNIFEX_TEMPLATE(typename Self)                            //
+  (requires unifex::same_as<Self, read_async_stack_frame>)  //
+      friend unifex::instruction_ptr tag_invoke(
+          unifex::tag_t<unifex::get_return_address>,
+          const Self& self) noexcept {
     return self.returnAddress;
   }
 
