@@ -16,6 +16,7 @@
 #pragma once
 
 #include <unifex/any_scheduler.hpp>
+#include <unifex/at_coroutine_exit.hpp>
 #include <unifex/await_transform.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/connect_awaitable.hpp>
@@ -33,6 +34,8 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/std_concepts.hpp>
 #include <unifex/then.hpp>
+#include <unifex/tracing/async_stack.hpp>
+#include <unifex/tracing/get_async_stack_frame.hpp>
 #include <unifex/type_list.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/unhandled_done.hpp>
@@ -181,6 +184,11 @@ struct _promise_base {
     return std::exchange(p.continuation_, std::move(action));
   }
 
+  friend constexpr AsyncStackFrame*
+  tag_invoke(tag_t<get_async_stack_frame>, const _promise_base& p) noexcept {
+    return p.frame_;
+  }
+
 #ifdef UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Func>
   friend void
@@ -199,6 +207,10 @@ struct _promise_base {
   inplace_stop_token stoken_;
   // the coroutine to resume when a child awaitable completes with done
   done_coro doneCoro_;
+  // the async stack frame corresponding to this coroutine
+  // null until this coroutine is awaited; stays null when async stack support
+  // is disabled
+  AsyncStackFrame* frame_{};
 };
 
 /**
@@ -206,8 +218,13 @@ struct _promise_base {
  */
 struct _task_promise_base : _promise_base {
   _task_promise_base()
-    : _promise_base([this]() noexcept { return continuation_.done_handle(); }) {
-  }
+    : _promise_base([this]() noexcept {
+      if (frame_) {
+        popAsyncStackFrameFromCaller(*frame_);
+      }
+
+      return continuation_.done_handle();
+    }) {}
 
   // the implementation of the magic of co_await schedule(s); this is to be
   // ripped out and replaced with something more explicit
@@ -342,7 +359,9 @@ struct _promise final {
       return awaiter{};
     }
 
-    template <typename Value>
+    template <
+        typename Value,
+        bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS>
     // todo: consider if this should be nothrow or not
     // NOTE: Magic rescheduling is not currently supported by nothrow tasks
     decltype(auto) await_transform(Value&& value) {
@@ -361,9 +380,9 @@ struct _promise final {
       } else if constexpr (
           tag_invocable<tag_t<unifex::await_transform>, type&, Value> ||
           detail::_awaitable<Value>) {
-        // Either await_transform has been customized or Value is an awaitable.
-        // Either way, we can dispatch to the await_transform CPO, then insert a
-        // transition back to the correct execution context if necessary.
+        // await_transform has been customized so we can dispatch to the
+        // await_transform CPO, then insert a transition back to the correct
+        // execution context if necessary.
         return with_scheduler_affinity(
             *this,
             unifex::await_transform(*this, static_cast<Value&&>(value)),
@@ -396,18 +415,28 @@ struct _promise final {
   };
 };
 
+struct _frame_state {
+  _frame_state() noexcept = default;
+
+  explicit _frame_state(AsyncStackFrame& frame, AsyncStackRoot& root) noexcept
+    : frame_(&frame)
+    , root_(&root) {}
+
+  void restore_frame_state() const noexcept {
+    if (frame_) {
+      activateAsyncStackFrame(*root_, *frame_);
+    }
+  }
+
+private:
+  AsyncStackFrame* frame_{};
+  AsyncStackRoot* root_;  // only conditionally initialized
+};
+
 struct _sr_thunk_promise_base : _promise_base {
   _sr_thunk_promise_base()
     : _promise_base([this]() noexcept -> coro::coroutine_handle<> {
-      callback_.destruct();
-
-      whoToContinue_ = continuation::DONE;
-
-      if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        return continuation_.done_handle();
-      } else {
-        return coro::noop_coroutine();
-      }
+      return complete_and_choose_continuation(continuation_.done_handle());
     }) {}
 
   friend inplace_stop_token
@@ -439,11 +468,15 @@ struct _sr_thunk_promise_base : _promise_base {
 
     void set_value(bool) noexcept {
       if (self->refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        if (self->whoToContinue_ == continuation::PRIMARY) {
-          self->continuation_.resume();
+        UNIFEX_ASSERT(self->whoToContinue_);
+
+        if (self->frame_) {
+          unifex::detail::ScopedAsyncStackRoot root;
+          root.activateFrame(*self->frame_);
+
+          self->whoToContinue_.resume();
         } else {
-          UNIFEX_ASSERT(self->whoToContinue_ == continuation::DONE);
-          self->continuation_.resume_done();
+          self->whoToContinue_.resume();
         }
       }
     }
@@ -475,16 +508,70 @@ struct _sr_thunk_promise_base : _promise_base {
 
   std::atomic<uint8_t> refCount_{1};
 
-  enum class continuation : uint8_t {
-    UNSET,
-    PRIMARY,
-    DONE,
-  };
-
-  continuation whoToContinue_{continuation::UNSET};
+  coro::coroutine_handle<> whoToContinue_{};
 
   void register_stop_callback() noexcept {
     callback_.construct(stoken_, stop_callback{this});
+  }
+
+  _frame_state ensure_frame_deactivated() noexcept {
+    if (frame_ != nullptr) {
+      if (whoToContinue_ == continuation_.done_handle()) {
+        popAsyncStackFrameFromCaller(*frame_);
+      }
+
+      auto* root = frame_->getStackRoot();
+      // this asserts that root is not null
+      deactivateAsyncStackFrame(*frame_);
+
+      return _frame_state(*frame_, *root);
+    }
+
+    return {};
+  }
+
+  // performs the final steps of completing this coroutine:
+  //  - destroy (and thus synchronize with) the stop callback if it exists
+  //  - record the continuation (normal or done) that should be resumed
+  //  - ensure the async stack state is correct
+  //  - decrement the refcount
+  //
+  // returns the coroutine handle to resume, which will either be the argument,
+  // or the no-op coroutine, depending on whether there's an outstanding
+  // deferred stop request to wait for
+  coro::coroutine_handle<> complete_and_choose_continuation(
+      coro::coroutine_handle<> whoToContinue) noexcept {
+    UNIFEX_ASSERT(
+        whoToContinue == continuation_.handle() ||
+        whoToContinue == continuation_.done_handle());
+
+    callback_.destruct();
+
+    // whoToContinue_ needs to be written before we decrement the refcount
+    // to ensure that we synchronize this write with the corresponding
+    // read in the deferred stop callback's completion
+    whoToContinue_ = whoToContinue;
+
+    // deactivate our async stack frame before decrementing the refcount
+    //
+    // Once the refcount has been decremented, it's possible for the
+    // deferred stop callback to resume our continuation and it must
+    // activate our frame on a new stack root before doing; for that to be
+    // safe, it can't be active on any other stack root. If it turns out
+    // *we* are going to resume our continuation then we have to
+    // reactivate our frame to undo this proactivate deactivation.
+    const auto frameState = ensure_frame_deactivated();
+
+    // if we're last to complete, continue our continuation; otherwise do
+    // nothing and wait for the async stop request to do it
+    if (refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      frameState.restore_frame_state();
+
+      return whoToContinue;
+    } else {
+      // the deferred stop callback will reactivate this frame
+      return coro::noop_coroutine();
+    }
   }
 };
 
@@ -518,48 +605,24 @@ struct _sr_thunk_promise final {
 
     auto final_suspend() noexcept {
       struct awaiter final : _final_suspend_awaiter_base {
+        coro::coroutine_handle<>
+        await_suspend_impl(coro::coroutine_handle<type> h) noexcept {
+          auto& p = h.promise();
+
+          return p.complete_and_choose_continuation(p.continuation_.handle());
+        }
+
 #if (defined(_MSC_VER) && !defined(__clang__)) || defined(__EMSCRIPTEN__)
         // MSVC doesn't seem to like symmetric transfer in this final awaiter
         // and the Emscripten (WebAssembly) compiler doesn't support tail-calls
         void await_suspend(coro::coroutine_handle<type> h) noexcept {
-          auto& p = h.promise();
-
-          p.callback_.destruct();
-
-          // this needs to be written before we decrement the refcount to ensure
-          // that we synchronize this write with the corresponding read in the
-          // deferred stop callback's completion
-          p.whoToContinue_ = continuation::PRIMARY;
-
-          // if we're last to complete, continue our continuation; otherwise do
-          // nothing and wait for the async stop request to do it
-          if (p.refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-            return h.promise().continuation_.handle().resume();
-          }
-
-          // don't resume anything here; wait for the deferred stop request to
-          // resume our continuation
+          await_suspend_impl(h).resume();
         }
 #else
         coro::coroutine_handle<>
         await_suspend(coro::coroutine_handle<type> h) noexcept {
-          auto& p = h.promise();
-
-          p.callback_.destruct();
-
-          // this needs to be written before we decrement the refcount to ensure
-          // that we synchronize this write with the corresponding read in the
-          // deferred stop callback's completion
-          p.whoToContinue_ = continuation::PRIMARY;
-
-          // if we're last to complete, continue our continuation; otherwise do
-          // nothing and wait for the async stop request to do it
-          if (p.refCount_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-            return h.promise().continuation_.handle();
-          } else {
-            return coro::noop_coroutine();
-          }
-        }
+          return await_suspend_impl(h);
+        };
 #endif
       };
 
@@ -573,7 +636,10 @@ struct _sr_thunk_promise final {
   };
 };
 
-template <typename ThisPromise, typename OtherPromise>
+template <
+    typename ThisPromise,
+    typename OtherPromise,
+    bool WithAsyncStackSupport>
 struct _awaiter final {
   /**
    * An awaitable type that knows how to await a task<>, sa_task<>, or
@@ -628,6 +694,9 @@ struct _awaiter final {
 
       promise.register_stop_callback();
 
+      maybePushAsyncStackFrame(
+          promise, h.promise(), instruction_ptr::read_return_address());
+
       return thisCoro;
     }
 
@@ -640,6 +709,9 @@ struct _awaiter final {
       auto thisCoro = coro::coroutine_handle<ThisPromise>::from_address(
           (void*)std::exchange(--coro_, 0));
       coro_holder destroyOnExit{thisCoro};
+
+      maybePopAsyncStackFrame();
+
       return thisCoro.promise().result();
     }
 
@@ -650,6 +722,28 @@ struct _awaiter final {
         std::bool_constant<!same_as<scheduler_t, any_scheduler>>;
     using needs_stop_token_t =
         std::bool_constant<!same_as<stop_token_t, inplace_stop_token>>;
+    using needs_async_stack_frame_t = std::bool_constant<WithAsyncStackSupport>;
+
+    void maybePushAsyncStackFrame(
+        [[maybe_unused]] ThisPromise& callee,
+        [[maybe_unused]] OtherPromise& caller,
+        [[maybe_unused]] instruction_ptr returnAddress) noexcept {
+      if constexpr (WithAsyncStackSupport) {
+        if (auto* callerFrame = get_async_stack_frame(caller)) {
+          frame_.setReturnAddress(returnAddress);
+          callee.frame_ = &frame_;
+          pushAsyncStackFrameCallerCallee(*callerFrame, frame_);
+        }
+      }
+    }
+
+    void maybePopAsyncStackFrame() noexcept {
+      if constexpr (WithAsyncStackSupport) {
+        if (frame_.getParentFrame() != nullptr) {
+          popAsyncStackFrameCallee(frame_);
+        }
+      }
+    }
 
     // Only store the scheduler and the stop_token in the awaiter if we need to
     // type erase them. Otherwise, these members are "empty" and should take up
@@ -668,6 +762,12 @@ struct _awaiter final {
         inplace_stop_token_adapter<stop_token_t>,
         detail::_empty<1>>
         stopTokenAdapter_;
+    UNIFEX_NO_UNIQUE_ADDRESS
+    conditional_t<
+        needs_async_stack_frame_t::value,
+        AsyncStackFrame,
+        detail::_empty<2>>
+        frame_;
   };
 };
 
@@ -681,16 +781,20 @@ struct _sr_thunk_task<T>::type final : coro_holder {
   friend promise_type;
 
 private:
-  template <typename OtherPromise>
-  using awaiter = typename _awaiter<promise_type, OtherPromise>::type;
+  template <typename OtherPromise, bool WithAsyncStackSupport>
+  using awaiter =
+      typename _awaiter<promise_type, OtherPromise, WithAsyncStackSupport>::
+          type;
 
   explicit type(coro::coroutine_handle<promise_type> h) noexcept
     : coro_holder(h) {}
 
-  template <typename Promise>
-  friend awaiter<Promise>
+  template <
+      typename Promise,
+      bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS>
+  friend awaiter<Promise, WithAsyncStackSupport>
   tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
-    return awaiter<Promise>{std::exchange(t.coro_, {})};
+    return awaiter<Promise, WithAsyncStackSupport>{std::exchange(t.coro_, {})};
   }
 };
 
@@ -805,18 +909,22 @@ struct _sa_task<T, nothrow>::type final : public _task<T, nothrow>::type {
 
   type(base&& t) noexcept : base(std::move(t)) {}
 
-  template <typename OtherPromise>
-  using awaiter =
-      typename _awaiter<typename base::promise_type, OtherPromise>::type;
+  template <typename OtherPromise, bool WithAsyncStackSupport>
+  using awaiter = typename _awaiter<
+      typename base::promise_type,
+      OtherPromise,
+      WithAsyncStackSupport>::type;
 
   // given that we're awaited in a scheduler-affine context, we are ourselves
   // scheduler-affine
   static constexpr bool is_always_scheduler_affine = true;
 
-  template <typename Promise>
-  friend awaiter<Promise>
+  template <
+      typename Promise,
+      bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS>
+  friend awaiter<Promise, WithAsyncStackSupport>
   tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
-    return awaiter<Promise>{std::exchange(t.coro_, {})};
+    return awaiter<Promise, WithAsyncStackSupport>{std::exchange(t.coro_, {})};
   }
 
   template <typename Receiver>

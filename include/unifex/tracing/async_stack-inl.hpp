@@ -67,6 +67,16 @@ popAsyncStackFrameCallee(unifex::AsyncStackFrame& calleeFrame) noexcept {
   calleeFrame.stackRoot = nullptr;
 }
 
+inline void popAsyncStackFrameFromCaller(
+    [[maybe_unused]] unifex::AsyncStackFrame& callerFrame) noexcept {
+  auto root = tryGetCurrentAsyncStackRoot();
+  assert(root != nullptr);
+  auto topFrame = root->getTopFrame();
+  assert(topFrame != nullptr);
+  assert(topFrame->getParentFrame() == &callerFrame);
+  popAsyncStackFrameCallee(*topFrame);
+}
+
 inline std::size_t getAsyncStackTraceFromInitialFrame(
     unifex::AsyncStackFrame* initialFrame,
     std::uintptr_t* addresses,

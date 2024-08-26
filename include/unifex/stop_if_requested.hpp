@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -16,11 +16,14 @@
 #pragma once
 
 #include <unifex/config.hpp>
+#include <unifex/await_transform.hpp>
 #include <unifex/blocking.hpp>
 #include <unifex/coroutine.hpp>
 #include <unifex/get_stop_token.hpp>
 #include <unifex/just_done.hpp>
+#include <unifex/tracing/async_stack.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -37,35 +40,60 @@ private:
         void start() & noexcept {
           UNIFEX_TRY {
             if (get_stop_token(std::as_const(rec_)).stop_requested()) {
-              unifex::set_done((Receiver &&) rec_);
+              unifex::set_done((Receiver&&)rec_);
             } else {
-              unifex::set_value((Receiver &&) rec_);
+              unifex::set_value((Receiver&&)rec_);
             }
           }
           UNIFEX_CATCH(...) {
-            unifex::set_error((Receiver &&) rec_, std::current_exception());
+            unifex::set_error((Receiver&&)rec_, std::current_exception());
           }
         }
       };
     };
 
-  public:
 #if !UNIFEX_NO_COROUTINES
+    template <bool WithAsyncStackSupport>
+    struct awaiter {
+      UNIFEX_NO_UNIQUE_ADDRESS
+      std::conditional_t<
+          WithAsyncStackSupport,
+          AsyncStackFrame,
+          detail::_empty<0>>
+          frame;
+
+      bool await_ready() const noexcept { return false; }
+
+      template <typename Promise>
+      coro::coroutine_handle<>
+      await_suspend(coro::coroutine_handle<Promise> coro) noexcept {
+        if (get_stop_token(coro.promise()).stop_requested()) {
+          if constexpr (WithAsyncStackSupport) {
+            frame.setReturnAddress();
+            if (auto parentFrame = get_async_stack_frame(coro.promise())) {
+              pushAsyncStackFrameCallerCallee(*parentFrame, frame);
+            }
+          }
+
+          return coro.promise().unhandled_done();
+        }
+        return coro;  // don't suspend
+      }
+      void await_resume() const noexcept {}
+    };
+
     // Provide an awaiter interface in addition to the sender interface
     // because as an awaiter we can take advantage of symmetric transfer
     // to save stack space:
-    bool await_ready() const noexcept { return false; }
-    template <typename Promise>
-    coro::coroutine_handle<>
-    await_suspend(coro::coroutine_handle<Promise> coro) const noexcept {
-      if (get_stop_token(coro.promise()).stop_requested()) {
-        return coro.promise().unhandled_done();
-      }
-      return coro;  // don't suspend
+    template <
+        typename Promise,
+        bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS>
+    friend awaiter<WithAsyncStackSupport>
+    tag_invoke(tag_t<await_transform>, Promise&, _sender) noexcept {
+      return {};
     }
-    void await_resume() const noexcept {}
 #endif
-
+  public:
     template <
         template <typename...>
         class Variant,
@@ -84,7 +112,7 @@ private:
         (requires receiver_of<Receiver>)  //
         auto connect(Receiver&& rec) const ->
         typename _op<remove_cvref_t<Receiver>>::type {
-      return typename _op<remove_cvref_t<Receiver>>::type{(Receiver &&) rec};
+      return typename _op<remove_cvref_t<Receiver>>::type{(Receiver&&)rec};
     }
   };
 
