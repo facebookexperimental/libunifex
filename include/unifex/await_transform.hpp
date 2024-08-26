@@ -200,29 +200,27 @@ struct _fn {
     return unifex::tag_invoke(_fn{}, promise, (Value&&)value);
   }
 
-  // Default implementation.
-  template(typename Promise, typename Value)            //
-      (requires(!tag_invocable<_fn, Promise&, Value>))  //
+  // Default implementation for naturally awaitable types
+  template(typename Promise, typename Value)  //
+      (requires(!tag_invocable<_fn, Promise&, Value>)
+           AND detail::_awaitable<Value>)  //
+      Value&&
+      operator()(Promise&, Value&& value) const noexcept {
+    return std::forward<Value>(value);
+  }
+
+  // Default implementation for non-awaitable senders
+  template(typename Promise, typename Value)  //
+      (requires(!tag_invocable<_fn, Promise&, Value>)
+           AND(!detail::_awaitable<Value>) AND unifex::sender<Value>)  //
       decltype(auto)
       operator()(Promise& promise, Value&& value) const {
-    // Note we don't fold the two '(Value&&) value'-returning cases here
-    // to avoid instantiating 'unifex::sender<Value>' concept check in
-    // the case that _awaitable<Value> evaluates to true.
-    if constexpr (detail::_awaitable<Value>) {
-      return (Value&&)value;
-    } else if constexpr (unifex::sender<Value>) {
-      if constexpr (unifex::sender_to<Value, _receiver_t<Promise, Value>>) {
-        auto h = coro::coroutine_handle<Promise>::from_promise(promise);
-        return _as_awaitable<Promise, Value>{(Value&&)value, h};
-      } else {
-        static_assert(
-            unifex::sender_to<Value, _receiver_t<Promise, Value>>,
-            "This sender is not awaitable in this coroutine type.");
-        return (Value&&)value;
-      }
-    } else {
-      return (Value&&)value;
-    }
+    static_assert(
+        unifex::sender_to<Value, _receiver_t<Promise, Value>>,
+        "This sender is not awaitable in this coroutine type.");
+
+    auto h = coro::coroutine_handle<Promise>::from_promise(promise);
+    return _as_awaitable<Promise, Value>{(Value&&)value, h};
   }
 };
 
