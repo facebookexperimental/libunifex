@@ -221,6 +221,9 @@ void pushAsyncStackFrameCallerCallee(
 // the current AsyncStackRoot.
 void popAsyncStackFrameCallee(unifex::AsyncStackFrame& calleeFrame) noexcept;
 
+void popAsyncStackFrameFromCaller(
+    unifex::AsyncStackFrame& callerFrame) noexcept;
+
 // Get a pointer to a special frame that can be used as the root-frame
 // for a chain of AsyncStackFrame that does not chain onto a normal
 // call-stack.
@@ -516,7 +519,7 @@ public:
     assert(tryGetCurrentAsyncStackRoot() == &root_);
     [[maybe_unused]] auto topFrame =
         root_.topFrame.exchange(nullptr, std::memory_order_relaxed);
-    assert(topFrame == possiblyDeadFrame);
+    assert(topFrame == nullptr || topFrame == possiblyDeadFrame);
   }
 
 private:
