@@ -222,6 +222,21 @@ struct _fn {
     auto h = coro::coroutine_handle<Promise>::from_promise(promise);
     return _as_awaitable<Promise, Value>{(Value&&)value, h};
   }
+
+  // Fall back to returning the argument if none of the above conditions are met
+  //
+  // If this case applies then value is unlikely to be awaitable and the
+  // co_await expression that was routed here is unlikely to be valid. Rather
+  // than cause a hard error here, return the argument unmodified and allow the
+  // caller a chance to do something clever--maybe the
+  // promise_type::await_transform() that's calling us has plans for this value.
+  template(typename Promise, typename Value)  //
+      (requires(!tag_invocable<_fn, Promise&, Value>)
+           AND(!detail::_awaitable<Value>) AND(!unifex::sender<Value>))  //
+      Value&&
+      operator()(Promise&, Value&& value) const noexcept {
+    return std::forward<Value>(value);
+  }
 };
 
 }  // namespace _await_tfx
