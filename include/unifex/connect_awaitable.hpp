@@ -216,7 +216,9 @@ struct _sndr {
 
     static constexpr bool sends_done = true;
 
-    type(Awaitable awaitable) : awaitable_((Awaitable&&)awaitable) {}
+    explicit type(Awaitable awaitable, instruction_ptr returnAddress)
+      : awaitable_((Awaitable&&)awaitable)
+      , returnAddress_(returnAddress) {}
 
     template(typename Receiver)                   //
         (requires receiver_of<Receiver, Result>)  //
@@ -230,8 +232,14 @@ struct _sndr {
       return unifex::blocking(t.awaitable_);
     }
 
+    friend instruction_ptr
+    tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+      return t.returnAddress_;
+    }
+
   private:
     Awaitable awaitable_;
+    instruction_ptr returnAddress_;
   };
 };
 
@@ -250,9 +258,10 @@ struct _sndr<Awaitable, void> {
 
     static constexpr bool sends_done = true;
 
-    explicit type(Awaitable awaitable) noexcept(
+    explicit type(Awaitable awaitable, instruction_ptr returnAddress) noexcept(
         std::is_nothrow_move_constructible_v<Awaitable>)
-      : awaitable_((Awaitable&&)awaitable) {}
+      : awaitable_((Awaitable&&)awaitable)
+      , returnAddress_(returnAddress) {}
 
     template(typename Receiver)           //
         (requires receiver_of<Receiver>)  //
@@ -266,8 +275,14 @@ struct _sndr<Awaitable, void> {
       return unifex::blocking(t.awaitable_);
     }
 
+    friend instruction_ptr
+    tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+      return t.returnAddress_;
+    }
+
   private:
     Awaitable awaitable_;
+    instruction_ptr returnAddress_;
   };
 };
 
@@ -279,7 +294,8 @@ struct _fn {
       (requires detail::_awaitable<Awaitable>)  //
       _sender<remove_cvref_t<Awaitable>>
       operator()(Awaitable&& awaitable) const {
-    return _sender<remove_cvref_t<Awaitable>>{(Awaitable&&)awaitable};
+    return _sender<remove_cvref_t<Awaitable>>{
+        (Awaitable&&)awaitable, instruction_ptr::read_return_address()};
   }
 };
 }  // namespace _as_sender
