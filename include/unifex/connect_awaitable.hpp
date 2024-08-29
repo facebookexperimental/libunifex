@@ -70,26 +70,26 @@ public:
       bool await_ready() noexcept { return false; }
       void await_suspend(coro::coroutine_handle<promise_type>) noexcept(
           std::is_nothrow_invocable_v<Func>) {
-        ((Func&&)func_)();
+        std::forward<Func>(func_)();
       }
       [[noreturn]] void await_resume() noexcept { std::terminate(); }
     };
 
     template <typename Func>
     auto yield_value(Func&& func) noexcept {
-      return awaiter<Func&&>{static_cast<Func&&>(func)};
+      return awaiter<Func&&>{std::forward<Func>(func)};
     }
 
     template <typename Value>
     auto await_transform(Value&& value) -> decltype(auto) {
-      return unifex::await_transform(*this, (Value&&)value);
+      return unifex::await_transform(*this, std::forward<Value>(value));
     }
 
 #if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
     template <typename Func>
     friend void
     tag_invoke(tag_t<visit_continuations>, const promise_type& p, Func&& func) {
-      visit_continuations(p.receiver_, (Func&&)func);
+      visit_continuations(p.receiver_, std::forward<Func>(func));
     }
 #endif
 
@@ -133,7 +133,7 @@ private:
   struct _comma_hack {
     template <typename T>
     friend T&& operator,(T&& t, _comma_hack) noexcept {
-      return (T&&)t;
+      return std::forward<T>(t);
     }
     operator unit() const noexcept { return {}; }
   };
@@ -170,14 +170,14 @@ private:
             unifex::set_value(std::move(receiver));
           } else {
             unifex::set_value(
-                std::move(receiver), static_cast<result_type&&>(result));
+                std::move(receiver), std::forward<result_type>(result));
           }
         };
         // The _comma_hack here makes this well-formed when the co_await
         // expression has type void. This could potentially run into trouble
         // if the type of the co_await expression itself overloads operator
         // comma, but that's pretty unlikely.
-      }((co_await (Awaitable&&) awaitable, _comma_hack{}));
+      }((co_await std::move(awaitable), _comma_hack{}));
 #if !UNIFEX_NO_EXCEPTIONS
     } catch (...) {
       ex = std::current_exception();
@@ -192,7 +192,8 @@ public:
   template <typename Awaitable, typename Receiver>
   auto operator()(Awaitable&& awaitable, Receiver&& receiver) const
       -> _await::sender_task<remove_cvref_t<Receiver>> {
-    return connect_impl((Awaitable&&)awaitable, (Receiver&&)receiver);
+    return connect_impl(
+        std::forward<Awaitable>(awaitable), std::forward<Receiver>(receiver));
   }
 } connect_awaitable{};
 }  // namespace _await_cpo
@@ -216,12 +217,15 @@ struct _sndr {
 
     static constexpr bool sends_done = true;
 
-    type(Awaitable awaitable) : awaitable_((Awaitable&&)awaitable) {}
+    explicit type(Awaitable awaitable, instruction_ptr returnAddress)
+      : awaitable_(std::move(awaitable))
+      , returnAddress_(returnAddress) {}
 
     template(typename Receiver)                   //
         (requires receiver_of<Receiver, Result>)  //
         friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
-      return unifex::connect_awaitable(((type&&)t).awaitable_, (Receiver&&)r);
+      return unifex::connect_awaitable(
+          std::move(t).awaitable_, std::forward<Receiver>(r));
     }
 
     // TODO: how do we make this property statically discoverable?
@@ -230,8 +234,14 @@ struct _sndr {
       return unifex::blocking(t.awaitable_);
     }
 
+    friend instruction_ptr
+    tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+      return t.returnAddress_;
+    }
+
   private:
     Awaitable awaitable_;
+    instruction_ptr returnAddress_;
   };
 };
 
@@ -250,14 +260,16 @@ struct _sndr<Awaitable, void> {
 
     static constexpr bool sends_done = true;
 
-    explicit type(Awaitable awaitable) noexcept(
+    explicit type(Awaitable awaitable, instruction_ptr returnAddress) noexcept(
         std::is_nothrow_move_constructible_v<Awaitable>)
-      : awaitable_((Awaitable&&)awaitable) {}
+      : awaitable_(std::move(awaitable))
+      , returnAddress_(returnAddress) {}
 
     template(typename Receiver)           //
         (requires receiver_of<Receiver>)  //
         friend auto tag_invoke(tag_t<unifex::connect>, type&& t, Receiver&& r) {
-      return unifex::connect_awaitable(((type&&)t).awaitable_, (Receiver&&)r);
+      return unifex::connect_awaitable(
+          std::move(t).awaitable_, std::forward<Receiver>(r));
     }
 
     // TODO: how do we make this property statically discoverable?
@@ -266,8 +278,14 @@ struct _sndr<Awaitable, void> {
       return unifex::blocking(t.awaitable_);
     }
 
+    friend instruction_ptr
+    tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+      return t.returnAddress_;
+    }
+
   private:
     Awaitable awaitable_;
+    instruction_ptr returnAddress_;
   };
 };
 
@@ -279,7 +297,9 @@ struct _fn {
       (requires detail::_awaitable<Awaitable>)  //
       _sender<remove_cvref_t<Awaitable>>
       operator()(Awaitable&& awaitable) const {
-    return _sender<remove_cvref_t<Awaitable>>{(Awaitable&&)awaitable};
+    return _sender<remove_cvref_t<Awaitable>>{
+        std::forward<Awaitable>(awaitable),
+        instruction_ptr::read_return_address()};
   }
 };
 }  // namespace _as_sender
