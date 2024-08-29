@@ -387,10 +387,9 @@ public:
       coro::coroutine_handle<>,
       _suspend_result_t<Promise>>;
 
-  template(typename Promise)                               //
-      (requires same_as<bool, suspend_result_t<Promise>>)  //
-      bool await_suspend_impl(
-          coro::coroutine_handle<Promise> h, AsyncStackFrame* frame) {
+  template <typename Promise>
+  bool await_suspend_bool(
+      coro::coroutine_handle<Promise> h, AsyncStackFrame* frame) {
     auto* root = frame->getStackRoot();
 
     auto resumer = resume_with_stack_root(h).handle();
@@ -418,10 +417,9 @@ public:
     }
   }
 
-  template(typename Promise)                                 //
-      (requires(!same_as<bool, suspend_result_t<Promise>>))  //
-      suspend_result_t<Promise> await_suspend_impl(
-          coro::coroutine_handle<Promise> h, AsyncStackFrame* frame) {
+  template <typename Promise>
+  suspend_result_t<Promise> await_suspend_impl(
+      coro::coroutine_handle<Promise> h, AsyncStackFrame* frame) {
     auto resumer = resume_with_stack_root(h).handle();
 
     // save for later destruction
@@ -437,7 +435,11 @@ public:
   template <typename Promise>
   suspend_result_t<Promise> await_suspend(coro::coroutine_handle<Promise> h) {
     if (auto* frame = get_async_stack_frame(h.promise())) {
-      return await_suspend_impl(h, frame);
+      if constexpr (same_as<bool, suspend_result_t<Promise>>) {
+        return await_suspend_bool(h, frame);
+      } else {
+        return await_suspend_impl(h, frame);
+      }
     }
 
     using awaiter_suspend_result_t = decltype(awaiter_.await_suspend(h));

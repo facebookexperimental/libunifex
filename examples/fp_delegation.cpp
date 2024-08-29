@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -13,6 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#if defined(_MSC_VER) && !defined(__clang__)
+// async stacks break this file when building with MSVC; we can probably fix it
+// by switching the implementation to use unifex::variant_sender, but that's a
+// post-CppCon problem
+#  define UNIFEX_NO_ASYNC_STACKS 1
+#endif
 
 #include <unifex/for_each.hpp>
 #include <unifex/manual_event_loop.hpp>
@@ -135,7 +141,7 @@ public:
       auto local_op = [&receiver, context = context_]() mutable {
         return LC{unifex::connect(
             unifex::schedule(context->single_thread_context_.get_scheduler()),
-            (Receiver &&) receiver)};
+            (Receiver&&)receiver)};
       };
       return op{std::move(local_op), context_};
     }
@@ -143,7 +149,7 @@ public:
     auto target_op = [&receiver]() mutable {
       return unifex::connect(
           unifex::schedule(unifex::get_scheduler(std::as_const(receiver))),
-          (Receiver &&) receiver);
+          (Receiver&&)receiver);
     };
 
     return op{std::move(target_op), context_};
