@@ -301,11 +301,9 @@
 #if !defined(UNIFEX_NO_ASYNC_STACKS)
 // default:
 //  - release builds do not have async stacks
-//  - Windows builds do not have async stacks
 //
-// adding async stacks adds non-trivial binary size at the moment, and I can't
-// figure out how to make all the relevant Windows builds succeed
-#  if defined(NDEBUG) || defined(_MSC_VER)
+// adding async stacks adds non-trivial binary size at the moment
+#  if defined(NDEBUG)
 #    define UNIFEX_NO_ASYNC_STACKS 1
 #  else
 #    define UNIFEX_NO_ASYNC_STACKS 0
