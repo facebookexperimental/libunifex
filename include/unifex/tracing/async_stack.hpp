@@ -22,6 +22,11 @@
 #include <cassert>
 #include <cstdint>
 
+#if defined(_MSC_VER)
+// needed for _ReturnAddress() and _AddressOfReturnAddress()
+#include <intrin.h>
+#endif
+
 #include <unifex/detail/prologue.hpp>
 
 namespace unifex {
@@ -273,13 +278,8 @@ struct instruction_ptr final {
   // Generally a function that uses this macro should be declared FOLLY_NOINLINE
   // to prevent this returning surprising results in cases where the function
   // is inlined.
-#if UNIFEX_HAS_BUILTIN(__builtin_return_address)
   static constexpr instruction_ptr
-  read_return_address(void* p = __builtin_return_address(0)) noexcept {
-#else
-  static constexpr instruction_ptr
-  read_return_address(void* p = nullptr) noexcept {
-#endif
+  read_return_address(void* p = UNIFEX_RETURN_ADDRESS) noexcept {
     return instruction_ptr{p};
   }
 
@@ -311,12 +311,8 @@ struct frame_ptr {
   // Generally a function that uses this macro should be declared FOLLY_NOINLINE
   // to prevent this returning surprising results in cases where the function
   // is inlined.
-#if UNIFEX_HAS_BUILTIN(__builtin_frame_address)
   static constexpr frame_ptr
-  read_frame_pointer(void* p = __builtin_frame_address(0)) noexcept {
-#else
-  static constexpr frame_ptr read_frame_pointer(void* p = nullptr) noexcept {
-#endif
+  read_frame_pointer(void* p = UNIFEX_FRAME_ADDRESS) noexcept {
     return frame_ptr{p};
   }
 
