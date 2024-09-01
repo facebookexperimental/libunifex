@@ -313,6 +313,22 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
+            name: "Linux Clang 18 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "clang-18", cxx: "clang++-18",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 18 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-20.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "clang-18", cxx: "clang++-18",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
             name: "macOS GCC Debug (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
@@ -367,24 +383,6 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
-            name: "Windows MSVC 2019 Debug (C++17)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-2019,
-            build_type: Debug,
-            cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=17",
-            experimental: true
-          }
-        - {
-            name: "Windows MSVC 2019 Optimised (C++17)", artifact: "Windows-MSVC.tar.xz",
-            os: windows-2019,
-            build_type: RelWithDebInfo,
-            cc: "cl", cxx: "cl",
-            environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=17",
-            experimental: true
-          }
-        - {
             name: "Windows MSVC 2019 Debug (C++20)", artifact: "Windows-MSVC.tar.xz",
             os: windows-2019,
             build_type: Debug,
@@ -398,6 +396,22 @@ jobs:
             build_type: RelWithDebInfo,
             cc: "cl", cxx: "cl",
             environment_script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
+          }
+        - {
+            name: "Windows MSVC 2022 Debug (C++20)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-2022,
+            build_type: Debug,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
+          }
+        - {
+            name: "Windows MSVC 2022 Optimised (C++20)", artifact: "Windows-MSVC.tar.xz",
+            os: windows-2022,
+            build_type: RelWithDebInfo,
+            cc: "cl", cxx: "cl",
+            environment_script: "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Auxiliary/Build/vcvars64.bat",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20",
           }
 
@@ -506,6 +520,16 @@ jobs:
         chmod +x llvm.sh
         sudo ./llvm.sh 17
 
+    - name: Install Clang 18
+      id: install_clang_18
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-18' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 18
+
     - name: Install GCC 11
       id: install_gcc_11
       if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-11' )
@@ -599,7 +623,6 @@ jobs:
 
     - name: Build
       shell: cmake -P {0}
-      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
 
@@ -628,7 +651,6 @@ jobs:
 
     - name: Run tests
       shell: cmake -P {0}
-      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         include(ProcessorCount)
         ProcessorCount(N)
@@ -646,7 +668,6 @@ jobs:
 
     - name: Install
       shell: cmake -P {0}
-      continue-on-error: ${{ matrix.config.experimental || false }}
       run: |
         set(ENV{NINJA_STATUS} "[%f/%t %o/sec] ")
 
