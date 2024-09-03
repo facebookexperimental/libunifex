@@ -277,18 +277,6 @@ private:
       std::invoke_result_t<_impl<false>, S, _inject::receiver_t<R>>,
       R>;
 
-  template <>
-  struct _impl<true> {
-    template <typename S, typename R>
-    auto operator()(S&& s, R&& r) const
-        noexcept(noexcept(_inject::make_op_wrapper(
-            std::forward<S>(s), std::forward<R>(r), _impl<false>{})))
-            -> op_t<S, R> {
-      return _inject::make_op_wrapper(
-          std::forward<S>(s), std::forward<R>(r), _impl<false>{});
-    }
-  };
-
 public:
   template(
       typename S,
@@ -303,6 +291,17 @@ public:
               std::forward<S>(s), std::forward<R>(r))) {
     return _impl<WithAsyncStackSupport>{}(
         std::forward<S>(s), std::forward<R>(r));
+  }
+};
+
+template <>
+struct _fn::_impl<true> {
+  template <typename S, typename R>
+  auto
+  operator()(S&& s, R&& r) const noexcept(noexcept(_inject::make_op_wrapper(
+      std::forward<S>(s), std::forward<R>(r), _impl<false>{}))) -> op_t<S, R> {
+    return _inject::make_op_wrapper(
+        std::forward<S>(s), std::forward<R>(r), _impl<false>{});
   }
 };
 
