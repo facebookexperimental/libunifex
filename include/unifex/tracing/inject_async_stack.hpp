@@ -17,21 +17,19 @@
 
 #include <unifex/config.hpp>
 
-#if !UNIFEX_NO_ASYNC_STACKS
+#include <unifex/continuations.hpp>
+#include <unifex/receiver_concepts.hpp>
+#include <unifex/tracing/async_stack.hpp>
+#include <unifex/tracing/get_async_stack_frame.hpp>
+#include <unifex/tracing/get_return_address.hpp>
+#include <unifex/detail/unifex_fwd.hpp>
 
-#  include <unifex/continuations.hpp>
-#  include <unifex/receiver_concepts.hpp>
-#  include <unifex/tracing/async_stack.hpp>
-#  include <unifex/tracing/get_async_stack_frame.hpp>
-#  include <unifex/tracing/get_return_address.hpp>
-#  include <unifex/detail/unifex_fwd.hpp>
+#include <exception>
+#include <functional>
+#include <type_traits>
+#include <utility>
 
-#  include <exception>
-#  include <functional>
-#  include <type_traits>
-#  include <utility>
-
-#  include <unifex/detail/prologue.hpp>
+#include <unifex/detail/prologue.hpp>
 
 namespace unifex {
 namespace _inject {
@@ -172,13 +170,13 @@ struct _rcvr_wrapper<Receiver>::type final : _rcvr_base {
     return std::move(cpo)(std::as_const(r.receiver()));
   }
 
-#  if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
+#if UNIFEX_ENABLE_CONTINUATION_VISITATIONS
   template <typename Visit>
   friend void
   tag_invoke(tag_t<visit_continuations>, const type& r, Visit&& visit) {
     std::invoke(visit, r.receiver());
   }
-#  endif
+#endif
 
   Receiver& receiver() const noexcept {
     return static_cast<op_with_receiver_t<Receiver>*>(this->op_)->receiver_;
@@ -238,6 +236,4 @@ auto make_op_wrapper(S&& s, R&& r, Fn&& fn) noexcept(
 
 }  // namespace unifex
 
-#  include <unifex/detail/epilogue.hpp>
-
-#endif  // !UNIFEX_NO_ASYNC_STACKS
+#include <unifex/detail/epilogue.hpp>

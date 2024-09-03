@@ -250,6 +250,7 @@ namespace _cpo {
 
 struct _fn {
 private:
+  template <bool WithAsyncStackSupport>
   struct _impl {
     template(typename S, typename R)         //
         (requires tag_invocable<_fn, S, R>)  //
@@ -271,31 +272,38 @@ private:
     }
   };
 
-#if UNIFEX_NO_ASYNC_STACKS
-public:
-  template(typename S, typename R)          //
-      (requires sender<S> AND receiver<R>)  //
-      auto
-      operator()(S&& s, R&& r) const
-      noexcept(noexcept(_impl{}(std::forward<S>(s), std::forward<R>(r))))
-          -> decltype(_impl{}(std::forward<S>(s), std::forward<R>(r))) {
-    return _impl{}(std::forward<S>(s), std::forward<R>(r));
-  }
-#else
   template <typename S, typename R>
-  using op_t = _inject::
-      op_wrapper<std::invoke_result_t<_impl, S, _inject::receiver_t<R>>, R>;
+  using op_t = _inject::op_wrapper<
+      std::invoke_result_t<_impl<false>, S, _inject::receiver_t<R>>,
+      R>;
+
+  template <>
+  struct _impl<true> {
+    template <typename S, typename R>
+    auto operator()(S&& s, R&& r) const
+        noexcept(noexcept(_inject::make_op_wrapper(
+            std::forward<S>(s), std::forward<R>(r), _impl<false>{})))
+            -> op_t<S, R> {
+      return _inject::make_op_wrapper(
+          std::forward<S>(s), std::forward<R>(r), _impl<false>{});
+    }
+  };
 
 public:
-  template(typename S, typename R)          //
-      (requires sender<S> AND receiver<R>)  //
+  template(
+      typename S,
+      typename R,
+      bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS)  //
+      (requires sender<S> AND receiver<R>)                   //
       auto
-      operator()(S&& s, R&& r) const noexcept(noexcept(_inject::make_op_wrapper(
-          std::forward<S>(s), std::forward<R>(r), _impl{}))) -> op_t<S, R> {
-    return _inject::make_op_wrapper(
-        std::forward<S>(s), std::forward<R>(r), _impl{});
+      operator()(S&& s, R&& r) const
+      noexcept(noexcept(_impl<WithAsyncStackSupport>{}(
+          std::forward<S>(s), std::forward<R>(r))))
+          -> decltype(_impl<WithAsyncStackSupport>{}(
+              std::forward<S>(s), std::forward<R>(r))) {
+    return _impl<WithAsyncStackSupport>{}(
+        std::forward<S>(s), std::forward<R>(r));
   }
-#endif
 };
 
 }  // namespace _cpo

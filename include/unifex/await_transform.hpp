@@ -97,7 +97,9 @@ struct _awaitable_base<Promise, Value, WithAsyncStackSupport>::type {
         if (auto* frame = get_async_stack_frame(continuation_.promise())) {
           detail::ScopedAsyncStackRoot root;
           root.activateFrame(*frame);
-          return continuation_.resume();
+          continuation_.resume();
+          root.ensureFrameDeactivated(frame);
+          return;
         }
       }
 
@@ -142,7 +144,9 @@ struct _awaitable_base<Promise, Value, WithAsyncStackSupport>::type {
           detail::ScopedAsyncStackRoot root;
           root.activateFrame(frame);
 
-          return continuation_.resume_done();
+          continuation_.resume_done();
+          root.ensureFrameDeactivated(&frame);
+          return;
         }
       }
 
@@ -213,7 +217,7 @@ public:
   void await_suspend(coro::coroutine_handle<Promise> handle) noexcept {
     if constexpr (WithAsyncStackSupport) {
       auto* frame = get_async_stack_frame(handle.promise());
-      if (frame) {
+      if (frame && frame->getStackRoot()) {
         deactivateAsyncStackFrame((*frame));
       }
     }
