@@ -119,6 +119,22 @@ TEST_F(WhenAllRangeTests, canNestInV2Scope) {
   unifex::sync_wait(scope.complete());
 }
 
+TEST_F(WhenAllRangeTests, canConstRefConnect) {
+  using just_t = decltype(unifex::just(42));
+
+  const auto sender =
+      unifex::when_all_range(std::vector<just_t>{unifex::just(42)});
+
+  auto ret = unifex::sync_wait(sender);
+
+  // there should be a result
+  ASSERT_TRUE(ret.has_value());
+  // it should be a vector of length one
+  ASSERT_EQ(ret->size(), 1);
+  // the first element should be 42
+  EXPECT_EQ(ret->at(0), 42);
+}
+
 // TODO: Fix MSVC compilation error with any_unique
 #ifndef _MSC_VER
 TEST_F(WhenAllRangeTests, ErrorCancelsRest) {
