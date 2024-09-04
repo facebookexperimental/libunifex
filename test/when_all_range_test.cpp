@@ -12,6 +12,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
+#include <unifex/v1/async_scope.hpp>
 
 #include <unifex/never.hpp>
 #include <unifex/when_all_range.hpp>
@@ -102,6 +103,20 @@ TEST_F(WhenAllRangeTests, noCopy) {
   for (int i = 0; i < 10; i++) {
     ASSERT_EQ(result.value()[i], i * 3);
   }
+}
+
+TEST_F(WhenAllRangeTests, canNestInV2Scope) {
+  // v1::async_scope::detached_spawn()'s requires clause ends up checking
+  // whether the provided sender can be const-ref-connected, which used to be
+  // broken for when_all_range
+  unifex::v1::async_scope scope;
+  std::vector<unifex::any_sender_of<int>> v;
+  v.push_back(unifex::just(42));
+  scope.detached_spawn(
+      unifex::when_all_range(std::move(v)) |
+      unifex::then([](auto) noexcept {}));
+
+  unifex::sync_wait(scope.complete());
 }
 
 // TODO: Fix MSVC compilation error with any_unique
