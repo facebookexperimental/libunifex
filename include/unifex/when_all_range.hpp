@@ -79,8 +79,8 @@ private:
     unifex::connect_result_t<Sender, element_receiver_t> connection;
 
     _operation_holder(Sender&& sender, type& op, std::size_t index) noexcept(
-        unifex::is_nothrow_connectable_v<Sender, element_receiver_t>&& std::
-            is_nothrow_constructible_v<element_receiver_t, type&, std::size_t>)
+        unifex::is_nothrow_connectable_v<Sender, element_receiver_t> &&
+        std::is_nothrow_constructible_v<element_receiver_t, type&, std::size_t>)
       : connection(unifex::connect(
             static_cast<Sender&&>(sender), element_receiver_t(op, index))) {}
   };
@@ -208,14 +208,16 @@ struct _element_receiver<Receiver, Sender>::type final {
       op_.holders_[index_].value.emplace(std::forward<Value>(value)...);
       op_.element_complete();
     }
-    UNIFEX_CATCH(...) { this->set_error(std::current_exception()); }
+    UNIFEX_CATCH(...) {
+      this->set_error(std::current_exception());
+    }
   }
 
   template <typename Error>
   void set_error(Error&& error) noexcept {
     if (!op_.doneOrError_.exchange(true, std::memory_order_relaxed)) {
       op_.error_.emplace(
-          std::in_place_type_t<std::decay_t<Error>>{}, (Error &&) error);
+          std::in_place_type_t<std::decay_t<Error>>{}, (Error&&)error);
       op_.stopSource_.request_stop();
     }
     op_.element_complete();
@@ -345,9 +347,10 @@ struct _fn final {
     return _when_all_range::sender<Sender>(std::move(senders));
   }
   template <typename Iterator>
-  auto operator()(Iterator first, Iterator last) const -> decltype(operator()(
-      std::vector<typename std::iterator_traits<Iterator>::value_type>{
-          first, last})) {
+  auto operator()(Iterator first, Iterator last) const
+      -> decltype(operator()(
+          std::vector<typename std::iterator_traits<Iterator>::value_type>{
+              first, last})) {
     return operator()(
         std::vector<typename std::iterator_traits<Iterator>::value_type>{
             first, last});
