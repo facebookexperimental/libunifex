@@ -307,7 +307,7 @@ private:
       friend auto tag_invoke(
           unifex::tag_t<unifex::connect> /* unused */,
           Sender2&& sender,
-          Receiver&& receiver) {
+          Receiver&& receiver) -> operation<remove_cvref_t<Receiver>, Sender> {
     // return an operation that wraps all connections
     return operation<unifex::remove_cvref_t<Receiver>, Sender>{
         static_cast<Receiver&&>(receiver),
