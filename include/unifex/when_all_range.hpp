@@ -78,23 +78,32 @@ private:
     std::optional<sender_nonvoid_value_type> value;
     unifex::connect_result_t<Sender, element_receiver_t> connection;
 
-    _operation_holder(Sender&& sender, type& op, std::size_t index) noexcept(
-        unifex::is_nothrow_connectable_v<Sender, element_receiver_t> &&
+    template <typename Sender2>
+    _operation_holder(Sender2&& sender, type& op, std::size_t index) noexcept(
+        unifex::is_nothrow_connectable_v<Sender2, element_receiver_t> &&
         std::is_nothrow_constructible_v<element_receiver_t, type&, std::size_t>)
       : connection(unifex::connect(
-            static_cast<Sender&&>(sender), element_receiver_t(op, index))) {}
+            std::forward<Sender2>(sender), element_receiver_t(op, index))) {}
   };
 
 public:
-  type(Receiver&& receiver, std::vector<Sender>&& senders)
-    : receiver_(std::move(receiver))
+  template(typename Receiver2, typename Vector)  //
+      (requires same_as<remove_cvref_t<Receiver2>, Receiver> AND
+           same_as<remove_cvref_t<Vector>, std::vector<Sender>>)  //
+      explicit type(Receiver2&& receiver, Vector&& senders) noexcept(
+          false)  // we'll be allocating
+    : receiver_(std::forward<Receiver2>(receiver))
     , refCount_(senders.size()) {
     std::allocator<_operation_holder> allocator;
     holders_ = allocator.allocate(senders.size());
     try {
-      for (auto&& sender : senders) {
-        new (holders_ + numHolders_)
-            _operation_holder{std::move(sender), *this, numHolders_};
+      using iterator_t = std::conditional_t<
+          same_as<std::vector<Sender>, Vector>,
+          decltype(std::make_move_iterator(senders.begin())),
+          decltype(senders.begin())>;
+
+      for (iterator_t b{senders.begin()}, e{senders.end()}; b != e; ++b) {
+        new (holders_ + numHolders_) _operation_holder{*b, *this, numHolders_};
         ++numHolders_;
       }
     } catch (...) {
@@ -310,8 +319,8 @@ private:
           Receiver&& receiver) -> operation<remove_cvref_t<Receiver>, Sender> {
     // return an operation that wraps all connections
     return operation<unifex::remove_cvref_t<Receiver>, Sender>{
-        static_cast<Receiver&&>(receiver),
-        std::move((static_cast<Sender2&&>(sender)).senders_)};
+        std::forward<Receiver>(receiver),
+        std::forward<Sender2>(sender).senders_};
   }
 
   // Combine the blocking-nature of each of the child operations.
