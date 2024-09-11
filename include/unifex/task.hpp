@@ -199,6 +199,8 @@ struct _promise_base {
   inplace_stop_token stoken_;
   // the coroutine to resume when a child awaitable completes with done
   done_coro doneCoro_;
+  // gets set to the return address of the ramp function
+  instruction_ptr returnAddress_;
 };
 
 /**
@@ -320,7 +322,10 @@ struct _promise final {
     , _return_value_or_void<T, nothrow>::type {
     using result_type = T;
 
-    typename _task<T, nothrow>::type get_return_object() noexcept {
+    typename _task<T, nothrow>::type get_return_object(
+        instruction_ptr returnAddress =
+            instruction_ptr::read_return_address()) noexcept {
+      this->returnAddress_ = returnAddress;
       return typename _task<T, nothrow>::type{
           coro::coroutine_handle<type>::from_promise(*this)};
     }
@@ -788,6 +793,13 @@ private:
   friend typename _sa_task<T, nothrow>::type tag_invoke(
       tag_t<with_scheduler_affinity>, type&& task, Scheduler&&) noexcept {
     return {std::move(task)};
+  }
+
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& task) noexcept {
+    auto h = coro::coroutine_handle<promise_type>::from_address(
+        task.coro_.address());
+    return h.promise().returnAddress_;
   }
 };
 
