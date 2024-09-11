@@ -70,7 +70,9 @@ public:
       operator()(Scheduler&& sched) const -> _result_t<Scheduler> {
     auto&& scheduleOp = schedule(sched);
     return _result_t<Scheduler>{
-        static_cast<decltype(scheduleOp)>(scheduleOp), {(Scheduler &&) sched}};
+        static_cast<decltype(scheduleOp)>(scheduleOp),
+        {(Scheduler &&) sched},
+        instruction_ptr::read_return_address()};
   }
   constexpr auto operator()() const
       noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn>)
