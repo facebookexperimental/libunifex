@@ -129,6 +129,7 @@ template <typename Predecessor, typename Func>
 struct _sender<Predecessor, Func>::type {
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor pred_;
   UNIFEX_NO_UNIQUE_ADDRESS Func func_;
+  instruction_ptr returnAddress_;
 
 private:
   // This helper transforms an argument list into either
@@ -188,43 +189,73 @@ public:
   tag_invoke(tag_t<unifex::blocking>, const type& self) noexcept {
     return unifex::blocking(self.pred_);
   }
+
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+    return t.returnAddress_;
+  }
 };
 
 namespace _cpo {
 struct _fn {
 private:
-  template <typename Sender, typename Func>
-  using _result_t = typename conditional_t<
-      tag_invocable<_fn, Sender, Func>,
-      meta_tag_invoke_result<_fn>,
-      meta_quote2<_then::sender>>::template apply<Sender, Func>;
+  struct _impl_fn {
+    template(typename Sender, typename Func)         //
+        (requires tag_invocable<_fn, Sender, Func>)  //
+        auto
+        operator()(Sender&& predecessor, Func&& func, instruction_ptr) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
+            -> tag_invoke_result_t<_fn, Sender, Func> {
+      return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
+    }
+
+    template(typename Sender, typename Func)           //
+        (requires(!tag_invocable<_fn, Sender, Func>))  //
+        auto
+        operator()(
+            Sender&& predecessor,
+            Func&& func,
+            instruction_ptr returnAddress) const
+        noexcept(std::is_nothrow_constructible_v<
+                 _then::sender<Sender, Func>,
+                 Sender,
+                 Func,
+                 instruction_ptr>) -> _then::sender<Sender, Func> {
+      return _then::sender<Sender, Func>{
+          (Sender&&)predecessor, (Func&&)func, returnAddress};
+    }
+  };
 
 public:
-  template(typename Sender, typename Func)         //
-      (requires tag_invocable<_fn, Sender, Func>)  //
-      auto
-      operator()(Sender&& predecessor, Func&& func) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, Sender, Func>)
-          -> _result_t<Sender, Func> {
-    return unifex::tag_invoke(_fn{}, (Sender&&)predecessor, (Func&&)func);
+  template <typename Sender, typename Func>
+  auto operator()(Sender&& predecessor, Func&& func) const
+      noexcept(noexcept(_impl_fn{}(
+          std::forward<Sender>(predecessor),
+          std::forward<Func>(func),
+          nullptr)))
+          -> decltype(_impl_fn{}(
+              std::forward<Sender>(predecessor),
+              std::forward<Func>(func),
+              nullptr)) {
+    return _impl_fn{}(
+        std::forward<Sender>(predecessor),
+        std::forward<Func>(func),
+        instruction_ptr::read_return_address());
   }
-  template(typename Sender, typename Func)           //
-      (requires(!tag_invocable<_fn, Sender, Func>))  //
-      auto
-      operator()(Sender&& predecessor, Func&& func) const
-      noexcept(std::is_nothrow_constructible_v<
-               _then::sender<Sender, Func>,
-               Sender,
-               Func>) -> _result_t<Sender, Func> {
-    return _then::sender<Sender, Func>{(Sender&&)predecessor, (Func&&)func};
-  }
+
   template <typename Func>
   constexpr auto operator()(Func&& func) const
-      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, Func>)
-          -> bind_back_result_t<_fn, Func> {
-    return bind_back(*this, (Func&&)func);
+      noexcept(std::is_nothrow_invocable_v<
+               tag_t<bind_back>,
+               _impl_fn,
+               Func,
+               instruction_ptr>)
+          -> bind_back_result_t<_impl_fn, Func, instruction_ptr> {
+    return bind_back(
+        _impl_fn{}, (Func&&)func, instruction_ptr::read_return_address());
   }
 };
+
 }  // namespace _cpo
 }  // namespace _then
 
