@@ -297,11 +297,12 @@ struct _sndr<Predecessor, Successor>::type {
            constructible_from<
                Successor,
                Successor2>)  //
-      explicit type(Predecessor2&& predecessor, Successor2&& successor) noexcept(
+      explicit type(Predecessor2&& predecessor, Successor2&& successor, instruction_ptr returnAddress) noexcept(
           std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
           std::is_nothrow_constructible_v<Successor, Successor2>)
     : predecessor_(static_cast<Predecessor&&>(predecessor))
-    , successor_(static_cast<Successor&&>(successor)) {}
+    , successor_(static_cast<Successor&&>(successor))
+    , returnAddress_(returnAddress) {}
 
   friend constexpr blocking_kind tag_invoke(tag_t<blocking>, const type& self) {
     blocking_kind pred = blocking(self.predecessor_);
@@ -309,6 +310,11 @@ struct _sndr<Predecessor, Successor>::type {
 
     // TODO: we only need the min(, maybe) if pred can throw or cancel
     return std::max(pred(), std::min(succ(), blocking_kind::maybe()));
+  }
+
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+    return t.returnAddress_;
   }
 
   template(typename Receiver, typename Sender)  //
@@ -338,84 +344,123 @@ struct _sndr<Predecessor, Successor>::type {
 private:
   UNIFEX_NO_UNIQUE_ADDRESS Predecessor predecessor_;
   UNIFEX_NO_UNIQUE_ADDRESS Successor successor_;
+  instruction_ptr returnAddress_;
 };
 
 namespace _cpo {
 struct _fn {
-  // Sequencing a single sender is just the same as returning the sender
-  // itself.
-  template <typename First>
-  remove_cvref_t<First> operator()(First&& first) const
-      noexcept(std::is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
-    return static_cast<First&&>(first);
-  }
+private:
+  struct _impl_fn {
+    // Sequencing a single sender is just the same as returning the sender
+    // itself.
+    template <typename First>
+    remove_cvref_t<First> operator()(instruction_ptr, First&& first) const
+        noexcept(
+            std::is_nothrow_constructible_v<remove_cvref_t<First>, First>) {
+      return static_cast<First&&>(first);
+    }
 
-  template(typename First, typename Second)  //
-      (requires sender<First> AND sender<Second> AND
-           tag_invocable<_fn, First, Second>)  //
-      auto
-      operator()(First&& first, Second&& second) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, First, Second>)
-          -> tag_invoke_result_t<_fn, First, Second> {
-    return unifex::tag_invoke(
-        _fn{}, static_cast<First&&>(first), static_cast<Second&&>(second));
-  }
+    template(typename First, typename Second)  //
+        (requires sender<First> AND sender<Second> AND
+             tag_invocable<_fn, First, Second>)  //
+        auto
+        operator()(instruction_ptr, First&& first, Second&& second) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, First, Second>)
+            -> tag_invoke_result_t<_fn, First, Second> {
+      return unifex::tag_invoke(
+          _fn{}, static_cast<First&&>(first), static_cast<Second&&>(second));
+    }
 
-  template(typename First, typename Second)  //
-      (requires sender<First> AND
-           sender<Second> AND(!tag_invocable<_fn, First, Second>))  //
-      auto
-      operator()(First&& first, Second&& second) const
-      noexcept(std::is_nothrow_constructible_v<
-               _seq::_sender<First, Second>,
-               First,
-               Second>) -> _seq::_sender<First, Second> {
-    return _seq::_sender<First, Second>{
-        static_cast<First&&>(first), static_cast<Second&&>(second)};
-  }
+    template(typename First, typename Second)  //
+        (requires sender<First> AND
+             sender<Second> AND(!tag_invocable<_fn, First, Second>))  //
+        auto
+        operator()(
+            instruction_ptr returnAddress, First&& first, Second&& second) const
+        noexcept(std::is_nothrow_constructible_v<
+                 _seq::_sender<First, Second>,
+                 First,
+                 Second,
+                 instruction_ptr>) -> _seq::_sender<First, Second> {
+      return _seq::_sender<First, Second>{
+          static_cast<First&&>(first),
+          static_cast<Second&&>(second),
+          returnAddress};
+    }
 
-  template(
-      typename First, typename Second, typename Third, typename... Rest)  //
-      (requires sender<First> AND sender<Second> AND
-           sender<Third> AND(sender<Rest>&&...)
-               AND tag_invocable<_fn, First, Second, Third, Rest...>)  //
-      auto
-      operator()(
-          First&& first, Second&& second, Third&& third, Rest&&... rest) const
-      noexcept(is_nothrow_tag_invocable_v<_fn, First, Second, Third, Rest...>)
-          -> tag_invoke_result_t<_fn, First, Second, Third, Rest...> {
-    return unifex::tag_invoke(
-        _fn{},
-        static_cast<First&&>(first),
-        static_cast<Second&&>(second),
-        static_cast<Third&&>(third),
-        static_cast<Rest&&>(rest)...);
-  }
+    template(
+        typename First, typename Second, typename Third, typename... Rest)  //
+        (requires sender<First> AND sender<Second> AND
+             sender<Third> AND(sender<Rest>&&...)
+                 AND tag_invocable<_fn, First, Second, Third, Rest...>)  //
+        auto
+        operator()(
+            instruction_ptr,
+            First&& first,
+            Second&& second,
+            Third&& third,
+            Rest&&... rest) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, First, Second, Third, Rest...>)
+            -> tag_invoke_result_t<_fn, First, Second, Third, Rest...> {
+      return unifex::tag_invoke(
+          _fn{},
+          static_cast<First&&>(first),
+          static_cast<Second&&>(second),
+          static_cast<Third&&>(third),
+          static_cast<Rest&&>(rest)...);
+    }
 
-  template(
-      typename First, typename Second, typename Third, typename... Rest)  //
-      (requires sender<First> AND sender<Second> AND
-           sender<Third> AND(sender<Rest>&&...)
-               AND(!tag_invocable<_fn, First, Second, Third, Rest...>))  //
-      auto
-      operator()(First&& first, Second&& second, Third&& third, Rest&&... rest)
-          const noexcept(
-              std::is_nothrow_invocable_v<_fn, First, Second> &&
-              std::is_nothrow_invocable_v<
-                  _fn,
-                  std::invoke_result_t<_fn, First, Second>,
-                  Third,
-                  Rest...>)
-              -> std::invoke_result_t<
-                  _fn,
-                  std::invoke_result_t<_fn, First, Second>,
-                  Third,
-                  Rest...> {
-    // Fall-back to pair-wise invocation of the sequence() CPO.
-    return (*this)(
-        (*this)(static_cast<First&&>(first), static_cast<Second&&>(second)),
-        static_cast<Third&&>(third),
-        static_cast<Rest&&>(rest)...);
+    template(
+        typename First, typename Second, typename Third, typename... Rest)  //
+        (requires sender<First> AND sender<Second> AND
+             sender<Third> AND(sender<Rest>&&...)
+                 AND(!tag_invocable<_fn, First, Second, Third, Rest...>))  //
+        auto
+        operator()(
+            instruction_ptr returnAddress,
+            First&& first,
+            Second&& second,
+            Third&& third,
+            Rest&&... rest) const
+        noexcept(
+            std::is_nothrow_invocable_v<
+                _impl_fn,
+                instruction_ptr,
+                First,
+                Second> &&
+            std::is_nothrow_invocable_v<
+                _impl_fn,
+                instruction_ptr,
+                std::invoke_result_t<_fn, First, Second>,
+                Third,
+                Rest...>)
+            -> std::invoke_result_t<
+                _impl_fn,
+                instruction_ptr,
+                std::invoke_result_t<_fn, First, Second>,
+                Third,
+                Rest...> {
+      // Fall-back to pair-wise invocation of the sequence() CPO.
+      return (*this)(
+          returnAddress,
+          (*this)(
+              returnAddress,
+              static_cast<First&&>(first),
+              static_cast<Second&&>(second)),
+          static_cast<Third&&>(third),
+          static_cast<Rest&&>(rest)...);
+    }
+  };
+
+public:
+  template <typename First, typename... Rest>
+  auto operator()(First&& first, Rest&&... rest) const noexcept(
+      std::is_nothrow_invocable_v<_impl_fn, instruction_ptr, First, Rest...>)
+      -> std::invoke_result_t<_impl_fn, instruction_ptr, First, Rest...> {
+    return _impl_fn{}(
+        instruction_ptr::read_return_address(),
+        std::forward<First>(first),
+        std::forward<Rest>(rest)...);
   }
 };
 }  // namespace _cpo
