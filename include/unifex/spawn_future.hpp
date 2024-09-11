@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -954,54 +954,57 @@ public:
     alloc_traits_t::construct(opAlloc, op, opAlloc);
 
     // the next two steps might throw and we have to destroy op if one of them
-    // does throw so set up a scope_guard that will do that for us;
-    // conveniently, the deleter() static method does exactly the right thing
-    scope_guard cleanUp = [op]() noexcept {
+    // does throw; we used to use a scope_guard here but it triggers a
+    // miscompilation bug in VS 2022's MSVC that isn't triggered with a
+    // traditional try-catch block
+    UNIFEX_TRY {
+      using future_t = future_for<remove_cvref_t<Sender>, Scope, byte_alloc_t>;
+
+      // construct the future that we'll hand back to the caller; this is fairly
+      // likely to be noexcept since it's not much more than a Sender
+      // construction but it depends on the implementation of nest() for scope
+      // so it might throw
+      future_t future{scope, op};
+
+      // now finally construct the spawned operation, which might throw
+      op->init_operation(static_cast<Sender&&>(sender), scope, op);
+
+      // now that everything is wired together there are no more exception
+      // concerns from here
+
+      // start the spawned operation
+      start(*op);
+
+      // ideally, the compiler performs NRVO and constructs this future in-place
+      // at the call site but future<>'s move constructor is noexcept so even if
+      // there's an actual move here, there's still no chance of an exception
+      return future;
+    }
+    UNIFEX_CATCH(...) {
       // Constructing the future is *almost* no-throw--only the call to nest()
       // might throw--so the future will invoke drop() on the operation (moving
       // it from init to complete) as part of its destructor before this code
       // runs.
       op_t::deleter(op, _future_state::complete);
-    };
-
-    using future_t = future_for<remove_cvref_t<Sender>, Scope, byte_alloc_t>;
-
-    // construct the future that we'll hand back to the caller; this is fairly
-    // likely to be noexcept since it's not much more than a Sender construction
-    // but it depends on the implementation of nest() for scope so it might
-    // throw
-    future_t future{scope, op};
-
-    // now finally construct the spawned operation, which might throw
-    op->init_operation(static_cast<Sender&&>(sender), scope, op);
-
-    // now that everything is wired together there are no more exception
-    // concerns
-    cleanUp.release();
-
-    // start the spawned operation
-    start(*op);
-
-    // ideally, the compiler performs NRVO and constructs this future in-place
-    // at the call site but future<>'s move constructor is noexcept so even if
-    // there's an actual move here, there's still no chance of an exception
-    return future;
+      throw;
+    }
   }
 
   template <typename Scope, typename Alloc = std::allocator<std::byte>>
-  constexpr auto operator()(Scope& scope, const Alloc& alloc = {}) const
-      noexcept(
-          std::is_nothrow_invocable_v<tag_t<bind_back>, deref, Scope*, const Alloc&>)
-          -> std::enable_if_t<
-              is_allocator_v<Alloc>,
-              bind_back_result_t<deref, Scope*, const Alloc&>>;
+  constexpr auto
+  operator()(Scope& scope, const Alloc& alloc = {}) const noexcept(
+      std::
+          is_nothrow_invocable_v<tag_t<bind_back>, deref, Scope*, const Alloc&>)
+      -> std::enable_if_t<
+          is_allocator_v<Alloc>,
+          bind_back_result_t<deref, Scope*, const Alloc&>>;
 };
 
 struct _spawn_future_fn::deref final {
   template <typename Sender, typename Scope, typename Alloc>
   auto operator()(Sender&& sender, Scope* scope, const Alloc& alloc) const
-      -> decltype(
-          _spawn_future_fn{}(static_cast<Sender&&>(sender), *scope, alloc)) {
+      -> decltype(_spawn_future_fn{}(
+          static_cast<Sender&&>(sender), *scope, alloc)) {
     return _spawn_future_fn{}(static_cast<Sender&&>(sender), *scope, alloc);
   }
 };
