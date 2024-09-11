@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License Version 2.0 with LLVM Exceptions
  * (the "License"); you may not use this file except in compliance with
@@ -142,9 +142,10 @@ public:
       sender_traits<Sender>::is_always_scheduler_affine;
 
   template <typename Sender2, typename Value2>
-  explicit type(Sender2&& sender, Value2&& value)
+  explicit type(Sender2&& sender, Value2&& value, instruction_ptr returnAddress)
     : sender_((Sender2 &&) sender)
-    , value_((Value2 &&) value) {}
+    , value_((Value2 &&) value)
+    , returnAddress_(returnAddress) {}
 
   template(typename Self, typename Receiver)  //
       (requires same_as<remove_cvref_t<Self>, type> AND
@@ -181,28 +182,58 @@ public:
     return unifex::blocking(s.sender_);
   }
 
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+    return t.returnAddress_;
+  }
+
 private:
   Sender sender_;
   Value value_;
+  instruction_ptr returnAddress_;
 };
 }  // namespace _with_query_value
 
 namespace _with_query_value_cpo {
 inline const struct _fn {
+  struct _impl_fn {
+    template <typename Sender, typename CPO, typename Value>
+    _with_query_value::sender<CPO, Value, Sender> operator()(
+        Sender&& sender,
+        CPO,
+        Value&& value,
+        instruction_ptr returnAddress) const {
+      static_assert(
+          std::is_empty_v<CPO>,
+          "with_query_value() does not support stateful CPOs");
+      return _with_query_value::sender<CPO, Value, Sender>{
+          (Sender&&)sender, (Value&&)value, returnAddress};
+    }
+  };
+
   template <typename Sender, typename CPO, typename Value>
-  _with_query_value::sender<CPO, Value, Sender>
-  operator()(Sender&& sender, CPO, Value&& value) const {
-    static_assert(
-        std::is_empty_v<CPO>,
-        "with_query_value() does not support stateful CPOs");
-    return _with_query_value::sender<CPO, Value, Sender>{
-        (Sender &&) sender, (Value &&) value};
+  auto operator()(Sender&& sender, CPO cpo, Value&& value) const {
+    return _impl_fn{}(
+        std::forward<Sender>(sender),
+        std::forward<CPO>(cpo),
+        std::forward<Value>(value),
+        instruction_ptr::read_return_address());
   }
+
   template <typename CPO, typename Value>
   constexpr auto operator()(const CPO&, Value&& value) const
-      noexcept(std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, CPO, Value>)
-          -> bind_back_result_t<_fn, CPO, Value> {
-    return bind_back(*this, CPO{}, (Value &&) value);
+      noexcept(std::is_nothrow_invocable_v<
+               tag_t<bind_back>,
+               _fn,
+               CPO,
+               Value,
+               instruction_ptr>)
+          -> bind_back_result_t<_impl_fn, CPO, Value, instruction_ptr> {
+    return bind_back(
+        _impl_fn{},
+        CPO{},
+        (Value&&)value,
+        instruction_ptr::read_return_address());
   }
 } with_query_value{};
 }  // namespace _with_query_value_cpo
