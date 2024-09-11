@@ -516,7 +516,10 @@ struct _sr_thunk_promise final {
     , _return_value_or_void<T, false>::type {
     using result_type = T;
 
-    typename _sr_thunk_task<T>::type get_return_object() noexcept {
+    typename _sr_thunk_task<T>::type get_return_object(
+        instruction_ptr returnAddress =
+            instruction_ptr::read_return_address()) noexcept {
+      this->returnAddress_ = returnAddress;
       return typename _sr_thunk_task<T>::type{
           coro::coroutine_handle<type>::from_promise(*this)};
     }
@@ -696,6 +699,13 @@ private:
   friend awaiter<Promise>
   tag_invoke(tag_t<unifex::await_transform>, Promise&, type&& t) noexcept {
     return awaiter<Promise>{std::exchange(t.coro_, {})};
+  }
+
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& task) noexcept {
+    auto h = coro::coroutine_handle<promise_type>::from_address(
+        task.coro_.address());
+    return h.promise().returnAddress_;
   }
 };
 
