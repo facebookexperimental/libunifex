@@ -249,10 +249,19 @@ public:
       bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS>
   auto operator()(Awaitable&& awaitable, Receiver&& receiver) const
       -> _await::sender_task<remove_cvref_t<Receiver>, WithAsyncStackSupport> {
+    auto returnAddress = instruction_ptr::read_return_address();
+
+    if constexpr (is_tag_invocable_v<tag_t<get_return_address>, Awaitable>) {
+      // the awaitable has customized get_return_address so let's use its value
+      // rather than synthesizing one inside the connect machinery we're
+      // implementing
+      returnAddress = get_return_address(awaitable);
+    }
+
     return connect_impl<WithAsyncStackSupport>(
         std::forward<Awaitable>(awaitable),
         std::forward<Receiver>(receiver),
-        instruction_ptr::read_return_address());
+        returnAddress);
   }
 } connect_awaitable{};
 }  // namespace _await_cpo
