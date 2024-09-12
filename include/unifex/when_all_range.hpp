@@ -276,9 +276,14 @@ public:
   using sender_value_type =
       unifex::sender_single_value_result_t<unifex::remove_cvref_t<Sender>>;
 
-  explicit type(std::vector<Sender>&& senders) noexcept(
-      std::is_nothrow_move_constructible_v<std::vector<Sender>>)
-    : senders_(std::move(senders)) {}
+  explicit type(
+      std::vector<Sender>&& senders,
+      instruction_ptr
+          returnAddress) noexcept(std::
+                                      is_nothrow_move_constructible_v<
+                                          std::vector<Sender>>)
+    : senders_(std::move(senders))
+    , returnAddress_(returnAddress) {}
 
   template <
       template <typename...>
@@ -333,24 +338,36 @@ private:
     }
   }
 
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& sender) noexcept {
+    return sender.returnAddress_;
+  }
+
   std::vector<Sender> senders_;
+  instruction_ptr returnAddress_;
 };
 
 namespace _cpo {
 struct _fn final {
+private:
+  template <typename Iterator>
+  using sender_from_iterator_t =
+      typename std::iterator_traits<Iterator>::value_type;
+
+public:
   template(typename Sender)               //
       (requires(unifex::sender<Sender>))  //
       auto
       operator()(std::vector<Sender> senders) const {
-    return _when_all_range::sender<Sender>(std::move(senders));
+    return _when_all_range::sender<Sender>(
+        std::move(senders), instruction_ptr::read_return_address());
   }
   template <typename Iterator>
-  auto operator()(Iterator first, Iterator last) const -> decltype(operator()(
-      std::vector<typename std::iterator_traits<Iterator>::value_type>{
-          first, last})) {
-    return operator()(
-        std::vector<typename std::iterator_traits<Iterator>::value_type>{
-            first, last});
+  auto operator()(Iterator first, Iterator last) const
+      -> _when_all_range::sender<sender_from_iterator_t<Iterator>> {
+    return _when_all_range::sender<sender_from_iterator_t<Iterator>>(
+        std::vector<sender_from_iterator_t<Iterator>>(first, last),
+        instruction_ptr::read_return_address());
   }
 };
 }  // namespace _cpo
