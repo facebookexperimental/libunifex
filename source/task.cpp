@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ void _task_promise_base::transform_schedule_sender_impl_(
   // correct scheduler, do so now:
   if (!std::exchange(this->rescheduled_, true)) {
     // Create a cleanup action that transitions back onto the current scheduler:
-    auto cleanupTask = at_coroutine_exit(schedule, this->sched_);
+    auto cleanupTask =
+        await_transform(*this, at_coroutine_exit(schedule, this->sched_));
     // Insert the cleanup action into the head of the continuation chain by
     // making direct calls to the cleanup task's awaiter member functions. See
     // type _cleanup_task in at_coroutine_exit.hpp:

@@ -21,6 +21,8 @@
 #include <unifex/coroutine_concepts.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/sender_concepts.hpp>
+#include <unifex/tracing/async_stack.hpp>
+#include <unifex/tracing/get_async_stack_frame.hpp>
 #include <unifex/type_traits.hpp>
 #include <unifex/unhandled_done.hpp>
 
@@ -36,19 +38,28 @@
 namespace unifex {
 namespace _await {
 
-template <typename Receiver>
+template <typename Receiver, bool WithAsyncStackSupport>
 struct _sender_task {
   class type;
 };
-template <typename Receiver>
-using sender_task = typename _sender_task<Receiver>::type;
+template <typename Receiver, bool WithAsyncStackSupport>
+using sender_task =
+    typename _sender_task<Receiver, WithAsyncStackSupport>::type;
 
-template <typename Receiver>
-class _sender_task<Receiver>::type {
+template <typename Receiver, bool WithAsyncStackSupport>
+class _sender_task<Receiver, WithAsyncStackSupport>::type {
 public:
   struct promise_type {
     template <typename Awaitable>
-    explicit promise_type(Awaitable&, Receiver& r) noexcept : receiver_(r) {}
+    explicit promise_type(
+        Awaitable&,
+        Receiver& r,
+        [[maybe_unused]] instruction_ptr returnAddress) noexcept
+      : receiver_(r) {
+      if constexpr (WithAsyncStackSupport) {
+        frame_.setReturnAddress(returnAddress);
+      }
+    }
 
     type get_return_object() noexcept {
       return type{coro::coroutine_handle<promise_type>::from_promise(*this)};
@@ -68,8 +79,12 @@ public:
     struct awaiter {
       Func&& func_;
       bool await_ready() noexcept { return false; }
-      void await_suspend(coro::coroutine_handle<promise_type>) noexcept(
+      void await_suspend(coro::coroutine_handle<promise_type> h) noexcept(
           std::is_nothrow_invocable_v<Func>) {
+        if constexpr (WithAsyncStackSupport) {
+          deactivateAsyncStackFrame(h.promise().frame_);
+        }
+
         std::forward<Func>(func_)();
       }
       [[noreturn]] void await_resume() noexcept { std::terminate(); }
@@ -99,12 +114,27 @@ public:
         friend auto tag_invoke(CPO cpo, const promise_type& p) noexcept(
             std::is_nothrow_invocable_v<CPO, const Receiver&>)
             -> std::invoke_result_t<CPO, const Receiver&> {
-      return cpo(std::as_const(p.receiver_));
+      if constexpr (
+          WithAsyncStackSupport && same_as<CPO, tag_t<get_async_stack_frame>>) {
+        return &p.frame_;
+      } else {
+        return std::move(cpo)(std::as_const(p.receiver_));
+      }
     }
 
     Receiver& receiver_;
-    done_coro doneCoro_ = unifex::unhandled_done(
-        [this]() noexcept { unifex::set_done(std::move(receiver_)); });
+    done_coro doneCoro_ = unifex::unhandled_done([this]() noexcept {
+      if constexpr (WithAsyncStackSupport) {
+        popAsyncStackFrameFromCaller(frame_);
+        deactivateAsyncStackFrame(frame_);
+      }
+
+      unifex::set_done(std::move(receiver_));
+    });
+
+    UNIFEX_NO_UNIQUE_ADDRESS mutable std::
+        conditional_t<WithAsyncStackSupport, AsyncStackFrame, detail::_empty<0>>
+            frame_;
   };
 
   coro::coroutine_handle<promise_type> coro_;
@@ -119,7 +149,24 @@ public:
       coro_.destroy();
   }
 
-  void start() & noexcept { coro_.resume(); }
+  void start() & noexcept {
+    if constexpr (WithAsyncStackSupport) {
+      detail::ScopedAsyncStackRoot root;
+
+      auto* frame = &coro_.promise().frame_;
+      if (auto parentFrame = get_async_stack_frame(coro_.promise().receiver_)) {
+        frame->setParentFrame(*parentFrame);
+      }
+
+      root.activateFrame(*frame);
+
+      coro_.resume();
+
+      root.ensureFrameDeactivated(frame);
+    } else {
+      coro_.resume();
+    }
+  }
 };
 
 }  // namespace _await
@@ -138,9 +185,10 @@ private:
     operator unit() const noexcept { return {}; }
   };
 
-  template <typename Awaitable, typename Receiver>
-  static auto connect_impl(Awaitable awaitable, Receiver receiver)
-      -> _await::sender_task<Receiver> {
+  template <bool WithAsyncStackSupport, typename Awaitable, typename Receiver>
+  static auto
+  connect_impl(Awaitable awaitable, Receiver receiver, instruction_ptr)
+      -> _await::sender_task<Receiver, WithAsyncStackSupport> {
 #if !UNIFEX_NO_EXCEPTIONS
     std::exception_ptr ex;
     try {
@@ -149,7 +197,8 @@ private:
       // The _sender_task's promise type has an await_transform that passes the
       // awaitable through unifex::await_transform. So take that into
       // consideration when computing the result type:
-      using promise_type = typename _await::sender_task<Receiver>::promise_type;
+      using promise_type = typename _await::
+          sender_task<Receiver, WithAsyncStackSupport>::promise_type;
       using awaitable_type = std::invoke_result_t<
           tag_t<unifex::await_transform>,
           promise_type&,
@@ -165,12 +214,17 @@ private:
       // after the coroutine is suspended so that it is safe
       // for the receiver to destroy the coroutine.
       co_yield [&](result_type&& result) {
-        return [&] {
-          if constexpr (std::is_void_v<await_result_t<awaitable_type>>) {
-            unifex::set_value(std::move(receiver));
-          } else {
-            unifex::set_value(
-                std::move(receiver), std::forward<result_type>(result));
+        return [&]() noexcept {
+          UNIFEX_TRY {
+            if constexpr (std::is_void_v<await_result_t<awaitable_type>>) {
+              unifex::set_value(std::move(receiver));
+            } else {
+              unifex::set_value(
+                  std::move(receiver), std::forward<result_type>(result));
+            }
+          }
+          UNIFEX_CATCH(...) {
+            unifex::set_error(std::move(receiver), std::current_exception());
           }
         };
         // The _comma_hack here makes this well-formed when the co_await
@@ -189,11 +243,25 @@ private:
   }
 
 public:
-  template <typename Awaitable, typename Receiver>
+  template <
+      typename Awaitable,
+      typename Receiver,
+      bool WithAsyncStackSupport = !UNIFEX_NO_ASYNC_STACKS>
   auto operator()(Awaitable&& awaitable, Receiver&& receiver) const
-      -> _await::sender_task<remove_cvref_t<Receiver>> {
-    return connect_impl(
-        std::forward<Awaitable>(awaitable), std::forward<Receiver>(receiver));
+      -> _await::sender_task<remove_cvref_t<Receiver>, WithAsyncStackSupport> {
+    auto returnAddress = instruction_ptr::read_return_address();
+
+    if constexpr (is_tag_invocable_v<tag_t<get_return_address>, Awaitable>) {
+      // the awaitable has customized get_return_address so let's use its value
+      // rather than synthesizing one inside the connect machinery we're
+      // implementing
+      returnAddress = get_return_address(awaitable);
+    }
+
+    return connect_impl<WithAsyncStackSupport>(
+        std::forward<Awaitable>(awaitable),
+        std::forward<Receiver>(receiver),
+        returnAddress);
   }
 } connect_awaitable{};
 }  // namespace _await_cpo
@@ -297,6 +365,7 @@ struct _fn {
       (requires detail::_awaitable<Awaitable>)  //
       _sender<remove_cvref_t<Awaitable>>
       operator()(Awaitable&& awaitable) const {
+    // TODO: this is going to generate an unfortunate return address
     return _sender<remove_cvref_t<Awaitable>>{
         std::forward<Awaitable>(awaitable),
         instruction_ptr::read_return_address()};

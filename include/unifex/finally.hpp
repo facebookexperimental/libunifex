@@ -648,11 +648,12 @@ public:
       sender_traits<CompletionSender>::is_always_scheduler_affine;
 
   template <typename SourceSender2, typename CompletionSender2>
-  explicit type(SourceSender2&& source, CompletionSender2&& completion) noexcept(
+  explicit type(SourceSender2&& source, CompletionSender2&& completion, instruction_ptr returnAddress) noexcept(
       std::is_nothrow_constructible_v<SourceSender, SourceSender2> &&
       std::is_nothrow_constructible_v<CompletionSender, CompletionSender2>)
     : source_(static_cast<SourceSender2&&>(source))
-    , completion_(static_cast<CompletionSender2&&>(completion)) {}
+    , completion_(static_cast<CompletionSender2&&>(completion))
+    , returnAddress_(returnAddress) {}
 
 private:
   // TODO: Also constrain these methods to check that the CompletionSender
@@ -690,28 +691,65 @@ private:
     return std::max(source(), completion());
   }
 
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& self) noexcept {
+    return self.returnAddress_;
+  }
+
   SourceSender source_;
   CompletionSender completion_;
+  instruction_ptr returnAddress_;
 };
 
 namespace _cpo {
 struct _fn {
+private:
+  struct _impl_fn {
+    template <typename SourceSender, typename CompletionSender>
+    auto operator()(
+        SourceSender&& source,
+        CompletionSender&& completion,
+        instruction_ptr returnAddress) const
+        noexcept(std::is_nothrow_constructible_v<
+                 _final::sender<SourceSender, CompletionSender>,
+                 SourceSender,
+                 CompletionSender,
+                 instruction_ptr>)
+            -> _final::sender<SourceSender, CompletionSender> {
+      return _final::sender<SourceSender, CompletionSender>{
+          static_cast<SourceSender&&>(source),
+          static_cast<CompletionSender&&>(completion),
+          returnAddress};
+    }
+  };
+
+public:
   template <typename SourceSender, typename CompletionSender>
   auto operator()(SourceSender&& source, CompletionSender&& completion) const
-      noexcept(std::is_nothrow_constructible_v<
-               _final::sender<SourceSender, CompletionSender>,
+      noexcept(std::is_nothrow_invocable_v<
+               _impl_fn,
                SourceSender,
-               CompletionSender>)
+               CompletionSender,
+               instruction_ptr>)
           -> _final::sender<SourceSender, CompletionSender> {
-    return _final::sender<SourceSender, CompletionSender>{
-        static_cast<SourceSender&&>(source),
-        static_cast<CompletionSender&&>(completion)};
+    return _impl_fn{}(
+        std::forward<SourceSender>(source),
+        std::forward<CompletionSender>(completion),
+        instruction_ptr::read_return_address());
   }
+
   template <typename CompletionSender>
-  constexpr auto operator()(CompletionSender&& completion) const noexcept(
-      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, CompletionSender>)
-      -> bind_back_result_t<_fn, CompletionSender> {
-    return bind_back(*this, (CompletionSender&&)completion);
+  constexpr auto operator()(CompletionSender&& completion) const
+      noexcept(std::is_nothrow_invocable_v<
+               tag_t<bind_back>,
+               _impl_fn,
+               CompletionSender,
+               instruction_ptr>)
+          -> bind_back_result_t<_impl_fn, CompletionSender, instruction_ptr> {
+    return bind_back(
+        _impl_fn{},
+        (CompletionSender&&)completion,
+        instruction_ptr::read_return_address());
   }
 };
 }  // namespace _cpo
