@@ -26,6 +26,18 @@
 #include <sstream>
 #include <thread>
 
+// c++20 has a std::syncstream which would obviate the need for the following
+// hack, but we support c++17, so we have to do this for now to avoid ThreadSanitizer
+// data races.
+static std::mutex mutex;
+struct sync_cout_struct {
+  std::basic_ostream<char>& operator<<(const std::string& str) {
+    std::unique_lock lock(mutex);
+    return std::cout << str;
+  }
+};
+static sync_cout_struct sync_cout;
+
 struct trace_construction_destruction {
   static std::atomic<int> instanceCount;
 
@@ -34,14 +46,14 @@ struct trace_construction_destruction {
     std::stringstream s;
     s << "thread_local at address " << (void*)this << " constructing on thread "
       << std::this_thread::get_id() << "\n";
-    std::cout << s.str();
+    sync_cout << s.str();
   }
   ~trace_construction_destruction() {
     --instanceCount;
     std::stringstream s;
     s << "thread_local at address " << (void*)this << " destructing on thread "
       << std::this_thread::get_id() << "\n";
-    std::cout << s.str();
+    sync_cout << s.str();
   }
 };
 
@@ -56,7 +68,7 @@ int main() {
         std::stringstream s;
         s << "Task " << i << " running on thread " << std::this_thread::get_id()
           << "\n";
-        std::cout << s.str();
+        sync_cout << s.str();
 
         thread_local trace_construction_destruction t;
       });
@@ -68,10 +80,10 @@ int main() {
         makeThreadTask(3),
         makeThreadTask(4)));
 
-    std::cout << "shutting down new_thread_context\n";
+    sync_cout << "shutting down new_thread_context\n";
   }
 
-  std::cout << "new_thread_contxt finished shutting down\n";
+  sync_cout << "new_thread_contxt finished shutting down\n";
 
   // new_thread_context destructor should have waited for all threads to finish
   // destroying thread-locals.
