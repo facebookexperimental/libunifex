@@ -301,13 +301,36 @@
 #if !defined(UNIFEX_NO_ASYNC_STACKS)
 // default:
 //  - release builds do not have async stacks
-//  - Windows builds do not have async stacks
 //
-// adding async stacks adds non-trivial binary size at the moment, and I can't
-// figure out how to make all the relevant Windows builds succeed
-#  if defined(NDEBUG) || defined(_MSC_VER)
+// adding async stacks adds non-trivial binary size at the moment
+#  if defined(NDEBUG)
 #    define UNIFEX_NO_ASYNC_STACKS 1
 #  else
 #    define UNIFEX_NO_ASYNC_STACKS 0
 #  endif
+#elif UNIFEX_NO_ASYNC_STACKS
+// make sure the truthy value is 1
+#  undef UNIFEX_NO_ASYNC_STACKS
+#  define UNIFEX_NO_ASYNC_STACKS 1
+#else
+// make sure the falsey value is 0
+#  undef UNIFEX_NO_ASYNC_STACKS
+#  define UNIFEX_NO_ASYNC_STACKS 0
 #endif  // !defined(UNIFEX_NO_ASYNC_STACKS)
+
+#if UNIFEX_HAS_BUILTIN(__builtin_return_address)
+#  define UNIFEX_RETURN_ADDRESS __builtin_return_address(0)
+#elif defined(_MSC_VER)
+#  define UNIFEX_RETURN_ADDRESS _ReturnAddress()
+#else
+#  define UNIFEX_RETURN_ADDRESS nullptr
+#endif
+
+#if UNIFEX_HAS_BUILTIN(__builtin_frame_address)
+#  define UNIFEX_FRAME_ADDRESS __builtin_frame_address(0)
+#elif defined(_MSC_VER)
+// not sure, yet, that this is right, but it's where we're starting
+#  define UNIFEX_FRAME_ADDRESS _AddressOfReturnAddress()
+#else
+#  define UNIFEX_FRAME_ADDRESS nullptr
+#endif

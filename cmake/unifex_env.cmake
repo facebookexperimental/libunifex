@@ -21,7 +21,7 @@ endif()
 
 if (UNIFEX_CXX_COMPILER_MSVC)
     # warning level 3 and all warnings as errors
-    add_compile_options(/W3 /WX)
+    add_compile_options(/W3 /WX /bigobj)
 else()
     # lots of warnings and all warnings as errors
     add_compile_options(-Wall -Wextra -pedantic -Werror)
