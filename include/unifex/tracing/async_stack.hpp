@@ -320,6 +320,10 @@ struct frame_ptr {
     return frame_ptr{p};
   }
 
+  explicit operator void*() const noexcept {
+    return p_;
+  }
+
 private:
   void* p_;
 
