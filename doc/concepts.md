@@ -34,7 +34,7 @@ to a **Receiver** object via a call to one of the three customisation-points,
 A `Sender` is a reification of an asynchronous operation, much like a
 function-object or lambda is a reification of a synchronous operation.
 
-By reifying an asynchronous operation in with a standard interface
+By reifying an asynchronous operation with a standard interface
 for launching them and providing a continuation we allow them to be
 lazily started and composed using generic algorithms.
 
