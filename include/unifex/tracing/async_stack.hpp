@@ -273,7 +273,7 @@ struct instruction_ptr final {
   // Generally a function that uses this macro should be declared FOLLY_NOINLINE
   // to prevent this returning surprising results in cases where the function
   // is inlined.
-#if UNIFEX_HAS_BUILTIN(__builtin_return_address)
+#if UNIFEX_HAS_BUILTIN(__builtin_return_address) && !UNIFEX_NO_ASYNC_STACKS
   static constexpr instruction_ptr
   read_return_address(void* p = __builtin_return_address(0)) noexcept {
 #else
@@ -311,7 +311,7 @@ struct frame_ptr {
   // Generally a function that uses this macro should be declared FOLLY_NOINLINE
   // to prevent this returning surprising results in cases where the function
   // is inlined.
-#if UNIFEX_HAS_BUILTIN(__builtin_frame_address)
+#if UNIFEX_HAS_BUILTIN(__builtin_frame_address) && !UNIFEX_NO_ASYNC_STACKS
   static constexpr frame_ptr
   read_frame_pointer(void* p = __builtin_frame_address(0)) noexcept {
 #else
