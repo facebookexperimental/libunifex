@@ -20,13 +20,16 @@
 #include <cassert>
 #include <mutex>
 
+#if !defined(ASYNC_STACK_ROOT_USE_PTHREAD)
 #if defined(__linux__)
-#  define FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD 1
+#  define ASYNC_STACK_ROOT_USE_PTHREAD 1
 #else
-#  define FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD 0
+// defaults to using vector to store AsyncStackRoots instead of a pthread key
+#  define ASYNC_STACK_ROOT_USE_PTHREAD 0
+#endif
 #endif
 
-#if FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD
+#if ASYNC_STACK_ROOT_USE_PTHREAD
 
 #  include <pthread.h>
 
@@ -39,9 +42,46 @@ extern "C" {
 inline pthread_key_t folly_async_stack_root_tls_key = 0xFFFF'FFFFu;
 }
 
-#endif  // FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD
+#else
+
+#include <vector>
+
+// TODO: expose array of AsyncStackRootHolder
+
+#endif  // ASYNC_STACK_ROOT_USE_PTHREAD
 
 namespace unifex {
+
+#if ASYNC_STACK_ROOT_USE_PTHREAD == 0
+static std::unique_ptr<std::mutex> asyncStackRootsMutex = std::make_unique<std::mutex>();
+static std::vector<void*> asyncStackRoots;
+
+static void addAsyncStackRootHolder(void* holder) noexcept {
+  std::lock_guard<std::mutex> lock(*asyncStackRootsMutex);
+  asyncStackRoots.push_back(holder);
+}
+
+static void removeAsyncStackRootHolder(void* holder) noexcept {
+  if (asyncStackRootsMutex == nullptr) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(*asyncStackRootsMutex);
+  auto it = std::find(asyncStackRoots.begin(), asyncStackRoots.end(), holder);
+  if (it != asyncStackRoots.end()) {
+    asyncStackRoots.erase(it);
+  }
+}
+
+// TODO: expose array of AsyncStackRootHolder
+// static std::vector<void*> getAsyncStackRoots() noexcept {
+//   if (!asyncStackRootsMutex.try_lock()) {
+//     // assume we crashed holding the lock and give up
+//     return {};
+//   }
+//   std::lock_guard<std::mutex> lock(asyncStackRootsMutex, std::adopt_lock);
+//   return asyncStackRoots;
+// }
+#endif
 
 namespace {
 
@@ -51,7 +91,7 @@ namespace {
 UNIFEX_NO_INLINE void compiler_must_not_elide(instruction_ptr) {
 }
 
-#if FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD
+#if ASYNC_STACK_ROOT_USE_PTHREAD
 static pthread_once_t initialiseTlsKeyFlag = PTHREAD_ONCE_INIT;
 
 static void ensureAsyncRootTlsKeyIsInitialised() noexcept {
@@ -61,18 +101,26 @@ static void ensureAsyncRootTlsKeyIsInitialised() noexcept {
     UNIFEX_ASSERT(result == 0);
   });
 }
-
 #endif
 
 struct AsyncStackRootHolder {
-#if FOLLY_ASYNC_STACK_ROOT_USE_PTHREAD
+
   AsyncStackRootHolder() noexcept {
-    ensureAsyncRootTlsKeyIsInitialised();
-    [[maybe_unused]] const int result =
-        pthread_setspecific(folly_async_stack_root_tls_key, this);
-    UNIFEX_ASSERT(result == 0);
+    #if ASYNC_STACK_ROOT_USE_PTHREAD
+      ensureAsyncRootTlsKeyIsInitialised();
+      [[maybe_unused]] const int result =
+          pthread_setspecific(folly_async_stack_root_tls_key, this);
+      UNIFEX_ASSERT(result == 0);
+    #else
+      unifex::addAsyncStackRootHolder(this);
+    #endif
   }
-#endif
+
+  #if !ASYNC_STACK_ROOT_USE_PTHREAD
+    ~AsyncStackRootHolder() noexcept {
+      unifex::removeAsyncStackRootHolder(this);
+    }
+  #endif
 
   AsyncStackRoot* get() const noexcept {
     return value.load(std::memory_order_relaxed);
