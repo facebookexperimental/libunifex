@@ -58,9 +58,6 @@ void add(void* holder) noexcept {
 }
 
 void remove(void* holder) noexcept {
-  if (mutex_ == nullptr) {
-    return;
-  }
   std::lock_guard<std::mutex> lock(mutex_);
   auto it = std::find(asyncStackRootHolders_.begin(), asyncStackRootHolders_.end(), holder);
   if (it != asyncStackRootHolders_.end()) {
@@ -70,17 +67,18 @@ void remove(void* holder) noexcept {
 }
 
 std::vector<void*> getAsyncStackRoots() noexcept {
-  if (!asyncStackRootsMutex.try_lock()) {
+  if (!mutex_.try_lock()) {
     // assume we crashed holding the lock and give up
     return {};
   }
   std::lock_guard<std::mutex> lock(mutex_, std::adopt_lock);
   return asyncStackRootHolders_;
 }
-
-extern "C" auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
 };
 
+extern "C" {
+  auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
+}
 #endif // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
 namespace {
