@@ -20,16 +20,16 @@
 #include <cassert>
 #include <mutex>
 
-#if !defined(ASYNC_STACK_ROOT_USE_PTHREAD)
+#if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
 #if defined(__linux__)
-#  define ASYNC_STACK_ROOT_USE_PTHREAD 1
+#  define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
 #else
 // defaults to using vector to store AsyncStackRoots instead of a pthread key
-#  define ASYNC_STACK_ROOT_USE_PTHREAD 0
+#  define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 0
 #endif
 #endif
 
-#if ASYNC_STACK_ROOT_USE_PTHREAD
+#if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 
 #  include <pthread.h>
 
@@ -41,47 +41,47 @@ extern "C" {
 // Initialise to some value that will be interpreted as an invalid key.
 inline pthread_key_t folly_async_stack_root_tls_key = 0xFFFF'FFFFu;
 }
-
-#else
-
-#include <vector>
-
-// TODO: expose array of AsyncStackRootHolder
-
-#endif  // ASYNC_STACK_ROOT_USE_PTHREAD
+#endif  //UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 
 namespace unifex {
 
-#if ASYNC_STACK_ROOT_USE_PTHREAD == 0
-static std::unique_ptr<std::mutex> asyncStackRootsMutex = std::make_unique<std::mutex>();
-static std::vector<void*> asyncStackRoots;
+#if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
+#include <vector>
 
-static void addAsyncStackRootHolder(void* holder) noexcept {
-  std::lock_guard<std::mutex> lock(*asyncStackRootsMutex);
-  asyncStackRoots.push_back(holder);
+struct AsyncStackRootHolderList {
+  std::vector<void*> asyncStackRootHolders_;
+  std::mutex mutex_;
+
+void add(void* holder) noexcept {
+  std::lock_guard<std::mutex> lock(mutex_);
+  asyncStackRootHolders_.push_back(holder);
 }
 
-static void removeAsyncStackRootHolder(void* holder) noexcept {
-  if (asyncStackRootsMutex == nullptr) {
+void remove(void* holder) noexcept {
+  if (mutex_ == nullptr) {
     return;
   }
-  std::lock_guard<std::mutex> lock(*asyncStackRootsMutex);
-  auto it = std::find(asyncStackRoots.begin(), asyncStackRoots.end(), holder);
-  if (it != asyncStackRoots.end()) {
-    asyncStackRoots.erase(it);
+  std::lock_guard<std::mutex> lock(mutex_);
+  auto it = std::find(asyncStackRootHolders_.begin(), asyncStackRootHolders_.end(), holder);
+  if (it != asyncStackRootHolders_.end()) {
+    std::swap(*it, asyncStackRootHolders_.back());
+    asyncStackRootHolders_.pop_back();
   }
 }
 
-// TODO: expose array of AsyncStackRootHolder
-// static std::vector<void*> getAsyncStackRoots() noexcept {
-//   if (!asyncStackRootsMutex.try_lock()) {
-//     // assume we crashed holding the lock and give up
-//     return {};
-//   }
-//   std::lock_guard<std::mutex> lock(asyncStackRootsMutex, std::adopt_lock);
-//   return asyncStackRoots;
-// }
-#endif
+std::vector<void*> getAsyncStackRoots() noexcept {
+  if (!asyncStackRootsMutex.try_lock()) {
+    // assume we crashed holding the lock and give up
+    return {};
+  }
+  std::lock_guard<std::mutex> lock(mutex_, std::adopt_lock);
+  return asyncStackRootHolders_;
+}
+
+extern "C" auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
+};
+
+#endif // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
 namespace {
 
@@ -91,7 +91,7 @@ namespace {
 UNIFEX_NO_INLINE void compiler_must_not_elide(instruction_ptr) {
 }
 
-#if ASYNC_STACK_ROOT_USE_PTHREAD
+#if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 static pthread_once_t initialiseTlsKeyFlag = PTHREAD_ONCE_INIT;
 
 static void ensureAsyncRootTlsKeyIsInitialised() noexcept {
@@ -106,19 +106,19 @@ static void ensureAsyncRootTlsKeyIsInitialised() noexcept {
 struct AsyncStackRootHolder {
 
   AsyncStackRootHolder() noexcept {
-    #if ASYNC_STACK_ROOT_USE_PTHREAD
+    #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
       ensureAsyncRootTlsKeyIsInitialised();
       [[maybe_unused]] const int result =
           pthread_setspecific(folly_async_stack_root_tls_key, this);
       UNIFEX_ASSERT(result == 0);
     #else
-      unifex::addAsyncStackRootHolder(this);
+      kUnifexAsyncStackRootHolderList->add(this);
     #endif
   }
 
-  #if !ASYNC_STACK_ROOT_USE_PTHREAD
+  #if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
     ~AsyncStackRootHolder() noexcept {
-      unifex::removeAsyncStackRootHolder(this);
+      kUnifexAsyncStackRootHolderList->remove(this);
     }
   #endif
 
