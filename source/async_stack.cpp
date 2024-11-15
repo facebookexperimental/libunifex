@@ -72,7 +72,7 @@ void remove(void* holder) {
   }
 }
 
-std::vector<void*> getAsyncStackRoots() noexcept {
+std::vector<void*> getAsyncStackRoots() {
   if (!mutex_.try_lock()) {
     // assume we crashed holding the lock and give up
     return {};
