@@ -41,23 +41,24 @@ extern "C" {
 // Initialise to some value that will be interpreted as an invalid key.
 inline pthread_key_t folly_async_stack_root_tls_key = 0xFFFF'FFFFu;
 }
+#else 
+#   include <vector>
 #endif  //UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 
 namespace unifex {
 
 #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
-#include <vector>
 
 struct AsyncStackRootHolderList {
-  std::vector<void*> asyncStackRootHolders_;
+  std::vector<void*> asyncStackRootHolders_{150};
   std::mutex mutex_;
 
-void add(void* holder) noexcept {
+void add(void* holder) {
   std::lock_guard<std::mutex> lock(mutex_);
   asyncStackRootHolders_.push_back(holder);
 }
 
-void remove(void* holder) noexcept {
+void remove(void* holder) {
   std::lock_guard<std::mutex> lock(mutex_);
   auto it = std::find(asyncStackRootHolders_.begin(), asyncStackRootHolders_.end(), holder);
   if (it != asyncStackRootHolders_.end()) {
