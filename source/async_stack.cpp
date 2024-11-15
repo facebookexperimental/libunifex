@@ -50,8 +50,13 @@ namespace unifex {
 #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
 struct AsyncStackRootHolderList {
-  std::vector<void*> asyncStackRootHolders_{150};
+  std::vector<void*> asyncStackRootHolders_;
   std::mutex mutex_;
+
+  AsyncStackRootHolderList() {
+    // reserve some space to avoid reallocations
+    asyncStackRootHolders_.reserve(300);
+  }
 
 void add(void* holder) {
   std::lock_guard<std::mutex> lock(mutex_);
