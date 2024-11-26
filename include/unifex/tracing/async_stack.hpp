@@ -21,6 +21,7 @@
 #include <atomic>
 #include <cassert>
 #include <cstdint>
+#include <thread>
 
 #include <unifex/detail/prologue.hpp>
 
