@@ -1,3 +1,0 @@
-[submodule "external/mpark-wg21"]
-	path = external/mpark-wg21
-	url = https://github.com/mpark/wg21.git
