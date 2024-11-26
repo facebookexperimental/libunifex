@@ -54,8 +54,8 @@ struct AsyncStackRootHolderList {
   std::mutex mutex_;
 
   AsyncStackRootHolderList() {
-    // reserve some space to avoid reallocations
-    asyncStackRootHolders_.reserve(300);
+    // reserve space to avoid frequent reallocations
+    asyncStackRootHolders_.reserve(50);
   }
 
 void add(void* holder) {
