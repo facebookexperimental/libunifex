@@ -19,6 +19,7 @@
 #include <atomic>
 #include <cassert>
 #include <mutex>
+#include <sys/syscall.h>
 
 #if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
 #if defined(__linux__)

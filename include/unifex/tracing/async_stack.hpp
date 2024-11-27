@@ -24,7 +24,6 @@
 #include <thread>
 
 #include <unifex/detail/prologue.hpp>
-#include <sys/syscall.h>
 
 #if defined(__APPLE__)
 #define UNIFEX_SYS_gettid SYS_thread_selfid
