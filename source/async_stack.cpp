@@ -21,7 +21,7 @@
 #include <mutex>
 
 #if defined(_WIN32)
-#include <processthreadsapi.h>
+#include <windows.h>
 #endif
 
 #if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
