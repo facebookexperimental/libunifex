@@ -136,9 +136,10 @@ inline AsyncStackFrame* AsyncStackRoot::getTopFrame() const noexcept {
 }
 
 inline void AsyncStackRoot::setStackFrameContext(
-    frame_ptr framePtr, instruction_ptr ip) noexcept {
+    frame_ptr framePtr, instruction_ptr ip, uint64_t tId) noexcept {
   stackFramePtr = framePtr;
   returnAddress = ip;
+  threadId = tId;
 }
 
 inline frame_ptr AsyncStackRoot::getStackFramePointer() const noexcept {

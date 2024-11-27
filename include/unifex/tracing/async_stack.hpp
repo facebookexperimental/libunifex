@@ -24,6 +24,15 @@
 #include <thread>
 
 #include <unifex/detail/prologue.hpp>
+#include <sys/syscall.h>
+
+#if defined(__APPLE__)
+#define UNIFEX_SYS_gettid SYS_thread_selfid
+#elif defined(SYS_gettid)
+#define UNIFEX_SYS_gettid SYS_gettid
+#else
+#define UNIFEX_SYS_gettid __NR_gettid
+#endif
 
 namespace unifex {
 
@@ -150,7 +159,11 @@ struct AsyncStackRoot;
 struct AsyncStackFrame;
 namespace detail {
 class ScopedAsyncStackRoot;
-}
+} // namespace detail
+
+namespace utils {
+  uint64_t getOSThreadID();
+} // namespace utils
 
 // Get access to the current thread's top-most AsyncStackRoot.
 //
@@ -454,7 +467,8 @@ public:
   // normal stack-trace.
   void setStackFrameContext(
       frame_ptr fp = frame_ptr::read_frame_pointer(),
-      instruction_ptr ip = instruction_ptr::read_return_address()) noexcept;
+      instruction_ptr ip = instruction_ptr::read_return_address(),
+      uint64_t tId = utils::getOSThreadID()) noexcept;
   frame_ptr getStackFramePointer() const noexcept;
   instruction_ptr getReturnAddress() const noexcept;
 
@@ -501,6 +515,7 @@ private:
   // Typically initialise with instruction_ptr::read_return_address() or
   // setStackFrameContext().
   instruction_ptr returnAddress;
+  uint64_t threadId = 0;
 };
 
 namespace detail {
