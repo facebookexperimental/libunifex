@@ -19,7 +19,6 @@
 #include <atomic>
 #include <cassert>
 #include <mutex>
-#include <sys/syscall.h>
 
 #if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
 #if defined(__linux__)
@@ -148,15 +147,15 @@ static thread_local AsyncStackRootHolder currentThreadAsyncStackRoot;
 
 namespace utils {
   uint64_t getOSThreadID() {
-  #if defined(__APPLE__)
-    uint64_t tid;
-    pthread_threadid_np(nullptr, &tid);
-    return tid;
-  #elif defined(_WIN32)
-    return uint64_t(GetCurrentThreadId());
-  #else
+   #if defined(__APPLE__)
+     uint64_t tid;
+     pthread_threadid_np(nullptr, &tid);
+     return tid;
+   #elif defined(_WIN32)
+     return uint64_t(GetCurrentThreadId());
+   #else
     return uint64_t(syscall(UNIFEX_SYS_gettid));
-  #endif
+   #endif
   }
 }
 
