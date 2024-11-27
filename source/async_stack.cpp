@@ -20,6 +20,10 @@
 #include <cassert>
 #include <mutex>
 
+#if defined(_WIN32)
+#include <processthreadsapi.h>
+#endif
+
 #if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
 #if defined(__linux__)
 #  define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
