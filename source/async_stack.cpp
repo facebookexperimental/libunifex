@@ -160,7 +160,7 @@ namespace utils {
    #elif defined(_WIN32)
      return std::uint64_t(GetCurrentThreadId());
    #else
-     return std::uint64_t(gettid())
+     return std::uint64_t(gettid());
    #endif
   }
 }
