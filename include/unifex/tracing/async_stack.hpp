@@ -153,7 +153,7 @@ class ScopedAsyncStackRoot;
 } // namespace detail
 
 namespace utils {
-  uint64_t get_os_thread_id();
+  std::uint64_t get_os_thread_id();
 } // namespace utils
 
 // Get access to the current thread's top-most AsyncStackRoot.
