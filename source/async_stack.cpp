@@ -91,9 +91,7 @@ struct AsyncStackRootHolderList {
 extern "C" {
 auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
 }
-#endif  // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
-#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 namespace utils {
 static std::uint64_t get_os_thread_id() {
 #  if defined(__APPLE__)
@@ -107,7 +105,7 @@ static std::uint64_t get_os_thread_id() {
 #  endif
 }
 }  // namespace utils
-#endif  // !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+#endif  // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
 namespace {
 
@@ -146,6 +144,9 @@ struct AsyncStackRootHolder {
   ~AsyncStackRootHolder() noexcept {
     kUnifexAsyncStackRootHolderList->remove(this);
   }
+
+  std::uint64_t get_thread_id() const noexcept { return threadId; }
+
 #endif
 
   AsyncStackRoot* get() const noexcept {
@@ -159,10 +160,6 @@ struct AsyncStackRootHolder {
   void set_relaxed(AsyncStackRoot* root) noexcept {
     value.store(root, std::memory_order_relaxed);
   }
-
-#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
-  std::uint64_t get_thread_id() const noexcept { return threadId; }
-#endif
 
   std::atomic<AsyncStackRoot*> value{nullptr};
 #if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
