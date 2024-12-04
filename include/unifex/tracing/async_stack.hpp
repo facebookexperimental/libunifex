@@ -150,7 +150,7 @@ struct AsyncStackRoot;
 struct AsyncStackFrame;
 namespace detail {
 class ScopedAsyncStackRoot;
-}
+}  // namespace detail
 
 // Get access to the current thread's top-most AsyncStackRoot.
 //
@@ -321,9 +321,7 @@ struct frame_ptr {
     return frame_ptr{p};
   }
 
-  explicit operator void*() const noexcept {
-    return p_;
-  }
+  explicit operator void*() const noexcept { return p_; }
 
 private:
   void* p_;
