@@ -20,19 +20,13 @@
 #include <cassert>
 #include <mutex>
 
-#if defined(_WIN32)
-#include <windows.h>
-#elif defined(__linux__)
-#include <unistd.h>
-#endif
-
 #if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
-#if defined(__linux__)
-#  define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
-#else
+#  if defined(__linux__)
+#    define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
+#  else
 // defaults to using vector to store AsyncStackRoots instead of a pthread key
-#  define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 0
-#endif
+#    define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 0
+#  endif
 #endif
 
 #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
@@ -47,9 +41,14 @@ extern "C" {
 // Initialise to some value that will be interpreted as an invalid key.
 inline pthread_key_t folly_async_stack_root_tls_key = 0xFFFF'FFFFu;
 }
-#else 
-#   include <vector>
-#endif  //UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+#else
+#  include <vector>
+#  if defined(_WIN32)
+#    include <windows.h>
+#  elif defined(__linux__)
+#    include <unistd.h>
+#  endif  // defined(_WIN32)
+#endif    // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 
 namespace unifex {
 
@@ -64,48 +63,51 @@ struct AsyncStackRootHolderList {
     asyncStackRootHolders_.reserve(50);
   }
 
-void add(void* holder) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  asyncStackRootHolders_.push_back(holder);
-}
-
-void remove(void* holder) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  auto it = std::find(asyncStackRootHolders_.begin(), asyncStackRootHolders_.end(), holder);
-  if (it != asyncStackRootHolders_.end()) {
-    std::swap(*it, asyncStackRootHolders_.back());
-    asyncStackRootHolders_.pop_back();
+  void add(void* holder) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    asyncStackRootHolders_.push_back(holder);
   }
-}
 
-std::vector<void*> getAsyncStackRoots() {
-  if (!mutex_.try_lock()) {
-    // assume we crashed holding the lock and give up
-    return {};
+  void remove(void* holder) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = std::find(
+        asyncStackRootHolders_.begin(), asyncStackRootHolders_.end(), holder);
+    if (it != asyncStackRootHolders_.end()) {
+      std::swap(*it, asyncStackRootHolders_.back());
+      asyncStackRootHolders_.pop_back();
+    }
   }
-  std::lock_guard<std::mutex> lock(mutex_, std::adopt_lock);
-  return asyncStackRootHolders_;
-}
+
+  std::vector<void*> getAsyncStackRoots() {
+    if (!mutex_.try_lock()) {
+      // assume we crashed holding the lock and give up
+      return {};
+    }
+    std::lock_guard<std::mutex> lock(mutex_, std::adopt_lock);
+    return asyncStackRootHolders_;
+  }
 };
 
 extern "C" {
-  auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
+auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
 }
-#endif // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
+#endif  // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
+#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 namespace utils {
-  static std::uint64_t get_os_thread_id() {
-   #if defined(__APPLE__)
-     std::uint64_t tid;
-     pthread_threadid_np(nullptr, &tid);
-     return tid;
-   #elif defined(_WIN32)
-     return std::uint64_t(GetCurrentThreadId());
-   #else
-     return std::uint64_t(gettid());
-   #endif
-  }
-} // namespace utils
+static std::uint64_t get_os_thread_id() {
+#  if defined(__APPLE__)
+  std::uint64_t tid;
+  pthread_threadid_np(nullptr, &tid);
+  return tid;
+#  elif defined(_WIN32)
+  return std::uint64_t(GetCurrentThreadId());
+#  else
+  return std::uint64_t(gettid());
+#  endif
+}
+}  // namespace utils
+#endif  // !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 
 namespace {
 
@@ -128,24 +130,23 @@ static void ensureAsyncRootTlsKeyIsInitialised() noexcept {
 #endif
 
 struct AsyncStackRootHolder {
-
   AsyncStackRootHolder() noexcept {
-    #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
-      ensureAsyncRootTlsKeyIsInitialised();
-      [[maybe_unused]] const int result =
-          pthread_setspecific(folly_async_stack_root_tls_key, this);
-      UNIFEX_ASSERT(result == 0);
-    #else
-      kUnifexAsyncStackRootHolderList->add(this);
-      threadId = utils::get_os_thread_id();
-    #endif
+#if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+    ensureAsyncRootTlsKeyIsInitialised();
+    [[maybe_unused]] const int result =
+        pthread_setspecific(folly_async_stack_root_tls_key, this);
+    UNIFEX_ASSERT(result == 0);
+#else
+    kUnifexAsyncStackRootHolderList->add(this);
+    threadId = unifex::utils::get_os_thread_id();
+#endif
   }
 
-  #if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
-    ~AsyncStackRootHolder() noexcept {
-      kUnifexAsyncStackRootHolderList->remove(this);
-    }
-  #endif
+#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+  ~AsyncStackRootHolder() noexcept {
+    kUnifexAsyncStackRootHolderList->remove(this);
+  }
+#endif
 
   AsyncStackRoot* get() const noexcept {
     return value.load(std::memory_order_relaxed);
@@ -158,6 +159,10 @@ struct AsyncStackRootHolder {
   void set_relaxed(AsyncStackRoot* root) noexcept {
     value.store(root, std::memory_order_relaxed);
   }
+
+#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+  std::uint64_t get_thread_id() const noexcept { return threadId; }
+#endif
 
   std::atomic<AsyncStackRoot*> value{nullptr};
 #if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
@@ -244,6 +249,6 @@ UNIFEX_NO_INLINE void resumeCoroutineWithNewAsyncStackRoot(
   h.resume();
 }
 
-#endif  // FOLLY_HAS_COROUTINES
+#endif  // !UNIFEX_NO_COROUTINES
 
 }  // namespace unifex
