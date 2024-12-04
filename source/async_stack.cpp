@@ -92,7 +92,6 @@ extern "C" {
 auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
 }
 
-namespace utils {
 static std::uint64_t get_os_thread_id() {
 #  if defined(__APPLE__)
   std::uint64_t tid;
@@ -104,7 +103,6 @@ static std::uint64_t get_os_thread_id() {
   return std::uint64_t(gettid());
 #  endif
 }
-}  // namespace utils
 #endif  // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
 namespace {
@@ -136,7 +134,7 @@ struct AsyncStackRootHolder {
     UNIFEX_ASSERT(result == 0);
 #else
     kUnifexAsyncStackRootHolderList->add(this);
-    threadId = unifex::utils::get_os_thread_id();
+    threadId = unifex::get_os_thread_id();
 #endif
   }
 
