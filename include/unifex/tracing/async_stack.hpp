@@ -152,10 +152,6 @@ namespace detail {
 class ScopedAsyncStackRoot;
 } // namespace detail
 
-namespace utils {
-  std::uint64_t get_os_thread_id();
-} // namespace utils
-
 // Get access to the current thread's top-most AsyncStackRoot.
 //
 // Returns nullptr if there is no active AsyncStackRoot.
@@ -458,8 +454,7 @@ public:
   // normal stack-trace.
   void setStackFrameContext(
       frame_ptr fp = frame_ptr::read_frame_pointer(),
-      instruction_ptr ip = instruction_ptr::read_return_address(),
-      std::uint64_t tId = utils::get_os_thread_id()) noexcept;
+      instruction_ptr ip = instruction_ptr::read_return_address()) noexcept;
   frame_ptr getStackFramePointer() const noexcept;
   instruction_ptr getReturnAddress() const noexcept;
 
@@ -506,7 +501,6 @@ private:
   // Typically initialise with instruction_ptr::read_return_address() or
   // setStackFrameContext().
   instruction_ptr returnAddress;
-  std::uint64_t threadId = 0;
 };
 
 namespace detail {

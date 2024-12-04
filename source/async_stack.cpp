@@ -93,6 +93,20 @@ extern "C" {
 }
 #endif // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
 
+namespace utils {
+  static std::uint64_t get_os_thread_id() {
+   #if defined(__APPLE__)
+     std::uint64_t tid;
+     pthread_threadid_np(nullptr, &tid);
+     return tid;
+   #elif defined(_WIN32)
+     return std::uint64_t(GetCurrentThreadId());
+   #else
+     return std::uint64_t(gettid());
+   #endif
+  }
+} // namespace utils
+
 namespace {
 
 // Folly's async stack library uses Folly's benchmarking tools to force a
@@ -123,6 +137,7 @@ struct AsyncStackRootHolder {
       UNIFEX_ASSERT(result == 0);
     #else
       kUnifexAsyncStackRootHolderList->add(this);
+      threadId = utils::get_os_thread_id();
     #endif
   }
 
@@ -145,25 +160,14 @@ struct AsyncStackRootHolder {
   }
 
   std::atomic<AsyncStackRoot*> value{nullptr};
+#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+  std::uint64_t threadId = 0;
+#endif
 };
 
 static thread_local AsyncStackRootHolder currentThreadAsyncStackRoot;
 
 }  // namespace
-
-namespace utils {
-  std::uint64_t get_os_thread_id() {
-   #if defined(__APPLE__)
-     std::uint64_t tid;
-     pthread_threadid_np(nullptr, &tid);
-     return tid;
-   #elif defined(_WIN32)
-     return std::uint64_t(GetCurrentThreadId());
-   #else
-     return std::uint64_t(gettid());
-   #endif
-  }
-}
 
 AsyncStackRoot* tryGetCurrentAsyncStackRoot() noexcept {
   return currentThreadAsyncStackRoot.get();
