@@ -99,13 +99,12 @@ static std::uint64_t get_os_thread_id() {
   return tid;
 #  elif defined(_WIN32)
   return std::uint64_t(GetCurrentThreadId());
-#  elif defined(__FreeBSD__)
-  long tid;
-  thr_self(&tid);
 #  elif defined(__EMSCRIPTEN__)
   return 0;
-#  else
+#  elif defined(__linux__)
   return std::uint64_t(gettid());
+#  else
+#    error "Unsupported platform in get_os_thread_id"
 #  endif
 }
 #endif  // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
