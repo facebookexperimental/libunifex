@@ -20,12 +20,14 @@
 #include <cassert>
 #include <mutex>
 
-#if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
-#  if defined(__linux__) || defined(_WIN32)
+#if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD) || !defined(UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR)
+// defaults to using pthread if linux, otherwise no async stack root
+#  if defined(__linux__)
 #    define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
+#    define UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR 0
 #  else
-// defaults to using vector to store AsyncStackRoots instead of a pthread key
 #    define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 0
+#    define UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR 0
 #  endif
 #endif
 
@@ -41,7 +43,7 @@ extern "C" {
 // Initialise to some value that will be interpreted as an invalid key.
 inline pthread_key_t folly_async_stack_root_tls_key = 0xFFFF'FFFFu;
 }
-#else
+#elif UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
 #  include <vector>
 #  if defined(_WIN32)
 #    include <windows.h>
@@ -52,7 +54,7 @@ inline pthread_key_t folly_async_stack_root_tls_key = 0xFFFF'FFFFu;
 
 namespace unifex {
 
-#if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
+#if UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
 
 struct AsyncStackRootHolderList {
   std::vector<void*> asyncStackRootHolders_;
@@ -107,7 +109,7 @@ static std::uint64_t get_os_thread_id() {
 #    error "Unsupported platform in get_os_thread_id"
 #  endif
 }
-#endif  // UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD == 0
+#endif  // UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
 
 namespace {
 
@@ -136,13 +138,13 @@ struct AsyncStackRootHolder {
     [[maybe_unused]] const int result =
         pthread_setspecific(folly_async_stack_root_tls_key, this);
     UNIFEX_ASSERT(result == 0);
-#else
+#elif UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
     kUnifexAsyncStackRootHolderList->add(this);
     threadId = unifex::get_os_thread_id();
 #endif
   }
 
-#if !UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
+#if UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
   ~AsyncStackRootHolder() noexcept {
     kUnifexAsyncStackRootHolderList->remove(this);
   }
