@@ -21,7 +21,7 @@
 #include <mutex>
 
 #if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD)
-#  if defined(__linux__)
+#  if defined(__linux__) || defined(_WIN32)
 #    define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
 #  else
 // defaults to using vector to store AsyncStackRoots instead of a pthread key
