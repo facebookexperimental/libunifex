@@ -20,7 +20,8 @@
 #include <cassert>
 #include <mutex>
 
-#if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD) || !defined(UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR)
+#if !defined(UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD) || \
+    !defined(UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR)
 // defaults to using pthread if linux, otherwise no async stack root
 #  if defined(__linux__)
 #    define UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD 1
@@ -31,8 +32,9 @@
 #  endif
 #endif
 
-# if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD && UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
-#  error "Only one of UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD and UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR can be set to true"
+#if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD && UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
+#  error \
+      "Only one of UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD and UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR can be set to true"
 #endif
 
 #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
