@@ -31,6 +31,10 @@
 #  endif
 #endif
 
+# if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD && UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
+#  error "Only one of UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD and UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR can be set to true"
+#endif
+
 #if UNIFEX_ASYNC_STACK_ROOT_USE_PTHREAD
 
 #  include <pthread.h>
