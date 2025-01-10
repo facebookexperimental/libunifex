@@ -62,6 +62,15 @@ namespace unifex {
 
 #if UNIFEX_ASYNC_STACK_ROOT_USE_VECTOR
 
+// Ensure anything tagged with UNIFEX_DONOTSTRIP is not stripped by the linker.
+// This will not protect against the `strip` tool, but it will allow us to 
+// make a symbol visible to debuggers and profilers even in the face of LTO.
+//
+// Users of the `strip` tool will need to use the 
+// `--keep-symbol=kUnifexAsyncStackRootHolderList` flag if they want to keep 
+// the async stack roots for introspection.
+#define UNIFEX_DONOTSTRIP __attribute__((used))
+
 struct AsyncStackRootHolderList {
   std::vector<void*> asyncStackRootHolders_;
   std::mutex mutex_;
@@ -97,7 +106,7 @@ struct AsyncStackRootHolderList {
 };
 
 extern "C" {
-auto* kUnifexAsyncStackRootHolderList = new AsyncStackRootHolderList();
+auto* kUnifexAsyncStackRootHolderList UNIFEX_DONOTSTRIP = new AsyncStackRootHolderList();
 }
 
 static std::uint64_t get_os_thread_id() {
