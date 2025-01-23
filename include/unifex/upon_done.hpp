@@ -1,18 +1,19 @@
 /*
-Copyright (c) Meta Platforms, Inc. and affiliates.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License. 
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 #pragma once
 
 #include <unifex/config.hpp>
@@ -198,12 +199,20 @@ public:
            sender_to<
                member_t<Sender, Predecessor>,
                receiver_t<remove_cvref_t<Receiver>>>)  //
-      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
-          std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
-          std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
-          is_nothrow_connectable_v<
-              member_t<Sender, Predecessor>,
-              receiver_t<remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(
+          tag_t<unifex::connect>,
+          Sender&& s,
+          Receiver&&
+              r) noexcept(std::
+                              is_nothrow_constructible_v<
+                                  remove_cvref_t<Receiver>,
+                                  Receiver>&&
+                                  std::is_nothrow_constructible_v<
+                                      Func,
+                                      member_t<Sender, Func>>&&
+                                      is_nothrow_connectable_v<
+                                          member_t<Sender, Predecessor>,
+                                          receiver_t<remove_cvref_t<Receiver>>>)
           -> connect_result_t<
               member_t<Sender, Predecessor>,
               receiver_t<remove_cvref_t<Receiver>>> {
