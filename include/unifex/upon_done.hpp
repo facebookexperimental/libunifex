@@ -199,20 +199,12 @@ public:
            sender_to<
                member_t<Sender, Predecessor>,
                receiver_t<remove_cvref_t<Receiver>>>)  //
-      friend auto tag_invoke(
-          tag_t<unifex::connect>,
-          Sender&& s,
-          Receiver&&
-              r) noexcept(std::
-                              is_nothrow_constructible_v<
-                                  remove_cvref_t<Receiver>,
-                                  Receiver>&&
-                                  std::is_nothrow_constructible_v<
-                                      Func,
-                                      member_t<Sender, Func>>&&
-                                      is_nothrow_connectable_v<
-                                          member_t<Sender, Predecessor>,
-                                          receiver_t<remove_cvref_t<Receiver>>>)
+      friend auto tag_invoke(tag_t<unifex::connect>, Sender&& s, Receiver&& r) noexcept(
+	  std::is_nothrow_constructible_v<remove_cvref_t<Receiver>, Receiver> &&
+          std::is_nothrow_constructible_v<Func, member_t<Sender, Func>> &&
+          is_nothrow_connectable_v<
+              member_t<Sender, Predecessor>,
+              receiver_t<remove_cvref_t<Receiver>>>)
           -> connect_result_t<
               member_t<Sender, Predecessor>,
               receiver_t<remove_cvref_t<Receiver>>> {
