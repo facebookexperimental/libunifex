@@ -476,7 +476,7 @@ public:
       friend auto tag_invoke(CPO cpo, const type& self) noexcept(
           std::is_nothrow_invocable_v<CPO, const Awaitable&>)
           -> std::invoke_result_t<CPO, const Awaitable&> {
-    return std::move(cpo)(std::as_const(self.awaitable));
+    return std::move(cpo)(std::as_const(self.awaitable_));
   }
 };
 
