@@ -28,7 +28,6 @@
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
 
-#include <chrono>
 #include <iostream>
 #include <optional>
 #include <variant>
