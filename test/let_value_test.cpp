@@ -27,6 +27,7 @@
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/tracing/get_return_address.hpp>
 
 #include <iostream>
 #include <optional>
@@ -328,3 +329,10 @@ TEST(Let, PredecessorThrows) {
   EXPECT_EQ(*ret, 5);
 }
 #endif
+
+TEST(Let, ReturnAddress) {
+  auto l = let_value([](int x) { return x; });
+  auto returnAddress = unifex::get_return_address(l);
+  EXPECT_TRUE(returnAddress != nullptr);
+  std::cout << "let_value returnAddress " << static_cast<uintptr_t>(returnAddress) << "\n";
+}
