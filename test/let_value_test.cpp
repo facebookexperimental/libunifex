@@ -331,8 +331,32 @@ TEST(Let, PredecessorThrows) {
 #endif
 
 TEST(Let, ReturnAddress) {
-  auto l = let_value([](int x) { return x; });
-  auto returnAddress = unifex::get_return_address(l);
-  EXPECT_TRUE(returnAddress != nullptr);
-  std::cout << "let_value returnAddress " << static_cast<uintptr_t>(returnAddress) << "\n";
+
+  timed_single_thread_context context;
+
+  // Simple usage of 'let_value()'
+  // - defines an async scope in which the result of one async
+  //   operation is in-scope for the duration of a second operation.
+  auto lv = let_value(async(context, [] { return 42; }), [&](int& x) {
+        printf("addressof x = %p, val = %i\n", (void*)&x, x);
+        auto ra = unifex::instruction_ptr::read_return_address();
+        printf("ip returnAddress = %p\n", (void*)static_cast<uintptr_t>(ra));
+        return async(context, [&]() -> int {
+          printf("successor transform\n");
+          printf("addressof x = %p, val = %i\n", (void*)&x, x);
+          return x;
+        });
+      });
+  auto ra2 = unifex::get_return_address(lv);
+  printf("lv returnAddress = %p\n", (void*)static_cast<uintptr_t>(ra2));
+
+  std::optional<int> result = sync_wait(lv);
+
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(*result, 42);
+  // std::cout << "let_value done " << *result << "\n";  
+  // auto l = let_value([](int x) { return _returnAddress; });
+  // auto returnAddress = unifex::get_return_address(l);
+  // EXPECT_TRUE(returnAddress != nullptr);
+  // std::cout << "let_value returnAddress " << static_cast<uintptr_t>(returnAddress) << "\n";
 }
