@@ -27,8 +27,6 @@
 #include <unifex/type_traits.hpp>
 
 #include <algorithm>
-#include <exception>
-#include <functional>
 #include <tuple>
 #include <type_traits>
 
@@ -495,7 +493,7 @@ public:
     return _impl_fn{}(
         std::forward<Predecessor>(pred),
         std::forward<SuccessorFactory>(func),
-        instruction_ptr::read_return_address());
+        UNIFEX_READ_RETURN_ADDRESS());
   }
   template <typename SuccessorFactory>
   constexpr auto operator()(SuccessorFactory&& func) const
@@ -508,7 +506,7 @@ public:
     return bind_back(
         _impl_fn{},
         std::forward<SuccessorFactory>(func),
-        instruction_ptr::read_return_address());
+        UNIFEX_READ_RETURN_ADDRESS());
   }
 };
 }  // namespace _cpo

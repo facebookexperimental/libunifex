@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "get_return_address_mock.hpp"
 #include <unifex/let_value.hpp>
 
 #include <unifex/allocate.hpp>
+#include <unifex/tracing/async_stack.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
@@ -330,33 +333,27 @@ TEST(Let, PredecessorThrows) {
 }
 #endif
 
+uintptr_t unifex::mock_instruction_ptr::mock_return_address = 0xdeadc0de;
+
 TEST(Let, ReturnAddress) {
 
   timed_single_thread_context context;
-
-  // Simple usage of 'let_value()'
-  // - defines an async scope in which the result of one async
-  //   operation is in-scope for the duration of a second operation.
   auto lv = let_value(async(context, [] { return 42; }), [&](int& x) {
-        printf("addressof x = %p, val = %i\n", (void*)&x, x);
-        auto ra = unifex::instruction_ptr::read_return_address();
-        printf("ip returnAddress = %p\n", (void*)static_cast<uintptr_t>(ra));
         return async(context, [&]() -> int {
-          printf("successor transform\n");
-          printf("addressof x = %p, val = %i\n", (void*)&x, x);
           return x;
         });
       });
-  auto ra2 = unifex::get_return_address(lv);
-  printf("lv returnAddress = %p\n", (void*)static_cast<uintptr_t>(ra2));
+  // if there is no implementation of tag_invoke(tag_t<get_return_address>, Sender)
+  // defined for let_value, the get_return_address call here
+  // will default to the default_return_address implementation in get_return_address.hpp
+  // we have overriden the UNIFEX_READ_RETURN_ADDRESS macro to return 0xdeadc0de (see a few lines above this test).
+  // This proves the let_value implementation of tag_invoke(tag_t<get_return_address>, Sender)
+  // is being used.
+  auto ra = unifex::get_return_address(lv);
+  EXPECT_TRUE(static_cast<uintptr_t>(ra) == 0xdeadc0de);
 
   std::optional<int> result = sync_wait(lv);
 
   EXPECT_TRUE(!!result);
   EXPECT_EQ(*result, 42);
-  // std::cout << "let_value done " << *result << "\n";  
-  // auto l = let_value([](int x) { return _returnAddress; });
-  // auto returnAddress = unifex::get_return_address(l);
-  // EXPECT_TRUE(returnAddress != nullptr);
-  // std::cout << "let_value returnAddress " << static_cast<uintptr_t>(returnAddress) << "\n";
 }
