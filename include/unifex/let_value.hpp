@@ -444,8 +444,9 @@ namespace _cpo {
 struct _fn {
 private:
   struct _impl_fn {
-    template(typename Predecessor, typename SuccessorFactory)(
-        requires tag_invocable<_fn, Predecessor, SuccessorFactory>) auto
+    template(typename Predecessor, typename SuccessorFactory) \\
+    (requires tag_invocable<_fn, Predecessor, SuccessorFactory>) \\
+    auto
     operator()(
         Predecessor&& predecessor,
         SuccessorFactory&& func,
@@ -458,8 +459,9 @@ private:
           std::forward<SuccessorFactory>(func));
     }
 
-    template(typename Predecessor, typename SuccessorFactory)(
-        requires(!tag_invocable<_fn, Predecessor, SuccessorFactory>)) auto
+    template(typename Predecessor, typename SuccessorFactory) \\
+    (requires(!tag_invocable<_fn, Predecessor, SuccessorFactory>)) \\
+    auto
     operator()(
         Predecessor&& predecessor,
         SuccessorFactory&& func,
