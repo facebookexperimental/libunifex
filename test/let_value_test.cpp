@@ -13,9 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include "get_return_address_mock.hpp"
 #include <unifex/let_value.hpp>
 
 #include <unifex/allocate.hpp>
+#include <unifex/tracing/async_stack.hpp>
 #include <unifex/just.hpp>
 #include <unifex/just_done.hpp>
 #include <unifex/just_error.hpp>
@@ -27,8 +30,8 @@
 #include <unifex/then.hpp>
 #include <unifex/timed_single_thread_context.hpp>
 #include <unifex/when_all.hpp>
+#include <unifex/tracing/get_return_address.hpp>
 
-#include <chrono>
 #include <iostream>
 #include <optional>
 #include <variant>
@@ -329,3 +332,28 @@ TEST(Let, PredecessorThrows) {
   EXPECT_EQ(*ret, 5);
 }
 #endif
+
+uintptr_t unifex::mock_instruction_ptr::mock_return_address = 0xdeadc0de;
+
+TEST(Let, ReturnAddress) {
+
+  timed_single_thread_context context;
+  auto lv = let_value(async(context, [] { return 42; }), [&](int& x) {
+        return async(context, [&]() -> int {
+          return x;
+        });
+      });
+  // if there is no implementation of tag_invoke(tag_t<get_return_address>, Sender)
+  // defined for let_value, the get_return_address call here
+  // will default to the default_return_address implementation in get_return_address.hpp
+  // we have overriden the UNIFEX_READ_RETURN_ADDRESS macro to return 0xdeadc0de (see a few lines above this test).
+  // This proves the let_value implementation of tag_invoke(tag_t<get_return_address>, Sender)
+  // is being used.
+  auto ra = unifex::get_return_address(lv);
+  EXPECT_TRUE(static_cast<uintptr_t>(ra) == 0xdeadc0de);
+
+  std::optional<int> result = sync_wait(lv);
+
+  EXPECT_TRUE(!!result);
+  EXPECT_EQ(*result, 42);
+}

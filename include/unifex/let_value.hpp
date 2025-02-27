@@ -27,8 +27,6 @@
 #include <unifex/type_traits.hpp>
 
 #include <algorithm>
-#include <exception>
-#include <functional>
 #include <tuple>
 #include <type_traits>
 
@@ -102,9 +100,8 @@ private:
       friend auto tag_invoke(CPO cpo, const successor_receiver& r) noexcept(
           std::is_nothrow_invocable_v<
               CPO,
-              const typename Operation::receiver_type&>)
-          -> std::
-              invoke_result_t<CPO, const typename Operation::receiver_type&> {
+              const typename Operation::receiver_type&>) -> std::
+          invoke_result_t<CPO, const typename Operation::receiver_type&> {
     return std::move(cpo)(std::as_const(r.get_receiver()));
   }
 
@@ -333,6 +330,7 @@ class _sender<Predecessor, SuccessorFactory>::type {
   using sender = type;
   Predecessor pred_;
   SuccessorFactory func_;
+  instruction_ptr returnAddress_;
 
   template <typename... Values>
   using successor_type =
@@ -343,10 +341,8 @@ class _sender<Predecessor, SuccessorFactory>::type {
       sender_value_types_t<Predecessor, List, successor_type>;
 
   template <
-      template <typename...>
-      class Variant,
-      template <typename...>
-      class Tuple>
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
   struct value_types_impl {
     template <typename... Senders>
     using apply = typename concat_type_lists_unique_t<
@@ -377,10 +373,8 @@ class _sender<Predecessor, SuccessorFactory>::type {
 
 public:
   template <
-      template <typename...>
-      class Variant,
-      template <typename...>
-      class Tuple>
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
   using value_types =
       successor_types<value_types_impl<Variant, Tuple>::template apply>;
 
@@ -403,11 +397,12 @@ public:
 
 public:
   template <typename Predecessor2, typename SuccessorFactory2>
-  explicit type(Predecessor2&& pred, SuccessorFactory2&& func) noexcept(
+  explicit type(Predecessor2&& pred, SuccessorFactory2&& func, instruction_ptr returnAddress) noexcept(
       std::is_nothrow_constructible_v<Predecessor, Predecessor2> &&
       std::is_nothrow_constructible_v<SuccessorFactory, SuccessorFactory2>)
     : pred_((Predecessor2&&)pred)
-    , func_((SuccessorFactory2&&)func) {}
+    , func_((SuccessorFactory2&&)func)
+    , returnAddress_(returnAddress) {}
 
   template(typename CPO, typename Sender, typename Receiver)  //
       (requires same_as<CPO, tag_t<unifex::connect>> AND same_as<
@@ -438,25 +433,80 @@ public:
 
     return std::max(pred(), std::min(succ(), blocking_kind::maybe()));
   }
+
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const type& t) noexcept {
+    return t.returnAddress_;
+  }
 };
 
 namespace _cpo {
 struct _fn {
+private:
+  struct _impl_fn {
+    template(typename Predecessor, typename SuccessorFactory)         //
+        (requires tag_invocable<_fn, Predecessor, SuccessorFactory>)  //
+        auto
+        operator()(Predecessor&& predecessor,
+                   SuccessorFactory&& func,
+                   instruction_ptr) const
+        noexcept(is_nothrow_tag_invocable_v<_fn, Predecessor, SuccessorFactory>)
+            -> tag_invoke_result_t<_fn, Predecessor, SuccessorFactory> {
+      return unifex::tag_invoke(
+          _fn{},
+          std::forward<Predecessor>(predecessor),
+          std::forward<SuccessorFactory>(func));
+    }
+
+    template(typename Predecessor, typename SuccessorFactory)           //
+        (requires(!tag_invocable<_fn, Predecessor, SuccessorFactory>))  //
+        auto
+        operator()(Predecessor&& predecessor,
+                   SuccessorFactory&& func,
+                   instruction_ptr returnAddress) const
+        noexcept(std::is_nothrow_constructible_v<
+                 _let_v::sender<Predecessor, SuccessorFactory>,
+                 Predecessor,
+                 SuccessorFactory,
+                 instruction_ptr>)
+            -> _let_v::sender<Predecessor, SuccessorFactory> {
+      return _let_v::sender<Predecessor, SuccessorFactory>{
+          std::forward<Predecessor>(predecessor),
+          std::forward<SuccessorFactory>(func),
+          returnAddress};
+    }
+  };
+
+public:
   template <typename Predecessor, typename SuccessorFactory>
   auto operator()(Predecessor&& pred, SuccessorFactory&& func) const
-      noexcept(std::is_nothrow_constructible_v<
-               _let_v::sender<Predecessor, SuccessorFactory>,
+      noexcept(std::is_nothrow_invocable_v<
+               _impl_fn,
                Predecessor,
-               SuccessorFactory>)
-          -> _let_v::sender<Predecessor, SuccessorFactory> {
-    return _let_v::sender<Predecessor, SuccessorFactory>{
-        (Predecessor&&)pred, (SuccessorFactory&&)func};
+               SuccessorFactory,
+               instruction_ptr>)
+          -> std::invoke_result_t<
+              _impl_fn,
+              Predecessor,
+              SuccessorFactory,
+              instruction_ptr> {
+    return _impl_fn{}(
+        std::forward<Predecessor>(pred),
+        std::forward<SuccessorFactory>(func),
+        UNIFEX_READ_RETURN_ADDRESS());
   }
   template <typename SuccessorFactory>
-  constexpr auto operator()(SuccessorFactory&& func) const noexcept(
-      std::is_nothrow_invocable_v<tag_t<bind_back>, _fn, SuccessorFactory>)
-      -> bind_back_result_t<_fn, SuccessorFactory> {
-    return bind_back(*this, (SuccessorFactory&&)func);
+  constexpr auto operator()(SuccessorFactory&& func) const
+      noexcept(std::is_nothrow_invocable_v<
+               tag_t<bind_back>,
+               _impl_fn,
+               SuccessorFactory,
+               instruction_ptr>)
+          -> bind_back_result_t<_impl_fn, SuccessorFactory, instruction_ptr> {
+    return bind_back(
+        _impl_fn{},
+        std::forward<SuccessorFactory>(func),
+        UNIFEX_READ_RETURN_ADDRESS());
   }
 };
 }  // namespace _cpo

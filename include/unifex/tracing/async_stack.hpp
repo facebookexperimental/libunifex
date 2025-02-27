@@ -532,6 +532,12 @@ private:
 }  // namespace detail
 }  // namespace unifex
 
+// allow easier testing of async stack implementations
+#if !defined(UNIFEX_READ_RETURN_ADDRESS)
+#define UNIFEX_READ_RETURN_ADDRESS \
+  unifex::instruction_ptr::read_return_address
+#endif
+
 #include <unifex/detail/epilogue.hpp>
 
 #include <unifex/tracing/async_stack-inl.hpp>
