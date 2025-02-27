@@ -444,13 +444,12 @@ namespace _cpo {
 struct _fn {
 private:
   struct _impl_fn {
-    template(typename Predecessor, typename SuccessorFactory) \\
-    (requires tag_invocable<_fn, Predecessor, SuccessorFactory>) \\
-    auto
-    operator()(
-        Predecessor&& predecessor,
-        SuccessorFactory&& func,
-        instruction_ptr) const
+    template(typename Predecessor, typename SuccessorFactory)         //
+        (requires tag_invocable<_fn, Predecessor, SuccessorFactory>)  //
+        auto
+        operator()(Predecessor&& predecessor,
+                   SuccessorFactory&& func,
+                   instruction_ptr) const
         noexcept(is_nothrow_tag_invocable_v<_fn, Predecessor, SuccessorFactory>)
             -> tag_invoke_result_t<_fn, Predecessor, SuccessorFactory> {
       return unifex::tag_invoke(
@@ -459,13 +458,12 @@ private:
           std::forward<SuccessorFactory>(func));
     }
 
-    template(typename Predecessor, typename SuccessorFactory) \\
-    (requires(!tag_invocable<_fn, Predecessor, SuccessorFactory>)) \\
-    auto
-    operator()(
-        Predecessor&& predecessor,
-        SuccessorFactory&& func,
-        instruction_ptr returnAddress) const
+    template(typename Predecessor, typename SuccessorFactory)           //
+        (requires(!tag_invocable<_fn, Predecessor, SuccessorFactory>))  //
+        auto
+        operator()(Predecessor&& predecessor,
+                   SuccessorFactory&& func,
+                   instruction_ptr returnAddress) const
         noexcept(std::is_nothrow_constructible_v<
                  _let_v::sender<Predecessor, SuccessorFactory>,
                  Predecessor,
