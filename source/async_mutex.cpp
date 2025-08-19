@@ -18,27 +18,29 @@
 
 namespace unifex {
 
-async_mutex::async_mutex() noexcept : atomicQueue_(false) {
+bool async_mutex::try_enqueue(waiter_base* waiter) noexcept {
+  if (try_lock()) {
+    return false;
+  }
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  queue_.push_back(waiter);
+  return true;
 }
 
-async_mutex::~async_mutex() {
-}
-
-bool async_mutex::try_enqueue(waiter_base* base) noexcept {
-  return atomicQueue_.enqueue_or_mark_active(base);
+void async_mutex::dequeue(waiter_base* waiter) noexcept {
+  std::lock_guard<std::mutex> lock(mutex_);
+  queue_.remove(waiter);
 }
 
 void async_mutex::unlock() noexcept {
-  if (pendingQueue_.empty()) {
-    auto newWaiters = atomicQueue_.try_mark_inactive_or_dequeue_all();
-    if (newWaiters.empty()) {
-      return;
-    }
-    pendingQueue_ = std::move(newWaiters);
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (queue_.empty()) {
+    locked_.store(false);
+  } else {
+    waiter_base* next{queue_.pop_front()};
+    next->resume_(next);
   }
-
-  waiter_base* item = pendingQueue_.pop_front();
-  item->resume_(item);
 }
 
 }  // namespace unifex
