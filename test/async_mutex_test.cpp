@@ -87,7 +87,7 @@ public:
     co_await mutex.async_lock();
     acquired = true;
     scope_guard guard([this]() noexcept { mutex.unlock(); });
-    co_await schedule_after(timer(), 200ms);
+    co_await schedule_after(timer(), 500ms);
     finished = true;
   }
 
@@ -95,7 +95,7 @@ public:
     acquired = false;
     finished = false;
     bool cancelled = false;
-    co_await (schedule_after(timer(), 200ms) | maybeCancelled(cancelled));
+    co_await (schedule_after(timer(), 500ms) | maybeCancelled(cancelled));
     co_await critSecTask(acquired, finished);
     EXPECT_TRUE(!cancelled || !acquired);  // cancelled implies !acquired
   }
