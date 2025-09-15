@@ -124,8 +124,8 @@ private:
           void operator()() noexcept;
         };
 
-        using stop_callback_type =
-            stop_token_type_t<Receiver>::template callback_type<stop_callback>;
+        using stop_callback_type = typename stop_token_type_t<
+            Receiver>::template callback_type<stop_callback>;
 
         async_mutex& mutex_;
         Receiver receiver_;
