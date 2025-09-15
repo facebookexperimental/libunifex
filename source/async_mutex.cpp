@@ -28,9 +28,14 @@ bool async_mutex::try_enqueue(waiter_base* waiter) noexcept {
   return true;
 }
 
-void async_mutex::dequeue(waiter_base* waiter) noexcept {
+bool async_mutex::try_dequeue(waiter_base* waiter) noexcept {
   std::lock_guard<std::mutex> lock(mutex_);
-  queue_.remove(waiter);
+  if (waiter->enqueued()) {
+    queue_.remove(waiter);
+    waiter->set_dequeued();
+    return true;
+  }
+  return false;
 }
 
 void async_mutex::unlock() noexcept {
@@ -39,6 +44,7 @@ void async_mutex::unlock() noexcept {
     locked_.store(false);
   } else {
     waiter_base* next{queue_.pop_front()};
+    next->set_dequeued();
     next->resume_(next);
   }
 }
