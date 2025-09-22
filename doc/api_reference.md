@@ -85,6 +85,7 @@
 * [Synchronisation Primitives](#synchronisation-primitives)
   * [`async_manual_reset_event`](#async_manual_reset_event)
   * [`async_mutex`](#async_mutex)
+  * [`async_pass`, `nothrow_async_pass](#async_pass)
 * [Coroutine support](#coroutine-support)
   * [`task`](#task)
   * [`at_coroutine_exit`](#at_coroutine_exit)
@@ -847,7 +848,7 @@ Returns a stream that produces values that are the result of calling
 
 ### `filter_stream(Stream stream, FilterFunc filterFunc) -> Stream`
 
-Returns a stream that contains the values from the input stream that evaluate 
+Returns a stream that contains the values from the input stream that evaluate
 true on the predicate `filterFunc(val)`.
 
 ### `via_stream(Scheduler scheduler, Stream stream) -> Stream`
@@ -1145,6 +1146,112 @@ namespace unifex
   };
 };
 ```
+
+### `async_pass` and `nothrow_async_pass`
+
+A rendezvous point supporting synchronized cross-scheduler calls between two tasks: caller and acceptor. Both calling and accepting may be asynchronously awaited
+until the other side is ready or tried synchronously.
+
+```c++
+template <typename... Args> class async_pass;
+template <typename... Args> class nothrow_async_pass;
+```
+
+Non-copyable, non-moveable. The `Args...` describe both the parameter types of `async_call()` method and the value types of the sender returned by `async_await()` method. The `nothrow_async_pass` does not provide `try_throw()` and `async_throw()` and requires that reference-stripped `Args` types be nothrow (copy or move) constructible. Non-const lvalue references cannot be used in `Args` without `std::reference_wrapper<>`.
+
+```c++
+Sender<> async_call(Args&&... args) noexcept;
+```
+
+Passes the data payload in args to the acceptor. Completes with `set_value()` immediately if an acceptor is waiting, or once `async_accept()` or `try_accept()` are called. Completes with `set_done()` if cancelled. Note that the caller must ensure that the underlying values passed into this call do not go out of scope until the resulting sender has started. In co-routines this is normally ensured by an immediate `co_await` on the sender; this code however will fail:
+
+```c++
+auto sender = pass.async_call(Request{});
+// Temporary Request{} is destroyed, but sender kept a reference to it
+co_await std::move(sender);
+```
+
+```c++
+Sender<> async_call(auto&& fn) noexcept;
+```
+
+Deferred version of the `async_call()` that does not require the caller to provide actual argument values until the acceptor is ready. The argument `fn` is a callback accepting a single argument which is an lvalue reference to a callable accepting `Args...`; callback will be activated at rendezvous when it must either call the provided argument, passing it the data payload, or (unless used with `nothrow_async_pass`) throw.
+
+Completes with `set_value()` immediately if an acceptor is waiting, or once `async_accept()` or `try_accept()` are called. Completes with `set_done()` if cancelled.
+
+```c++
+Sender<> async_throw(std::exception_ptr ex) noexcept;
+Sender<> async_throw(const auto& ex) noexcept;
+```
+
+Passes an exception to the acceptor instead of a normal call with data payload. Completes with `set_value()` immediately if an acceptor is waiting, or once `async_accept()` or `try_accept()` are called. Completes with `set_done()` if cancelled.
+
+```c++
+Sender<Args...> async_accept() noexcept;
+```
+
+Completes with either `set_value()` or `set_error()` immediately if a caller is waiting with the respective request, or completes with `set_value()` once `async_call()` or `try_call()` are called, or completes with `set_error()` once `async_throw()` or `try_throw()` are called. Completes with `set_done()` if cancelled. Note that in a co-routine context additional copies/moves may occur due to awaitable conversion and assignment to the destination variable:
+
+```c++
+auto request = co_await pass.async_accept();
+```
+
+These extra copies/moves can be avoided in a sender pipeline:
+
+```c++
+co_await (pass.async_accept() | then([](auto&& request) noexcept { ... }));
+```
+
+The argument of `then()` will be passed a reference to the only copy of the request made to cross the scheduler boundary.
+
+```c++
+bool try_call(Args&&... args) noexcept;
+```
+
+If an acceptor is awaiting, synchronously completes the rendezvous and returns true, otherwise returns false without touching the underlying argument values.
+
+```c++
+bool try_call(auto&& fn) noexcept;
+```
+
+If an acceptor is awaiting, synchronously completes the rendezvous and returns true, otherwise returns false without calling fn. Treatment of, and the requirements on, the callback argument `fn` are the same as in the deferred version of `async_call()`.
+
+```c++
+bool try_throw(std::exception_ptr ex) noexcept;
+bool try_throw(const auto& ex) noexcept;
+```
+
+If an acceptor is awaiting, synchronously completes the rendezvous, passing an exception to the acceptor, and returns true, otherwise returns false.
+
+```c++
+std::optional<std::tuple<Args...>> try_accept();
+```
+
+If a caller is waiting, synchronously completes the rendezvous, either returning a tuple with data payload or throwing (except with `nothrow_async_pass` where this method is declared `noexcept`). Otherwise returns an empty optional.
+
+```c++
+bool try_accept(auto&& fn);
+```
+
+Deferred version of `try_accept()`: will only call `fn` passing it `Args&&...` if a caller is waiting with a data payload, in which case will return true. If a caller is waiting with an exception, the method throws, otherwise it returns false.
+
+```c++
+bool is_idle() const noexcept;
+```
+
+Returns true if neither caller nor acceptor are awaiting (senders not started).
+
+```c++
+bool is_expecting_call() const noexcept;
+```
+
+Returns true if an acceptor is awaiting (sender has been started).
+
+```c++
+bool is_expecting_accept() const noexcept;
+```
+
+Returns true if a caller is awaiting (sender has been started).
 
 ## Coroutine support
 
