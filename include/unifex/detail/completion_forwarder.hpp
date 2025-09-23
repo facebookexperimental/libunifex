@@ -46,6 +46,7 @@ public:
       return unifex::connect(
           schedule(get_scheduler(outer.get_receiver())), receiver{outer});
     });
+    started_ = true;
     unifex::start(inner_.get());
   }
 
