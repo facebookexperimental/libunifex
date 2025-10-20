@@ -513,15 +513,15 @@ public:
     });
   }
 
-  [[nodiscard]] bool try_throw(const std::exception& ex) noexcept
-    requires(!Noexcept)
-  {
+  template(bool Enable = !Noexcept)  //
+      (requires Enable)              //
+      [[nodiscard]] bool try_throw(const std::exception& ex) noexcept {
     return try_throw(std::make_exception_ptr(ex));
   }
 
-  [[nodiscard]] bool try_throw(std::exception_ptr ex) noexcept
-    requires(!Noexcept)
-  {
+  template(bool Enable = !Noexcept)  //
+      (requires Enable)              //
+      [[nodiscard]] bool try_throw(std::exception_ptr ex) noexcept {
     std::lock_guard lock{this->mutex_};
     return this->locked_try_throw(std::move(ex));
   }
@@ -540,15 +540,15 @@ public:
     });
   }
 
-  [[nodiscard]] throw_sender async_throw(const auto& ex) noexcept
-    requires(!Noexcept)
-  {
+  template(bool Enable = !Noexcept)  //
+      (requires Enable)              //
+      [[nodiscard]] throw_sender async_throw(const auto& ex) noexcept {
     return async_throw(std::make_exception_ptr(ex));
   }
 
-  [[nodiscard]] throw_sender async_throw(std::exception_ptr ex) noexcept
-    requires(!Noexcept)
-  {
+  template(bool Enable = !Noexcept)  //
+      (requires Enable)              //
+      [[nodiscard]] throw_sender async_throw(std::exception_ptr ex) noexcept {
     return throw_sender{*this, std::move(ex)};
   }
 
@@ -696,25 +696,20 @@ private:
           }
         }
 
-        void locked_set_value(Args&&... args) noexcept
-          requires(!Noexcept)
-        {
+        void locked_set_value(Args&&... args) noexcept {
           if (complete_ == nullptr) {
-            UNIFEX_TRY {
+            if constexpr (Noexcept) {
               locked_complete_with(
                   defer_set_value(std::forward<Args>(args)...));
+            } else {
+              UNIFEX_TRY {
+                locked_complete_with(
+                    defer_set_value(std::forward<Args>(args)...));
+              }
+              UNIFEX_CATCH(...) {
+                locked_complete_with(defer_set_error(std::current_exception()));
+              }
             }
-            UNIFEX_CATCH(...) {
-              locked_complete_with(defer_set_error(std::current_exception()));
-            }
-          }
-        }
-
-        void locked_set_value(Args&&... args) noexcept
-          requires(Noexcept)
-        {
-          if (complete_ == nullptr) {
-            locked_complete_with(defer_set_value(std::forward<Args>(args)...));
           }
         }
 
