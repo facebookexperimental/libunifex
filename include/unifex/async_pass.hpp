@@ -619,27 +619,26 @@ private:
         static auto defer_set_value(Args&&... args) noexcept {
           return [&args...]() noexcept(Noexcept) {
             return [... args{std::decay_t<Args>{std::move(args)}}](
-                       auto&& receiver) mutable noexcept {
+                       Receiver&& receiver) mutable noexcept(Noexcept) {
               unifex::set_value(
-                  std::forward<decltype(receiver)>(receiver),
-                  std::move(args)...);
+                  std::forward<Receiver>(receiver), std::move(args)...);
             };
           };
         }
 
         static auto defer_set_error(std::exception_ptr ex) noexcept {
           return [&ex]() noexcept {
-            return [ex{std::move(ex)}](auto&& receiver) mutable noexcept {
+            return [ex{std::move(ex)}](Receiver&& receiver) mutable noexcept {
               unifex::set_error(
-                  std::forward<decltype(receiver)>(receiver), std::move(ex));
+                  std::forward<Receiver>(receiver), std::move(ex));
             };
           };
         }
 
         static auto defer_set_done() noexcept {
           return []() noexcept {
-            return [](auto&& receiver) noexcept {
-              unifex::set_done(std::forward<decltype(receiver)>(receiver));
+            return [](Receiver&& receiver) noexcept {
+              unifex::set_done(std::forward<Receiver>(receiver));
             };
           };
         }
@@ -719,7 +718,8 @@ private:
           }
         }
 
-        void locked_complete_with(auto&& deferred) noexcept(Noexcept) {
+        void
+        locked_complete_with(auto&& deferred) noexcept(noexcept(deferred())) {
           using op_state_t =
               forwarding_state<std::remove_cvref_t<decltype(deferred())>>;
 
@@ -730,7 +730,7 @@ private:
             deactivate_union_member<op_state_t>(self->state_);
           };
           activate_union_member_with<op_state_t>(
-              state_, [&deferred]() noexcept(Noexcept) {
+              state_, [&deferred]() noexcept(noexcept(deferred())) {
                 return op_state_t{std::forward<decltype(deferred)>(deferred)};
               });
 
