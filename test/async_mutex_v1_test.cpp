@@ -18,7 +18,7 @@
 
 #if !UNIFEX_NO_COROUTINES
 
-#  include <unifex/async_mutex.hpp>
+#  include <unifex/v1/async_mutex.hpp>
 #  include <unifex/scheduler_concepts.hpp>
 #  include <unifex/single_thread_context.hpp>
 #  include <unifex/sync_wait.hpp>
@@ -29,7 +29,7 @@
 
 using namespace unifex;
 
-TEST(async_mutex, multiple_threads) {
+TEST(async_mutex_v1, multiple_threads) {
 #  if !defined(UNIFEX_TEST_LIMIT_ASYNC_MUTEX_ITERATIONS)
   constexpr int iterations = 100'000;
 #  else
