@@ -282,7 +282,7 @@ jobs:
           }
         - {
             name: "Linux Clang 18 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-latest,
             io_sys: io_uring,
             build_type: Debug,
             cc: "clang-18", cxx: "clang++-18",
@@ -290,7 +290,7 @@ jobs:
           }
         - {
             name: "Linux Clang 18 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-latest,
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "clang-18", cxx: "clang++-18",
@@ -298,7 +298,7 @@ jobs:
           }
         - {
             name: "Linux Clang 19 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-latest,
             io_sys: io_uring,
             build_type: Debug,
             cc: "clang-19", cxx: "clang++-19",
@@ -306,7 +306,7 @@ jobs:
           }
         - {
             name: "Linux Clang 19 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
+            os: ubuntu-latest,
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "clang-19", cxx: "clang++-19",
