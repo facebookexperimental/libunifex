@@ -13,6 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#pragma once
 
 #include <unifex/v1/async_mutex.hpp>
+
+namespace unifex::v1 {
+
+async_mutex::async_mutex() noexcept : atomicQueue_(false) {
+}
+
+async_mutex::~async_mutex() {
+}
+
+bool async_mutex::try_enqueue(waiter_base* base) noexcept {
+  return atomicQueue_.enqueue_or_mark_active(base);
+}
+
+void async_mutex::unlock() noexcept {
+  if (pendingQueue_.empty()) {
+    auto newWaiters = atomicQueue_.try_mark_inactive_or_dequeue_all();
+    if (newWaiters.empty()) {
+      return;
+    }
+    pendingQueue_ = std::move(newWaiters);
+  }
+
+  waiter_base* item = pendingQueue_.pop_front();
+  item->resume_(item);
+}
+
+}  // namespace unifex::v1

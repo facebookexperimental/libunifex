@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-#include <unifex/async_mutex.hpp>
+#include <unifex/v2/async_mutex.hpp>
 
-namespace unifex {
+namespace unifex::v2 {
 
 bool async_mutex::try_enqueue(waiter_base* waiter) noexcept {
   if (try_lock()) {
@@ -49,4 +49,4 @@ void async_mutex::unlock() noexcept {
   }
 }
 
-}  // namespace unifex
+}  // namespace unifex::v2
