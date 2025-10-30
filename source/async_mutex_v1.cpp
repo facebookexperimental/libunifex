@@ -16,7 +16,8 @@
 
 #include <unifex/v1/async_mutex.hpp>
 
-namespace unifex::v1 {
+namespace unifex {
+inline namespace v1 {
 
 async_mutex::async_mutex() noexcept : atomicQueue_(false) {
 }
@@ -41,4 +42,5 @@ void async_mutex::unlock() noexcept {
   item->resume_(item);
 }
 
-}  // namespace unifex::v1
+}  // namespace v1
+}  // namespace unifex
