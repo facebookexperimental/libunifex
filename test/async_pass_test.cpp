@@ -47,6 +47,18 @@ struct async_pass_test_base {
         schedule_after(timer.get_scheduler(), 100ms));
   }
 
+  auto stop_early(auto&& sender, bool& cancelled) {
+    return let_value_with_stop_source([sender{std::forward<decltype(sender)>(
+                                          sender)}](auto& stop_source) mutable {
+             stop_source.request_stop();
+             return std::move(sender);
+           }) |
+        let_done([&cancelled]() noexcept {
+             cancelled = true;
+             return just();
+           });
+  }
+
   async_scope scope;
   single_thread_context ctx;
   timed_single_thread_context timer;
@@ -312,10 +324,34 @@ TYPED_TEST_P(async_pass_test, cancel_call) {
   sync_wait(this->scope.complete());
 }
 
+TYPED_TEST_P(async_pass_test, cancel_call_early) {
+  bool called{false}, cancelled{false};
+  sync_wait(this->scope.spawn_on(
+      this->ctx.get_scheduler(),
+      this->stop_early(this->call(called), cancelled)));
+  EXPECT_FALSE(called);
+  EXPECT_TRUE(cancelled);
+  auto accepted{this->pass.try_accept()};
+  EXPECT_FALSE(accepted.has_value());
+  sync_wait(this->scope.complete());
+}
+
 TEST_F(async_pass_throw_test, cancel_throw) {
   bool thrown{false}, cancelled{false};
   sync_wait(this->scope.spawn_on(
       this->ctx.get_scheduler(), this->stop(this->throvv(thrown), cancelled)));
+  EXPECT_FALSE(thrown);
+  EXPECT_TRUE(cancelled);
+  auto accepted{this->pass.try_accept()};
+  EXPECT_FALSE(accepted.has_value());
+  sync_wait(this->scope.complete());
+}
+
+TEST_F(async_pass_throw_test, cancel_throw_early) {
+  bool thrown{false}, cancelled{false};
+  sync_wait(this->scope.spawn_on(
+      this->ctx.get_scheduler(),
+      this->stop_early(this->throvv(thrown), cancelled)));
   EXPECT_FALSE(thrown);
   EXPECT_TRUE(cancelled);
   auto accepted{this->pass.try_accept()};
@@ -335,6 +371,18 @@ TYPED_TEST_P(async_pass_test, cancel_accept) {
   sync_wait(this->scope.complete());
 }
 
+TYPED_TEST_P(async_pass_test, cancel_accept_early) {
+  bool accepted{false}, cancelled{false};
+  sync_wait(this->scope.spawn_on(
+      this->ctx.get_scheduler(),
+      this->stop_early(this->accept(accepted), cancelled)));
+  EXPECT_FALSE(accepted);
+  EXPECT_TRUE(cancelled);
+  bool called{this->pass.try_call()};
+  EXPECT_FALSE(called);
+  sync_wait(this->scope.complete());
+}
+
 REGISTER_TYPED_TEST_SUITE_P(
     async_pass_test,
     call_before_accept,
@@ -342,7 +390,9 @@ REGISTER_TYPED_TEST_SUITE_P(
     sync_accept_call,
     sync_call,
     cancel_call,
-    cancel_accept);
+    cancel_call_early,
+    cancel_accept,
+    cancel_accept_early);
 using async_pass_test_types = Types<async_pass<>, nothrow_async_pass<>>;
 INSTANTIATE_TYPED_TEST_SUITE_P(
     async_pass_test_both, async_pass_test, async_pass_test_types);
@@ -475,8 +525,7 @@ TEST_F(async_pass_copy_test, sync_accept) {
 
 TEST_F(async_pass_copy_test, sync_accept_callback) {
   size_t copies{0}, moves{0};
-  auto callback{[](const Copyable&, Moveable&&) noexcept {
-  }};
+  auto callback{[](const Copyable&, Moveable&&) noexcept {}};
   auto accepted{this->pass.try_accept(callback)};
   EXPECT_FALSE(accepted);
   this->scope.detached_spawn_on(
