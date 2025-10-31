@@ -151,9 +151,7 @@ call_or_throw_op_base<true>::call(accept_op_base_noargs& acceptor) noexcept {
 
 inline void
 call_or_throw_op_base<false>::call(accept_op_base_noargs& acceptor) {
-  scope_guard guard{[this]() noexcept {
-    (*resume_)(this);
-  }};
+  scope_guard guard{[this]() noexcept { (*resume_)(this); }};
   if (is_throw_) {
     acceptor.rethrow(std::move(static_cast<throw_op_base*>(this)->ex_));
   } else {
@@ -301,10 +299,8 @@ class call_sender : public sender_base {
 
 public:
   template <
-      template <typename...>
-      class Variant,
-      template <typename...>
-      class Tuple>
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <typename Receiver>
@@ -383,10 +379,8 @@ class throw_sender : public sender_base {
 
 public:
   template <
-      template <typename...>
-      class Variant,
-      template <typename...>
-      class Tuple>
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
   using value_types = Variant<Tuple<>>;
 
   template <typename Receiver>
@@ -448,9 +442,10 @@ private:
   std::exception_ptr ex_;
 };
 
-template(bool Noexcept, typename... Args)                //
-    (requires constructible_v<Args...> AND(              //
-        !Noexcept || nothrow_constructible_v<Args...>))  //
+template(bool Noexcept, typename... Args)  //
+    (requires constructible_v<Args...>
+         AND(                                                 //
+             !Noexcept || nothrow_constructible_v<Args...>))  //
     class async_pass : private async_pass_base<Noexcept> {
 private:
   class accept_sender;
@@ -476,9 +471,10 @@ public:
     return this->waiting_call_ != nullptr;
   }
 
-  template(typename F)                                            //
-      (requires std::is_invocable_v<F, Args...> AND(              //
-          !Noexcept || std::is_nothrow_invocable_v<F, Args...>))  //
+  template(typename F)  //
+      (requires std::is_invocable_v<F, Args...>
+           AND(                                                        //
+               !Noexcept || std::is_nothrow_invocable_v<F, Args...>))  //
       bool try_accept(F&& f) noexcept(Noexcept) {
     std::lock_guard lock{this->mutex_};
     auto acceptor{
@@ -497,10 +493,11 @@ public:
 
   [[nodiscard]] auto async_accept() noexcept { return accept_sender{*this}; }
 
-  template(typename F)                                             //
-      (requires std::is_invocable_v<F, acceptor_constraint&> AND(  //
-          !Noexcept ||
-          std::is_nothrow_invocable_v<F, acceptor_constraint&>))  //
+  template(typename F)  //
+      (requires std::is_invocable_v<F, acceptor_constraint&>
+           AND(  //
+               !Noexcept ||
+               std::is_nothrow_invocable_v<F, acceptor_constraint&>))  //
       [[nodiscard]] bool try_call(F&& callerFn) noexcept {
     std::lock_guard lock{this->mutex_};
     return this->template locked_try_call<type_list<Args...>>(
@@ -526,10 +523,11 @@ public:
     return this->locked_try_throw(std::move(ex));
   }
 
-  template(typename F)                                             //
-      (requires std::is_invocable_v<F, acceptor_constraint&> AND(  //
-          !Noexcept ||
-          std::is_nothrow_invocable_v<F, acceptor_constraint&>))  //
+  template(typename F)  //
+      (requires std::is_invocable_v<F, acceptor_constraint&>
+           AND(  //
+               !Noexcept ||
+               std::is_nothrow_invocable_v<F, acceptor_constraint&>))  //
       [[nodiscard]] auto async_call(F&& callerFn) noexcept {
     return call_sender{*this, std::forward<F>(callerFn), type_list<Args...>{}};
   }
@@ -561,10 +559,8 @@ private:
 
   public:
     template <
-        template <typename...>
-        class Variant,
-        template <typename...>
-        class Tuple>
+        template <typename...> class Variant,
+        template <typename...> class Tuple>
     using value_types = Variant<Tuple<std::decay_t<Args>...>>;
 
     template <template <typename...> class Variant>
