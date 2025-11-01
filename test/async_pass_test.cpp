@@ -602,7 +602,7 @@ TEST_F(async_pass_nocopy_test, accept_before_call) {
 struct ThrowOnCopy {
   explicit ThrowOnCopy() noexcept {}
 
-  ThrowOnCopy(const ThrowOnCopy& rhs) {
+  ThrowOnCopy(const ThrowOnCopy& /* rhs */) {
     throw std::runtime_error("cannot copy");
   }
 
