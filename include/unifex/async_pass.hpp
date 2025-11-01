@@ -83,7 +83,7 @@ struct immediate_accept {
       this->set_value_ = [](accept_op_base<Args...>* self, Args&&... args) {
         static_cast<op*>(self)->acceptorFn_(std::forward<Args>(args)...);
       };
-      this->set_error_ = [](accept_op_base_noargs* self,
+      this->set_error_ = [](accept_op_base_noargs* /* self */,
                             std::exception_ptr ex) {
         std::rethrow_exception(std::move(ex));
       };
@@ -504,7 +504,7 @@ public:
         std::forward<F>(callerFn));
   }
 
-  [[nodicard]] bool try_call(Args&&... args) noexcept {
+  [[nodiscard]] bool try_call(Args&&... args) noexcept {
     return try_call([&args...](auto& acceptorFn /* noexcept */) noexcept {
       acceptorFn(std::forward<Args>(args)...);
     });
@@ -623,7 +623,7 @@ private:
         }
 
         static auto defer_set_error(std::exception_ptr ex) noexcept {
-          return [&ex]() noexcept {
+          return [ex{std::move(ex)}]() noexcept {
             return [ex{std::move(ex)}](Receiver&& receiver) mutable noexcept {
               unifex::set_error(
                   std::forward<Receiver>(receiver), std::move(ex));

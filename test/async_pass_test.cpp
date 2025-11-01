@@ -86,7 +86,7 @@ public:
 
   task<void> throw_during_call(bool& completed) {
     co_await pass.async_call(
-        [](auto&& fn) { throw std::runtime_error("throw"); });
+        [](auto&& /* fn */) { throw std::runtime_error("throw"); });
     completed = true;
   }
 
@@ -286,8 +286,8 @@ TEST_F(async_pass_throw_test, sync_throw_during_call) {
   sync_wait(this->scope.spawn_call_on(
       this->ctx.get_scheduler(),
       [&accepted]() noexcept { EXPECT_FALSE(accepted); }));
-  called =
-      this->pass.try_call([](auto&& fn) { throw std::runtime_error("throw"); });
+  called = this->pass.try_call(
+      [](auto&& /* fn */) { throw std::runtime_error("throw"); });
   EXPECT_TRUE(called);
   this->scope.detached_spawn_call_on(
       this->ctx.get_scheduler(),
