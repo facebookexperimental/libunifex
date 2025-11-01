@@ -251,8 +251,8 @@ protected:
     call_or_throw_op_impl* self;
   };
 
-  using stop_callback_type =
-      stop_token_type_t<Receiver>::template callback_type<stop_callback>;
+  using stop_callback_type = typename stop_token_type_t<
+      Receiver>::template callback_type<stop_callback>;
 
   explicit call_or_throw_op_impl(async_pass_base<Noexcept>& pass, Receiver&& r)
     : pass_(pass)
