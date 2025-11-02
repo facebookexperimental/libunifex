@@ -732,9 +732,15 @@ private:
           forwardingOp_.start(*this);
         }
 
+        /* The following more straightforward declaration breaks MSVC
         template <typename DeferFn, typename... Args2>
         using forwarding_state_t = forwarding_state<
             std::invoke_result_t<std::invoke_result_t<DeferFn, Args2...>>>;
+        */
+
+        template <typename DeferFn, typename... Args2>
+        using forwarding_state_t = forwarding_state<decltype((
+            *UNIFEX_DECLVAL(DeferFn*))(UNIFEX_DECLVAL(Args2)...)())>;
 
         async_pass& pass_;
         Receiver receiver_;
