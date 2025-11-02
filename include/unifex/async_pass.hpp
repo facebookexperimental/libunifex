@@ -407,6 +407,7 @@ private:
       : public throw_op_base
       , public call_or_throw_op_impl<false, Receiver> {
       using impl = call_or_throw_op_impl<false, Receiver>;
+      using impl::kCompleted;  // MSVC workaround
 
     public:
       explicit type(
@@ -417,7 +418,7 @@ private:
         , call_or_throw_op_impl<false, Receiver>(
               pass, std::forward<Receiver>(r)) {
         this->resume_ = [](call_or_throw_op_base<false>* self) noexcept {
-          static_cast<type*>(self)->locked_complete(impl::kCompleted);
+          static_cast<type*>(self)->locked_complete(kCompleted);
         };
       }
 
@@ -431,7 +432,7 @@ private:
           if (!this->pass_.locked_try_throw(this->ex_)) {
             this->pass_.waiting_call_ = this;
           } else {
-            this->locked_complete(impl::kCompleted);
+            this->locked_complete(kCompleted);
           }
         }
       }
