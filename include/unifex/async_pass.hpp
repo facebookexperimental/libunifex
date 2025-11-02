@@ -732,23 +732,17 @@ private:
           forwardingOp_.start(*this);
         }
 
-        /* The following more straightforward declaration breaks MSVC
-        template <typename DeferFn, typename... Args2>
-        using forwarding_state_t = forwarding_state<
-            std::invoke_result_t<std::invoke_result_t<DeferFn, Args2...>>>;
-        */
-
-        template <typename DeferFn, typename... Args2>
-        using forwarding_state_t = forwarding_state<decltype((
-            *UNIFEX_DECLVAL(DeferFn*))(UNIFEX_DECLVAL(Args2)...)())>;
+        template <auto DeferFn, typename... Args2>
+        using forwarding_state_t =
+            forwarding_state<decltype(DeferFn(UNIFEX_DECLVAL(Args2)...)())>;
 
         async_pass& pass_;
         Receiver receiver_;
         completion_forwarder<type, Receiver> forwardingOp_;
         manual_lifetime_union<
-            forwarding_state_t<decltype(defer_set_value), Args&&...>,
-            forwarding_state_t<decltype(defer_set_error), std::exception_ptr>,
-            forwarding_state_t<decltype(defer_set_done)>>
+            forwarding_state_t<defer_set_value, Args&&...>,
+            forwarding_state_t<defer_set_error, std::exception_ptr>,
+            forwarding_state_t<defer_set_done>>
             state_;
         std::optional<stop_callback_type> stop_callback_;
 
