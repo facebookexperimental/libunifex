@@ -415,7 +415,6 @@ private:
         : throw_op_base(std::move(ex))
         , call_or_throw_op_impl<false, Receiver>(
               pass, std::forward<Receiver>(r)) {
-        this->ex_ = std::move(ex);
         this->resume_ = [](call_or_throw_op_base<false>* self) noexcept {
           static_cast<type*>(self)->locked_complete(impl::kCompleted);
         };
@@ -428,7 +427,7 @@ private:
         std::lock_guard lock{this->pass_.mutex_};
         if (impl::stop_callback_
                 .has_value()) {  // Else it fired on registration
-          if (!this->pass_.locked_try_throw(std::move(this->ex_))) {
+          if (!this->pass_.locked_try_throw(this->ex_)) {
             this->pass_.waiting_call_ = this;
           } else {
             this->locked_complete(impl::kCompleted);
@@ -540,13 +539,13 @@ public:
 
   template(bool Enable = !Noexcept)  //
       (requires Enable)              //
-      [[nodiscard]] throw_sender async_throw(const auto& ex) noexcept {
+      [[nodiscard]] auto async_throw(const auto& ex) noexcept {
     return async_throw(std::make_exception_ptr(ex));
   }
 
   template(bool Enable = !Noexcept)  //
       (requires Enable)              //
-      [[nodiscard]] throw_sender async_throw(std::exception_ptr ex) noexcept {
+      [[nodiscard]] auto async_throw(std::exception_ptr ex) noexcept {
     return throw_sender{*this, std::move(ex)};
   }
 
