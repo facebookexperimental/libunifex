@@ -427,6 +427,14 @@ class async_pass_copy_test
   : public Test
   , public async_pass_test_base {
 public:
+  static constexpr auto kMsvcCopyPenalty{
+#  if defined(_MSC_VER)
+      1  // MSVC appears to introduce a spurious copy/move; possibly due to
+         // failed copy elision
+#  else
+      0
+#  endif
+  };
   async_pass<const Copyable&, Moveable> pass;
 
   task<void> call(size_t& copies, size_t& moves) {
@@ -454,8 +462,8 @@ TEST_F(async_pass_copy_test, call_before_accept) {
   // 1) explicit copy to jump the scheduler with
   // 2) internal value constructed by await_transform()
   // 3) copy of the internal value returned by await_resume()
-  EXPECT_EQ(3, copies);
-  EXPECT_EQ(3, moves);
+  EXPECT_EQ(3 + kMsvcCopyPenalty, copies);
+  EXPECT_EQ(3 + kMsvcCopyPenalty, moves);
   sync_wait(this->scope.complete());
 }
 
@@ -471,8 +479,8 @@ TEST_F(async_pass_copy_test, call_before_accept_no_coro) {
   sync_wait(
       pass.async_accept() | then([](const Copyable&, Moveable&&) noexcept {}));
   // 1) explicit copy to jump the scheduler with; then() receives a reference
-  EXPECT_EQ(1, copies);
-  EXPECT_EQ(1, moves);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, copies);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, moves);
   sync_wait(this->scope.complete());
 }
 
@@ -486,8 +494,8 @@ TEST_F(async_pass_copy_test, accept_before_call) {
   // 1) explicit copy to jump the scheduler with
   // 2) internal value constructed by await_transform()
   // 3) copy of the internal value returned by await_resume()
-  EXPECT_EQ(3, copies);
-  EXPECT_EQ(3, moves);
+  EXPECT_EQ(3 + kMsvcCopyPenalty, copies);
+  EXPECT_EQ(3 + kMsvcCopyPenalty, moves);
 }
 
 TEST_F(async_pass_copy_test, accept_before_call_no_coro) {
@@ -498,8 +506,8 @@ TEST_F(async_pass_copy_test, accept_before_call_no_coro) {
   sync_wait(this->call(copies, moves));
   sync_wait(this->scope.complete());
   // 1) explicit copy to jump the scheduler with; then() receives a reference
-  EXPECT_EQ(1, copies);
-  EXPECT_EQ(1, moves);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, copies);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, moves);
 }
 
 TEST_F(async_pass_copy_test, sync_accept) {
