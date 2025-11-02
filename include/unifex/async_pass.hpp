@@ -623,7 +623,7 @@ private:
         }
 
         static auto defer_set_error(std::exception_ptr ex) noexcept {
-          return [ex{std::move(ex)}]() noexcept {
+          return [ex{std::move(ex)}]() mutable noexcept {
             return [ex{std::move(ex)}](Receiver&& receiver) mutable noexcept {
               unifex::set_error(
                   std::forward<Receiver>(receiver), std::move(ex));
