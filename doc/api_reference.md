@@ -30,6 +30,7 @@
   * [`sequence()`](#sequencesender-predecessors-sender-last---sender)
   * [`sync_wait()`](#sync_waitsender-sender---stdoptionalresult)
   * [`when_all()`](#when_allsenders---sender)
+  * [`when_any()`](#when_anysenders---sender)
   * [`materialize()`](#materializesender-sender---sender)
   * [`dematerialize()`](#dematerializesender-sender---sender)
   * [`repeat_effect_until()`](#repeat_effect_untilsender-source-invocable-predicate---sender)
@@ -508,6 +509,20 @@ If any of the input senders complete with done or error then it will request
 any senders that have not yet completed to stop and the operation as a whole
 will complete with done or error.
 
+### `when_any(Senders...) -> Sender`
+
+Takes a variadic number of 1 or more senders and returns a sender that launches
+each of the input senders in-turn without waiting for the prior senders to complete.
+This allows each of the input senders to potentially execute concurrently.
+
+The result of the Sender has a value_type of the first sender in the variadic list;
+other Senders MUST have the same (or compatible) value_type.
+
+The algorithm completes when any of the input senders completes, the rest are
+cancelled. The result of the algorithm is always the completion result of the first
+sender to complete, even if done or error. Lagging senders may complete with set_value
+in which case their results are discarded.
+
 ### `materialize(Sender sender) -> Sender`
 
 Materializes the completion signal of `sender` into the value-channel by
@@ -847,7 +862,7 @@ Returns a stream that produces values that are the result of calling
 
 ### `filter_stream(Stream stream, FilterFunc filterFunc) -> Stream`
 
-Returns a stream that contains the values from the input stream that evaluate 
+Returns a stream that contains the values from the input stream that evaluate
 true on the predicate `filterFunc(val)`.
 
 ### `via_stream(Scheduler scheduler, Stream stream) -> Stream`
