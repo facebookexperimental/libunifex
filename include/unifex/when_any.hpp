@@ -54,18 +54,17 @@ auto impl(type_list<Result...> /*unused*/, Senders&&... senders) {
            return let_value_with(
                []() noexcept { return std::once_flag{}; },
                [&optResult, &senders...](auto& onceFlag) {
+                 auto store_result = [&optResult,
+                                      &onceFlag](auto&&... results) {
+                   std::call_once(onceFlag, [&optResult, &results...]() {
+                     optResult.emplace(
+                         std::forward<decltype(results)>(results)...);
+                   });
+                   return just_void_or_done(false);
+                 };
+
                  return when_all(
-                            (std::move(senders) |
-                             let_value(
-                                 [&optResult, &onceFlag](auto&&... results) {
-                                   std::call_once(
-                                       onceFlag, [&optResult, &results...]() {
-                                         optResult.emplace(
-                                             std::forward<decltype(results)>(
-                                                 results)...);
-                                       });
-                                   return just_void_or_done(false);
-                                 }))...) |
+                            (std::move(senders) | let_value(store_result))...) |
                      let_done([&optResult]() noexcept {
                           return just_void_or_done(optResult.has_value());
                         }) |
