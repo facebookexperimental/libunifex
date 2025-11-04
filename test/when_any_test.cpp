@@ -39,7 +39,7 @@ timed_single_thread_context ctx;
 
 task<void> voidTask(bool& returned, bool wait = true, bool selfCancel = false) {
   if (wait) {
-    co_await schedule_after(ctx.get_scheduler(), 200ms);
+    co_await schedule_after(ctx.get_scheduler(), 500ms);
   }
   if (selfCancel) {
     co_await just_done();
