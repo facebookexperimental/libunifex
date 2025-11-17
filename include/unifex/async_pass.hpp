@@ -453,7 +453,7 @@ private:
 
   struct acceptor_constraint {
     // For constraint checking only
-    void operator()(Args&&... args) noexcept;
+    void operator()(auto&&... args) noexcept;
   };
 
 public:
@@ -533,7 +533,7 @@ public:
     return call_sender{*this, std::forward<F>(callerFn), type_list<Args...>{}};
   }
 
-  [[nodiscard]] auto async_call(Args&&... args) noexcept {
+  [[nodiscard]] auto async_call(auto&&... args) noexcept {
     return async_call([&args...](auto& acceptorFn) mutable noexcept(Noexcept) {
       acceptorFn(std::forward<Args>(args)...);
     });

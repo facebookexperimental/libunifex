@@ -441,6 +441,12 @@ public:
     co_await pass.async_call(Copyable{copies}, Moveable{moves});
   }
 
+  task<void> call_by_lvalue(size_t& copies, size_t& moves) {
+    Copyable a{copies};
+    Moveable b{moves};
+    co_await pass.async_call(a, b);
+  }
+
   task<void> accept() {
     auto [copied, moved] = co_await pass.async_accept();
     (void)copied;
@@ -484,6 +490,23 @@ TEST_F(async_pass_copy_test, call_before_accept_no_coro) {
   sync_wait(this->scope.complete());
 }
 
+TEST_F(async_pass_copy_test, call_by_lvalue_before_accept_no_coro) {
+  size_t copies{0}, moves{0};
+  this->scope.detached_spawn_on(
+      this->ctx.get_scheduler(), this->call_by_lvalue(copies, moves));
+  sync_wait(this->scope.spawn_call_on(
+      this->ctx.get_scheduler(), [&copies, &moves]() noexcept {
+        EXPECT_EQ(0, copies);
+        EXPECT_EQ(0, moves);
+      }));
+  sync_wait(
+      pass.async_accept() | then([](const Copyable&, Moveable&&) noexcept {}));
+  // 1) explicit copy to jump the scheduler with; then() receives a reference
+  EXPECT_EQ(1 + kMsvcCopyPenalty, copies);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, moves);
+  sync_wait(this->scope.complete());
+}
+
 TEST_F(async_pass_copy_test, accept_before_call) {
   size_t copies{0}, moves{0};
   this->scope.detached_spawn_on(this->ctx.get_scheduler(), this->accept());
@@ -504,6 +527,18 @@ TEST_F(async_pass_copy_test, accept_before_call_no_coro) {
       this->ctx.get_scheduler(),
       pass.async_accept() | then([](const Copyable&, Moveable&&) noexcept {}));
   sync_wait(this->call(copies, moves));
+  sync_wait(this->scope.complete());
+  // 1) explicit copy to jump the scheduler with; then() receives a reference
+  EXPECT_EQ(1 + kMsvcCopyPenalty, copies);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, moves);
+}
+
+TEST_F(async_pass_copy_test, accept_before_call_by_lvalue_no_coro) {
+  size_t copies{0}, moves{0};
+  this->scope.detached_spawn_on(
+      this->ctx.get_scheduler(),
+      pass.async_accept() | then([](const Copyable&, Moveable&&) noexcept {}));
+  sync_wait(this->call_by_lvalue(copies, moves));
   sync_wait(this->scope.complete());
   // 1) explicit copy to jump the scheduler with; then() receives a reference
   EXPECT_EQ(1 + kMsvcCopyPenalty, copies);
