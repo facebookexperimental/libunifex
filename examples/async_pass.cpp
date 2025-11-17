@@ -66,7 +66,7 @@ task<void> CallingService::service() {
     auto to = co_await agentCallRequest_.async_accept();
     std::cout << "Calling " << to << std::endl;
     co_await when_any(
-        hangupRequest_.async_accept() | let_value([this, &to]() {
+        hangupRequest_.async_accept() | let_value([&to]() {
           std::cout << "Hung up on " << to << std::endl;
           return schedule_after(timer.get_scheduler(), kHangupDuration);
         }),
