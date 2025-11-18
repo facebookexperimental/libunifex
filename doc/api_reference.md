@@ -86,7 +86,7 @@
 * [Synchronisation Primitives](#synchronisation-primitives)
   * [`async_manual_reset_event`](#async_manual_reset_event)
   * [`async_mutex`](#async_mutex)
-  * [`async_pass`, `nothrow_async_pass](#async_pass)
+  * [`async_pass`, `nothrow_async_pass`](#async_pass)
 * [Coroutine support](#coroutine-support)
   * [`task`](#task)
   * [`at_coroutine_exit`](#at_coroutine_exit)
@@ -1165,20 +1165,30 @@ namespace unifex
 ### `async_pass` and `nothrow_async_pass`
 
 A rendezvous point supporting synchronized cross-scheduler calls between two tasks: caller and acceptor. Both calling and accepting may be asynchronously awaited
-until the other side is ready or tried synchronously.
+until the other side is ready, or tried synchronously.
+
+The key difference between the rendezvous and a 1-element queue is that the caller (producer) is assured that the acceptor (consumer) was ready for, and has accepted the call.
 
 ```c++
 template <typename... Args> class async_pass;
 template <typename... Args> class nothrow_async_pass;
 ```
 
-Non-copyable, non-moveable. The `Args...` describe both the parameter types of `async_call()` method and the value types of the sender returned by `async_await()` method. The `nothrow_async_pass` does not provide `try_throw()` and `async_throw()` and requires that reference-stripped `Args` types be nothrow (copy or move) constructible. Non-const lvalue references cannot be used in `Args` without `std::reference_wrapper<>`.
+Non-copyable, non-moveable. The `Args...` describe value types of the sender returned by `async_await()` method. The `nothrow_async_pass` does not provide `try_throw()` and `async_throw()` and requires that reference-stripped `Args` types be nothrow (copy or move) constructible. Non-const lvalue references cannot be used in `Args` without `std::reference_wrapper<>`.
 
 ```c++
-Sender<> async_call(Args&&... args) noexcept;
+Sender<> async_call(auto&&... args) noexcept;
 ```
 
-Passes the data payload in args to the acceptor. Completes with `set_value()` immediately if an acceptor is waiting, or once `async_accept()` or `try_accept()` are called. Completes with `set_done()` if cancelled. Note that the caller must ensure that the underlying values passed into this call do not go out of scope until the resulting sender has started. In co-routines this is normally ensured by an immediate `co_await` on the sender; this code however will fail:
+Passes the data payload in `args` to the acceptor. Completes with `set_value()` immediately if an acceptor is waiting, or once `async_accept()` or `try_accept()` are called. Completes with `set_done()` if cancelled. Conversion of `args` - whether by move or by copy - to the underlying `Args` types occurs only in case, and immediately before, successul completion.
+
+Upon completion of the returned sender, the caller is assured one of the following outcomes:
+
+1. Success: the acceptor has started the successor of the sender returned by `async_accept()` or has succesfully executed `try_accept()`; successful execution may result in an exception thrown by a copy or move constructor of the argument;
+
+2. Cancellation: an outstanding `async_accept()` has not completed; `try_accept()`, if any, returned `false`. Arguments passed into `async_call()` have not been copied or moved from.
+
+From the 2nd guarantee it follows that the arguments (whether lvalues or rvalues) passed into `async_call()` MUST NOT go out of scope until the resulting sender has started. In co-routines this happens naturally if the sender is immediately `co_await`ed. This code however will fail:
 
 ```c++
 auto sender = pass.async_call(Request{});
