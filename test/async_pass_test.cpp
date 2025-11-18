@@ -473,6 +473,16 @@ TEST_F(async_pass_copy_test, call_before_accept) {
   sync_wait(this->scope.complete());
 }
 
+TEST_F(async_pass_copy_test, cancelled_call) {
+  size_t copies{0}, moves{0};
+  sync_wait(stop_when(
+      on(this->ctx.get_scheduler(), this->call(copies, moves)),
+      schedule_after(this->timer.get_scheduler(), 100ms)));
+  EXPECT_EQ(0, copies);
+  EXPECT_EQ(0, moves);
+  sync_wait(this->scope.complete());
+}
+
 TEST_F(async_pass_copy_test, call_before_accept_no_coro) {
   size_t copies{0}, moves{0};
   this->scope.detached_spawn_on(
