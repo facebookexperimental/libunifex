@@ -446,7 +446,8 @@ TEST_F(create_basic_sender_test, opaque_callback_no_fallback) {
                 (*cb)(ctx, 1234);
               });
         } else if constexpr (event.is_callback) {
-          auto [result] = std::tuple{args...};
+          auto [result] = std::tuple<decltype(args)...>{
+              std::forward<decltype(args)>(args)...};
           op.set_value(result);
         } else if constexpr (event.is_stop) {
           op.set_done();
@@ -474,7 +475,8 @@ TEST_F(create_basic_sender_test, opaque_callback_exact_type_fallback) {
                 (*cb)(ctx, 1234);
               });
         } else if constexpr (event.is_callback) {
-          auto [result] = std::tuple{args...};
+          auto [result] = std::tuple<decltype(args)...>{
+              std::forward<decltype(args)>(args)...};
           op.set_value(result);
         } else if constexpr (event.is_stop) {
           op.set_done();
@@ -505,7 +507,8 @@ TEST_F(create_basic_sender_test, opaque_callback_type_erased_fallback) {
                 (*cb)(ctx, 1234);
               });
         } else if constexpr (event.is_callback) {
-          auto [result] = std::tuple{args...};
+          auto [result] = std::tuple<decltype(args)...>{
+              std::forward<decltype(args)>(args)...};
           op.set_value(result);
         } else if constexpr (event.is_stop) {
           op.set_done();
@@ -535,7 +538,8 @@ TEST_F(create_basic_sender_test, opaque_callback_ptr_fallback) {
                 (*cb)(ctx, 1234);
               });
         } else if constexpr (event.is_callback) {
-          auto [result] = std::tuple{args...};
+          auto [result] = std::tuple<decltype(args)...>{
+              std::forward<decltype(args)>(args)...};
           op.set_value(result);
         } else if constexpr (event.is_stop) {
           op.set_done();
