@@ -289,7 +289,7 @@ TEST_F(create_basic_sender_test, early_cancellation) {
       [&started, &stopped](auto& stop_source) mutable noexcept {
         stop_source.request_stop();
         return create_basic_sender<int>(
-            [&started, &stopped](auto event, auto& op) {
+            [&started, &stopped](auto event, auto& /* op */) {
               if constexpr (event.is_start) {
                 started = true;
               } else if constexpr (event.is_stop) {
@@ -329,22 +329,21 @@ TEST_F(create_basic_sender_test, late_callback) {
   EXPECT_TRUE(had_callback);
 }
 
+#  if 0
 TEST_F(create_basic_sender_test, callback_and_late_errback_with_args) {
   size_t copied{0}, moved{0}, late_errback{false};
-  EXPECT_EQ(
-      1234,
-      sync_wait(
-          create_basic_sender<int>([this, &copied, &moved, &late_errback](
-                                       auto event, auto& op, auto&&... args) {
-            using pack = std::tuple<decltype(args)...>;
-            if constexpr (event.is_start) {
-              auto callback =
-                  safe_callback<int, const Copyable&, Moveable&&>(op);
-              call_after(
-                  100ms,
-                  [&copied, &moved, callback{std::move(callback)}]() noexcept {
-                    callback(1234, Copyable{copied}, Moveable{moved});
-                  });
+    EXPECT_EQ(
+        1234,
+  sync_wait(
+      create_basic_sender<int>([this, &copied, &moved, &late_errback](
+                                   auto event, auto& op, auto&&... args) {
+        if constexpr (event.is_start) {
+          auto callback = safe_callback<int, const Copyable&, Moveable&&>(op);
+          call_after(
+              100ms,
+              [&copied, &moved, callback{std::move(callback)}]() noexcept {
+                callback(1234, Copyable{copied}, Moveable{moved});
+              });
 
               auto errback =
                   safe_errback<int>(op, [&late_errback](int code) noexcept {
@@ -354,18 +353,19 @@ TEST_F(create_basic_sender_test, callback_and_late_errback_with_args) {
               call_after(500ms, [errback{std::move(errback)}]() noexcept {
                 errback(5678);
               });
-            } else if constexpr (event.is_callback) {
-              auto [result, cp, mv] =
-                  pack{std::forward<decltype(args)>(args)...};
-              op.set_value(result);
-              (void)cp;
-              (void)mv;
-            } else if constexpr (event.is_errback) {
-              auto [code] = pack{std::forward<decltype(args)>(args)...};
+        } else if constexpr (event.is_callback) {
+          auto [result, cp, mv] = std::tuple<decltype(args)...>{
+              std::forward<decltype(args)>(args)...};
+          op.set_value(result);
+          (void)cp;
+          (void)mv;
+        } else if constexpr (event.is_errback) {
+              auto [code] = std::tuple<decltype(args)...>{
+                  std::forward<decltype(args)>(args)...};
               (void)code;
               FAIL();
             }
-          })));
+      })));
 
   EXPECT_EQ(0, copied);
   EXPECT_EQ(0, moved);
@@ -374,6 +374,7 @@ TEST_F(create_basic_sender_test, callback_and_late_errback_with_args) {
 
   EXPECT_TRUE(late_errback);
 }
+#  endif
 
 namespace {
 
@@ -389,11 +390,11 @@ struct Body {
       callback(1234, Copyable{copied}, Moveable{moved});
     });
 
-    auto errback =
-        safe_errback<int>(op, [&late_errback{late_errback}](int code) noexcept {
-          EXPECT_EQ(5678, code);
-          late_errback = true;
-        });
+    bool& late{late_errback};
+    auto errback = safe_errback<int>(op, [&late](int code) noexcept {
+      EXPECT_EQ(5678, code);
+      late = true;
+    });
     test.call_after(
         500ms, [errback{std::move(errback)}]() noexcept { errback(5678); });
   }

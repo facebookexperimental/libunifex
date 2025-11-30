@@ -222,7 +222,7 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
   }
 
   static auto defer_set_error(std::exception_ptr ex) noexcept {
-    return [&ex]() noexcept {
+    return [ex{std::move(ex)}]() mutable noexcept {
       return [ex{std::move(ex)}](Receiver&& receiver) mutable noexcept {
         unifex::set_error(std::forward<Receiver>(receiver), std::move(ex));
       };
@@ -709,7 +709,7 @@ private:
   template <typename Event, typename... Args>
     requires std::is_invocable_v<Body, Event, _op&, Args...>
   void body(Event evt, Args&&... args) noexcept(
-      noexcept(body_(evt, *this, std::forward<Args>(args)...))) {
+      noexcept(this->body_(evt, *this, std::forward<Args>(args)...))) {
     body_(evt, *this, std::forward<Args>(args)...);
   }
 
@@ -717,7 +717,7 @@ private:
     requires(
         !std::is_invocable_v<Body, _event<_event_type::start>, _op&, Args...>)
   void body(_event<_event_type::start> /* evt */, Args&&... args) noexcept(
-      noexcept(body_.start(*this, std::forward<Args>(args)...))) {
+      noexcept(this->body_.start(*this, std::forward<Args>(args)...))) {
     body_.start(*this, std::forward<Args>(args)...);
   }
 
@@ -726,7 +726,7 @@ private:
         !std::
             is_invocable_v<Body, _event<_event_type::callback>, _op&, Args...>)
   void body(_event<_event_type::callback> /* evt */, Args&&... args) noexcept(
-      noexcept(body_.callback(*this, std::forward<Args>(args)...))) {
+      noexcept(this->body_.callback(*this, std::forward<Args>(args)...))) {
     body_.callback(*this, std::forward<Args>(args)...);
   }
 
@@ -734,7 +734,7 @@ private:
     requires(
         !std::is_invocable_v<Body, _event<_event_type::errback>, _op&, Args...>)
   void body(_event<_event_type::errback> /* evt */, Args&&... args) noexcept(
-      noexcept(body_.errback(*this, std::forward<Args>(args)...))) {
+      noexcept(this->body_.errback(*this, std::forward<Args>(args)...))) {
     body_.errback(*this, std::forward<Args>(args)...);
   }
 
@@ -742,7 +742,7 @@ private:
     requires(
         !std::is_invocable_v<Body, _event<_event_type::stop>, _op&, Args...>)
   void body(_event<_event_type::stop> /* evt */, Args&&... args) noexcept(
-      noexcept(body_.stop(*this, std::forward<Args>(args)...))) {
+      noexcept(this->body_.stop(*this, std::forward<Args>(args)...))) {
     body_.stop(*this, std::forward<Args>(args)...);
   }
 

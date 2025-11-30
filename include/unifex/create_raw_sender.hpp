@@ -104,6 +104,9 @@ struct _sender : public Tr {
   template <template <typename...> class Variant>
   using error_types = Variant<std::exception_ptr>;
 
+  explicit _sender(Fn&& fn) noexcept(std::is_nothrow_move_constructible_v<Fn>)
+    : fn_(std::forward<Fn>(fn)) {}
+
   template <typename Receiver>
     requires receiver_of<Receiver, ValueTypes...> &&
       (!std::is_invocable_v<
@@ -140,9 +143,9 @@ struct _fn {
       typename Tr =
           decltype(with_sender_traits<_make_traits::sender_traits_literal{}>)>
     requires move_constructible<Fn>
-  _sender<Tr, Fn, ValueTypes...> operator()(Fn fn, Tr = {}) const noexcept(
+  _sender<Tr, Fn, ValueTypes...> operator()(Fn && fn, Tr = {}) const noexcept(
       std::is_nothrow_constructible_v<_sender<Tr, Fn, ValueTypes...>, Fn>) {
-    return _sender<Tr, Fn, ValueTypes...>{.fn_ = std::move(fn)};
+    return _sender<Tr, Fn, ValueTypes...>{std::forward<Fn>(fn)};
   }
 };
 

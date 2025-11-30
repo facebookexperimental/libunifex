@@ -20,6 +20,7 @@
 
 #  include <unifex/async_scope.hpp>
 #  include <unifex/create_raw_sender.hpp>
+#  include <unifex/get_stop_token.hpp>
 #  include <unifex/single_thread_context.hpp>
 #  include <unifex/stop_when.hpp>
 #  include <unifex/sync_wait.hpp>
