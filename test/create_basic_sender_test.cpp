@@ -34,6 +34,13 @@ using namespace testing;
 
 namespace {
 
+#  if defined(__clang_major__) && __clang_major__ < 18
+// https://github.com/llvm/llvm-project/issues/58434
+using S = _make_traits::sender_traits_literal;
+#  else
+#    define S
+#  endif
+
 struct timer_callback_base {
   virtual ~timer_callback_base() noexcept {}
 };
@@ -158,7 +165,7 @@ TEST_F(create_basic_sender_test, non_cancellable_set_value) {
                   op.set_value(1234);
                 }
               },
-              with_sender_traits<{.sends_done = false}>),
+              with_sender_traits<S{.sends_done = false}>),
           schedule_after(timer.get_scheduler(), 100ms))));
 }
 
@@ -186,7 +193,7 @@ TEST_F(create_basic_sender_test, non_cancellable_set_error) {
                       std::make_exception_ptr(std::runtime_error("fail")));
                 }
               },
-              with_sender_traits<{.sends_done = false}>),
+              with_sender_traits<S{.sends_done = false}>),
           schedule_after(timer.get_scheduler(), 100ms))),
       std::runtime_error);
 }
@@ -580,7 +587,7 @@ TEST_F(create_basic_sender_test, affine_set_value) {
               op.set_value(cp, std::move(mv), &cp, &mv);
             }
           },
-          with_sender_traits<{.is_always_scheduler_affine = true}>) |
+          with_sender_traits<S{.is_always_scheduler_affine = true}>) |
       then([threadId](
                const Copyable& cp,
                Moveable&& mv,
@@ -607,7 +614,7 @@ TEST_F(create_basic_sender_test, affine_set_value_failure) {
                   op.set_value(ThrowOnCopy{});
                 }
               },
-              with_sender_traits<{.is_always_scheduler_affine = true}>) |
+              with_sender_traits<S{.is_always_scheduler_affine = true}>) |
           then([&returned](const ThrowOnCopy& /* tc */) noexcept {
             returned = true;
           })),

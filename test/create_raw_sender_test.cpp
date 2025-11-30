@@ -34,6 +34,13 @@ using namespace testing;
 
 namespace {
 
+#  if defined(__clang_major__) && __clang_major__ < 18
+// https://github.com/llvm/llvm-project/issues/58434
+using S = _make_traits::sender_traits_literal;
+#  else
+#    define S
+#  endif
+
 template <typename Receiver>
 struct stop_callback {
   explicit stop_callback(Receiver& receiver) noexcept : receiver_(receiver) {}
@@ -152,7 +159,7 @@ TEST_F(create_raw_sender_test, select_traits) {
         return []() noexcept {
         };
       },
-      with_sender_traits<{.sends_done = false}>)};
+      with_sender_traits<S{.sends_done = false}>)};
   EXPECT_FALSE(decltype(sender)::sends_done);
 }
 
