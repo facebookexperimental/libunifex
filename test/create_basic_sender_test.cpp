@@ -486,6 +486,9 @@ TEST_F(create_basic_sender_test, opaque_callback_exact_type_fallback) {
   EXPECT_EQ(1234, late_result);
 }
 
+#  if defined(__GNUC__) && __GNUC__ < 14
+// Omit this test due to GCC failure to deduce pack size of args...
+#  else
 TEST_F(create_basic_sender_test, opaque_callback_type_erased_fallback) {
   int late_result{0};
   using safe_callback_t =
@@ -516,6 +519,7 @@ TEST_F(create_basic_sender_test, opaque_callback_type_erased_fallback) {
   sync_wait(schedule_after(timer.get_scheduler(), 500ms));
   EXPECT_EQ(1234, late_result);
 }
+#  endif
 
 TEST_F(create_basic_sender_test, opaque_callback_ptr_fallback) {
   using safe_callback_t =
