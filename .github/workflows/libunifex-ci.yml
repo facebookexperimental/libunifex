@@ -17,36 +17,6 @@ jobs:
       matrix:
         config:
         - {
-            name: "Linux GCC 11 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: Debug,
-            cc: "gcc-11", cxx: "g++-11"
-          }
-        - {
-            name: "Linux GCC 11 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: RelWithDebInfo,
-            cc: "gcc-11", cxx: "g++-11"
-          }
-        - {
-            name: "Linux GCC 11 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: Debug,
-            cc: "gcc-11", cxx: "g++-11",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
-          }
-        - {
-            name: "Linux GCC 11 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: RelWithDebInfo,
-            cc: "gcc-11", cxx: "g++-11",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
-          }
-        - {
             name: "Linux GCC 12 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-22.04,
             io_sys: io_uring,
@@ -135,70 +105,6 @@ jobs:
             build_type: RelWithDebInfo,
             cc: "gcc-14", cxx: "g++-14",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
-          }
-        - {
-            name: "Linux Clang 13 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: Debug,
-            cc: "clang-13", cxx: "clang++-13",
-            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 13 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: RelWithDebInfo,
-            cc: "clang-13", cxx: "clang++-13",
-            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 13 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: Debug,
-            cc: "clang-13", cxx: "clang++-13",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 13 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: RelWithDebInfo,
-            cc: "clang-13", cxx: "clang++-13",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 14 Debug (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: Debug,
-            cc: "clang-14", cxx: "clang++-14",
-            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 14 Optimised (C++17)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: RelWithDebInfo,
-            cc: "clang-14", cxx: "clang++-14",
-            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 14 Debug (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: Debug,
-            cc: "clang-14", cxx: "clang++-14",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fno-omit-frame-pointer\""
-          }
-        - {
-            name: "Linux Clang 14 Optimised (C++20)", artifact: "Linux.tar.xz",
-            os: ubuntu-22.04,
-            io_sys: io_uring,
-            build_type: RelWithDebInfo,
-            cc: "clang-14", cxx: "clang++-14",
-            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fno-omit-frame-pointer\""
           }
         - {
             name: "Linux Clang 15 Debug (C++17)", artifact: "Linux.tar.xz",
@@ -310,6 +216,22 @@ jobs:
             io_sys: io_uring,
             build_type: RelWithDebInfo,
             cc: "clang-19", cxx: "clang++-19",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 20 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "clang-20", cxx: "clang++-20",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 20 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "clang-20", cxx: "clang++-20",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
@@ -428,36 +350,6 @@ jobs:
           )
         endif()
 
-    - name: Install Clang 12
-      id: install_clang_12
-      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-12' )
-      shell: bash
-      working-directory: ${{ env.HOME }}
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh 12
-
-    - name: Install Clang 13
-      id: install_clang_13
-      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-13' )
-      shell: bash
-      working-directory: ${{ env.HOME }}
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh 13
-
-    - name: Install Clang 14
-      id: install_clang_14
-      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-14' )
-      shell: bash
-      working-directory: ${{ env.HOME }}
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh 14
-
     - name: Install Clang 15
       id: install_clang_15
       if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-15' )
@@ -508,15 +400,15 @@ jobs:
         chmod +x llvm.sh
         sudo ./llvm.sh 19
 
-    - name: Install GCC 11
-      id: install_gcc_11
-      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-11' )
+    - name: Install Clang 20
+      id: install_clang_20
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'clang++-20' )
       shell: bash
       working-directory: ${{ env.HOME }}
       run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
-        sudo apt update
-        sudo apt install g++-11 gcc-11
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo ./llvm.sh 20
 
     - name: Install GCC 12
       id: install_gcc_12
