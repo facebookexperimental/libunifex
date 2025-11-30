@@ -225,7 +225,9 @@ TEST_F(create_basic_sender_test, set_done_with_unsafe_cb_and_context) {
                if constexpr (event.is_start) {
                  auto [arg, callback] = unsafe_callback<>(op).opaque();
                  op.context() = safe_call_after(
-                     500ms, [arg, callback]() noexcept { (*callback)(arg); });
+                     500ms,
+                     // Clang 15 cannot capture aliases
+                     [arg{arg}, cb{callback}]() noexcept { (*cb)(arg); });
                } else if constexpr (event.is_callback) {
                  op.set_value(1234);
                } else if constexpr (event.is_stop) {

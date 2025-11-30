@@ -140,8 +140,8 @@ template <typename... ValueTypes>
 struct _fn {
   template <
       typename Fn,
-      typename Tr =
-          decltype(with_sender_traits<_make_traits::sender_traits_literal{}>)>
+      typename Tr = std::remove_cv_t<
+          decltype(with_sender_traits<_make_traits::sender_traits_literal{}>)>>
     requires move_constructible<Fn>
   _sender<Tr, Fn, ValueTypes...> operator()(Fn && fn, Tr = {}) const noexcept(
       std::is_nothrow_constructible_v<_sender<Tr, Fn, ValueTypes...>, Fn>) {

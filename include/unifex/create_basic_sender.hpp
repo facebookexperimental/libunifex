@@ -713,37 +713,36 @@ private:
     body_(evt, *this, std::forward<Args>(args)...);
   }
 
-  template <typename... Args>
-    requires(
-        !std::is_invocable_v<Body, _event<_event_type::start>, _op&, Args...>)
-  void body(_event<_event_type::start> /* evt */, Args&&... args) noexcept(
-      noexcept(this->body_.start(*this, std::forward<Args>(args)...))) {
-    body_.start(*this, std::forward<Args>(args)...);
+  void body(_event<_event_type::start> /* evt */) noexcept(
+      noexcept(this->body_.start(*this)))
+    requires requires(_op& self, Body& body) { body.start(self); }
+  {
+    body_.start(*this);
   }
 
   template <typename... Args>
-    requires(
-        !std::
-            is_invocable_v<Body, _event<_event_type::callback>, _op&, Args...>)
+    requires requires(_op& self, Body& body, Args&&... args) {
+      body.callback(self, std::forward<Args>(args)...);
+    }
   void body(_event<_event_type::callback> /* evt */, Args&&... args) noexcept(
       noexcept(this->body_.callback(*this, std::forward<Args>(args)...))) {
     body_.callback(*this, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-    requires(
-        !std::is_invocable_v<Body, _event<_event_type::errback>, _op&, Args...>)
+    requires requires(_op& self, Body& body, Args&&... args) {
+      body.errback(self, std::forward<Args>(args)...);
+    }
   void body(_event<_event_type::errback> /* evt */, Args&&... args) noexcept(
       noexcept(this->body_.errback(*this, std::forward<Args>(args)...))) {
     body_.errback(*this, std::forward<Args>(args)...);
   }
 
-  template <typename... Args>
-    requires(
-        !std::is_invocable_v<Body, _event<_event_type::stop>, _op&, Args...>)
-  void body(_event<_event_type::stop> /* evt */, Args&&... args) noexcept(
-      noexcept(this->body_.stop(*this, std::forward<Args>(args)...))) {
-    body_.stop(*this, std::forward<Args>(args)...);
+  void body(_event<_event_type::stop> /* evt */) noexcept(
+      noexcept(this->body_.stop(*this)))
+    requires requires(_op& self, Body& body) { body.stop(self); }
+  {
+    body_.stop(*this);
   }
 
   static constexpr bool nothrow_on_start{
@@ -922,7 +921,6 @@ private:
         Tr{});
   }
 };
-
 }  // namespace _create_basic_sndr
 
 template <typename... ValueTypes>

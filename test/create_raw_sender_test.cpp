@@ -167,7 +167,7 @@ TEST_F(create_raw_sender_test, set_done) {
   EXPECT_FALSE(sync_wait(stop_when(
       on(ctx.get_scheduler(), create_raw_sender<int>([this](auto&& receiver) {
            using receiver_t = std::decay_t<decltype(receiver)>;
-           using stop_callback_t = stop_token_type_t<
+           using stop_callback_t = typename stop_token_type_t<
                receiver_t>::template callback_type<stop_callback<receiver_t>>;
 
            return [this,
