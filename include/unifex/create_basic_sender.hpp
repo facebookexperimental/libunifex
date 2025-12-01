@@ -214,7 +214,7 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
 
   static auto defer_set_value(ValueTypes&&... args) noexcept {
     return [&args...]() {
-      return [... args{ValueTypes{std::move(args)}}](
+      return [... args{std::decay_t<ValueTypes>{std::move(args)}}](
                  Receiver&& receiver) mutable {
         unifex::set_value(std::forward<Receiver>(receiver), std::move(args)...);
       };
