@@ -17,6 +17,36 @@ jobs:
       matrix:
         config:
         - {
+            name: "Linux GCC 11 Debug (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-11", cxx: "g++-11"
+          }
+        - {
+            name: "Linux GCC 11 Optimised (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-11", cxx: "g++-11"
+          }
+        - {
+            name: "Linux GCC 11 Debug (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: Debug,
+            cc: "gcc-11", cxx: "g++-11",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 11 Optimised (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-11", cxx: "g++-11",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
             name: "Linux GCC 12 Debug (C++17)", artifact: "Linux.tar.xz",
             os: ubuntu-22.04,
             io_sys: io_uring,
@@ -409,6 +439,16 @@ jobs:
         wget https://apt.llvm.org/llvm.sh
         chmod +x llvm.sh
         sudo ./llvm.sh 20
+
+    - name: Install GCC 11
+      id: install_gcc_11
+      if: startsWith(matrix.config.os, 'ubuntu') && ( matrix.config.cxx == 'g++-11' )
+      shell: bash
+      working-directory: ${{ env.HOME }}
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa -y
+        sudo apt update
+        sudo apt install g++-11 gcc-11
 
     - name: Install GCC 12
       id: install_gcc_12
