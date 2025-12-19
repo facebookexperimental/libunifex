@@ -25,6 +25,7 @@
 #include <unifex/type_traits.hpp>
 #include <unifex/unstoppable_token.hpp>
 #include <unifex/with_query_value.hpp>
+#include <unifex/tracing/get_return_address.hpp>
 
 #include <atomic>
 
@@ -59,7 +60,7 @@ struct _sender {
 
   static constexpr bool is_always_scheduler_affine = true;
 
-  explicit _sender(async_manual_reset_event& evt) noexcept : evt_(&evt) {}
+  explicit _sender(async_manual_reset_event& evt, instruction_ptr returnAddress) noexcept : evt_(&evt), returnAddress_(returnAddress) {}
 
   template(typename Receiver)                                            //
       (requires receiver_of<Receiver> AND scheduler_provider<Receiver>)  //
@@ -69,8 +70,14 @@ struct _sender {
     return operation<remove_cvref_t<Receiver>>{*evt_, (Receiver &&) r};
   }
 
+  friend instruction_ptr
+  tag_invoke(tag_t<get_return_address>, const _sender& self) noexcept {
+    return self.returnAddress_;
+  }
+
 private:
   async_manual_reset_event* evt_;
+  instruction_ptr returnAddress_;
 };
 
 struct async_manual_reset_event {
@@ -98,7 +105,7 @@ struct async_manual_reset_event {
         oldState, nullptr, std::memory_order_acq_rel);
   }
 
-  [[nodiscard]] _sender async_wait() noexcept { return _sender{*this}; }
+  [[nodiscard]] _sender async_wait() noexcept { return _sender{*this, UNIFEX_READ_RETURN_ADDRESS()}; }
 
 private:
   std::atomic<void*> state_{};

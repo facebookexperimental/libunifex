@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+#include "get_return_address_mock.hpp"
+
 #include <unifex/async_manual_reset_event.hpp>
 
 #include <unifex/inline_scheduler.hpp>
+#include <unifex/tracing/get_return_address.hpp>
 #include <unifex/inplace_stop_token.hpp>
 #include <unifex/sender_concepts.hpp>
 #include <unifex/single_thread_context.hpp>
@@ -36,6 +39,7 @@ using testing::_;
 using testing::Invoke;
 using unifex::async_manual_reset_event;
 using unifex::connect;
+using unifex::get_return_address;
 using unifex::get_scheduler;
 using unifex::get_stop_token;
 using unifex::inline_scheduler;
@@ -48,6 +52,8 @@ using unifex::sync_wait;
 using unifex::tag_t;
 using unifex::then;
 using unifex::with_query_value;
+
+uintptr_t unifex::mock_instruction_ptr::mock_return_address = 0xDEADC0DE;
 
 namespace {
 
@@ -251,3 +257,17 @@ TEST_F(
   ASSERT_TRUE(actualThreadId);
   EXPECT_EQ(expectedThreadId, *actualThreadId);
 }
+
+TEST_F(
+  async_manual_reset_event_test,
+  get_return_address_returns_mocked_instruction_pointer) {
+    async_manual_reset_event evt;
+
+    auto sender = evt.async_wait();
+    auto returnAddress = get_return_address(sender);
+
+    EXPECT_EQ(static_cast<uintptr_t>(returnAddress), 0xDEADC0DE);
+
+    evt.set();
+    EXPECT_TRUE(sync_wait(evt.async_wait()).has_value());
+  }
