@@ -26,7 +26,6 @@
 
 #  include <algorithm>
 #  include <array>
-#  include <initializer_list>
 #  include <iostream>
 #  include <mutex>
 #  include <ranges>
@@ -234,7 +233,7 @@ const auto names = std::array{"Alice"s, "Bob"s, "Charlie"s};
 auto elector(
     MessageBrokerApi& api,
     MessageBrokerApi::slot_id me,
-    std::initializer_list<MessageBrokerApi::slot_id> others) {
+    std::vector<MessageBrokerApi::slot_id> others) {
   auto send_all{
       when_all_range(to_vector(
           std::views::transform(
