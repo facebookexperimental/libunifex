@@ -552,23 +552,20 @@ TEST_F(create_basic_sender_test, non_affine_set_value) {
   auto threadId{std::this_thread::get_id()};
   size_t copied{0}, moved{0};
   EXPECT_TRUE(sync_wait(
-      create_basic_sender<const Copyable&, Moveable&&, const ThrowOnCopy&>(
+      create_basic_sender<const Copyable&, Moveable&&>(
           [this, &copied, &moved](auto event, auto& op) {
             if constexpr (event.is_start) {
               call_after(100ms, safe_callback<>(op));
             } else if constexpr (event.is_callback) {
-              op.set_value(Copyable{copied}, Moveable{moved}, ThrowOnCopy{});
+              op.set_value(Copyable{copied}, Moveable{moved});
             }
           }) |
-      then([threadId](
-               const Copyable& /* cp */,
-               Moveable&& /* mv */,
-               const ThrowOnCopy& /* tc */) noexcept {
+      then([threadId](const Copyable& /* cp */, Moveable&& /* mv */) noexcept {
         EXPECT_NE(threadId, std::this_thread::get_id());
       })));
 
-  EXPECT_EQ(0, copied);
-  EXPECT_EQ(0, moved);
+  EXPECT_EQ(1, copied);
+  EXPECT_EQ(1, moved);
 }
 
 TEST_F(create_basic_sender_test, affine_set_value) {

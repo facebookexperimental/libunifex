@@ -22,6 +22,8 @@
 #include <unifex/detail/completion_forwarder.hpp>
 #include <unifex/detail/prologue.hpp>
 
+#include <mutex>
+
 namespace unifex {
 
 namespace _create_basic_sndr {
@@ -131,38 +133,6 @@ struct _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...> {
   explicit _receiver_wrapper(Receiver&& receiver) noexcept
     : receiver_(std::forward<Receiver>(receiver)) {}
 
-  Receiver& get_receiver() noexcept { return receiver_; }
-
-  void set_value(auto&&... ts) noexcept {
-    UNIFEX_TRY {
-      unifex::set_value(
-          std::move(receiver_),
-          static_cast<ValueTypes>(std::forward<decltype(ts)>(ts))...);
-    }
-    UNIFEX_CATCH(...) {
-      unifex::set_error(std::move(receiver_), std::current_exception());
-    }
-  }
-
-  void set_error(std::exception_ptr ex) noexcept {
-    unifex::set_error(std::move(receiver_), ex);
-  }
-
-  void set_done() noexcept
-    requires SendsDone
-  {
-    unifex::set_done(std::move(receiver_));
-  }
-
-  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
-};
-
-template <typename Receiver, bool SendsDone, typename... ValueTypes>
-struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
-  : public _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...> {
-  using _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...>::
-      _receiver_wrapper;
-
   template <typename FwdFn>
   struct forwarding_state {
     template <typename FwdFactory>
@@ -183,33 +153,26 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
 
   ~_receiver_wrapper() noexcept { (*finalizer_)(this); }
 
+  Receiver& get_receiver() noexcept { return receiver_; }
+
   void set_value(auto&&... ts) noexcept {
     UNIFEX_TRY {
-      complete_with(defer_set_value(
+      defer_complete_with(defer_set_value(
           static_cast<ValueTypes>(std::forward<decltype(ts)>(ts))...));
     }
     UNIFEX_CATCH(...) {
-      complete_with(defer_set_error(std::current_exception()));
+      defer_complete_with(defer_set_error(std::current_exception()));
     }
   }
 
   void set_error(std::exception_ptr ex) noexcept {
-    complete_with(defer_set_error(ex));
+    defer_complete_with(defer_set_error(ex));
   }
 
   void set_done() noexcept
     requires SendsDone
   {
-    complete_with(defer_set_done());
-  }
-
-  void forward_set_value() noexcept {
-    UNIFEX_TRY {
-      (*complete_)(this, std::move(this->receiver_));
-    }
-    UNIFEX_CATCH(...) {
-      unifex::set_error(std::move(this->receiver_), std::current_exception());
-    }
+    defer_complete_with(defer_set_done());
   }
 
   static auto defer_set_value(ValueTypes&&... args) noexcept {
@@ -229,9 +192,7 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
     };
   }
 
-  static auto defer_set_done() noexcept
-    requires SendsDone
-  {
+  static auto defer_set_done() noexcept {
     return []() noexcept {
       return [](Receiver&& receiver) noexcept {
         unifex::set_done(std::forward<Receiver>(receiver));
@@ -239,7 +200,7 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
     };
   }
 
-  void complete_with(auto&& deferred) noexcept(noexcept(deferred())) {
+  void defer_complete_with(auto&& deferred) noexcept(noexcept(deferred())) {
     using choice_t =
         forwarding_state<std::remove_cvref_t<decltype(deferred())>>;
 
@@ -251,11 +212,18 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
         state_, [&deferred]() noexcept(noexcept(deferred())) {
           return choice_t{std::forward<decltype(deferred)>(deferred)};
         });
-
-    fwd_.start(*this);
   }
 
-  completion_forwarder<_receiver_wrapper, Receiver> fwd_;
+  void complete() noexcept {
+    UNIFEX_TRY {
+      (*complete_)(this, std::move(this->receiver_));
+    }
+    UNIFEX_CATCH(...) {
+      unifex::set_error(std::move(this->receiver_), std::current_exception());
+    }
+  }
+
+  UNIFEX_NO_UNIQUE_ADDRESS Receiver receiver_;
   std::conditional_t<
       SendsDone,
       manual_lifetime_union<
@@ -270,6 +238,21 @@ struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
   void (*finalizer_)(_receiver_wrapper* self) noexcept =
       [](_receiver_wrapper* /*self*/) noexcept {
       };
+};
+
+template <typename Receiver, bool SendsDone, typename... ValueTypes>
+struct _receiver_wrapper<true, SendsDone, Receiver, ValueTypes...>
+  : public _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...> {
+  using _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...>::
+      _receiver_wrapper;
+
+  void forward_set_value() noexcept {
+    _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...>::complete();
+  }
+
+  void complete() noexcept { fwd_.start(*this); }
+
+  completion_forwarder<_receiver_wrapper, Receiver> fwd_;
 };
 
 enum class _event_type : uint8_t { start, callback, errback, stop };
@@ -463,20 +446,30 @@ private:
   UNIFEX_NO_UNIQUE_ADDRESS mutable Fallback fallback_;
 };
 
-template <
-    typename Tr,
-    typename Op,
-    typename Receiver,
-    bool Cancellable = Tr::sends_done>
-struct _state;
-
-template <typename Tr, typename Op, typename Receiver>
-struct _state<Tr, Op, Receiver, false> {
+struct _state {
   enum phase : uint8_t { starting, started, stopped_early, completed_normally };
 
-  bool completed() const noexcept {
+  template <typename... ArgRefs>
+  struct guard {
+    using guard_t = decltype(construct(UNIFEX_DECLVAL(ArgRefs)...));
+
+    guard(_state& state, ArgRefs... args) noexcept
+      : guard_(construct(args...))
+      , recursion_(state.recursion_) {
+      ++recursion_;
+    }
+
+    ~guard() noexcept { --recursion_; }
+
+    guard_t guard_;
+    uint16_t& recursion_;
+  };
+
+  bool finished() const noexcept {
     return phase_ == stopped_early || phase_ == completed_normally;
   }
+
+  bool completed() const noexcept { return finished() && recursion_ == 1; }
 
   bool not_started() const noexcept { return phase_ == starting; }
 
@@ -488,7 +481,7 @@ struct _state<Tr, Op, Receiver, false> {
     }
   }
 
-  void set_completed() noexcept {
+  void set_finished() noexcept {
     switch (phase_) {
       case starting: phase_ = stopped_early; break;
       case started: phase_ = completed_normally; break;
@@ -496,68 +489,12 @@ struct _state<Tr, Op, Receiver, false> {
     }
   }
 
+  auto lock(auto&... args) noexcept {
+    return guard<decltype(args)...>{*this, args...};
+  }
+
+  uint16_t recursion_{0};
   phase phase_{starting};
-};
-
-template <typename Op>
-struct _stop_callback {
-  void operator()() const noexcept {
-    auto guard{op_.lock()};
-    if (op_.state_.completed()) {
-      // Can safely ignore stop request after sender has completed
-      return;
-    }
-
-    const _event<_event_type::stop> event{};
-
-    if (op_.state_.not_started()) {
-      op_.set_done();
-    } else {
-      if constexpr (Op::nothrow_on_stop) {
-        op_.body(event);
-      } else {
-        UNIFEX_TRY {
-          op_.body(event);
-        }
-        UNIFEX_CATCH(...) {
-          op_.set_error(std::current_exception());
-          return;
-        }
-      }
-    }
-  }
-
-  Op& op_;
-};
-
-template <typename Tr, typename Op, typename Receiver>
-struct _state<Tr, Op, Receiver, true> : _state<Tr, Op, Receiver, false> {
-  using stop_callback_t = typename stop_token_type_t<
-      Receiver>::template callback_type<_stop_callback<Op>>;
-
-  ~_state() noexcept {
-    if (this->phase_ == _state::started) {
-      // Should not happen, but possible due to bugs in user code
-      stop_.destruct();
-    }
-  }
-
-  void set_completed() noexcept {
-    if (this->phase_ != _state::starting) {
-      stop_.destruct();
-    }
-    _state<Tr, Op, Receiver, false>::set_completed();
-  }
-
-  void set_started() noexcept {
-    if (this->phase_ == _state::stopped_early) {
-      stop_.destruct();
-    }
-
-    _state<Tr, Op, Receiver, false>::set_started();
-  }
-
-  manual_lifetime<stop_callback_t> stop_;
 };
 
 struct _lockable {
@@ -567,13 +504,52 @@ struct _lockable {
     }
   };
 
-  std::mutex mutex_;
+  std::recursive_mutex mutex_;
 };
 
-template <typename Tr, typename Op, typename Receiver>
 struct _lockable_state
-  : public _state<Tr, Op, Receiver>
+  : public _state
   , public _lockable {};
+
+template <typename Op>
+struct _stop_callback {
+  void operator()() const noexcept {
+    bool completed{false};
+
+    {
+      auto guard{op_.lock()};
+      if (op_.state_.finished()) {
+        // Can safely ignore stop request after sender has completed
+        return;
+      }
+
+      if (op_.state_.not_started()) {
+        op_.set_done();
+        return;  // op_.start_impl() will call op_.complete()
+      } else {
+        const _event<_event_type::stop> event{};
+        if constexpr (Op::nothrow_on_stop) {
+          op_.body(event);
+        } else {
+          UNIFEX_TRY {
+            op_.body(event);
+          }
+          UNIFEX_CATCH(...) {
+            op_.set_error(std::current_exception());
+          }
+        }
+      }
+
+      completed = op_.state_.completed();
+    }
+
+    if (completed) {
+      op_.complete();
+    }
+  }
+
+  Op& op_;
+};
 
 template <
     typename Tr,
@@ -587,14 +563,16 @@ class _op {
   using context_t = factory_result<CtxFactory, Receiver&>;
   using state_t = std::conditional_t<
       std::is_same_v<LockFactory, _lockable::factory>,
-      _lockable_state<Tr, _op, Receiver>,
-      _state<Tr, _op, Receiver>>;
+      _lockable_state,
+      _state>;
+  using stop_callback_t = std::conditional_t<
+      Tr::sends_done,
+      manual_lifetime<typename stop_token_type_t<
+          Receiver>::template callback_type<_stop_callback<_op>>>,
+      _empty>;
 
   static_assert(
-      nothrow_factory<
-          LockFactory,
-          context_t&,
-          _lockable_state<Tr, _op, Receiver>&>,
+      nothrow_factory<LockFactory, context_t&, _lockable_state&>,
       "Lock factory must be noexcept");
 
   template <
@@ -623,6 +601,15 @@ public:
     , lock_factory_(std::forward<LockFactory>(lock_factory))
     , body_(std::forward<Body>(body)) {}
 
+  ~_op() noexcept {
+    if constexpr (Tr::sends_done) {
+      if (state_.phase_ == _state::started) {
+        // Should not happen, but possible due to bugs in user code
+        stop_.destruct();
+      }
+    }
+  }
+
   context_t& context() noexcept
     requires(!std::is_same_v<context_t, _empty>)
   {
@@ -632,15 +619,15 @@ public:
   template <typename... Ts>
     requires(convertible_to<Ts, ValueTypes> && ...)
   void set_value(Ts&&... args) noexcept {
-    if (!state_.completed()) {
-      state_.set_completed();
+    if (!state_.finished()) {
+      state_.set_finished();
       receiver_.set_value(std::forward<decltype(args)>(args)...);
     }
   }
 
   void set_error(std::exception_ptr ex) noexcept {
-    if (!state_.completed()) {
-      state_.set_completed();
+    if (!state_.finished()) {
+      state_.set_finished();
       receiver_.set_error(ex);
     }
   }
@@ -653,8 +640,8 @@ public:
   void set_done() noexcept
     requires Tr::sends_done
   {
-    if (!state_.completed()) {
-      state_.set_completed();
+    if (!state_.finished()) {
+      state_.set_finished();
       receiver_.set_done();
     }
   }
@@ -753,57 +740,81 @@ private:
       noexcept(UNIFEX_DECLVAL(_op).body(_event<_event_type::stop>{}))};
 
   friend void tag_invoke(tag_t<start>, _op& self) noexcept {
+    bool completed{false};
+
     if constexpr (nothrow_on_start) {
-      self.start_impl();
+      completed = self.start_impl();
     } else {
       UNIFEX_TRY {
-        self.start_impl();
+        completed = self.start_impl();
       }
       UNIFEX_CATCH(...) {
         auto guard{self.lock()};
         self.set_error(std::current_exception());
+        completed = true;
       }
+    }
+
+    if (completed) {
+      self.complete();
     }
   }
 
-  auto lock() noexcept { return construct(lock_factory_, ctx_, state_); }
+  auto lock() noexcept { return state_.lock(lock_factory_, ctx_, state_); }
 
-  void start_impl() noexcept(nothrow_on_start) {
+  bool start_impl() noexcept(nothrow_on_start) {
     if constexpr (Tr::sends_done) {
-      state_.stop_.construct(
+      stop_.construct(
           get_stop_token(receiver_.get_receiver()), _stop_callback<_op>{*this});
     }
 
     auto guard{lock()};
     state_.set_started();
 
-    if (state_.completed()) {
-      // Stopped before start
-      return;
+    if (!state_.finished()) {
+      // Did not stop before start
+      body(_event<_event_type::start>{});
     }
 
-    body(_event<_event_type::start>{});
+    return state_.completed();
   }
 
   template <bool Noexcept, typename Event, typename... Args>
   bool callback_impl(Args&&... args) noexcept {
-    auto guard{lock()};
-    if (state_.completed()) {
-      return false;
+    bool completed{false};
+
+    {
+      auto guard{lock()};
+      if (state_.finished()) {
+        return false;
+      }
+
+      if constexpr (Noexcept) {
+        body(Event{}, std::forward<Args>(args)...);
+      } else {
+        UNIFEX_TRY {
+          body(Event{}, std::forward<Args>(args)...);
+        }
+        UNIFEX_CATCH(...) {
+          set_error(std::current_exception());
+        }
+      }
+
+      completed = state_.completed();
     }
 
-    if constexpr (Noexcept) {
-      body(Event{}, std::forward<Args>(args)...);
-    } else {
-      UNIFEX_TRY {
-        body(Event{}, std::forward<Args>(args)...);
-      }
-      UNIFEX_CATCH(...) {
-        set_error(std::current_exception());
-      }
+    if (completed) {
+      complete();
     }
 
     return true;
+  }
+
+  void complete() noexcept {
+    if constexpr (Tr::sends_done) {
+      stop_.destruct();
+    }
+    receiver_.complete();
   }
 
   const _safe_cb_base::holder& safe_cb_holder() noexcept {
@@ -817,6 +828,7 @@ private:
   state_t state_;
 
   UNIFEX_NO_UNIQUE_ADDRESS receiver_wrapper_t receiver_;
+  UNIFEX_NO_UNIQUE_ADDRESS stop_callback_t stop_;
   UNIFEX_NO_UNIQUE_ADDRESS context_t ctx_;
   UNIFEX_NO_UNIQUE_ADDRESS LockFactory lock_factory_;
   UNIFEX_NO_UNIQUE_ADDRESS Body body_;
