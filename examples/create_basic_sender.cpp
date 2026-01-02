@@ -171,6 +171,9 @@ public:
             c_api_.stop_send(slot, context);
           } else if constexpr (event.is_callback) {
             assert(slot == on_slot);
+#  ifdef NDEBUG
+            (void)on_slot;
+#  endif
             if (success) {
               op.set_value();
             } else {
@@ -197,6 +200,9 @@ public:
             c_api_.stop_receive(slot, context);
           } else if constexpr (event.is_callback) {
             assert(slot == on_slot);
+#  ifdef NDEBUG
+            (void)on_slot;
+#  endif
             if (payload != nullptr) {
               op.set_value(reinterpret_cast<const char*>(payload));
             } else {
@@ -277,6 +283,11 @@ int main() {
   for (auto i = 0; i < 10; ++i) {
     elect();
   }
+}
+
+#else
+
+int main() {
 }
 
 #endif
