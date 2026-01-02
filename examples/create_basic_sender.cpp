@@ -160,7 +160,7 @@ public:
     return create_basic_sender<>(
         [this, slot, message{std::move(message)}, context{no_context}](
             auto event,
-            auto&& op,
+            auto& op,
             slot_id on_slot = -1,
             bool success = false) mutable {
           if constexpr (event.is_start) {
@@ -188,7 +188,7 @@ public:
     return create_basic_sender<std::string>(
         [this, slot, context{no_context}](
             auto event,
-            auto&& op,
+            auto& op,
             slot_id on_slot = -1,
             const void* payload = nullptr) mutable {
           if constexpr (event.is_start) {
@@ -226,15 +226,6 @@ auto to_vector(const auto& list, auto&& fn) {
       list.end(),
       std::back_inserter(r),
       std::forward<decltype(fn)>(fn));
-  return r;
-}
-
-auto to_vector(const auto& list) {
-  std::vector<decltype(*list.begin())> r;
-  r.reserve(list.size());
-  for (const auto& item : list) {
-    r.push_back(fn(item));
-  }
   return r;
 }
 
