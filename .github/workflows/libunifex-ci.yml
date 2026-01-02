@@ -524,6 +524,7 @@ jobs:
             -G Ninja
             -D CMAKE_MAKE_PROGRAM=ninja
             -D CMAKE_VERBOSE_MAKEFILE=ON
+            -D CMAKE_BUILD_PARALLEL_LEVEL=8
             ${{ matrix.config.cmake_args }}
           RESULT_VARIABLE result
         )
