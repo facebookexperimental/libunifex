@@ -14,6 +14,8 @@
   * [`just_from()`](#just_fromcallable)
   * [`stop_if_requested()`](#stop_if_requested)
   * [`defer()`](#defercallable)
+  * [`create_raw_sender()`](#create_raw_sendervaluetypesopstatefactory-traits)
+  * [`create_basic_sender()`](#create_basic_sendervaluetypesbody-contextfactory-lockfactory-traits)
 * [Sender Algorithms](#sender-algorithms)
   * [`detach_on_cancel()`](#detach_on_cancelsender-sender---sender)
   * [`then()`](#thensender-predecessor-func-func---sender)
@@ -450,8 +452,8 @@ only if callbacks/errbacks are never called synchronously (i.e. while the thread
 is already under lock).
 
 * The `traits` argument may take the same values, and has the same defaults as in
-`create_raw_sender<ValueTypes...>()`. Note that non-default trait values modify the
-implementation behavior as follows:
+[`create_raw_sender<ValueTypes...>()`](#create_raw_sendervaluetypesopstatefactory-traits).
+Note that non-default trait values modify the implementation behavior as follows:
 
   * `sends_done = false` will remove cancellation support along with `op.set_done()`;
   * `is_always_scheduler_affine = true` will implement scheduler affinity by forwarding
