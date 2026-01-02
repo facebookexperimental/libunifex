@@ -26,6 +26,7 @@
 
 #  include <algorithm>
 #  include <array>
+#  include <initializer_list>
 #  include <iostream>
 #  include <mutex>
 #  include <ranges>
@@ -216,11 +217,25 @@ private:
   C_MessageBrokerApi c_api_;
 };
 
-// https://stackoverflow.com/a/63116423
-template <std::ranges::range R>
-auto to_vector(R&& r) {
-  auto r_common = r | std::views::common;
-  return std::vector(r_common.begin(), r_common.end());
+auto to_vector(const auto& list, auto&& fn) {
+  using sender_t = decltype(fn(*list.begin()));
+  std::vector<sender_t> r;
+  r.reserve(list.size());
+  std::transform(
+      list.begin(),
+      list.end(),
+      std::back_inserter(r),
+      std::forward<decltype(fn)>(fn));
+  return r;
+}
+
+auto to_vector(const auto& list) {
+  std::vector<decltype(*list.begin())> r;
+  r.reserve(list.size());
+  for (const auto& item : list) {
+    r.push_back(fn(item));
+  }
+  return r;
 }
 
 // NOT a serious master election algorithm because it ultimately uses
@@ -233,22 +248,20 @@ const auto names = std::array{"Alice"s, "Bob"s, "Charlie"s};
 auto elector(
     MessageBrokerApi& api,
     MessageBrokerApi::slot_id me,
-    std::vector<MessageBrokerApi::slot_id> others) {
+    std::initializer_list<MessageBrokerApi::slot_id> others) {
   auto send_all{
       when_all_range(to_vector(
-          std::views::transform(
-              others,
-              [&api, me](MessageBrokerApi::slot_id other) {
-                return api.send(other, names[me]);
-              }))) |
+          others,
+          [&api, me](MessageBrokerApi::slot_id other) {
+            return api.send(other, names[me]);
+          })) |
       let_value([](auto&&) noexcept { return just(); })};
   auto receive_all{
       when_all_range(to_vector(
-          std::views::transform(
-              others,
-              [&api, me](MessageBrokerApi::slot_id /* other */) {
-                return api.receive(me);
-              }))) |
+          others,
+          [&api, me](MessageBrokerApi::slot_id /* other */) {
+            return api.receive(me);
+          })) |
       let_value([me](auto&& others) noexcept {
         std::ostringstream s;
         s << names[me] << " is a master over ";
