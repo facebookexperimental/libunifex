@@ -252,6 +252,211 @@ caught and passed to the receiver's `set_error` with `std::current_exception()`.
 
 `defer(callable)` is synonymous with `let_value(just(), callable)`.
 
+### `create_raw_sender<ValueTypes...>(opStateFactory[, traits])`
+
+_Synopsis:_ A utility for building general purpose custom senders bypassing much of
+the boilerplate necessary otherwise.
+
+Accepts a callable that constructs and returns the operation state of the sender. The
+callable is passed an rvalue reference to receiver as an argument and is expected to
+move-construct the receiver inside the returned object.
+
+The operation state returned by the factory should either define a method `void
+start() noexcept` or be a non-throwing callable.
+
+`ValueTypes...` is a pack representing the value types of the resulting sender. The
+user is expected to call `unifex::set_value()` passing in the rvalue to preserved
+receiver along with values of compatible types.
+
+The traits of the resulting sender can be customized via the second optional argument
+of `create_raw_sender()` using the generic constant `with_sender_traits<>`:
+
+```c++
+// This is what is used if `traits` is omitted:
+static constexpr auto default_sender_traits =
+  with_sender_traits<{
+    .sends_done = true,
+    .is_always_scheduler_affine = false,
+    .blocking = blocking_kind::maybe}>;
+```
+
+The three traits can be overridden in any combination.
+
+### `create_basic_sender<ValueTypes...>(body[, contextFactory[, lockFactory]][, traits])`
+
+_Synopsis:_ A utility for building thread-safe cancellable senders, typically in order to
+wrap an external asynchronous API utilizing callbacks (see
+[example](../examples/create_basic_sender.cpp)).
+
+`ValueTypes...` is a pack representing the value types of the resulting sender; reference
+types can be used but the underlying values will always be copied (or moved) into
+an internal buffer prior to being passed to the receiver.
+
+At a minimum, the user must supply a `body` which is either a generic callable (lambda) or an
+instance of a class providing specific generic methods: `start()`, `stop()`, `callback()`
+and `errback()`. The resulting sender will always acquire a lock on an internal recursive mutex
+prior to executing the user-supplied code.
+
+#### Implementing the sender with separate methods
+
+Larger boilerplate vs. lower nesting and complexity and less magic. Easy to provide multiple
+overloaded versions of callback and errback.
+
+```c++
+struct MySender {
+  MySender(StateArg arg /* ... */) { /*...*/ }
+  void start(auto& op);
+  void stop(auto& op);
+  void callback(auto& op, ResultType result /*...*/ );
+  void errback(auto& op, ErrorType error);
+
+  StateArg arg_;
+  RequestId requestId_{};
+};
+
+void MySender::start(auto& op) {
+  // Assuming async_request() accepts C++ callables.
+  // For function pointers see below.
+  requestId_ = async_request(
+    safe_callback<ResultType /*, ... */>(op),
+    safe_errback<ErrorType>(op),
+    arg_ /*...*/);
+}
+
+void MySender::stop(auto& op) {
+  cancel_async_request(
+    safe_errback<ErrorType>(op),
+    requestId_);
+}
+
+void MySender::callback(auto& op, ResultType result /* ... */) {
+  op.set_value(result /* ... */);
+}
+
+void MySender::errback(auto& op, ErrorType error) {
+  if (error == ErrorType::kCancelled) {
+    op.set_done();
+  } else {
+    op.set_error(ExceptionType(error));
+  }
+}
+
+auto makeMySender(StateArg arg /*...*/) {
+  return create_basic_sender<ResultType /*...*/>(
+      MySender{arg /*...*/});
+}
+```
+
+#### Implementing the sender with a generic callable
+
+More compact boilerplate vs. relying on opaque C++ constructs. Suitable
+for simpler cases. Note that the type of `event` varies with calls,
+effectively generating separate overloaded methods on the lambda.
+
+```c++
+auto makeMySender(StateArg arg /*...*/) {
+  return create_basic_sender<ResultType /*...*/>(
+    [arg, requestId{RequestId{}}](
+        auto event, auto& op, auto&&... args) {
+      if constexpr (event.is_start) {
+        requestId = async_request(
+          safe_callback<ResultType /*, ... */>(op),
+          safe_errback<ErrorType>(op),
+          arg /*...*/);
+      } else if constexpr (event.is_stop) {
+        cancel_async_request(
+          safe_errback<ErrorType>(op),
+          requestId);
+      } else if constexpr (event.is_callback) {
+        auto [result /*...*/] =
+          // Magic incantation to avoid extra copies!
+          std::tuple<decltype(args)...>{
+            std::forward<decltype(args)>(args)...};
+        op.set_value(result /* ... */);
+      } else if constexpr (event.is_errback) {
+        ErrorType [error] = std::tuple{args...};
+        if (error == ErrorType::kCancelled) {
+          op.set_done();
+        } else {
+          op.set_error(ExceptionType(error));
+        }
+      }
+    });
+}
+```
+
+#### Callbacks and errbacks
+
+Four helper functions operating on the `op` are provided. They all share an
+ability to customize types of arguments passed into the callback and return C++
+callables that can be used directly with a generic API or type-erased using a
+wrapper facility such as `std::function<>` or `folly::Function<>`. The callables
+acquire the internal lock and then forward the call to the user supplied method.
+Callbacks and errbacks behave identically; the separation is purely for the
+convenience of the user.
+
+* `safe_callback<ResultTypes...>(op)` and `safe_errback<ErrorTypes...>(op)` return
+callables that are safe to invoke even after the sender has completed and its
+operation state has potentially been destroyed; they rely on `std::weak_ptr` to
+an internal reference allocated on heap.
+
+* `unsafe_callback<ResultTypes...>(op)` and `unsafe_errback<ErrorTypes...>(op)`
+return callables that MUST NOT be invoked after the sender has completed; they do
+not introduce any additional cost beyond call forwarding.
+
+In order to pass callbacks into a C-style asynchronous API accepting a raw function
+pointer along with a `void*` context pointer, any of the four callables also provide
+a method `opaque()`. For unsafe versions it returns an
+`std::pair<void*, void(*)(void*, ResultTypes...)>`:
+
+```c++
+auto [ctx, fn] = unsafe_callback/*|errback*/(op);
+```
+
+Safe versions can only function with C-style APIs so long as the result of
+`safe_callback(op).opaque()` or `unsafe_callback(op).opaque()` is preserved for as
+long as the callback may still be invoked which generally means this object cannot
+be owned by the `body`! In order to keep it in a data structure external to `body`,
+its type needs to be known statically:
+
+```c++
+std::optional<basic_sender_opaque_callback<ResultTypes/*...*/>> preserved;
+...
+create_basic_sender([&preserved](auto event, auto& op, auto&&... args) {
+  ...
+  preserved.emplace(safe_callback<ResultTypes/*...*/>(op).opaque());
+  async_c_api(preserved->context(), preserved->callback(), ...);
+  ...
+})
+```
+
+Note that the context and callback pointer MUST be obtained from the actually
+preserved instance; copying/moving of the opaque callback object invalidates them.
+
+#### Additional customizations of the sender
+
+* The `contextFactory` argument can be used to (a) embed non-moveable objects
+into operation state of the sender and (b) perform receiver queries prior to
+construction of the operation state. It accepts an optional argument which is
+the reference to receiver passed into `connect()`. The object returned by the
+factory can be accessed from inside the `body` via `op.context()`.
+
+* The `lockFactory` argument can be used to override the default internal locking
+mechanism. If provided, the factory may accept an optional argument which is a
+reference to the context object constructed by `contextFactory` and should return
+an object with semantics of the `std::lock_guard<>`. Note that the default
+implementation relies on `std::recursive_mutex`; a non-recursive mutex may be used
+only if callbacks/errbacks are never called synchronously (i.e. while the thread
+is already under lock).
+
+* The `traits` argument may take the same values, and has the same defaults as in
+`create_raw_sender<ValueTypes...>()`. Note that non-default trait values modify the
+implementation behavior as follows:
+
+  * `sends_done = false` will remove cancellation support along with `op.set_done()`;
+  * `is_always_scheduler_affine = true` will implement scheduler affinity by forwarding
+all `set_xxx()` calls to the scheduler obtained from `get_scheduler(receiver)`.
+
 # Sender Algorithms
 
 ### `detach_on_cancel(Sender sender) -> Sender`
