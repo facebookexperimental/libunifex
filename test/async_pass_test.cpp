@@ -29,6 +29,7 @@
 #  include <unifex/task.hpp>
 #  include <unifex/timed_single_thread_context.hpp>
 #  include <unifex/when_all.hpp>
+#  include <unifex/when_any.hpp>
 
 #  include <gtest/gtest.h>
 
@@ -715,6 +716,19 @@ TEST_F(async_pass_test_throw_on_copy, sync_call) {
   bool called{this->pass.try_call(ThrowOnCopy{})};
   EXPECT_TRUE(called);
   sync_wait(this->scope.complete());
+}
+
+TEST(async_pass_test_deadlocks, mutual_cancellation) {
+  single_thread_context alice, bob;
+  async_pass<> alice_to_bob, bob_to_alice;
+
+  for (int i = 0; i < 100; ++i) {
+    sync_wait(when_any(
+        on(alice.get_scheduler(),
+           when_any(alice_to_bob.async_call(), bob_to_alice.async_accept())),
+        on(bob.get_scheduler(),
+           when_any(bob_to_alice.async_call(), alice_to_bob.async_accept()))));
+  }
 }
 
 #endif  // UNIFEX_NO_COROUTINES
