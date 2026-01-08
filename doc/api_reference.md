@@ -351,7 +351,7 @@ auto makeMySender(StateArg arg /*...*/) {
 
 #### Implementing the sender with a generic callable
 
-More compact boilerplate vs. relying on opaque C++ constructs. Suitable
+More compact boilerplate relies on opaque C++ constructs. Suitable
 for simpler cases. Note that the type of `event` varies with calls,
 effectively generating separate overloaded methods on the lambda.
 
@@ -393,8 +393,8 @@ Four helper functions operating on the `op` are provided. They all share an
 ability to customize types of arguments passed into the callback and return C++
 callables that can be used directly with a generic API or type-erased using a
 wrapper facility such as `std::function<>` or `folly::Function<>`. The callables
-acquire the internal lock and then forward the call to the user supplied method.
-Callbacks and errbacks behave identically; the separation is purely for the
+acquire the internal lock and then forward call to the user supplied method.
+Callbacks and errbacks behave identically; the separation is purely for
 convenience of the user.
 
 * `safe_callback<ResultTypes...>(op)` and `safe_errback<ErrorTypes...>(op)` return
@@ -412,11 +412,11 @@ a method `opaque()`. For unsafe versions it returns an
 `std::pair<void*, void(*)(void*, ResultTypes...)>`:
 
 ```c++
-auto [ctx, fn] = unsafe_callback/*|errback*/(op);
+auto [ctx, fn] = unsafe_callback/*|errback*/(op).opaque();
 ```
 
 Safe versions can only function with C-style APIs so long as the result of
-`safe_callback(op).opaque()` or `unsafe_callback(op).opaque()` is preserved for as
+`safe_callback(op).opaque()` or `safe_errback(op).opaque()` is preserved for as
 long as the callback may still be invoked which generally means this object cannot
 be owned by the `body`! In order to keep it in a data structure external to `body`,
 its type needs to be known statically:
@@ -432,7 +432,7 @@ create_basic_sender([&preserved](auto event, auto& op, auto&&... args) {
 })
 ```
 
-Note that the context and callback pointer MUST be obtained from the actually
+Note that the context and callback pointers MUST be obtained from the actually
 preserved instance; copying/moving of the opaque callback object invalidates them.
 
 #### Additional customizations of the sender
@@ -440,10 +440,10 @@ preserved instance; copying/moving of the opaque callback object invalidates the
 * The `contextFactory` argument can be used to (a) embed non-moveable objects
 into operation state of the sender and (b) perform receiver queries prior to
 construction of the operation state. It accepts an optional argument which is
-the reference to receiver passed into `connect()`. The object returned by the
+a reference to receiver passed into `connect()`. The object returned by the
 factory can be accessed from inside the `body` via `op.context()`.
 
-* The `lockFactory` argument can be used to override the default internal locking
+* The `lockFactory` argument can be used to customize the default internal locking
 mechanism. If provided, the factory may accept an optional argument which is a
 reference to the context object constructed by `contextFactory` and should return
 an object with semantics of the `std::lock_guard<>`. Note that the default
@@ -453,11 +453,13 @@ is already under lock).
 
 * The `traits` argument may take the same values, and has the same defaults as in
 [`create_raw_sender<ValueTypes...>()`](#create_raw_sendervaluetypesopstatefactory-traits).
-Note that non-default trait values modify the implementation behavior as follows:
+Note that, in this API, non-default trait values modify the implementation behavior
+as follows:
 
-  * `sends_done = false` will remove cancellation support along with `op.set_done()`;
-  * `is_always_scheduler_affine = true` will implement scheduler affinity by forwarding
-all `set_xxx()` calls to the scheduler obtained from `get_scheduler(receiver)`.
+  * `sends_done = false` removes cancellation support along with `op.set_done()`;
+  * `is_always_scheduler_affine = true` implements scheduler affinity by forwarding
+all `set_xxx()` calls to the scheduler obtained from `get_scheduler(receiver)`, as
+if the sender was passed into [`via()`](#via-sender-scheduler), but with less overhead.
 
 # Sender Algorithms
 
