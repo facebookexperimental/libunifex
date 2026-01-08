@@ -45,8 +45,11 @@ inline constexpr bool nothrow_constructible_v =
 struct accept_op_base_noargs {
   void rethrow(std::exception_ptr ex) { (*set_error_)(this, std::move(ex)); }
 
+  void (*unlocked_complete_)(accept_op_base_noargs*) noexcept {nullptr};
   void (*set_error_)(accept_op_base_noargs*, std::exception_ptr){nullptr};
 };
+
+constexpr accept_op_base_noargs* kNoAcceptor{nullptr};
 
 template <bool Noexcept, typename... Args>
 struct accept_op_callable;
@@ -78,22 +81,18 @@ template <typename AcceptorFn>
 struct immediate_accept {
   template <typename... Args>
   struct op : public accept_op_base<Args...> {
-    explicit op(AcceptorFn&& acceptorFn, std::false_type) noexcept
+    explicit op(AcceptorFn&& acceptorFn, std::true_type) noexcept
       : acceptorFn_(std::forward<AcceptorFn>(acceptorFn)) {
       this->set_value_ = [](accept_op_base<Args...>* self, Args&&... args) {
         static_cast<op*>(self)->acceptorFn_(std::forward<Args>(args)...);
       };
+    }
+
+    explicit op(AcceptorFn&& acceptorFn, std::false_type) noexcept
+      : op(std::forward<AcceptorFn>(acceptorFn), std::true_type{}) {
       this->set_error_ = [](accept_op_base_noargs* /* self */,
                             std::exception_ptr ex) {
         std::rethrow_exception(std::move(ex));
-      };
-    }
-
-    explicit op(AcceptorFn&& acceptorFn, std::true_type) noexcept
-      : acceptorFn_(std::forward<AcceptorFn>(acceptorFn)) {
-      this->set_value_ = [](accept_op_base<Args...>* self,
-                            Args&&... args) noexcept {
-        static_cast<op*>(self)->acceptorFn_(std::forward<Args>(args)...);
       };
     }
 
@@ -105,7 +104,7 @@ struct immediate_accept {
 };
 
 template <bool Noexcept, typename ArgsList, typename AcceptorFn>
-auto accept_call_with(AcceptorFn&& acceptorFn) {
+auto accept_call_with(AcceptorFn&& acceptorFn) noexcept {
   return typename immediate_accept<AcceptorFn>::template type<ArgsList>{
       std::forward<AcceptorFn>(acceptorFn),
       std::integral_constant<bool, Noexcept>{}};
@@ -114,10 +113,14 @@ auto accept_call_with(AcceptorFn&& acceptorFn) {
 template <bool Noexcept>
 struct call_or_throw_op_base;
 
+template <bool Noexcept>
+constexpr call_or_throw_op_base<Noexcept>* kNoCaller{nullptr};
+
 template <>
 struct call_or_throw_op_base<false> {
   void call(accept_op_base_noargs& acceptor);
 
+  void (*unlocked_complete_)(call_or_throw_op_base*) noexcept {nullptr};
   void (*resume_)(call_or_throw_op_base*) noexcept;
   bool is_throw_{false};
 };
@@ -126,6 +129,7 @@ template <>
 struct call_or_throw_op_base<true> {
   void call(accept_op_base_noargs& acceptor) noexcept;
 
+  void (*unlocked_complete_)(call_or_throw_op_base*) noexcept {nullptr};
   void (*resume_)(call_or_throw_op_base*) noexcept;
 };
 
@@ -162,10 +166,81 @@ call_or_throw_op_base<false>::call(accept_op_base_noargs& acceptor) {
 
 template <bool Noexcept>
 struct async_pass_base {
+  struct guard {
+    explicit guard(async_pass_base& self) noexcept : self_(self) {
+      self_.mutex_.lock();
+    }
+
+    guard(
+        async_pass_base& self,
+        call_or_throw_op_base<Noexcept>* caller,
+        bool cancellation) noexcept
+      : guard(self) {
+      caller_ = caller;
+      UNIFEX_ASSERT(
+          self.waiting_call_ == nullptr || self.waiting_call_ == caller);
+      if (!cancellation) {
+        acceptor_ = self.waiting_accept_;
+      }
+    }
+
+    guard(
+        async_pass_base& self,
+        accept_op_base_noargs* acceptor,
+        bool cancellation) noexcept
+      : guard(self) {
+      acceptor_ = acceptor;
+      UNIFEX_ASSERT(
+          self.waiting_accept_ == nullptr || self.waiting_accept_ == acceptor);
+      if (!cancellation) {
+        caller_ = self.waiting_call_;
+      }
+    }
+
+    ~guard() noexcept {
+      auto* complete_caller{
+          caller_ ? std::exchange(caller_->unlocked_complete_, nullptr)
+                  : nullptr};
+      auto* complete_acceptor{
+          acceptor_ ? std::exchange(acceptor_->unlocked_complete_, nullptr)
+                    : nullptr};
+
+      if (complete_caller) {
+        self_.waiting_call_ = nullptr;
+      }
+      if (complete_acceptor) {
+        self_.waiting_accept_ = nullptr;
+      }
+
+      self_.mutex_.unlock();
+
+      if (complete_acceptor) {
+        (*complete_acceptor)(acceptor_);
+      }
+      if (complete_caller) {
+        (*complete_caller)(caller_);
+      }
+    }
+
+    async_pass_base& self_;
+    call_or_throw_op_base<Noexcept>* caller_{nullptr};
+    accept_op_base_noargs* acceptor_{nullptr};
+  };
+
+  guard lock(
+      call_or_throw_op_base<Noexcept>* caller,
+      bool cancellation = false) noexcept {
+    return guard{*this, caller, cancellation};
+  }
+
+  guard
+  lock(accept_op_base_noargs* acceptor, bool cancellation = false) noexcept {
+    return guard{*this, acceptor, cancellation};
+  }
+
   bool locked_try_throw(std::exception_ptr ex) noexcept {
-    UNIFEX_ASSERT(this->waiting_call_ == nullptr);
-    if (auto* accept{std::exchange(waiting_accept_, nullptr)}) {
-      (*accept->set_error_)(accept, std::move(ex));
+    if (waiting_accept_ != nullptr) {
+      (*waiting_accept_->set_error_)(waiting_accept_, std::move(ex));
       return true;
     } else {
       return false;
@@ -174,18 +249,18 @@ struct async_pass_base {
 
   template <typename ArgsList, typename CallerFn>
   bool locked_try_call(CallerFn&& callerFn) noexcept {
-    UNIFEX_ASSERT(this->waiting_call_ == nullptr);
-    if (auto* accept{std::exchange(waiting_accept_, nullptr)}) {
+    if (waiting_accept_ != nullptr) {
       using op_base = typename apply_to_type_list_t<accept_op_base, ArgsList>::
           template callable<Noexcept>;
       if constexpr (Noexcept) {
-        std::move(callerFn)(*static_cast<op_base*>(accept));
+        std::move(callerFn)(*static_cast<op_base*>(waiting_accept_));
       } else {
         UNIFEX_TRY {
-          std::move(callerFn)(*static_cast<op_base*>(accept));
+          std::move(callerFn)(*static_cast<op_base*>(waiting_accept_));
         }
         UNIFEX_CATCH(...) {
-          (*accept->set_error_)(accept, std::current_exception());
+          (*waiting_accept_->set_error_)(
+              waiting_accept_, std::current_exception());
         }
       }
       return true;
@@ -195,9 +270,8 @@ struct async_pass_base {
   }
 
   bool locked_try_accept(accept_op_base_noargs& acceptor) noexcept(Noexcept) {
-    UNIFEX_ASSERT(this->waiting_accept_ == nullptr);
-    if (auto* call_or_throw{std::exchange(this->waiting_call_, nullptr)}) {
-      call_or_throw->call(acceptor);
+    if (waiting_call_ != nullptr) {
+      waiting_call_->call(acceptor);
       return true;
     } else {
       return false;
@@ -205,13 +279,11 @@ struct async_pass_base {
   }
 
   bool nothrow_locked_try_accept(accept_op_base_noargs& acceptor) noexcept {
-    UNIFEX_ASSERT(this->waiting_accept_ == nullptr);
     if constexpr (Noexcept) {
       return locked_try_accept(acceptor);
-    } else if (auto* call_or_throw{
-                   std::exchange(this->waiting_call_, nullptr)}) {
+    } else if (waiting_call_ != nullptr) {
       UNIFEX_TRY {
-        call_or_throw->call(acceptor);
+        waiting_call_->call(acceptor);
       }
       UNIFEX_CATCH(...) {
         acceptor.rethrow(std::current_exception());
@@ -227,10 +299,15 @@ struct async_pass_base {
   accept_op_base_noargs* waiting_accept_{nullptr};
 };
 
-template <bool Noexcept, typename Receiver>
+template <bool Noexcept, typename Receiver, typename Op>
 class call_or_throw_op_impl {
 protected:
-  enum CompletionState : uint8_t { kNotCompleted, kCompleted, kCancelled };
+  enum CompletionState : uint8_t {
+    kNotStarted,
+    kNotCompleted,
+    kCompleted,
+    kCancelled
+  };
 
 public:
   Receiver& get_receiver() noexcept { return receiver_; }
@@ -239,7 +316,6 @@ public:
     switch (completion_) {
       case kCompleted: unifex::set_value(std::move(receiver_)); break;
       case kCancelled: unifex::set_done(std::move(receiver_)); break;
-      case kNotCompleted:
       default: std::terminate();
     }
   }
@@ -258,25 +334,39 @@ protected:
     : pass_(pass)
     , receiver_(std::forward<Receiver>(r)) {}
 
+  ~call_or_throw_op_impl() {
+    if (completion_ == kNotCompleted) {
+      stop_callback_.destruct();
+    }
+  }
+
+  void init() noexcept {
+    completion_ = kNotCompleted;
+    stop_callback_.construct(get_stop_token(receiver_), stop_callback{this});
+  }
+
   void set_done() noexcept {
-    std::lock_guard lock{pass_.mutex_};
+    auto lock{pass_.lock(static_cast<Op*>(this), true)};
     locked_complete(kCancelled);
   }
 
   void locked_complete(CompletionState completion) noexcept {
     if (completion_ == kNotCompleted) {
       completion_ = completion;
-      pass_.waiting_call_ = nullptr;
-      stop_callback_.reset();
-      forwardingOp_.start(*this);
+      static_cast<Op*>(this)->unlocked_complete_ =
+          [](call_or_throw_op_base<Noexcept>* base) noexcept {
+            auto* self{static_cast<Op*>(base)};
+            self->stop_callback_.destruct();
+            self->forwardingOp_.start(*self);
+          };
     }
   }
 
   async_pass_base<Noexcept>& pass_;
   Receiver receiver_;
   completion_forwarder<call_or_throw_op_impl, Receiver> forwardingOp_;
-  std::optional<stop_callback_type> stop_callback_;
-  CompletionState completion_{kNotCompleted};
+  manual_lifetime<stop_callback_type> stop_callback_;
+  CompletionState completion_{kNotStarted};
 };
 
 struct sender_base {
@@ -324,17 +414,17 @@ private:
   struct _op {
     class type
       : public call_op_base<Noexcept>
-      , public call_or_throw_op_impl<Noexcept, Receiver> {
-      using impl = call_or_throw_op_impl<Noexcept, Receiver>;
-      using impl::kCompleted;  // MSVC workaround
+      , public call_or_throw_op_impl<Noexcept, Receiver, type> {
+      using impl = call_or_throw_op_impl<Noexcept, Receiver, type>;
+      using impl::kCompleted;
+      using impl::kNotCompleted;
 
     public:
       explicit type(
           async_pass_base<Noexcept>& pass,
           CallerFn&& callerFn,
           Receiver&& r) noexcept
-        : call_or_throw_op_impl<Noexcept, Receiver>(
-              pass, std::forward<Receiver>(r))
+        : impl(pass, std::forward<Receiver>(r))
         , callerFn_(std::forward<CallerFn>(callerFn)) {
         this->call_ = [](call_op_base<Noexcept>* self,
                          accept_op_base_noargs& acceptor) noexcept(Noexcept) {
@@ -350,12 +440,10 @@ private:
       }
 
       void start() noexcept {
-        impl::stop_callback_.emplace(
-            get_stop_token(impl::receiver_),
-            typename impl::stop_callback{this});
-        std::lock_guard lock{this->pass_.mutex_};
-        if (impl::stop_callback_
-                .has_value()) {  // Else it fired on registration
+        this->init();
+        auto lock{this->pass_.lock(this)};
+        if (this->completion_ == kNotCompleted) {
+          // Else it fired on registration
           if (!this->pass_.template locked_try_call<ArgsList>(
                   std::move(callerFn_))) {
             this->pass_.waiting_call_ = this;
@@ -405,9 +493,10 @@ private:
   struct _op {
     class type
       : public throw_op_base
-      , public call_or_throw_op_impl<false, Receiver> {
-      using impl = call_or_throw_op_impl<false, Receiver>;
-      using impl::kCompleted;  // MSVC workaround
+      , public call_or_throw_op_impl<false, Receiver, type> {
+      using impl = call_or_throw_op_impl<false, Receiver, type>;
+      using impl::kCompleted;
+      using impl::kNotCompleted;
 
     public:
       explicit type(
@@ -415,21 +504,18 @@ private:
           std::exception_ptr ex,
           Receiver&& r) noexcept
         : throw_op_base(std::move(ex))
-        , call_or_throw_op_impl<false, Receiver>(
-              pass, std::forward<Receiver>(r)) {
+        , impl(pass, std::forward<Receiver>(r)) {
         this->resume_ = [](call_or_throw_op_base<false>* self) noexcept {
           static_cast<type*>(self)->locked_complete(kCompleted);
         };
       }
 
       void start() noexcept {
-        impl::stop_callback_.emplace(
-            get_stop_token(impl::receiver_),
-            typename impl::stop_callback{this});
-        std::lock_guard lock{this->pass_.mutex_};
-        if (impl::stop_callback_
-                .has_value()) {  // Else it fired on registration
-          if (!this->pass_.locked_try_throw(this->ex_)) {
+        this->init();
+        auto lock{this->pass_.lock(this)};
+        if (this->completion_ == kNotCompleted) {
+          // Else it fired on registration
+          if (!this->pass_.locked_try_throw(ex_)) {
             this->pass_.waiting_call_ = this;
           } else {
             this->locked_complete(kCompleted);
@@ -456,6 +542,8 @@ private:
     void operator()(auto&&... args) noexcept;
   };
 
+  using async_pass_base<Noexcept>::lock;
+
 public:
   bool is_idle() const noexcept {
     std::lock_guard lock{this->mutex_};
@@ -477,7 +565,7 @@ public:
            AND(                                                        //
                !Noexcept || std::is_nothrow_invocable_v<F, Args...>))  //
       bool try_accept(F&& f) noexcept(Noexcept) {
-    std::lock_guard lock{this->mutex_};
+    auto guard{lock(kNoAcceptor)};
     auto acceptor{
         accept_call_with<Noexcept, type_list<Args...>>(std::forward<F>(f))};
     return this->locked_try_accept(acceptor);
@@ -500,7 +588,7 @@ public:
                !Noexcept ||
                std::is_nothrow_invocable_v<F, acceptor_constraint&>))  //
       [[nodiscard]] bool try_call(F&& callerFn) noexcept {
-    std::lock_guard lock{this->mutex_};
+    auto guard{lock(kNoCaller<Noexcept>)};
     return this->template locked_try_call<type_list<Args...>>(
         std::forward<F>(callerFn));
   }
@@ -520,7 +608,7 @@ public:
   template(bool Enable = !Noexcept)  //
       (requires Enable)              //
       [[nodiscard]] bool try_throw(std::exception_ptr ex) noexcept {
-    std::lock_guard lock{this->mutex_};
+    auto guard{lock(kNoCaller<Noexcept>)};
     return this->locked_try_throw(std::move(ex));
   }
 
@@ -654,15 +742,19 @@ private:
           };
         }
 
-        ~type() noexcept { (*this->finalizer_)(this); }
+        ~type() noexcept { (*finalizer_)(this); }
 
         type(type&&) = delete;
 
         void start() noexcept {
-          stop_callback_.emplace(
+          void (*started)(type* self) noexcept = [](type* self) noexcept {
+            self->stop_callback_.destruct();
+          };
+          finalizer_ = started;
+          stop_callback_.construct(
               get_stop_token(receiver_), stop_callback{this});
-          std::lock_guard lock{pass_.mutex_};
-          if (stop_callback_.has_value()) {  // Else it fired on registration
+          auto lock{pass_.lock(this)};
+          if (finalizer_ == started) {  // Else it fired on registration
             if (!pass_.nothrow_locked_try_accept(*this)) {
               pass_.waiting_accept_ = this;
             }
@@ -686,7 +778,7 @@ private:
 
       private:
         void set_done() noexcept {
-          std::lock_guard lock{pass_.mutex_};
+          auto lock{pass_.lock(this, true)};
           if (complete_ == nullptr) {
             locked_complete_with(defer_set_done());
           }
@@ -720,9 +812,12 @@ private:
           using op_state_t =
               forwarding_state<std::remove_cvref_t<decltype(deferred())>>;
 
-          stop_callback_.reset();
-          pass_.waiting_accept_ = nullptr;
           complete_ = &op_state_t::deferred_complete;
+          this->unlocked_complete_ = [](accept_op_base_noargs* base) noexcept {
+            auto* self{static_cast<type*>(base)};
+            self->stop_callback_.destruct();
+            self->forwardingOp_.start(*self);
+          };
           finalizer_ = [](type* self) noexcept {
             deactivate_union_member<op_state_t>(self->state_);
           };
@@ -730,8 +825,6 @@ private:
               state_, [&deferred]() noexcept(noexcept(deferred())) {
                 return op_state_t{std::forward<decltype(deferred)>(deferred)};
               });
-
-          forwardingOp_.start(*this);
         }
 
         template <auto DeferFn, typename... Args2>
@@ -746,7 +839,7 @@ private:
             forwarding_state_t<defer_set_error, std::exception_ptr>,
             forwarding_state_t<defer_set_done>>
             state_;
-        std::optional<stop_callback_type> stop_callback_;
+        manual_lifetime<stop_callback_type> stop_callback_;
 
         void (*complete_)(type*, Receiver&&) noexcept = nullptr;
         void (*finalizer_)(type* self) noexcept = [](type* /*self*/) noexcept {
