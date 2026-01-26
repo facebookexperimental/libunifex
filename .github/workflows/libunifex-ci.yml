@@ -121,6 +121,14 @@ jobs:
             cc: "gcc-14", cxx: "g++-14"
           }
         - {
+            name: "Linux GCC 14 Optimised noexcept (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-14", cxx: "g++-14",
+            cmake_args: "-D CMAKE_CXX_FLAGS:STRING=-fno-exceptions"
+          }
+        - {
             name: "Linux GCC 14 Debug (C++20)", artifact: "Linux.tar.xz",
             os: ubuntu-24.04,
             io_sys: io_uring,
@@ -135,6 +143,14 @@ jobs:
             build_type: RelWithDebInfo,
             cc: "gcc-14", cxx: "g++-14",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
+          }
+        - {
+            name: "Linux GCC 14 Optimised noexcept (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-24.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "gcc-14", cxx: "g++-14",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS=-fno-exceptions"
           }
         - {
             name: "Linux Clang 15 Debug (C++17)", artifact: "Linux.tar.xz",
@@ -183,6 +199,14 @@ jobs:
             build_type: RelWithDebInfo,
             cc: "clang-16", cxx: "clang++-16",
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "Linux Clang 16 Optimised noexcept (C++17)", artifact: "Linux.tar.xz",
+            os: ubuntu-22.04,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "clang-16", cxx: "clang++-16",
+            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\" -D CMAKE_CXX_FLAGS=-fno-exceptions"
           }
         - {
             name: "Linux Clang 16 Debug (C++20)", artifact: "Linux.tar.xz",
@@ -265,6 +289,14 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
+            name: "Linux Clang 20 Optimised noexcept (C++20)", artifact: "Linux.tar.xz",
+            os: ubuntu-latest,
+            io_sys: io_uring,
+            build_type: RelWithDebInfo,
+            cc: "clang-20", cxx: "clang++-20",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\" -D CMAKE_CXX_FLAGS=-fno-exceptions"
+          }
+        - {
             name: "macOS GCC Debug (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
@@ -275,6 +307,13 @@ jobs:
             os: macos-latest,
             build_type: RelWithDebInfo,
             cc: "gcc", cxx: "g++"
+          }
+        - {
+            name: "macOS GCC Optimised noexcept (C++17)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "gcc", cxx: "g++",
+            cmake_args: "-D CMAKE_CXX_FLAGS=-fno-exceptions"
           }
         - {
             name: "macOS GCC Debug (C++20)", artifact: "macOS.tar.xz",
@@ -291,6 +330,13 @@ jobs:
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20"
           }
         - {
+            name: "macOS GCC Optimised noexcept (C++20)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "gcc", cxx: "g++",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D CMAKE_CXX_FLAGS=-fno-exceptions"
+          }
+        - {
             name: "macOS Clang Debug (C++17)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
@@ -305,6 +351,13 @@ jobs:
             cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
           }
         - {
+            name: "macOS Clang Optimised noexcept (C++17)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "clang", cxx: "clang++",
+            cmake_args: "-D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\" -D CMAKE_CXX_FLAGS=-fno-exceptions"
+          }
+        - {
             name: "macOS Clang Debug (C++20)", artifact: "macOS.tar.xz",
             os: macos-latest,
             build_type: Debug,
@@ -317,6 +370,13 @@ jobs:
             build_type: RelWithDebInfo,
             cc: "clang", cxx: "clang++",
             cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\""
+          }
+        - {
+            name: "macOS Clang Optimised noexcept (C++20)", artifact: "macOS.tar.xz",
+            os: macos-latest,
+            build_type: RelWithDebInfo,
+            cc: "clang", cxx: "clang++",
+            cmake_args: "-D CMAKE_CXX_STANDARD:STRING=20 -D \"CMAKE_CXX_FLAGS:STRING=-fsanitize=address -fno-omit-frame-pointer\" -D CMAKE_CXX_FLAGS=-fno-exceptions"
           }
         - {
             name: "Windows MSVC 2022 Debug (C++20)", artifact: "Windows-MSVC.tar.xz",
