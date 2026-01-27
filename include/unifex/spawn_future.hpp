@@ -986,7 +986,7 @@ public:
       // it from init to complete) as part of its destructor before this code
       // runs.
       op_t::deleter(op, _future_state::complete);
-      throw;
+      UNIFEX_RETHROW();
     }
   }
 

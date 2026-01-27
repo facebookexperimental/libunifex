@@ -66,6 +66,7 @@ TEST(filter_stream, Pipeable) {
   ASSERT_TRUE(res);
   EXPECT_EQ(30, *res);
 }
+#if !UNIFEX_NO_EXCEPTIONS
 
 TEST(filter_stream, FilterFuncThrows) {
   auto st = range_stream{1, 11} | filter_stream([](int) -> bool { throw 42; });
@@ -129,6 +130,7 @@ TEST(filter_stream, ConnectedReceiverThrowsOnSetValue) {
 
   EXPECT_TRUE(errorCalled);
 }
+#endif
 
 struct StreamOfMoveOnlyObjects {
   StreamOfMoveOnlyObjects() {

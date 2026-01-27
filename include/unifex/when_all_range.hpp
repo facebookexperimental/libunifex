@@ -91,19 +91,20 @@ public:
     , refCount_(senders.size()) {
     std::allocator<_operation_holder> allocator;
     holders_ = allocator.allocate(senders.size());
-    try {
+    UNIFEX_TRY {
       for (auto&& sender : senders) {
         new (holders_ + numHolders_)
             _operation_holder{std::move(sender), *this, numHolders_};
         ++numHolders_;
       }
-    } catch (...) {
+    }
+    UNIFEX_CATCH(...) {
       std::destroy(
           std::make_reverse_iterator(holders_ + numHolders_),
           std::make_reverse_iterator(holders_));
       allocator.deallocate(holders_, senders.size());
       holders_ = nullptr;
-      throw;
+      UNIFEX_RETHROW();
     }
   }
 

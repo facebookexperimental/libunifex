@@ -140,6 +140,8 @@ private:
   int* destructs_;
 };
 
+#if !UNIFEX_NO_EXCEPTIONS
+
 TEST(
     spawn_future_test,
     operation_results_are_destroyed_when_future_is_immediately_discarded) {
@@ -165,6 +167,7 @@ TEST(
   EXPECT_EQ(valueConstructs, valueDestructs);
   EXPECT_EQ(errorConstructs, errorDestructs);
 }
+#endif
 
 TEST(spawn_future_test, happy_path_lacks_double_deletes) {
   unifex::v2::async_scope scope;

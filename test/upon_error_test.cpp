@@ -81,6 +81,7 @@ TEST(UponError, NotCalled) {
   EXPECT_EQ(res.value(), 42);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(UponError, ExceptionHandling) {
   int val = 0;
   try {
@@ -94,6 +95,7 @@ TEST(UponError, ExceptionHandling) {
   }
   EXPECT_EQ(val, 0);
 }
+#endif
 
 struct single_value_sender {
   template <

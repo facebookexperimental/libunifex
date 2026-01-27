@@ -16,7 +16,7 @@
 
 #include <unifex/coroutine.hpp>
 
-#if !UNIFEX_NO_COROUTINES
+#if !UNIFEX_NO_COROUTINES && !UNIFEX_NO_EXCEPTIONS
 
 #  include <unifex/async_manual_reset_event.hpp>
 #  include <unifex/async_pass.hpp>

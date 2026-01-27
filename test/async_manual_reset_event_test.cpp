@@ -146,6 +146,7 @@ TEST_F(
   start(op);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(
     async_manual_reset_event_test, exception_from_set_value_sent_to_set_error) {
   async_manual_reset_event evt{true};
@@ -167,6 +168,7 @@ TEST_F(
 
   start(op);
 }
+#endif
 
 template <typename Scheduler>
 static std::thread::id getThreadId(Scheduler& scheduler) {

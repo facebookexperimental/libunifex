@@ -124,6 +124,7 @@ struct AtCoroutineExit : testing::Test {
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
 
+#if !UNIFEX_NO_EXCEPTIONS
   void test_throw_in_cleanup_action_causes_death() {
     task<void> t = []() -> task<void> {
       co_await at_coroutine_exit([]() -> task<void> { throw 42; });
@@ -149,7 +150,7 @@ struct AtCoroutineExit : testing::Test {
     sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
-
+  
   void test_throw_in_cleanup_action_during_cancellation_unwind_causes_death() {
     task<void> t = []() -> task<void> {
       co_await at_coroutine_exit([]() -> task<void> { throw 42; });
@@ -158,6 +159,7 @@ struct AtCoroutineExit : testing::Test {
     sync_wait(std::move(t));  // causes termination
     ADD_FAILURE() << "He didn't fall? Inconceivable!";
   }
+#endif
 };
 }  // unnamed namespace
 
@@ -220,6 +222,7 @@ TEST_F(AtCoroutineExit, CancelDuringCancellationUnwindCallsTerminate) {
       test_cancel_during_cancellation_unwind_causes_death(), "");
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(AtCoroutineExit, ThrowInCleanupActionCallsTerminate) {
   ASSERT_DEATH_IF_SUPPORTED(test_throw_in_cleanup_action_causes_death(), "");
 }
@@ -243,5 +246,6 @@ TEST_F(
       test_throw_in_cleanup_action_during_cancellation_unwind_causes_death(),
       "");
 }
+#endif
 
 #endif  // !UNIFEX_NO_COROUTINES
