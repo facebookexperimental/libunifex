@@ -111,6 +111,7 @@ TEST(TransformError, WithValue) {
   EXPECT_EQ(*multiple, std::tuple(42, 1, 2));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(TransformError, Throw) {
   auto one = just_from([]() -> int { throw -1; })   //
       | let_error([](auto&&) { return just(42); })  //
@@ -119,6 +120,7 @@ TEST(TransformError, Throw) {
   ASSERT_TRUE(one.has_value());
   EXPECT_EQ(*one, 42);
 }
+#endif
 
 namespace {
 struct just_int {

@@ -78,10 +78,13 @@ struct _op {
     }
 
   private:
-    friend void tag_invoke(tag_t<start>, type& self) noexcept try {
-      self.fn_(self);
-    } catch (...) {
-      unifex::set_error((Receiver &&) self.rec_, std::current_exception());
+    friend void tag_invoke(tag_t<start>, type& self) noexcept {
+      UNIFEX_TRY {
+        self.fn_(self);
+      }
+      UNIFEX_CATCH(...) {
+        unifex::set_error((Receiver&&)self.rec_, std::current_exception());
+      }
     }
 
     // Forward other receiver queries

@@ -105,6 +105,7 @@ TEST_F(create_raw_sender_test, set_value_sync) {
             })));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(create_raw_sender_test, set_error_sync) {
   EXPECT_THROW(
       sync_wait(create_raw_sender<int>([](auto&& receiver) {
@@ -117,6 +118,7 @@ TEST_F(create_raw_sender_test, set_error_sync) {
       })),
       std::runtime_error);
 }
+#endif
 
 TEST_F(create_raw_sender_test, explicit_opstate) {
   EXPECT_EQ(1234, sync_wait(create_raw_sender<int>([](auto&& receiver) {
@@ -137,6 +139,7 @@ TEST_F(create_raw_sender_test, set_value) {
             })));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(create_raw_sender_test, set_error) {
   EXPECT_THROW(
       sync_wait(create_raw_sender<int>([this](auto&& receiver) {
@@ -152,6 +155,7 @@ TEST_F(create_raw_sender_test, set_error) {
       })),
       std::runtime_error);
 }
+#endif
 
 TEST_F(create_raw_sender_test, select_traits) {
   auto sender{create_raw_sender<int>(

@@ -55,7 +55,7 @@ TEST_F(WhenAllRangeTests, givenReceiver_whenAllValue_thenReceivedValue) {
     ASSERT_EQ(result.value()[i], i * 3);
   }
 }
-
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(WhenAllRangeTests, givenReceiver_whenError_thenReceivedError) {
   auto make_work = [](int x) {
     return then(just(x), [](int val) {
@@ -75,6 +75,7 @@ TEST_F(WhenAllRangeTests, givenReceiver_whenError_thenReceivedError) {
       { auto result = sync_wait(when_all_range(std::move(works))); },
       std::exception);
 }
+#endif
 
 TEST_F(
     WhenAllRangeTests, givenReceiver_whenZeroSender_thenImmediatelyReceives) {
@@ -118,8 +119,9 @@ TEST_F(WhenAllRangeTests, noCopy) {
   }
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 // TODO: Fix MSVC compilation error with any_unique
-#ifndef _MSC_VER
+#  ifndef _MSC_VER
 TEST_F(WhenAllRangeTests, ErrorCancelsRest) {
   try {
     std::vector<any_sender_of<>> work;
@@ -137,4 +139,5 @@ TEST_F(WhenAllRangeTests, ErrorCancelsRest) {
   } catch (...) {
   }
 }
+#  endif
 #endif

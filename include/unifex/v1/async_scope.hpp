@@ -267,12 +267,7 @@ struct _attach_sender<Sender>::type final {
       // we can be constexpr in this case
       return blocking_kind::always_inline;
     } else {
-      if (self.scope_) {
-        return unifex::blocking(self.sender_);
-      } else {
-        // we complete inline with done when there's no scope
-        return blocking_kind::always_inline;
-      }
+      return unifex::blocking(self.sender_);
     }
   }
 

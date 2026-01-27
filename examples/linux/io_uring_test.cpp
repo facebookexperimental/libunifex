@@ -16,7 +16,7 @@
 
 #include <unifex/config.hpp>
 
-#if !UNIFEX_NO_LIBURING
+#if !UNIFEX_NO_LIBURING && !UNIFEX_NO_EXCEPTIONS
 
 #  include <unifex/inplace_stop_token.hpp>
 #  include <unifex/just.hpp>

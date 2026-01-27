@@ -436,6 +436,7 @@ TEST_F(
       })));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(
     async_scope_v2_test,
     running_nest_sender_passes_through_wrapped_sender_behaviour) {
@@ -491,6 +492,7 @@ TEST_F(
         EXPECT_FALSE(emptyOpt.has_value());
       })));
 }
+#endif
 
 TEST_F(
     async_scope_v2_test,

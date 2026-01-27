@@ -259,6 +259,7 @@ TEST(Let, SimpleLetValueWithAllocate) {
   std::cout << "let_value with allocate done " << *result << "\n";
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(Let, SimpleLetValueVoidWithAllocate) {
   EXPECT_NO_THROW(sync_wait(let_value(unifex::just(42), [](int) {
     return unifex::allocate(unifex::just_done());
@@ -285,6 +286,7 @@ TEST(Let, LetValueSuccessorWithException) {
                 })),
       std::runtime_error);
 }
+#endif
 
 namespace {
 struct TraitslessSender {

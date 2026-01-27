@@ -83,6 +83,7 @@ struct Moveable {
   size_t& count_;
 };
 
+#if !UNIFEX_NO_EXCEPTIONS
 struct ThrowOnCopy {
   explicit ThrowOnCopy() noexcept {}
 
@@ -95,7 +96,7 @@ struct ThrowOnCopy {
     return *this;
   }
 };
-
+#endif
 }  // namespace
 
 struct create_basic_sender_test : public ::testing::Test {
@@ -132,6 +133,7 @@ TEST_F(create_basic_sender_test, set_value_sync) {
             })));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(create_basic_sender_test, set_error_sync) {
   EXPECT_THROW(
       sync_wait(create_basic_sender<int>([](auto event, auto& op) {
@@ -141,6 +143,8 @@ TEST_F(create_basic_sender_test, set_error_sync) {
       })),
       std::runtime_error);
 }
+#endif
+
 
 TEST_F(create_basic_sender_test, set_value) {
   EXPECT_EQ(
@@ -169,6 +173,7 @@ TEST_F(create_basic_sender_test, non_cancellable_set_value) {
           schedule_after(timer.get_scheduler(), 100ms))));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(create_basic_sender_test, set_error) {
   EXPECT_THROW(
       sync_wait(create_basic_sender<int>([this](auto event, auto& op) {
@@ -197,6 +202,7 @@ TEST_F(create_basic_sender_test, non_cancellable_set_error) {
           schedule_after(timer.get_scheduler(), 100ms))),
       std::runtime_error);
 }
+#endif
 
 TEST_F(create_basic_sender_test, set_done) {
   bool stopped{false};
@@ -601,6 +607,7 @@ TEST_F(create_basic_sender_test, affine_set_value) {
   EXPECT_EQ(1, moved);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(create_basic_sender_test, affine_set_value_failure) {
   bool returned{false};
   EXPECT_THROW(
@@ -621,5 +628,6 @@ TEST_F(create_basic_sender_test, affine_set_value_failure) {
 
   EXPECT_FALSE(returned);
 }
+#endif
 
 #endif

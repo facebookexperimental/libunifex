@@ -47,6 +47,7 @@ auto make_stop_callback(StopToken stoken, Callback callback) {
   return stop_callback_t{stoken, std::move(callback)};
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 struct _cancel_only_sender {
   template <
       template <typename...>
@@ -97,7 +98,7 @@ inline const struct _fn {
     return _cancel_only_sender{};
   }
 } cancel_only_sender{};
-
+#endif
 }  // namespace
 
 #if !UNIFEX_NO_EXCEPTIONS
@@ -201,6 +202,7 @@ TEST(WhenAll2, ResultsAreDecayCopied) {
       "hello world", std::get<0>(std::get<0>(std::get<1>(result.value()))));
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(WhenAll2, ErrorCancelsRest) {
   try {
     sync_wait(when_all(
@@ -211,6 +213,7 @@ TEST(WhenAll2, ErrorCancelsRest) {
   } catch (...) {
   }
 }
+#endif
 
 TEST(WhenAll2, SenderIsLvalueConnectable) {
   auto test = unifex::when_all(unifex::just(), unifex::just());

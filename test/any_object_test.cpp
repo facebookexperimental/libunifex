@@ -238,7 +238,13 @@ struct always_fails_allocator {
   template <typename OtherT>
   always_fails_allocator(always_fails_allocator<OtherT>) noexcept {}
 
-  T* allocate(size_t) { throw std::bad_alloc{}; }
+  T* allocate(size_t) {
+#if !UNIFEX_NO_EXCEPTIONS
+    throw std::bad_alloc{};
+#else
+    return nullptr;
+#endif
+  }
 
   void deallocate(T*, size_t) { std::terminate(); }
 };
@@ -250,6 +256,7 @@ struct alignas(Alignment) sized_type {
 
 }  // namespace
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(AnyObjectTest, SmallObjectsDontCallAllocator) {
   using any_small_object = unifex::basic_any_object<
       16,
@@ -305,6 +312,7 @@ TEST(AnyObjectTest, UseDefaultAllocatorIfNotSpecified) {
       (any_small_object(std::in_place_type<sized_type<32, 4>>)),
       std::bad_alloc);
 }
+#endif
 
 namespace {
 [[maybe_unused]] inline constexpr struct get_foo_cpo {
@@ -558,6 +566,7 @@ free:
   }
 };
 
+#if !UNIFEX_NO_EXCEPTIONS
 struct ThrowingMove : instance_counter {
   ThrowingMove() noexcept = default;
 
@@ -570,8 +579,10 @@ struct ThrowingMove : instance_counter {
     return "ThrowingMove";
   }
 };
+#endif
 }  // namespace
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(AnyObjectTest, TypeEraseTypeWithThrowingMoveConstructorHeapAllocates) {
   using any_t = unifex::basic_any_object_t<
       sizeof(ThrowingMove),
@@ -664,5 +675,6 @@ TEST(
   EXPECT_EQ(instance_counter::get_constructor_count(), 2);
   EXPECT_EQ(instance_counter::get_destructor_count(), 2);
 }
+#endif
 
 #include <unifex/detail/epilogue.hpp>

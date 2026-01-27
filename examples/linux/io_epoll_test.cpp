@@ -22,7 +22,7 @@
 // writes stopped!
 
 #include <unifex/config.hpp>
-#if !UNIFEX_NO_EPOLL
+#if !UNIFEX_NO_EPOLL && !UNIFEX_NO_EXCEPTIONS
 
 #  include <unifex/defer.hpp>
 #  include <unifex/inplace_stop_token.hpp>

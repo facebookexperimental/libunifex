@@ -71,6 +71,7 @@ TEST(StopOnRequest, MultiThreadedCancellations) {
 // Dummy stop source and token class to test callback construction exception
 // handling
 namespace {
+#if !UNIFEX_NO_EXCEPTIONS
 template <typename test_stop_token, typename F>
 struct test_stop_callback final {
   explicit test_stop_callback(test_stop_token, F&&) { throw std::exception(); }
@@ -80,6 +81,7 @@ struct test_stop_token {
   template <typename F>
   using callback_type = test_stop_callback<test_stop_token, F>;
 };
+#endif
 }  // namespace
 
 TEST(StopOnRequest, UnstoppableReceiverWithExternalStopSource) {
@@ -306,6 +308,7 @@ TEST(StopOnRequest, StopAfterComplete) {
   EXPECT_TRUE(wasCancelled);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(StopOnRequest, SingleCallbackConstructionErrorHandling) {
   EXPECT_THROW(
       { unifex::sync_wait(unifex::stop_on_request(test_stop_token())); },
@@ -393,3 +396,4 @@ TEST(StopOnRequest, ReceiverCancellationBeforeCallbackConstructionError) {
 
   EXPECT_TRUE(wasCancelled);
 }
+#endif

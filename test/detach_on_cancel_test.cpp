@@ -45,7 +45,7 @@
 #include <gtest/gtest.h>
 
 namespace {
-
+#if !UNIFEX_NO_EXCEPTIONS
 struct mock_receiver_with_exception {
   template <typename... Values>
   void set_value(Values&&...) {
@@ -60,6 +60,7 @@ struct mock_receiver_with_exception {
 
   std::atomic<bool>* error_called;
 };
+#endif
 
 template <typename Sender, typename Scheduler>
 auto with_scheduler(Sender&& sender, Scheduler&& sched) {
@@ -82,12 +83,14 @@ TEST_F(detach_on_cancel_test, set_done) {
   ASSERT_FALSE(result);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(detach_on_cancel_test, set_error) {
   EXPECT_THROW(
       unifex::sync_wait(unifex::detach_on_cancel(
           unifex::just_error(std::runtime_error("Test error")))),
       std::runtime_error);
 }
+#endif
 
 TEST_F(detach_on_cancel_test, set_value_after_cancellation) {
   auto result = unifex::sync_wait(
@@ -127,6 +130,7 @@ TEST_F(detach_on_cancel_test, set_value_during_cancellation) {
   ASSERT_FALSE(result);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(detach_on_cancel_test, set_value_sets_error) {
   std::atomic<bool> error_called{false};
   auto opState = unifex::connect(
@@ -135,6 +139,7 @@ TEST_F(detach_on_cancel_test, set_value_sets_error) {
   unifex::start(opState);
   EXPECT_TRUE(error_called.load(std::memory_order_relaxed));
 }
+#endif
 
 TEST_F(detach_on_cancel_test, cancellation_and_completion_race) {
   static constexpr uint16_t max_iterations{10000};

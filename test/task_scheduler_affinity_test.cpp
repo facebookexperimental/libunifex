@@ -116,6 +116,7 @@ UNIFEX_TEMPLATE(typename Scheduler)
   co_return std::this_thread::get_id();
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 // Test that we properly transition back to the right context when
 // the task fails.
 UNIFEX_TEMPLATE(typename Scheduler)
@@ -137,7 +138,7 @@ UNIFEX_TEMPLATE(typename Scheduler)
   }
   co_return id;
 }
-
+#endif
 }  // anonymous namespace
 
 TEST_F(TaskSchedulerAffinityTest, TransformSenderOnSeparateThread) {
@@ -192,6 +193,7 @@ TEST_F(TaskSchedulerAffinityTest, ContextRestoredOnCancelTest) {
   }
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(TaskSchedulerAffinityTest, ContextRestoredOnErrrorTest) {
   if (auto opt = sync_wait(
           test_context_restored_on_error(thread_ctx.get_scheduler()))) {
@@ -201,6 +203,7 @@ TEST_F(TaskSchedulerAffinityTest, ContextRestoredOnErrrorTest) {
     ADD_FAILURE() << "child coroutine completed unexpectedly";
   }
 }
+#endif
 
 namespace {
 

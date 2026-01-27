@@ -78,6 +78,20 @@ struct TestSender {
     return op{};
   }
 };
+
+struct RecvErrorOnly {
+  bool& err_;
+
+  template <typename _>
+  void set_value(_&&) && noexcept {
+    FAIL();
+  }
+  template <typename _>
+  void set_error(_&&) && noexcept {
+    err_ = true;
+  }
+  void set_done() && noexcept { FAIL(); }
+};
 }  // namespace
 
 TEST(Variant, CombineJustAndError) {
@@ -101,14 +115,13 @@ TEST(Variant, CombineJustAndError) {
   EXPECT_TRUE(!!result);
   EXPECT_EQ(*result, 5);
 
-  try {
-    auto just_error_variant_sender = func(false);
-    EXPECT_FALSE(just_error_variant_sender.sends_done);
-    sync_wait(just_error_variant_sender);
-    EXPECT_FALSE(true);
-  } catch (int& v) {
-    EXPECT_EQ(v, 10);
-  }
+  // get expected error without throwing
+  bool err{};
+  auto just_error_variant_sender = func(false);
+  EXPECT_FALSE(just_error_variant_sender.sends_done);
+  auto op = unifex::connect(just_error_variant_sender, RecvErrorOnly{err});
+  op.start();
+  EXPECT_TRUE(err);
 
   std::cout << "variant_sender done " << *result << "\n";
 }

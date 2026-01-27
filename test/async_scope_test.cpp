@@ -160,6 +160,7 @@ TEST_F(
   EXPECT_FALSE(result);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(
     async_scope_test,
     spawning_just_from_throwing_function_signals_the_future_with_an_exception) {
@@ -176,7 +177,7 @@ TEST_F(
     FAIL();
   }
 }
-
+#endif
 namespace {
 
 template <typename StopToken, typename Callback>
