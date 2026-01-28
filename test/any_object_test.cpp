@@ -228,6 +228,7 @@ TEST(AnyObjectTest, MoveConstructorDoesNotMoveLargeObjects) {
   EXPECT_EQ(instance_counter::get_constructor_count(), 1);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 namespace {
 template <typename T>
 struct always_fails_allocator {
@@ -238,13 +239,7 @@ struct always_fails_allocator {
   template <typename OtherT>
   always_fails_allocator(always_fails_allocator<OtherT>) noexcept {}
 
-  T* allocate(size_t) {
-#if !UNIFEX_NO_EXCEPTIONS
-    throw std::bad_alloc{};
-#else
-    return nullptr;
-#endif
-  }
+  T* allocate(size_t) { throw std::bad_alloc{}; }
 
   void deallocate(T*, size_t) { std::terminate(); }
 };
@@ -255,6 +250,7 @@ struct alignas(Alignment) sized_type {
 };
 
 }  // namespace
+#endif
 
 #if !UNIFEX_NO_EXCEPTIONS
 TEST(AnyObjectTest, SmallObjectsDontCallAllocator) {
