@@ -16,7 +16,7 @@
 
 #include <unifex/coroutine.hpp>
 
-#if !UNIFEX_NO_COROUTINES && !UNIFEX_NO_EXCEPTIONS
+#if !UNIFEX_NO_COROUTINES
 
 #  include <unifex/async_manual_reset_event.hpp>
 #  include <unifex/async_pass.hpp>
@@ -68,6 +68,7 @@ struct async_pass_test_base {
 template <typename AsyncPass>
 class async_pass_test;
 
+#if !UNIFEX_NO_EXCEPTIONS
 template <>
 class async_pass_test<async_pass<>>
   : public Test
@@ -96,6 +97,7 @@ public:
     completed = true;
   }
 };
+#endif
 
 template <>
 class async_pass_test<nothrow_async_pass<>>
@@ -115,7 +117,9 @@ public:
   }
 };
 
+#if !UNIFEX_NO_EXCEPTIONS
 using async_pass_throw_test = async_pass_test<async_pass<>>;
+#endif
 
 TYPED_TEST_SUITE_P(async_pass_test);
 
@@ -151,6 +155,7 @@ TYPED_TEST_P(async_pass_test, accept_before_call) {
   sync_wait(this->scope.complete());
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(async_pass_throw_test, throw_before_accept) {
   bool thrown{false}, accepted{false};
   this->scope.detached_spawn_on(
@@ -210,6 +215,8 @@ TEST_F(async_pass_throw_test, accept_before_throw_during_call) {
   EXPECT_TRUE(thrown);
   sync_wait(this->scope.complete());
 }
+#endif
+
 
 TYPED_TEST_P(async_pass_test, sync_accept_call) {
   bool called{false};
@@ -226,6 +233,7 @@ TYPED_TEST_P(async_pass_test, sync_accept_call) {
   sync_wait(this->scope.complete());
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(async_pass_throw_test, sync_accept_throw) {
   bool thrown{false};
   auto accepted{this->pass.try_accept()};
@@ -240,6 +248,7 @@ TEST_F(async_pass_throw_test, sync_accept_throw) {
       this->ctx.get_scheduler(), [&thrown]() noexcept { EXPECT_TRUE(thrown); });
   sync_wait(this->scope.complete());
 }
+#endif
 
 TYPED_TEST_P(async_pass_test, sync_call) {
   bool accepted{false};
@@ -258,6 +267,7 @@ TYPED_TEST_P(async_pass_test, sync_call) {
   sync_wait(this->scope.complete());
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(async_pass_throw_test, sync_accept_throw_during_call) {
   bool thrown{false};
   auto accepted{this->pass.try_accept()};
@@ -313,6 +323,7 @@ TEST_F(async_pass_throw_test, sync_throw) {
   EXPECT_TRUE(thrown);
   sync_wait(this->scope.complete());
 }
+#endif
 
 TYPED_TEST_P(async_pass_test, cancel_call) {
   bool called{false}, cancelled{false};
@@ -337,6 +348,7 @@ TYPED_TEST_P(async_pass_test, cancel_call_early) {
   sync_wait(this->scope.complete());
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST_F(async_pass_throw_test, cancel_throw) {
   bool thrown{false}, cancelled{false};
   sync_wait(this->scope.spawn_on(
@@ -359,6 +371,7 @@ TEST_F(async_pass_throw_test, cancel_throw_early) {
   EXPECT_FALSE(accepted.has_value());
   sync_wait(this->scope.complete());
 }
+#endif
 
 TYPED_TEST_P(async_pass_test, cancel_accept) {
   bool accepted{false}, cancelled{false};
@@ -394,7 +407,12 @@ REGISTER_TYPED_TEST_SUITE_P(
     cancel_call_early,
     cancel_accept,
     cancel_accept_early);
-using async_pass_test_types = Types<async_pass<>, nothrow_async_pass<>>;
+using async_pass_test_types = Types<
+#if !UNIFEX_NO_EXCEPTIONS
+async_pass<>,
+#endif
+nothrow_async_pass<>>;
+
 INSTANTIATE_TYPED_TEST_SUITE_P(
     async_pass_test_both, async_pass_test, async_pass_test_types);
 
@@ -653,6 +671,7 @@ TEST_F(async_pass_nocopy_test, accept_before_call) {
   sync_wait(this->scope.complete());
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 struct ThrowOnCopy {
   explicit ThrowOnCopy() noexcept {}
 
@@ -717,6 +736,7 @@ TEST_F(async_pass_test_throw_on_copy, sync_call) {
   EXPECT_TRUE(called);
   sync_wait(this->scope.complete());
 }
+#endif
 
 TEST(async_pass_test_deadlocks, mutual_cancellation) {
   single_thread_context alice, bob;
