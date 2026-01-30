@@ -16,7 +16,7 @@
 
 #include <unifex/coroutine.hpp>
 
-#if !UNIFEX_NO_COROUTINES && !UNIFEX_NO_EXCEPTIONS
+#if !UNIFEX_NO_COROUTINES
 
 #  include <atomic>
 
@@ -51,6 +51,7 @@ struct dummy_stop_token {
 };
 int dummy_stop_token::count = 0;
 
+#if !UNIFEX_NO_EXCEPTIONS
 task<int> foo() {
   co_await stop();  // sends a done signal, unwinds the coroutine stack
   ADD_FAILURE();
@@ -66,6 +67,7 @@ task<int> bar() {
   }
   co_return -1;
 }
+#endif
 
 task<inplace_stop_token> get_token_inner() {
   co_return co_await get_stop_token();
@@ -109,6 +111,7 @@ auto done_as_optional(Sender&& sender) {
 }
 }  // namespace
 
+#if !UNIFEX_NO_EXCEPTIONS
 TEST(TaskCancel, Cancel) {
   std::optional<int> j = sync_wait(bar());
   EXPECT_TRUE(!j);
@@ -119,6 +122,7 @@ TEST(TaskCancel, DoneAsOptional) {
   EXPECT_TRUE(i);
   EXPECT_TRUE(!*i);
 }
+#endif
 
 TEST(TaskCancel, VoidTask) {
   std::optional<unit> i = sync_wait(void_test());
@@ -146,6 +150,7 @@ TEST(TaskCancel, StopIfRequested) {
   EXPECT_TRUE(continuedWhenStopWasNotYetRequested);
 }
 
+#if !UNIFEX_NO_EXCEPTIONS
 // Test that the inplace_stop_token_adaptor is properly
 // unsubscribed on cancellation:
 TEST(TaskCancel, UnsubscribeStopTokenAdaptor) {
@@ -154,5 +159,7 @@ TEST(TaskCancel, UnsubscribeStopTokenAdaptor) {
   EXPECT_TRUE(!i);
   EXPECT_EQ(dummy_stop_token::count, 0);
 }
+#endif
+
 
 #endif  // !UNIFEX_NO_COROUTINES
