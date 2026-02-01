@@ -116,12 +116,21 @@ TEST(Variant, CombineJustAndError) {
   EXPECT_EQ(*result, 5);
 
   // get expected error without throwing
-  bool err{};
   auto just_error_variant_sender = func(false);
   EXPECT_FALSE(just_error_variant_sender.sends_done);
+#if !UNIFEX_NO_EXCEPTIONS
+  try {
+    sync_wait(just_error_variant_sender);
+    EXPECT_FALSE(true);
+  } catch (int& v) {
+    EXPECT_EQ(v, 10);
+  }
+#else
+  bool err{};
   auto op = unifex::connect(just_error_variant_sender, RecvErrorOnly{err});
   op.start();
   EXPECT_TRUE(err);
+#endif
 
   std::cout << "variant_sender done " << *result << "\n";
 }
