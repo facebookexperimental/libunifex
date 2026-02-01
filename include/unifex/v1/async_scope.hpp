@@ -215,10 +215,8 @@ struct _attach_sender final {
 template <typename Sender>
 struct _attach_sender<Sender>::type final {
   template <
-      template <typename...>
-      typename Variant,
-      template <typename...>
-      typename Tuple>
+      template <typename...> typename Variant,
+      template <typename...> typename Tuple>
   using value_types = sender_value_types_t<Sender, Variant, Tuple>;
 
   template <template <typename...> class Variant>
@@ -267,12 +265,7 @@ struct _attach_sender<Sender>::type final {
       // we can be constexpr in this case
       return blocking_kind::always_inline;
     } else {
-      if (self.scope_) {
-        return unifex::blocking(self.sender_);
-      } else {
-        // we complete inline with done when there's no scope
-        return blocking_kind::always_inline;
-      }
+      return unifex::blocking(self.sender_);
     }
   }
 
@@ -445,8 +438,9 @@ private:
           tag_t<nest>,
           Sender&& sender,
           Scope& scope) noexcept(noexcept(scope
-                                              .attach(static_cast<Sender&&>(
-                                                  sender))))
+                                              .attach(
+                                                  static_cast<Sender&&>(
+                                                      sender))))
           -> decltype(scope.attach(static_cast<Sender&&>(sender))) {
     return scope.attach(static_cast<Sender&&>(sender));
   }
