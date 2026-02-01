@@ -189,7 +189,7 @@ namespace _schedule {
     constexpr sender operator()() const noexcept;
   };
 }  // namespace _schedule
-inline const _schedule::_fn schedule{};
+inline constexpr _schedule::_fn schedule{};
 
 template <typename S>
 using schedule_result_t = decltype(schedule(UNIFEX_DECLVAL(S &&)));
