@@ -9,6 +9,8 @@ foreach(file-path ${test-sources})
     get_filename_component(file-name ${file-path-without-ext} NAME)
     add_executable( ${file-name} ${file-path})
     target_link_libraries(${file-name} PUBLIC unifex GTest::gtest_main)
+    target_compile_definitions(${file-name} PUBLIC -DUNIFEX_UNIT_TEST=1)
+    target_sources(${file-name} PRIVATE "./get_return_address_mock.cpp")
     add_test(NAME "test-${file-name}" COMMAND ${file-name})
 endforeach()
 
