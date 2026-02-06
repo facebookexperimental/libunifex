@@ -16,32 +16,29 @@
 
 #pragma once
 
-#include <unifex/tracing/async_stack.hpp>
 #include <cstdint>
 
 namespace unifex {
 
-// this file should be included before any other unifex header where you want to 
-// mock out the UNIFEX_READ_RETURN_ADDRESS macro.  By default the UNIFEX_READ_RETURN_ADDRESS
-// macro is defined to unifex::instruction_ptr::read_return_address().  This header defines a mock
-// interface that can be used to mock out the return address for testing purposes.
+// By default the UNIFEX_READ_RETURN_ADDRESS macro is defined to
+// unifex::instruction_ptr::read_return_address().  This header defines a mock
+// interface that can be used to mock out the return address for testing
+// purposes.
 //
 // Example usage:
 // (file: some_test.cpp)
 //
-// #include "get_return_address_mock.hpp"
 // #include <unifex/let_value.hpp>
 //
-// // set the mock return address to a known value before the test.
-// uintptr_t unifex::mock_instruction_ptr::mock_return_address = 0xdeadc0de;
-//
 // TEST(Let, ReturnAddress) {
+// //set the mock return address to a known value before the test.
+//   unifex::mock_instruction_ptr::mock_return_address = 0xdeadc0de;
 //   auto lv = unifex::let_value(unifex::just(42), [](int) {
 //     return unifex::allocate(unifex::just_done());
 //   });
 //   EXPECT_EQ(unifex::get_return_address(lv), 0xdeadc0de);
 //   EXPECT_NO_THROW(sync_wait(lv));
-// } 
+// }
 //
 struct mock_instruction_ptr {
   static uintptr_t mock_return_address;
@@ -50,7 +47,6 @@ struct mock_instruction_ptr {
   }
 };
 
-} // namespace unifex
+}  // namespace unifex
 
-#undef UNIFEX_READ_RETURN_ADDRESS
 #define UNIFEX_READ_RETURN_ADDRESS mock_instruction_ptr::read_return_address
