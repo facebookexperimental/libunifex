@@ -5,3 +5,4 @@ build/
 /Folder.DotSettings.user
 /compile_commands.json
 /.cache
+/.ccls-cache
