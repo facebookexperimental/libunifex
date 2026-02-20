@@ -48,8 +48,8 @@ struct sender_traits;
 namespace detail {
 using unifex::_block::_has_blocking;
 
-template <template <template <typename...> class, template <typename...> class>
-          class>
+template <
+    template <template <typename...> class, template <typename...> class> class>
 struct _has_value_types;
 
 template <template <template <typename...> class> class>
@@ -109,10 +109,8 @@ UNIFEX_CONCEPT                //
 template <typename S>
 struct _sender_traits {
   template <
-      template <typename...>
-      class Variant,
-      template <typename...>
-      class Tuple>
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
   using value_types = typename S::template value_types<Variant, Tuple>;
 
   template <template <typename...> class Variant>
@@ -129,10 +127,8 @@ struct _sender_traits {
 template <typename S>
 struct _bulk_sender_traits : _sender_traits<S> {
   template <
-      template <typename...>
-      class Variant,
-      template <typename...>
-      class Tuple>
+      template <typename...> class Variant,
+      template <typename...> class Tuple>
   using next_types = typename S::template next_types<Variant, Tuple>;
 };
 
@@ -147,9 +143,8 @@ inline constexpr bool _has_sender_traits =
     !std::is_base_of_v<_no_sender_traits, sender_traits<S>>;
 #elif UNIFEX_CXX_CONCEPTS
 template <typename S>
-concept _has_sender_traits = !requires {
-  typename sender_traits<S>::_unspecialized;
-};
+concept _has_sender_traits =
+    !requires { typename sender_traits<S>::_unspecialized; };
 #else
 template <typename S>
 UNIFEX_CONCEPT_FRAGMENT(     //
@@ -180,9 +175,9 @@ struct sender_traits : decltype(detail::_select_sender_traits<S>()) {};
 template <typename S>
 UNIFEX_CONCEPT  //
     sender =    //
-    move_constructible<remove_cvref_t<S>>&&
-        detail::_has_sender_traits<remove_cvref_t<S>>&&  //
-            detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
+    move_constructible<remove_cvref_t<S>> &&
+    detail::_has_sender_traits<remove_cvref_t<S>> &&  //
+    detail::_has_sender_types<sender_traits<remove_cvref_t<S>>>;
 
 template <typename S>
 [[deprecated("Use unifex::sender<S> instead")]]  //
@@ -191,8 +186,8 @@ inline constexpr bool typed_sender = sender<S>;
 template <typename S>
 UNIFEX_CONCEPT     //
     bulk_sender =  //
-    sender<S>&&    //
-        detail::_has_bulk_sender_types<sender_traits<remove_cvref_t<S>>>;
+    sender<S> &&   //
+    detail::_has_bulk_sender_types<sender_traits<remove_cvref_t<S>>>;
 
 template <typename S>
 [[deprecated("Use unifex::bulk_sender<S> instead")]]  //
@@ -202,8 +197,7 @@ namespace _start_cpo {
 struct _fn {
   template(typename Operation)                   //
       (requires tag_invocable<_fn, Operation&>)  //
-      auto
-      operator()(Operation& op) const noexcept
+      auto operator()(Operation& op) const noexcept
       -> tag_invoke_result_t<_fn, Operation&> {
     static_assert(
         is_nothrow_tag_invocable_v<_fn, Operation&>,
@@ -212,8 +206,7 @@ struct _fn {
   }
   template(typename Operation)                     //
       (requires(!tag_invocable<_fn, Operation&>))  //
-      auto
-      operator()(Operation& op) const noexcept -> decltype(op.start()) {
+      auto operator()(Operation& op) const noexcept -> decltype(op.start()) {
     static_assert(
         noexcept(op.start()), "start() customisation must be noexcept");
     return op.start();
@@ -253,8 +246,7 @@ private:
   struct _impl {
     template(typename S, typename R)         //
         (requires tag_invocable<_fn, S, R>)  //
-        auto
-        operator()(S&& s, R&& r) const
+        auto operator()(S&& s, R&& r) const
         noexcept(is_nothrow_tag_invocable_v<_fn, S, R>)
             -> tag_invoke_result_t<_fn, S, R> {
       return unifex::tag_invoke(_fn{}, std::forward<S>(s), std::forward<R>(r));
@@ -263,8 +255,7 @@ private:
     template(typename S, typename R)  //
         (requires(!tag_invocable<_fn, S, R>)
              AND _is_member_connectible<S, R>)  //
-        auto
-        operator()(S&& s, R&& r) const
+        auto operator()(S&& s, R&& r) const
         noexcept(_is_nothrow_member_connectible<S, R>)
             -> _member_connect_result_t<S, R> {
       return std::forward<S>(s).connect(std::forward<R>(r));
@@ -275,8 +266,7 @@ private:
 public:
   template(typename S, typename R)          //
       (requires sender<S> AND receiver<R>)  //
-      auto
-      operator()(S&& s, R&& r) const
+      auto operator()(S&& s, R&& r) const
       noexcept(noexcept(_impl{}(std::forward<S>(s), std::forward<R>(r))))
           -> decltype(_impl{}(std::forward<S>(s), std::forward<R>(r))) {
     return _impl{}(std::forward<S>(s), std::forward<R>(r));
@@ -289,13 +279,29 @@ public:
 public:
   template(typename S, typename R)          //
       (requires sender<S> AND receiver<R>)  //
-      auto
-      operator()(S&& s, R&& r) const noexcept(noexcept(_inject::make_op_wrapper(
+      auto operator()(S&& s, R&& r) const
+      noexcept(noexcept(_inject::make_op_wrapper(
           std::forward<S>(s), std::forward<R>(r), _impl{}))) -> op_t<S, R> {
     return _inject::make_op_wrapper(
         std::forward<S>(s), std::forward<R>(r), _impl{});
   }
 #endif
+
+  template(typename S, typename R)          //
+      (requires sender<S> AND receiver<R>)  //
+      auto operator()(S&& s, R&& r, std::false_type /* no */) const
+      noexcept(noexcept(
+          UNIFEX_DECLVAL(_fn&)(std::forward<S>(s), std::forward<R>(r)))) {
+    return operator()(std::forward<S>(s), std::forward<R>(r));
+  }
+
+  template(typename S, typename R)          //
+      (requires sender<S> AND receiver<R>)  //
+      auto operator()(S&& s, R&& r, std::true_type /* yes */) const
+      noexcept(noexcept(_impl{}(std::forward<S>(s), std::forward<R>(r))))
+          -> decltype(_impl{}(std::forward<S>(s), std::forward<R>(r))) {
+    return _impl{}(std::forward<S>(s), std::forward<R>(r));
+  }
 };
 
 }  // namespace _cpo
@@ -308,9 +314,8 @@ inline const _connect::_cpo::_fn connect{};
 template <typename Sender, typename Receiver>
 concept          //
     sender_to =  //
-    sender<Sender> && receiver<Receiver> && requires(Sender&& s, Receiver&& r) {
-  connect((Sender &&) s, (Receiver &&) r);
-};
+    sender<Sender> && receiver<Receiver> &&
+    requires(Sender&& s, Receiver&& r) { connect((Sender&&)s, (Receiver&&)r); };
 #else
 template <typename Sender, typename Receiver>
 UNIFEX_CONCEPT_FRAGMENT(                 //
@@ -319,13 +324,17 @@ UNIFEX_CONCEPT_FRAGMENT(                 //
         connect((Sender &&) s, (Receiver &&) r)));
 template <typename Sender, typename Receiver>
 UNIFEX_CONCEPT  //
-    sender_to = sender<Sender>&& receiver<Receiver>&&
-        UNIFEX_FRAGMENT(_sender_to, Sender, Receiver);
+    sender_to = sender<Sender> && receiver<Receiver> &&
+    UNIFEX_FRAGMENT(_sender_to, Sender, Receiver);
 #endif
 
 template <typename Sender, typename Receiver>
 using connect_result_t =
     decltype(connect(UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Receiver)));
+
+template <typename Sender, typename Receiver>
+using raw_connect_result_t = decltype(connect(
+    UNIFEX_DECLVAL(Sender), UNIFEX_DECLVAL(Receiver), std::true_type{}));
 
 template <typename Sender, typename Receiver>
 inline constexpr bool is_nothrow_connectable_v =
@@ -337,10 +346,8 @@ using is_nothrow_connectable =
 
 template <
     typename Sender,
-    template <typename...>
-    class Variant,
-    template <typename...>
-    class Tuple>
+    template <typename...> class Variant,
+    template <typename...> class Tuple>
 using sender_value_types_t =
     typename sender_traits<Sender>::template value_types<Variant, Tuple>;
 
@@ -423,7 +430,7 @@ UNIFEX_CONCEPT_FRAGMENT(  //
 
 template <typename Sender>
 UNIFEX_CONCEPT _single_sender =  //
-    sender<Sender>&& UNIFEX_FRAGMENT(unifex::_single_sender_impl, Sender);
+    sender<Sender> && UNIFEX_FRAGMENT(unifex::_single_sender_impl, Sender);
 
 }  // namespace unifex
 
