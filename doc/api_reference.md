@@ -18,6 +18,7 @@
   * [`create_basic_sender()`](#create_basic_sendervaluetypesbody-contextfactory-lockfactory-traits)
 * [Sender Algorithms](#sender-algorithms)
   * [`detach_on_cancel()`](#detach_on_cancelsender-sender---sender)
+  * [`cancellable`](#cancellablesender-sender-stdtrue_type---sender--cancellablesender-trueargs-args---sender)
   * [`then()`](#thensender-predecessor-func-func---sender)
   * [`let_value()`](#let_valuesender-pred-invocable-func---sender)
   * [`let_error()`](#let_errorsender-predecessor-func-func---sender)
@@ -469,6 +470,27 @@ Takes a Sender and produces a new Sender that will heap-allocate its operation
 state for the purpose of detaching a slow operation upon request to stop.
 
 Completion of the `sender` is otherwise delegated to the new Sender.
+
+### `cancellable(Sender sender[, std::true_type]) -> Sender`
+### `cancellable<Sender[, true]>(Args&&... args) -> Sender`
+
+Wraps a sender whose operation state provides a `void stop() noexcept` method,
+adapting it to respond to cancellation via the receiver's stop token.
+
+Every call to a completion function (`set_value`, `set_error`, or `set_done`)
+on the receiver must be preceded by a call to `try_complete(this)` which atomically coordinates the race
+between completions. Only if `try_complete` returns `true` should the sender complete.
+
+The optional `std::true_type` argument enables start skipping behavior,
+controlling what happens when stop is requested before the operation is started:
+
+* Without `std::true_type` (default): `start()` is called first; `stop()` is
+  called after `start()` returns even if a stop request is pending.
+* With `std::true_type`: `stop()` is called immediately and `start()` is
+  skipped.
+
+If the receiver does not support cancellation, no stop callback is
+registered and the operation runs unconditionally without stop overhead.
 
 ### `then(Sender predecessor, Func func) -> Sender`
 
