@@ -25,11 +25,8 @@ template <typename T, typename = void>
 inline constexpr bool is_stop_never_possible_v = false;
 
 template <typename T>
-inline constexpr bool is_stop_never_possible_v<
-    T,
-    std::enable_if_t<std::is_same_v<
-        std::false_type,
-        std::bool_constant<(T{}.stop_possible())>>>> = true;
+inline constexpr bool
+    is_stop_never_possible_v<T, std::enable_if_t<(!T::stop_possible())>> = true;
 
 template <typename T>
 using is_stop_never_possible = std::bool_constant<is_stop_never_possible_v<T>>;
