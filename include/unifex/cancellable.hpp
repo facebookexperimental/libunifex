@@ -102,11 +102,11 @@ bool try_complete(NestedOp* self) noexcept {
   auto state = static_cast<typename op::non_stop_type*>(self)->state_.fetch_or(
       op::completed, std::memory_order_acq_rel);
 
-  if ((state & op::non_stop) != 0) {
-    return true;
+  if ((state & op::completed) != 0) {
+    return false;
   }
 
-  if ((state & op::completed) == 0) {
+  if ((state & op::non_stop) == 0) {
     auto* stop_self{static_cast<typename op::stop_type*>(self)};
 #if defined(__GNUC__)
 #  pragma GCC diagnostic push
@@ -117,10 +117,9 @@ bool try_complete(NestedOp* self) noexcept {
 #if defined(__GNUC__)
 #  pragma GCC diagnostic pop
 #endif
-    return true;
   }
 
-  return false;
+  return true;
 }
 
 template <typename NestedOp>
