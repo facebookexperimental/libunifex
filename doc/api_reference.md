@@ -11,6 +11,7 @@
   * [`just_done()` / `stop()`](#just_done--stop)
   * [`just_error()`](#just_errore)
   * [`just_void_or_done()`](#just_void_or_doneisvoid)
+  * [`just_void_or_never()`](#just_void_or_neverisvoid)
   * [`just_from()`](#just_fromcallable)
   * [`stop_if_requested()`](#stop_if_requested)
   * [`defer()`](#defercallable)
@@ -18,7 +19,7 @@
   * [`create_basic_sender()`](#create_basic_sendervaluetypesbody-contextfactory-lockfactory-traits)
 * [Sender Algorithms](#sender-algorithms)
   * [`detach_on_cancel()`](#detach_on_cancelsender-sender---sender)
-  * [`cancellable`](#cancellablesender-sender-stdtrue_type---sender--cancellablesender-trueargs-args---sender)
+  * [`cancellable`](#cancellablesender-sender-stdtrue_type---sender)
   * [`then()`](#thensender-predecessor-func-func---sender)
   * [`let_value()`](#let_valuesender-pred-invocable-func---sender)
   * [`let_error()`](#let_errorsender-predecessor-func-func---sender)
@@ -225,6 +226,14 @@ Returns a sender that completes synchronously by calling `set_error()` with `e`.
 
 Returns a sender that completes synchronously by calling `set_value(void)` if
 `isVoid == true` or calling `set_done()` otherwise.
+
+### `just_void_or_never(isVoid)`
+
+Returns a sender that completes synchronously by calling `set_value(void)` if
+`isVoid == true` or never completes on its own otherwise and can only be cancelled,
+completing with `set_done()`.
+
+The receiver must provide a stoppable token when `isVoid` is `false`.
 
 ### `just_from(callable)`
 
