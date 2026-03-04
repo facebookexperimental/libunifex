@@ -45,14 +45,17 @@ void context::stop() {
 
 void context::enqueue(task_base* task) {
   std::unique_lock lock{mutex_};
-  if (head_ == nullptr) {
+  bool wasEmpty = (head_ == nullptr);
+  if (wasEmpty) {
     head_ = task;
   } else {
     tail_->next_ = task;
   }
   tail_ = task;
   task->next_ = nullptr;
-  cv_.notify_one();
+  if (wasEmpty) {
+    cv_.notify_one();
+  }
 }
 
 }  // namespace _manual_event_loop
