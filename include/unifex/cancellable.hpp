@@ -34,7 +34,8 @@ struct _op {
     stopped = 1,
     started = 2,
     completed = 4,
-    non_stop = 8
+    non_stop = 8,
+    non_affine = 16
   };
 
   struct non_stop_type : NestedOp {
@@ -57,12 +58,34 @@ struct _op {
   struct stop_type : non_stop_type {
     using non_stop_type::non_stop_type;
 
+    // SchedulerAffine: if true, the nested sender completes on the
+    // receiver's scheduler, so the sync_complete flag is only accessed
+    // by the calling thread and does not need to be atomic.
+    template <bool SchedulerAffine>
     void start() noexcept {
-      unifex::start(*static_cast<NestedOp*>(this));
+      if constexpr (SchedulerAffine) {
+        bool sync_complete{false};
+        sync_complete_ = &sync_complete;
+
+        unifex::start(*static_cast<NestedOp*>(this));
+
+        if (sync_complete) {
+          return;
+        }
+      } else {
+        std::atomic<bool> sync_complete{false};
+        sync_complete_ = &sync_complete;
+
+        unifex::start(*static_cast<NestedOp*>(this));
+
+        if (sync_complete.load(std::memory_order_acquire)) {
+          return;
+        }
+      }
 
       if (auto state =
               this->state_.fetch_or(started, std::memory_order_acq_rel);
-          state == stopped /* completed is not set! */) {
+          (state & ~non_affine) == stopped /* completed is not set! */) {
         NestedOp::stop();  // forward stop request after start() completes
       }
     }
@@ -78,12 +101,14 @@ struct _op {
 
     void (*cleanup_)(stop_type*) noexcept = [](stop_type*) noexcept {
     };
+    void* sync_complete_{nullptr};
   };
 
   struct stop_callback {
     void operator()() noexcept {
       if (auto state = op_->state_.fetch_or(stopped, std::memory_order_acq_rel);
-          state == started /* neither stopped nor completed are set! */) {
+          (state & ~non_affine) ==
+          started /* neither stopped nor completed are set! */) {
         op_->NestedOp::stop();
       }
     }
@@ -91,7 +116,7 @@ struct _op {
     stop_type* op_;
   };
 
-  template <typename StopToken, bool StopsEarly>
+  template <typename StopToken, bool StopsEarly, bool SchedulerAffine = true>
   struct type;
 };
 
@@ -112,6 +137,18 @@ bool try_complete(NestedOp* self) noexcept {
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
+    if (!(state & op::started)) {
+      // This line never executes if used with a non-stop token.
+      if (auto* flag = stop_self->sync_complete_) {
+        if (state & op::non_affine) {
+          static_cast<std::atomic<bool>*>(flag)->store(
+              true, std::memory_order_release);
+        } else {
+          *static_cast<bool*>(flag) = true;
+        }
+      }
+    }
+
     // This line never executes if used with a non-stop token.
     (*stop_self->cleanup_)(stop_self);
 #if defined(__GNUC__)
@@ -123,7 +160,7 @@ bool try_complete(NestedOp* self) noexcept {
 }
 
 template <typename NestedOp>
-template <typename StopToken, bool StopsEarly>
+template <typename StopToken, bool StopsEarly, bool SchedulerAffine>
 struct _op<NestedOp>::type : _op<NestedOp>::stop_type {
   using op = _op<NestedOp>;
   using stop_callback_t =
@@ -137,7 +174,7 @@ struct _op<NestedOp>::type : _op<NestedOp>::stop_type {
     : op::stop_type(
           std::forward<Sender>(nested_sender),
           std::forward<Receiver>(receiver),
-          0) {
+          SchedulerAffine ? 0 : non_affine) {
     stop_.template construct<StopToken>(std::forward<StopToken>(token));
   }
 
@@ -151,13 +188,13 @@ struct _op<NestedOp>::type : _op<NestedOp>::stop_type {
     };
 
     if constexpr (StopsEarly) {
-      if (this->state_.load(std::memory_order_acquire) == stopped) {
+      if (this->state_.load(std::memory_order_acquire) & stopped) {
         NestedOp::stop();
         return;
       }
     }
 
-    op::stop_type::start();
+    op::stop_type::template start<SchedulerAffine>();
   }
 
   manual_lifetime_union<StopToken, stop_callback_t> stop_;
@@ -200,8 +237,12 @@ public:
     static_assert(
         std::is_nothrow_invocable_v<decltype(&nested_op_t::stop), nested_op_t*>,
         "operation must provide a nothrow stop() method");
-    using op_type = typename _op<
-        nested_op_t>::template type<stop_token_type_t<Receiver>, StopsEarly>;
+    static constexpr bool kSchedulerAffine =
+        sender_traits<Sender>::is_always_scheduler_affine;
+    using op_type = typename _op<nested_op_t>::template type<
+        stop_token_type_t<Receiver>,
+        StopsEarly,
+        kSchedulerAffine>;
     return op_type{
         std::move(self.sender_),
         std::forward<Receiver>(receiver),
