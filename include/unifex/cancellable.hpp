@@ -197,7 +197,7 @@ struct _op<NestedOp>::type : _op<NestedOp>::stop_type {
       }
     }
 
-    op::stop_type::template start();
+    op::stop_type::start();
   }
 
   manual_lifetime_union<StopToken, stop_callback_t> stop_;
