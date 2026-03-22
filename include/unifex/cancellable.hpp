@@ -24,6 +24,7 @@
 #include <unifex/detail/prologue.hpp>
 
 #include <atomic>
+#include <new>
 
 namespace unifex {
 namespace _cancellable {
@@ -37,20 +38,39 @@ struct _op {
     non_stop = 8
   };
 
-  struct non_stop_type : NestedOp {
+  // NestedOp is embedded in aligned storage rather than used as a base
+  // class, working around a clang 19 bug where guaranteed copy elision
+  // is not applied for base-class initialization from a prvalue.
+  // non_stop_type is standard-layout (byte array + atomic, no bases),
+  // so its address equals the address of its first member — the
+  // embedded NestedOp — enabling try_complete() to recover the
+  // non_stop_type pointer via reinterpret_cast.
+
+  struct non_stop_type {
     template <typename Sender, typename Receiver>
     explicit non_stop_type(
         Sender&& nested_sender,
         Receiver&& receiver,
         uint8_t state =
             non_stop) noexcept(is_nothrow_connectable_v<Sender, Receiver>)
-      : NestedOp(
-            unifex::connect(
-                std::forward<decltype(nested_sender)>(nested_sender),
-                std::forward<decltype(receiver)>(receiver),
-                std::true_type{}))
-      , state_(state) {}
+      : state_(state) {
+      ::new (nested_op_storage_) NestedOp(
+          unifex::connect(
+              std::forward<decltype(nested_sender)>(nested_sender),
+              std::forward<decltype(receiver)>(receiver),
+              std::true_type{}));
+    }
 
+    ~non_stop_type() { std::destroy_at(&nested_op()); }
+
+    NestedOp& nested_op() noexcept {
+      return *std::launder(reinterpret_cast<NestedOp*>(nested_op_storage_));
+    }
+
+    void start() noexcept { unifex::start(nested_op()); }
+
+    alignas(
+        alignof(NestedOp)) unsigned char nested_op_storage_[sizeof(NestedOp)];
     std::atomic<uint8_t> state_;
   };
 
@@ -58,12 +78,19 @@ struct _op {
     using non_stop_type::non_stop_type;
 
     void start() noexcept {
-      unifex::start(*static_cast<NestedOp*>(this));
+      std::atomic<bool> sync_complete{false};
+      sync_complete_ = &sync_complete;
+
+      unifex::start(this->nested_op());
+
+      if (sync_complete.load(std::memory_order_acquire)) {
+        return;
+      }
 
       if (auto state =
               this->state_.fetch_or(started, std::memory_order_acq_rel);
           state == stopped /* completed is not set! */) {
-        NestedOp::stop();  // forward stop request after start() completes
+        this->nested_op().stop();
       }
     }
 
@@ -78,13 +105,14 @@ struct _op {
 
     void (*cleanup_)(stop_type*) noexcept = [](stop_type*) noexcept {
     };
+    std::atomic<bool>* sync_complete_{nullptr};
   };
 
   struct stop_callback {
     void operator()() noexcept {
       if (auto state = op_->state_.fetch_or(stopped, std::memory_order_acq_rel);
           state == started /* neither stopped nor completed are set! */) {
-        op_->NestedOp::stop();
+        op_->nested_op().stop();
       }
     }
 
@@ -99,19 +127,31 @@ template <typename NestedOp>
 bool try_complete(NestedOp* self) noexcept {
   using op = _op<NestedOp>;
 
-  auto state = static_cast<typename op::non_stop_type*>(self)->state_.fetch_or(
-      op::completed, std::memory_order_acq_rel);
+  // non_stop_type is standard-layout; its first member (nested_op_storage_)
+  // is at offset 0, and self points to the NestedOp constructed there.
+  auto* non_stop =
+      std::launder(reinterpret_cast<typename op::non_stop_type*>(self));
+
+  auto state =
+      non_stop->state_.fetch_or(op::completed, std::memory_order_acq_rel);
 
   if ((state & op::completed) != 0) {
     return false;
   }
 
   if ((state & op::non_stop) == 0) {
-    auto* stop_self{static_cast<typename op::stop_type*>(self)};
+    auto* stop_self{static_cast<typename op::stop_type*>(non_stop)};
 #if defined(__GNUC__)
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
+    if (!(state & op::started)) {
+      // This line never executes if used with a non-stop token.
+      if (auto* flag = stop_self->sync_complete_) {
+        flag->store(true, std::memory_order_release);
+      }
+    }
+
     // This line never executes if used with a non-stop token.
     (*stop_self->cleanup_)(stop_self);
 #if defined(__GNUC__)
@@ -151,8 +191,8 @@ struct _op<NestedOp>::type : _op<NestedOp>::stop_type {
     };
 
     if constexpr (StopsEarly) {
-      if (this->state_.load(std::memory_order_acquire) == stopped) {
-        NestedOp::stop();
+      if (this->state_.load(std::memory_order_acquire) & stopped) {
+        this->nested_op().stop();
         return;
       }
     }
