@@ -14,6 +14,7 @@ target_sources(unifex
     async_manual_reset_event.cpp
     async_mutex_v1.cpp
     async_mutex_v2.cpp
+    async_pass.cpp
     async_stack.cpp
     exception.cpp
     inplace_stop_token.cpp
