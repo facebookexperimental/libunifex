@@ -22,7 +22,8 @@ endif()
 if (UNIFEX_CXX_COMPILER_MSVC)
     # warning level 3 and all warnings as errors
     # avoid fatal error C1128: number of sections exceeded object file format limit
-    add_compile_options(/W3 /WX /bigobj)
+    # ensure __cplusplus is treated according to the standard
+    add_compile_options(/W3 /WX /bigobj /Zc:__cplusplus)
 else()
     # lots of warnings and all warnings as errors
     add_compile_options(-Wall -Wextra -pedantic -Werror)
