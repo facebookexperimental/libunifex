@@ -298,7 +298,7 @@ struct _safe_cb_base {
   struct ptr {
     template <typename Op>
     Op* op() const noexcept {
-      return *std::reinterpret_pointer_cast<Op*>(ptr_);
+      return static_cast<Op*>(*ptr_);
     }
 
     operator bool() const noexcept { return ptr_ != nullptr; }
@@ -541,6 +541,9 @@ struct _stop_callback {
       }
 
       completed = op_.state_.completed();
+      if (completed) {
+        op_.safe_cb_holder_.reset();
+      }
     }
 
     if (completed) {
@@ -751,6 +754,7 @@ private:
       UNIFEX_CATCH(...) {
         auto guard{self.lock()};
         self.set_error(std::current_exception());
+        self.safe_cb_holder_.reset();
         completed = true;
       }
     }
@@ -776,7 +780,11 @@ private:
       body(_event<_event_type::start>{});
     }
 
-    return state_.completed();
+    auto completed = state_.completed();
+    if (completed) {
+      safe_cb_holder_.reset();
+    }
+    return completed;
   }
 
   template <bool Noexcept, typename Event, typename... Args>
@@ -801,6 +809,9 @@ private:
       }
 
       completed = state_.completed();
+      if (completed) {
+        safe_cb_holder_.reset();
+      }
     }
 
     if (completed) {
@@ -824,8 +835,12 @@ private:
     return safe_cb_holder_;
   }
 
-  _safe_cb_base::holder safe_cb_holder_{nullptr};
   state_t state_;
+  // Declared after state_ so it is destroyed first. Also explicitly reset
+  // under the lock in every completion path, ensuring that safe callbacks
+  // arriving after the sender has completed see an expired weak_ptr and
+  // never touch the (possibly destroyed) operation state.
+  _safe_cb_base::holder safe_cb_holder_{nullptr};
 
   UNIFEX_NO_UNIQUE_ADDRESS receiver_wrapper_t receiver_;
   UNIFEX_NO_UNIQUE_ADDRESS stop_callback_t stop_;
