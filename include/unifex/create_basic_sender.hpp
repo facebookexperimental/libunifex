@@ -147,9 +147,9 @@ struct _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...> {
     FwdFn fwd_;
   };
 
-  template <typename DeferFn, typename... Args>
-  using forwarding_state_t = forwarding_state<
-      std::invoke_result_t<std::invoke_result_t<DeferFn, Args...>>>;
+  template <auto DeferFn, typename... Args>
+  using forwarding_state_t =
+      forwarding_state<decltype(DeferFn(UNIFEX_DECLVAL(Args)...)())>;
 
   ~_receiver_wrapper() noexcept { (*finalizer_)(this); }
 
@@ -227,12 +227,12 @@ struct _receiver_wrapper<false, SendsDone, Receiver, ValueTypes...> {
   std::conditional_t<
       SendsDone,
       manual_lifetime_union<
-          forwarding_state_t<decltype(defer_set_value), ValueTypes&&...>,
-          forwarding_state_t<decltype(defer_set_error), std::exception_ptr>,
-          forwarding_state_t<decltype(defer_set_done)>>,
+          forwarding_state_t<defer_set_value, ValueTypes&&...>,
+          forwarding_state_t<defer_set_error, std::exception_ptr>,
+          forwarding_state_t<defer_set_done>>,
       manual_lifetime_union<
-          forwarding_state_t<decltype(defer_set_value), ValueTypes&&...>,
-          forwarding_state_t<decltype(defer_set_error), std::exception_ptr>>>
+          forwarding_state_t<defer_set_value, ValueTypes&&...>,
+          forwarding_state_t<defer_set_error, std::exception_ptr>>>
       state_;
   void (*complete_)(_receiver_wrapper*, Receiver&&) noexcept = nullptr;
   void (*finalizer_)(_receiver_wrapper* self) noexcept =
@@ -528,7 +528,7 @@ struct _stop_callback {
         return;  // op_.start_impl() will call op_.complete()
       } else {
         const _event<_event_type::stop> event{};
-        if constexpr (Op::nothrow_on_stop) {
+        if constexpr (Op::nothrow_on_stop()) {
           op_.body(event);
         } else {
           UNIFEX_TRY {
@@ -735,17 +735,19 @@ private:
     body_.stop(*this);
   }
 
-  static constexpr bool nothrow_on_start{
-      noexcept(UNIFEX_DECLVAL(_op).body(_event<_event_type::start>{}))};
+  static constexpr bool nothrow_on_start() noexcept {
+    return noexcept(UNIFEX_DECLVAL(_op).body(_event<_event_type::start>{}));
+  }
 
-  static constexpr bool nothrow_on_stop{
-      !Tr::sends_done ||
-      noexcept(UNIFEX_DECLVAL(_op).body(_event<_event_type::stop>{}))};
+  static constexpr bool nothrow_on_stop() noexcept {
+    return !Tr::sends_done ||
+        noexcept(UNIFEX_DECLVAL(_op).body(_event<_event_type::stop>{}));
+  }
 
   friend void tag_invoke(tag_t<start>, _op& self) noexcept {
     bool completed{false};
 
-    if constexpr (nothrow_on_start) {
+    if constexpr (nothrow_on_start()) {
       completed = self.start_impl();
     } else {
       UNIFEX_TRY {
@@ -766,7 +768,7 @@ private:
 
   auto lock() noexcept { return state_.lock(lock_factory_, ctx_, state_); }
 
-  bool start_impl() noexcept(nothrow_on_start) {
+  bool start_impl() noexcept(nothrow_on_start()) {
     if constexpr (Tr::sends_done) {
       stop_.construct(
           get_stop_token(receiver_.get_receiver()), _stop_callback<_op>{*this});

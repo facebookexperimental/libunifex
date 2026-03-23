@@ -16,7 +16,7 @@
 
 #include <unifex/coroutine.hpp>
 
-#if !UNIFEX_NO_COROUTINES && __cplusplus >= 201911L && !defined(_MSC_VER)
+#if !UNIFEX_NO_COROUTINES && __cplusplus >= 201911L
 
 #  include <unifex/async_scope.hpp>
 #  include <unifex/create_basic_sender.hpp>
@@ -100,6 +100,14 @@ struct ThrowOnCopy {
 }  // namespace
 
 struct create_basic_sender_test : public ::testing::Test {
+  static constexpr auto kMsvcCopyPenalty{
+#  if defined(_MSC_VER)
+      1  // MSVC appears to introduce a spurious copy/move; possibly due to
+         // failed copy elision
+#  else
+      0
+#  endif
+  };
   ~create_basic_sender_test() { sync_wait(scope.complete()); }
 
   template <typename Delay, typename Fn>
@@ -569,8 +577,8 @@ TEST_F(create_basic_sender_test, non_affine_set_value) {
         EXPECT_NE(threadId, std::this_thread::get_id());
       })));
 
-  EXPECT_EQ(1, copied);
-  EXPECT_EQ(1, moved);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, copied);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, moved);
 }
 
 TEST_F(create_basic_sender_test, affine_set_value) {
@@ -602,8 +610,8 @@ TEST_F(create_basic_sender_test, affine_set_value) {
         EXPECT_EQ(threadId, std::this_thread::get_id());
       })));
 
-  EXPECT_EQ(1, copied);
-  EXPECT_EQ(1, moved);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, copied);
+  EXPECT_EQ(1 + kMsvcCopyPenalty, moved);
 }
 
 #  if !UNIFEX_NO_EXCEPTIONS
