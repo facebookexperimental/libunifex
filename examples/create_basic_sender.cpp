@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#if __cplusplus >= 201911L
+#if __cplusplus >= 201911L && !defined(_MSC_VER)
 
 #  include <unifex/create_basic_sender.hpp>
 #  include <unifex/on.hpp>
