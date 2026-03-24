@@ -636,20 +636,18 @@ TEST_F(create_basic_sender_test, affine_set_value_failure) {
   EXPECT_FALSE(returned);
 }
 TEST_F(create_basic_sender_test, concurrent_callback_and_stop) {
-  timed_single_thread_context callback_timer;
   for (int i = 0; i < 100; ++i) {
     sync_wait(stop_when(
-        create_basic_sender<int>([this, &callback_timer](auto event, auto& op) {
-          if constexpr (event.is_start) {
-            scope.detached_spawn(
-                schedule_after(callback_timer.get_scheduler(), 1ms) |
-                then(safe_callback<>(op)));
-          } else if constexpr (event.is_callback) {
-            op.set_value(42);
-          } else if constexpr (event.is_stop) {
-            op.set_done();
-          }
-        }),
+        on(context.get_scheduler(),
+           create_basic_sender<int>([this](auto event, auto& op) {
+             if constexpr (event.is_start) {
+               call_after(1ms, safe_callback<>(op));
+             } else if constexpr (event.is_callback) {
+               op.set_value(42);
+             } else if constexpr (event.is_stop) {
+               op.set_done();
+             }
+           })),
         schedule_after(timer.get_scheduler(), 1ms)));
   }
 }
