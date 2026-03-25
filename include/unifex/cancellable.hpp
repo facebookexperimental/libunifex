@@ -83,14 +83,25 @@ struct _op {
 
       unifex::start(this->nested_op());
 
+      // If the nested op completed synchronously (within unifex::start
+      // above), the receiver may have already destroyed *this. The
+      // stack-local sync_complete flag lets us detect this without
+      // touching any member.
       if (sync_complete.load(std::memory_order_acquire)) {
         return;
       }
 
       if (auto state =
               this->state_.fetch_or(started, std::memory_order_acq_rel);
-          state == stopped /* completed is not set! */) {
+          state == stopped) {
         this->nested_op().stop();
+      } else if (state & completed) {
+        // try_complete() ran on another thread after unifex::start()
+        // returned but before we set started. It will write
+        // sync_complete_ = true momentarily. Wait for it to finish
+        // before destroying the stack-local.
+        while (!sync_complete.load(std::memory_order_acquire)) {
+        }
       }
     }
 
@@ -146,7 +157,10 @@ bool try_complete(NestedOp* self) noexcept {
 #  pragma GCC diagnostic ignored "-Warray-bounds"
 #endif
     if (!(state & op::started)) {
-      // This line never executes if used with a non-stop token.
+      // Notify start() that the op completed before started was set.
+      // start() will either see this via its initial sync_complete
+      // check (synchronous completion on the same thread) or via the
+      // spin-wait after observing completed in fetch_or(started).
       if (auto* flag = stop_self->sync_complete_) {
         flag->store(true, std::memory_order_release);
       }
@@ -173,12 +187,12 @@ struct _op<NestedOp>::type : _op<NestedOp>::stop_type {
   explicit type(
       Sender&& nested_sender,
       Receiver&& receiver,
-      StopToken&& token) noexcept(is_nothrow_connectable_v<Sender, Receiver>)
+      StopToken token) noexcept(is_nothrow_connectable_v<Sender, Receiver>)
     : op::stop_type(
           std::forward<Sender>(nested_sender),
           std::forward<Receiver>(receiver),
           0) {
-    stop_.template construct<StopToken>(std::forward<StopToken>(token));
+    stop_.template construct<StopToken>(std::move(token));
   }
 
   void start() noexcept {

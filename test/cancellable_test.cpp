@@ -208,6 +208,23 @@ TEST(cancellable_test, completes_with_unstoppable_token) {
   EXPECT_FALSE(stopped);
 }
 
+TEST(cancellable_test, with_query_value_stoppable_token) {
+  bool started = false;
+  bool stopped = false;
+  inplace_stop_source stop_src;
+  auto result{sync_wait(with_query_value(
+      cancellable{create_raw_sender<int>([&](auto&& receiver) {
+        return test_opstate{
+            std::forward<decltype(receiver)>(receiver), started, stopped};
+      })},
+      get_stop_token,
+      stop_src.get_token()))};
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 42);
+  EXPECT_TRUE(started);
+  EXPECT_FALSE(stopped);
+}
+
 #endif
 
 TEST(cancellable_test, constructs_sender_in_place) {
