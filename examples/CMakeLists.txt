@@ -5,7 +5,7 @@
 
 file(GLOB example-sources "*.cpp")
 foreach(file-path ${example-sources})
-  if (NOT(${file-path} MATCHES ".*/create_basic_sender[.]cpp" AND ${CMAKE_CXX_COMPILER} MATCHES ".*/g[+][+]-.*"))
+  if (NOT(${file-path} MATCHES ".*/create_basic_sender[.]cpp" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
     string( REPLACE ".cpp" "" file-path-without-ext ${file-path} )
     get_filename_component(file-name ${file-path-without-ext} NAME)
     add_executable( ${file-name} ${file-path})
