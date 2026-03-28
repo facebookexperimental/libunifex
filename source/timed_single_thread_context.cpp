@@ -29,59 +29,38 @@ timed_single_thread_context::~timed_single_thread_context() {
   }
   thread_.join();
 
-  UNIFEX_ASSERT(head_ == nullptr);
+  UNIFEX_ASSERT(heap_.empty());
 }
 
 void timed_single_thread_context::enqueue(task_base* task) noexcept {
   std::lock_guard lock{mutex_};
 
-  if (head_ == nullptr || task->dueTime_ < head_->dueTime_) {
-    // Insert at the head of the queue.
-    task->next_ = head_;
-    task->prevNextPtr_ = &head_;
-    if (head_ != nullptr) {
-      head_->prevNextPtr_ = &task->next_;
-    }
-    head_ = task;
-
-    // New minimum due-time has changed, wake the thread.
-    cv_.notify_one();
+  bool wasEmpty = heap_.empty();
+  heap_.insert(task);
+  if (wasEmpty) {
+      cv_.notify_one();
   } else {
-    auto* queuedTask = head_;
-    while (queuedTask->next_ != nullptr &&
-           queuedTask->next_->dueTime_ <= task->dueTime_) {
-      queuedTask = queuedTask->next_;
+    auto now = clock_t::now();
+    if (task->dueTime_ <= now) {
+        // New task is ready, wake the thread.
+        cv_.notify_one();
     }
-
-    // Insert after queuedTask
-    task->prevNextPtr_ = &queuedTask->next_;
-    task->next_ = queuedTask->next_;
-    if (task->next_ != nullptr) {
-      task->next_->prevNextPtr_ = &task->next_;
-    }
-    queuedTask->next_ = task;
   }
+
 }
 
 void timed_single_thread_context::run() {
   std::unique_lock lock{mutex_};
 
   while (!stop_) {
-    if (head_ != nullptr) {
+    if (!heap_.empty()) {
       auto now = clock_t::now();
-      auto nextDueTime = head_->dueTime_;
+      auto nextDueTime = heap_.top()->dueTime_;
       if (nextDueTime <= now) {
         // Ready to run
 
         // Dequeue item
-        auto* task = head_;
-        head_ = task->next_;
-        if (head_ != nullptr) {
-          head_->prevNextPtr_ = &head_;
-        }
-
-        // Flag the task as dequeued.
-        task->prevNextPtr_ = nullptr;
+        auto* task = heap_.pop();
         lock.unlock();
 
         task->execute();
@@ -104,15 +83,8 @@ void _timed_single_thread_context::cancel_callback::operator()() noexcept {
   if (now < task_->dueTime_) {
     task_->dueTime_ = now;
 
-    if (task_->prevNextPtr_ != nullptr) {
-      // Task is still in the queue, dequeue and requeue it.
-
-      // Remove from the queue.
-      *task_->prevNextPtr_ = task_->next_;
-      if (task_->next_ != nullptr) {
-        task_->next_->prevNextPtr_ = task_->prevNextPtr_;
-      }
-      task_->prevNextPtr_ = nullptr;
+    if (task_->context_->heap_.remove(task_)) {
+      // Task was still in the queue, requeue it.
       lock.unlock();
 
       // And requeue with an updated time.
