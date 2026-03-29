@@ -65,6 +65,71 @@ TEST(async_mutex_v2, multiple_threads) {
   EXPECT_EQ(2 * iterations, sharedState);
 }
 
+TEST(async_mutex_v2, try_lock_succeeds_when_unlocked) {
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, try_lock_fails_when_locked) {
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+  EXPECT_FALSE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, try_lock_succeeds_after_unlock) {
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+  mutex.unlock();
+  ASSERT_TRUE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, async_lock_no_contention) {
+  // Fast path: async_lock on an unlocked mutex completes without enqueuing.
+  async_mutex mutex;
+  bool acquired = false;
+  sync_wait([&]() -> task<void> {
+    co_await mutex.async_lock();
+    acquired = true;
+    mutex.unlock();
+  }());
+  EXPECT_TRUE(acquired);
+}
+
+TEST(async_mutex_v2, try_lock_fails_while_async_locked) {
+  async_mutex mutex;
+  sync_wait([&]() -> task<void> {
+    co_await mutex.async_lock();
+    EXPECT_FALSE(mutex.try_lock());
+    mutex.unlock();
+  }());
+}
+
+TEST(async_mutex_v2, unlock_empty_queue) {
+  // process_queue empty-queue path: lock then unlock with no waiters.
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+  mutex.unlock();
+  // Lock is available again after unlock with empty queue.
+  ASSERT_TRUE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, destruction) {
+  // Destroying an unused mutex should not assert.
+  {
+    async_mutex mutex;
+  }
+  // Destroying a mutex after a lock/unlock cycle should not assert.
+  {
+    async_mutex mutex;
+    ASSERT_TRUE(mutex.try_lock());
+    mutex.unlock();
+  }
+}
+
 using namespace std::chrono_literals;
 
 class async_mutex_v2_test : public ::testing::Test {
@@ -82,13 +147,14 @@ public:
     });
   }
 
-  task<void> critSecTask(bool& acquired, bool& finished) {
+  task<void> critSecTask(
+      bool& acquired, bool& finished, std::chrono::milliseconds hold = 500ms) {
     acquired = false;
     finished = false;
     co_await mutex.async_lock();
     acquired = true;
     scope_guard guard([this]() noexcept { mutex.unlock(); });
-    co_await schedule_after(timer(), 500ms);
+    co_await schedule_after(timer(), hold);
     finished = true;
   }
 
@@ -190,6 +256,86 @@ TEST_F(async_mutex_v2_test, cancel_awaiting_early) {
   EXPECT_TRUE(second_cancelled);
   EXPECT_FALSE(second_acquired);
   EXPECT_FALSE(second_finished);
+}
+
+TEST_F(async_mutex_v2_test, cancel_multiple_waiters) {
+  // Cancel two adjacent waiters simultaneously while a holder and a
+  // fourth waiter complete normally.  Exercises adjacent try_remove.
+  bool first_acquired, first_finished;
+  bool second_acquired, second_finished, second_cancelled;
+  bool third_acquired, third_finished, third_cancelled;
+  bool fourth_acquired, fourth_finished;
+
+  sync_wait(when_all(
+      critSecTask(first_acquired, first_finished),
+      stop_when(
+          critSecTask(second_acquired, second_finished) |
+              maybeCancelled(second_cancelled),
+          schedule_after(timer(), 100ms)),
+      stop_when(
+          critSecTask(third_acquired, third_finished) |
+              maybeCancelled(third_cancelled),
+          schedule_after(timer(), 100ms)),
+      critSecTask(fourth_acquired, fourth_finished)));
+
+  EXPECT_TRUE(first_acquired);
+  EXPECT_TRUE(first_finished);
+  EXPECT_TRUE(second_cancelled);
+  EXPECT_FALSE(second_acquired);
+  EXPECT_TRUE(third_cancelled);
+  EXPECT_FALSE(third_acquired);
+  EXPECT_TRUE(fourth_acquired);
+  EXPECT_TRUE(fourth_finished);
+}
+
+TEST_F(async_mutex_v2_test, try_lock_then_async_lock_waiter) {
+  // Lock via try_lock, enqueue a waiter via async_lock, then unlock.
+  // Verifies process_queue correctly serves async_lock waiters when
+  // the lock was originally acquired via try_lock.
+  async_manual_reset_event gate;
+  bool waiter_acquired = false;
+
+  sync_wait(when_all(
+      [&]() -> task<void> {
+        EXPECT_TRUE(mutex.try_lock());
+        gate.set();
+        co_await schedule_after(timer(), 100ms);
+        mutex.unlock();
+      }(),
+      [&]() -> task<void> {
+        co_await gate.async_wait();
+        co_await mutex.async_lock();
+        waiter_acquired = true;
+        mutex.unlock();
+      }()));
+
+  EXPECT_TRUE(waiter_acquired);
+}
+
+TEST_F(async_mutex_v2_test, dekker_pattern) {
+  // Exercises Dekker lost-wakeup prevention: holder unlocks on a
+  // separate thread while the waiter enqueues, creating a tight race
+  // between process_queue and start().
+  async_manual_reset_event holder_ready;
+  bool waiter_acquired = false;
+
+  single_thread_context ctx;
+
+  sync_wait(when_all(
+      [&]() -> task<void> {
+        co_await mutex.async_lock();
+        co_await schedule(ctx.get_scheduler());
+        holder_ready.set();
+        mutex.unlock();
+      }(),
+      [&]() -> task<void> {
+        co_await holder_ready.async_wait();
+        co_await mutex.async_lock();
+        waiter_acquired = true;
+        mutex.unlock();
+      }()));
+
+  EXPECT_TRUE(waiter_acquired);
 }
 
 #endif  // UNIFEX_NO_COROUTINES
