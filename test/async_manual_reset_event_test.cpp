@@ -270,3 +270,126 @@ TEST_F(
   evt.set();
   EXPECT_TRUE(sync_wait(evt.async_wait()).has_value());
 }
+
+TEST_F(async_manual_reset_event_test, reset_makes_ready_baton_unready) {
+  async_manual_reset_event evt;
+
+  evt.set();
+  ASSERT_TRUE(evt.ready());
+
+  evt.reset();
+  EXPECT_FALSE(evt.ready());
+}
+
+TEST_F(async_manual_reset_event_test, reset_on_unready_is_noop) {
+  async_manual_reset_event evt;
+
+  evt.reset();
+  EXPECT_FALSE(evt.ready());
+}
+
+TEST_F(async_manual_reset_event_test, set_on_already_signalled_is_noop) {
+  async_manual_reset_event evt;
+
+  evt.set();
+  ASSERT_TRUE(evt.ready());
+
+  evt.set();
+  EXPECT_TRUE(evt.ready());
+}
+
+TEST_F(async_manual_reset_event_test, reset_with_pending_waiters_is_noop) {
+  // When a waiter is pending, state_ is a waiter pointer, not the
+  // signalled sentinel.  reset() CAS(this, nullptr) fails silently
+  // and the waiter remains pending.
+  async_manual_reset_event evt;
+
+  auto op = connect(evt.async_wait(), std::move(receiver));
+
+  {
+    EXPECT_CALL(receiverImpl, set_value()).Times(0);
+    EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
+
+    start(op);
+  }
+
+  evt.reset();
+  EXPECT_FALSE(evt.ready());
+
+  EXPECT_CALL(receiverImpl, set_value());
+  EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
+
+  evt.set();
+}
+
+TEST_F(async_manual_reset_event_test, set_reset_set_cycle) {
+  // Full lifecycle: set → reset → wait → set again.
+  async_manual_reset_event evt;
+
+  evt.set();
+  ASSERT_TRUE(evt.ready());
+
+  evt.reset();
+  ASSERT_FALSE(evt.ready());
+
+  auto op = connect(evt.async_wait(), std::move(receiver));
+
+  {
+    EXPECT_CALL(receiverImpl, set_value()).Times(0);
+    EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
+
+    start(op);
+  }
+
+  EXPECT_CALL(receiverImpl, set_value());
+  EXPECT_CALL(receiverImpl, set_error(_)).Times(0);
+
+  evt.set();
+  EXPECT_TRUE(evt.ready());
+}
+
+TEST_F(async_manual_reset_event_test, multiple_waiters_all_complete) {
+  // Exercises the intrusive waiter stack with more than one entry.
+  async_manual_reset_event evt;
+
+  mock_receiver r1{scheduler}, r2{scheduler}, r3{scheduler};
+  auto& impl1 = *r1.impl;
+  auto& impl2 = *r2.impl;
+  auto& impl3 = *r3.impl;
+
+  auto op1 = connect(evt.async_wait(), std::move(r1));
+  auto op2 = connect(evt.async_wait(), std::move(r2));
+  auto op3 = connect(evt.async_wait(), std::move(r3));
+
+  {
+    EXPECT_CALL(impl1, set_value()).Times(0);
+    EXPECT_CALL(impl2, set_value()).Times(0);
+    EXPECT_CALL(impl3, set_value()).Times(0);
+
+    start(op1);
+    start(op2);
+    start(op3);
+  }
+
+  EXPECT_CALL(impl1, set_value());
+  EXPECT_CALL(impl2, set_value());
+  EXPECT_CALL(impl3, set_value());
+
+  evt.set();
+}
+
+TEST_F(async_manual_reset_event_test, concurrent_set_and_wait) {
+  // Exercises the race between set() and start_or_wait(): either
+  // set() runs first (immediate completion in start_or_wait) or
+  // the waiter is pushed first and then popped by set().
+  for (int i = 0; i < 100; ++i) {
+    async_manual_reset_event evt;
+
+    std::thread setter([&] { evt.set(); });
+
+    sync_wait(evt.async_wait());
+
+    setter.join();
+    EXPECT_TRUE(evt.ready());
+  }
+}
