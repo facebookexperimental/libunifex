@@ -16,5 +16,6 @@ endforeach()
 
 target_link_libraries(any_sender_of_test PUBLIC GTest::gmock_main)
 target_link_libraries(async_manual_reset_event_v1_test PUBLIC GTest::gmock_main)
+target_link_libraries(async_manual_reset_event_v2_test PUBLIC GTest::gmock_main)
 target_link_libraries(async_scope_test PUBLIC GTest::gmock_main)
 target_link_libraries(async_scope_v0_test PUBLIC GTest::gmock_main)
