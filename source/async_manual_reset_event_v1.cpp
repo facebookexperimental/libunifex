@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-#include <unifex/async_manual_reset_event.hpp>
+#include <unifex/v1/async_manual_reset_event.hpp>
 
-namespace unifex::_amre {
+namespace unifex {
+inline namespace v1 {
+namespace _amre {
 
 void async_manual_reset_event::set() noexcept {
   void* const signalledState = this;
@@ -62,4 +64,6 @@ void async_manual_reset_event::start_or_wait(
       std::memory_order_acquire));
 }
 
-}  // namespace unifex::_amre
+}  // namespace _amre
+}  // namespace v1
+}  // namespace unifex
