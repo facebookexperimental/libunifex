@@ -13,6 +13,7 @@ target_sources(unifex
     atomic_intrusive_list.cpp
     async_auto_reset_event.cpp
     async_manual_reset_event_v1.cpp
+    async_manual_reset_event_v2.cpp
     async_mutex_v1.cpp
     async_mutex_v2.cpp
     async_pass.cpp
