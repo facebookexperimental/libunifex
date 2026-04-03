@@ -10,6 +10,7 @@ set_target_properties(unifex PROPERTIES
 
 target_sources(unifex
   PRIVATE
+    atomic_intrusive_list.cpp
     async_auto_reset_event.cpp
     async_manual_reset_event.cpp
     async_mutex_v1.cpp
