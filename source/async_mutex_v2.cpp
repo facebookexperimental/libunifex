@@ -18,35 +18,34 @@
 
 namespace unifex::v2 {
 
-bool async_mutex::try_enqueue(waiter_base* waiter) noexcept {
-  if (try_lock()) {
-    return false;
-  }
+void async_mutex::process_queue() noexcept {
+  while (true) {
+    waiter_base* w = queue_.pop_front();
+    if (w) {
+      w->resume_(w);
+      return;
+    }
 
-  std::lock_guard<std::mutex> lock(mutex_);
-  queue_.push_back(waiter);
-  return true;
-}
+    // Queue empty — release the lock.
+    locked_.store(false, std::memory_order_release);
 
-bool async_mutex::try_dequeue(waiter_base* waiter) noexcept {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (waiter->enqueued()) {
-    queue_.remove(waiter);
-    waiter->set_dequeued();
-    return true;
+    // Dekker fence: orders the release before the re-check.
+    std::atomic_thread_fence(std::memory_order_seq_cst);
+
+    if (queue_.empty()) {
+      return;
+    }
+
+    // Item appeared after release.  Re-acquire; if another
+    // thread beat us, they will drain.
+    if (locked_.exchange(true, std::memory_order_acq_rel)) {
+      return;
+    }
   }
-  return false;
 }
 
 void async_mutex::unlock() noexcept {
-  std::lock_guard<std::mutex> lock(mutex_);
-  if (queue_.empty()) {
-    locked_.store(false);
-  } else {
-    waiter_base* next{queue_.pop_front()};
-    next->set_dequeued();
-    next->resume_(next);
-  }
+  process_queue();
 }
 
 }  // namespace unifex::v2
