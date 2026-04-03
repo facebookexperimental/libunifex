@@ -78,6 +78,60 @@ struct mock_receiver {
   }
 };
 
+// Receiver with a stoppable token, for cancellation tests.
+struct stoppable_mock_receiver_impl {
+  MOCK_METHOD(void, set_value, (), ());
+  MOCK_METHOD(void, set_done, (), (noexcept));
+  MOCK_METHOD(void, set_error, (std::exception_ptr), (noexcept));
+};
+
+struct stoppable_mock_receiver {
+  stoppable_mock_receiver(inline_scheduler& sched, inplace_stop_source& ss)
+    : impl(std::make_unique<stoppable_mock_receiver_impl>())
+    , scheduler(&sched)
+    , stopSource(&ss) {}
+
+  void set_value() { impl->set_value(); }
+  void set_error(std::exception_ptr e) noexcept { impl->set_error(e); }
+  void set_done() noexcept { impl->set_done(); }
+
+  std::unique_ptr<stoppable_mock_receiver_impl> impl;
+  inline_scheduler* scheduler;
+  inplace_stop_source* stopSource;
+
+  friend inline_scheduler tag_invoke(
+      tag_t<get_scheduler>, const stoppable_mock_receiver& self) noexcept {
+    return *self.scheduler;
+  }
+
+  friend inplace_stop_token tag_invoke(
+      tag_t<get_stop_token>, const stoppable_mock_receiver& self) noexcept {
+    return self.stopSource->get_token();
+  }
+};
+
+// Thread-safe receiver for concurrent tests (GMock is not thread-safe).
+struct atomic_receiver {
+  std::atomic<int>& value_count;
+  std::atomic<int>& done_count;
+  inline_scheduler scheduler;
+  inplace_stop_token token;
+
+  void set_value() noexcept { value_count.fetch_add(1); }
+  void set_done() noexcept { done_count.fetch_add(1); }
+  void set_error(std::exception_ptr) noexcept { std::terminate(); }
+
+  friend inline_scheduler
+  tag_invoke(tag_t<get_scheduler>, const atomic_receiver& r) noexcept {
+    return r.scheduler;
+  }
+
+  friend inplace_stop_token
+  tag_invoke(tag_t<get_stop_token>, const atomic_receiver& r) noexcept {
+    return r.token;
+  }
+};
+
 }  // namespace
 
 struct async_manual_reset_event_v2_test : testing::Test {
@@ -376,5 +430,161 @@ TEST_F(async_manual_reset_event_v2_test, concurrent_set_and_wait) {
 
     setter.join();
     EXPECT_TRUE(evt.ready());
+  }
+}
+
+// --- Cancellation tests ---
+
+TEST_F(async_manual_reset_event_v2_test, cancel_while_waiting) {
+  // Waiter is enqueued on an unready event, then stop is requested.
+  // The waiter is removed from the queue and completes with set_done.
+  async_manual_reset_event evt;
+  inplace_stop_source stopSource;
+  stoppable_mock_receiver recv{scheduler, stopSource};
+  auto& impl = *recv.impl;
+
+  auto op = connect(evt.async_wait(), std::move(recv));
+
+  {
+    EXPECT_CALL(impl, set_value()).Times(0);
+    EXPECT_CALL(impl, set_done()).Times(0);
+
+    start(op);
+  }
+
+  EXPECT_CALL(impl, set_done());
+
+  stopSource.request_stop();
+}
+
+TEST_F(async_manual_reset_event_v2_test, cancel_then_set_is_noop) {
+  // After cancellation removes the waiter, a subsequent set()
+  // should not trigger any additional completion.
+  async_manual_reset_event evt;
+  inplace_stop_source stopSource;
+  stoppable_mock_receiver recv{scheduler, stopSource};
+  auto& impl = *recv.impl;
+
+  auto op = connect(evt.async_wait(), std::move(recv));
+  start(op);
+
+  EXPECT_CALL(impl, set_done());
+
+  stopSource.request_stop();
+
+  // set() should not produce any further completion.
+  evt.set();
+}
+
+TEST_F(async_manual_reset_event_v2_test, set_before_cancel) {
+  // set() completes the waiter with set_value before stop is
+  // requested.  The late stop request is a no-op.
+  async_manual_reset_event evt;
+  inplace_stop_source stopSource;
+  stoppable_mock_receiver recv{scheduler, stopSource};
+  auto& impl = *recv.impl;
+
+  auto op = connect(evt.async_wait(), std::move(recv));
+  start(op);
+
+  EXPECT_CALL(impl, set_value());
+
+  evt.set();
+
+  // Cancel after set — too late, already completed with set_value.
+  stopSource.request_stop();
+}
+
+TEST_F(async_manual_reset_event_v2_test, cancel_one_among_multiple) {
+  // Three waiters: cancel the middle one, then set() completes
+  // the remaining two.  Exercises try_remove on an interior
+  // queue element while other waiters remain.
+  async_manual_reset_event evt;
+  inplace_stop_source stopSource;
+
+  mock_receiver r1{scheduler};
+  stoppable_mock_receiver r2{scheduler, stopSource};
+  mock_receiver r3{scheduler};
+  auto& impl1 = *r1.impl;
+  auto& impl2 = *r2.impl;
+  auto& impl3 = *r3.impl;
+
+  auto op1 = connect(evt.async_wait(), std::move(r1));
+  auto op2 = connect(evt.async_wait(), std::move(r2));
+  auto op3 = connect(evt.async_wait(), std::move(r3));
+
+  start(op1);
+  start(op2);
+  start(op3);
+
+  // Cancel only the second waiter.
+  EXPECT_CALL(impl2, set_done());
+
+  stopSource.request_stop();
+
+  // set() completes the remaining waiters.
+  EXPECT_CALL(impl1, set_value());
+  EXPECT_CALL(impl3, set_value());
+
+  evt.set();
+}
+
+TEST_F(async_manual_reset_event_v2_test, stop_requested_before_start_unready) {
+  // Stop already requested before start().  With StopsEarly=false,
+  // the nested op starts (enqueues), then stop() is called
+  // immediately after start() returns.
+  async_manual_reset_event evt;
+  inplace_stop_source stopSource;
+  stopSource.request_stop();
+
+  stoppable_mock_receiver recv{scheduler, stopSource};
+  auto& impl = *recv.impl;
+
+  auto op = connect(evt.async_wait(), std::move(recv));
+
+  EXPECT_CALL(impl, set_done());
+
+  start(op);
+}
+
+TEST_F(async_manual_reset_event_v2_test, stop_requested_before_start_ready) {
+  // Stop already requested but event is signalled.  The fast path
+  // in start() completes with set_value before stop() runs —
+  // try_complete wins for the normal path.
+  async_manual_reset_event evt{true};
+  inplace_stop_source stopSource;
+  stopSource.request_stop();
+
+  stoppable_mock_receiver recv{scheduler, stopSource};
+  auto& impl = *recv.impl;
+
+  auto op = connect(evt.async_wait(), std::move(recv));
+
+  EXPECT_CALL(impl, set_value());
+
+  start(op);
+}
+
+TEST_F(async_manual_reset_event_v2_test, concurrent_cancel_and_set) {
+  // Races set() against request_stop() on separate threads.
+  // Exactly one of set_value / set_done must be called per iteration.
+  for (int i = 0; i < 100; ++i) {
+    async_manual_reset_event evt;
+    inplace_stop_source stopSource;
+    std::atomic<int> value_count{0}, done_count{0};
+
+    atomic_receiver recv{
+        value_count, done_count, scheduler, stopSource.get_token()};
+
+    auto op = connect(evt.async_wait(), std::move(recv));
+    start(op);
+
+    std::thread setter([&] { evt.set(); });
+    std::thread canceller([&] { stopSource.request_stop(); });
+
+    setter.join();
+    canceller.join();
+
+    EXPECT_EQ(value_count.load() + done_count.load(), 1);
   }
 }
