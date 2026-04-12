@@ -19,6 +19,7 @@
 #include <unifex/sender_concepts.hpp>
 #include <unifex/type_traits.hpp>
 
+#include <unifex/detail/lambda_op.hpp>
 #include <unifex/detail/make_traits.hpp>
 #include <unifex/detail/prologue.hpp>
 
@@ -73,27 +74,6 @@ constexpr _make_traits::get_traits<_make_traits::sender_traits_literal>::type<
 
 namespace _create_raw_sndr {
 
-template <typename Receiver, typename Fn, typename... ValueTypes>
-struct _op {
-  static_assert(std::is_invocable_v<Fn, Receiver&&>);
-  using state_t = decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(Receiver)));
-  static_assert(std::is_nothrow_invocable_v<state_t>);
-
-  struct type {
-    explicit type(Receiver&& rec, Fn&& fn) noexcept(
-        std::is_nothrow_invocable_v<Fn, Receiver&&>)
-      : state_(fn(std::forward<Receiver>(rec))) {}
-
-    void start() noexcept { state_(); }
-
-  private:
-    UNIFEX_NO_UNIQUE_ADDRESS state_t state_;
-  };
-};
-
-template <typename Receiver, typename Fn, typename... ValueTypes>
-using _op_wrapper = typename _op<Receiver, Fn, ValueTypes...>::type;
-
 template <typename Tr, typename Fn, typename... ValueTypes>
 struct _sender : public Tr {
   template <
@@ -107,21 +87,7 @@ struct _sender : public Tr {
   explicit _sender(Fn&& fn) noexcept(std::is_nothrow_move_constructible_v<Fn>)
     : fn_(std::forward<Fn>(fn)) {}
 
-  template <typename Receiver>
-    requires receiver_of<Receiver, ValueTypes...> &&
-      (!std::is_invocable_v<
-          _start_cpo::_fn,
-          decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(Receiver)))&>)
-  friend auto
-  tag_invoke(tag_t<connect>, _sender&& self, Receiver&& rec) noexcept(
-      std::is_nothrow_constructible_v<
-          _op_wrapper<Receiver, Fn, ValueTypes...>,
-          Receiver&&,
-          Fn&&>) {
-    return _op_wrapper<Receiver, Fn, ValueTypes...>{
-        std::forward<Receiver>(rec), std::move(self.fn_)};
-  }
-
+  // Overload 1: factory returns a type with start(). Returned directly.
   template <typename Receiver>
     requires receiver_of<Receiver, ValueTypes...> &&
       std::is_invocable_v<
@@ -131,6 +97,22 @@ struct _sender : public Tr {
   tag_invoke(tag_t<connect>, _sender&& self, Receiver&& rec) noexcept(
       std::is_nothrow_invocable_v<Fn, Receiver&&>) {
     return std::move(self.fn_)(std::forward<Receiver>(rec));
+  }
+
+  // Overload 2: factory returns a callable (no start()). Wrapped in
+  // _sender_op::_op which auto-selects the right specialization:
+  // plain callable → start() only; event-dispatch → start() + stop().
+  template <typename Receiver>
+    requires receiver_of<Receiver, ValueTypes...> &&
+      (!std::is_invocable_v<
+          _start_cpo::_fn,
+          decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(Receiver)))&>)
+  friend auto
+  tag_invoke(tag_t<connect>, _sender&& self, Receiver&& rec) noexcept(
+      std::is_nothrow_invocable_v<Fn, Receiver&&>) {
+    using state_t = decltype(std::move(self.fn_)(std::forward<Receiver>(rec)));
+    return _lambda_op::_op<state_t>{
+        std::move(self.fn_)(std::forward<Receiver>(rec))};
   }
 
   UNIFEX_NO_UNIQUE_ADDRESS Fn fn_;

@@ -225,6 +225,158 @@ TEST(cancellable_test, with_query_value_stoppable_token) {
   EXPECT_FALSE(stopped);
 }
 
+TEST(cancellable_lambda_test, completes_synchronously) {
+  auto result{sync_wait(cancellable{create_raw_sender<int>([](auto&& receiver) {
+    return [receiver = std::forward<decltype(receiver)>(receiver)](
+               auto event, auto* self) mutable {
+      if constexpr (event.is_start) {
+        if (try_complete(self)) {
+          set_value(std::move(receiver), 42);
+        }
+      }
+    };
+  })})};
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 42);
+}
+
+// Note: stop_while_running with stop_when is tested by the struct-based
+// test above. The equivalent lambda version triggers an MSVC internal
+// compiler error due to excessive template nesting depth (stop_when +
+// cancellable + create_raw_sender + lambda). The stop mechanism with
+// event-dispatch lambdas is covered by stops_early and
+// completes_before_stop_is_forwarded below.
+
+TEST(cancellable_lambda_test, stops_early) {
+  bool started = false;
+  bool stopped = false;
+  auto result{sync_wait(let_value_with_stop_source([&](auto& stop_src) {
+    stop_src.request_stop();
+    return cancellable{
+        create_raw_sender<int>([&](auto&& receiver) {
+          return [receiver = std::forward<decltype(receiver)>(receiver),
+                  &started,
+                  &stopped](auto event, auto* self) mutable {
+            if constexpr (event.is_start) {
+              started = true;
+              if (try_complete(self)) {
+                set_value(std::move(receiver), 42);
+              }
+            } else if constexpr (event.is_stop) {
+              stopped = true;
+              if (try_complete(self)) {
+                set_done(std::move(receiver));
+              }
+            }
+          };
+        }),
+        std::true_type{}};
+  }))};
+  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(started);
+  EXPECT_TRUE(stopped);
+}
+
+TEST(cancellable_lambda_test, completes_before_stop_is_forwarded) {
+  bool started = false;
+  bool stopped = false;
+  auto result{sync_wait(let_value_with_stop_source([&](auto& stop_src) {
+    stop_src.request_stop();
+    return cancellable{create_raw_sender<int>([&](auto&& receiver) {
+      return [receiver = std::forward<decltype(receiver)>(receiver),
+              &started,
+              &stopped](auto event, auto* self) mutable {
+        if constexpr (event.is_start) {
+          started = true;
+          if (try_complete(self)) {
+            set_value(std::move(receiver), 42);
+          }
+        } else if constexpr (event.is_stop) {
+          stopped = true;
+          if (try_complete(self)) {
+            set_done(std::move(receiver));
+          }
+        }
+      };
+    })};
+  }))};
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 42);
+  EXPECT_TRUE(started);
+  EXPECT_FALSE(stopped);
+}
+
+TEST(cancellable_lambda_test, without_self_pointer) {
+  // Lambda taking only (event) without self pointer.
+  // Useful when try_complete is not needed (e.g. unconditional
+  // synchronous completion with unstoppable token).
+  auto result{sync_wait(with_query_value(
+      cancellable{create_raw_sender<int>([](auto&& receiver) {
+        return [receiver = std::forward<decltype(receiver)>(receiver)](
+                   auto event) mutable {
+          if constexpr (event.is_start) {
+            set_value(std::move(receiver), 99);
+          }
+        };
+      })},
+      get_stop_token,
+      unstoppable_token{}))};
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 99);
+}
+
+TEST(cancellable_lambda_test, with_non_moveable_state) {
+  // Verifies that event-dispatch lambdas capturing non-moveable types
+  // (std::atomic) work via aggregate init from prvalue in _event_op.
+  auto result{sync_wait(with_query_value(
+      cancellable{create_raw_sender<int>([](auto&& receiver) {
+        return
+            [receiver = std::forward<decltype(receiver)>(receiver),
+             call_count = std::atomic<int>{0}](auto event, auto* self) mutable {
+              if constexpr (event.is_start) {
+                call_count.fetch_add(1, std::memory_order_relaxed);
+                if (try_complete(self)) {
+                  set_value(
+                      std::move(receiver),
+                      call_count.load(std::memory_order_relaxed));
+                }
+              }
+            };
+      })},
+      get_stop_token,
+      unstoppable_token{}))};
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 1);
+}
+
+TEST(cancellable_lambda_test, with_unstoppable_token) {
+  auto result{sync_wait(with_query_value(
+      cancellable{create_raw_sender<int>([](auto&& receiver) {
+        return [receiver = std::forward<decltype(receiver)>(receiver)](
+                   auto event, auto* self) mutable {
+          if constexpr (event.is_start) {
+            if (try_complete(self)) {
+              set_value(std::move(receiver), 42);
+            }
+          }
+        };
+      })},
+      get_stop_token,
+      unstoppable_token{}))};
+  EXPECT_TRUE(result.has_value());
+  EXPECT_EQ(*result, 42);
+}
+
+TEST(cancellable_lambda_test, event_probe_fields) {
+  // Verify probe types have the expected boolean fields.
+  // The lambda's if-constexpr dispatch depends on them.
+  using namespace unifex::_lambda_op;
+  static_assert(_start_probe::is_start);
+  static_assert(!_start_probe::is_stop);
+  static_assert(!_stop_probe::is_start);
+  static_assert(_stop_probe::is_stop);
+}
+
 #endif
 
 TEST(cancellable_test, constructs_sender_in_place) {
