@@ -274,7 +274,9 @@ callable is passed an rvalue reference to receiver as an argument and is expecte
 move-construct the receiver inside the returned object.
 
 The operation state returned by the factory should either define a method `void
-start() noexcept` or be a non-throwing callable.
+start() noexcept` or be a non-throwing callable. For senders wrapped into `cancellable`
+to implement cancellation, there are additional requirements on the operation state
+(see [`cancellable`](#cancellablesender-sender-stdtrue_type---sender)).
 
 `ValueTypes...` is a pack representing the value types of the resulting sender. The
 user is expected to call `unifex::set_value()` passing in the rvalue to preserved
@@ -500,6 +502,41 @@ controlling what happens when stop is requested before the operation is started:
 
 If the receiver does not support cancellation, no stop callback is
 registered and the operation runs unconditionally without stop overhead.
+
+#### Implementing operation state with a lambda
+
+The combination of `cancellable` and `create_raw_sender()` can be used with a
+lambda as operation state. Such a lambda must accept a generic (`auto`) event
+argument used to separate `start()` and `stop()` invocations into template
+instantiations with the alternate branch of the code optimized away with `if constexpr`:
+
+```c++
+auto makeMySender(StateArg arg) {
+  return cancellable(
+    create_raw_sender<ResultType>(
+      [arg](auto&& receiver) {
+        return [receiver = std::move(receiver), arg,
+                requestId = RequestId{}](auto event, auto* self) mutable {
+          if constexpr (event.is_start) {
+            requestId = async_request(
+              [self, &receiver](ResultType result) {
+                if (try_complete(self)) {
+                  unifex::set_value(std::move(receiver), result);
+                }
+              },
+              arg);
+          } else if constexpr (event.is_stop) {
+            if (try_complete(self)) {
+              cancel_async_request(requestId);
+            }
+          }
+        };
+      }));
+}
+```
+
+The `self` argument is what the implementation is to pass to `try_complete()`. It does
+not point directly to the lambda closure and is of a different pointer type.
 
 ### `then(Sender predecessor, Func func) -> Sender`
 
