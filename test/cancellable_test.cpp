@@ -17,6 +17,8 @@
 #include <unifex/async_scope.hpp>
 #include <unifex/cancellable.hpp>
 #include <unifex/let_value_with_stop_source.hpp>
+#include <unifex/repeat_effect_until.hpp>
+#include <unifex/single_thread_context.hpp>
 #include <unifex/stop_when.hpp>
 #include <unifex/sync_wait.hpp>
 #include <unifex/then.hpp>
@@ -377,7 +379,65 @@ TEST(cancellable_lambda_test, event_probe_fields) {
   static_assert(_stop_probe::is_stop);
 }
 
-#endif
+#  if defined(_MSC_VER)
+
+TEST(cancellable_test, recursive_pipeline) {
+  // Uses the struct-based test_sender_opstate to keep type nesting
+  // shallow — the equivalent lambda version triggers an MSVC internal
+  // compiler error.
+  using namespace std::chrono_literals;
+  async_scope scope;
+  single_thread_context ctx;
+
+  auto sender{cancellable{create_raw_sender<int>(
+      [&scope](auto&& receiver)
+          -> test_sender_opstate<std::remove_cvref_t<decltype(receiver)>> {
+        return test_sender_opstate{
+            std::forward<decltype(receiver)>(receiver), scope};
+      })}};
+
+  scope.detached_spawn_on(
+      ctx.get_scheduler(),
+      std::move(sender) | then([](int) noexcept {}) | repeat_effect());
+  sync_wait(schedule_after(timer.get_scheduler(), 250ms));
+  sync_wait(scope.cleanup());
+}
+
+#  else
+
+TEST(cancellable_lambda_test, recursive_pipeline) {
+  using namespace std::chrono_literals;
+  async_scope scope;
+  single_thread_context ctx;
+
+  auto sender{cancellable{create_raw_sender<int>([&scope](auto&& receiver) {
+    return [&scope, receiver = std::forward<decltype(receiver)>(receiver)](
+               auto event, auto* self) mutable {
+      if constexpr (event.is_start) {
+        scope.detached_spawn(
+            schedule_after(timer.get_scheduler(), 100ms) |
+            then([self, &receiver]() noexcept {
+              if (try_complete(self)) {
+                set_value(std::move(receiver), 42);
+              }
+            }));
+      } else if constexpr (event.is_stop) {
+        if (try_complete(self)) {
+          set_done(std::move(receiver));
+        }
+      }
+    };
+  })}};
+
+  scope.detached_spawn_on(
+      ctx.get_scheduler(),
+      std::move(sender) | then([](int) noexcept {}) | repeat_effect());
+  sync_wait(schedule_after(timer.get_scheduler(), 250ms));
+  sync_wait(scope.cleanup());
+}
+
+#  endif  // _MSC_VER
+#endif    // __cplusplus >= 201911L
 
 TEST(cancellable_test, constructs_sender_in_place) {
   bool started = false;

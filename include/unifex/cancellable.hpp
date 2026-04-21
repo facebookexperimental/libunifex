@@ -231,35 +231,56 @@ public:
       std::is_nothrow_constructible_v<Sender, Args...>)
     : sender_(std::forward<Args>(args)...) {}
 
-  template(typename Receiver)                                           //
-      (requires is_stop_never_possible_v<stop_token_type_t<Receiver>>)  //
-      friend auto tag_invoke(
-          unifex::tag_t<connect>,
-          cancellable&& self,
-          Receiver&&
-              receiver) noexcept(is_nothrow_connectable_v<Sender, Receiver>) {
+  // Rvalue and lvalue connect overloads. if-constexpr selects the
+  // non-stop vs stoppable path within each.
+  template <typename Receiver>
+  friend auto tag_invoke(
+      unifex::tag_t<connect>,
+      cancellable&& self,
+      Receiver&&
+          receiver) noexcept(is_nothrow_connectable_v<Sender, Receiver>) {
     using nested_op_t = raw_connect_result_t<Sender, Receiver>;
-    return typename _op<nested_op_t>::non_stop_type{
-        std::move(self.sender_), std::forward<Receiver>(receiver)};
+    if constexpr (is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
+      return typename _op<nested_op_t>::non_stop_type{
+          std::move(self.sender_), std::forward<Receiver>(receiver)};
+    } else {
+      static_assert(
+          std::is_nothrow_invocable_v<
+              decltype(&nested_op_t::stop),
+              nested_op_t*>,
+          "operation must provide a nothrow stop() method");
+      using op_type = typename _op<
+          nested_op_t>::template type<stop_token_type_t<Receiver>, StopsEarly>;
+      return op_type{
+          std::move(self.sender_),
+          std::forward<Receiver>(receiver),
+          get_stop_token(receiver)};
+    }
   }
 
-  template(typename Receiver)                                             //
-      (requires(!is_stop_never_possible_v<stop_token_type_t<Receiver>>))  //
-      friend auto tag_invoke(
-          unifex::tag_t<connect>,
-          cancellable&& self,
-          Receiver&&
-              receiver) noexcept(is_nothrow_connectable_v<Sender, Receiver>) {
-    using nested_op_t = raw_connect_result_t<Sender, Receiver>;
-    static_assert(
-        std::is_nothrow_invocable_v<decltype(&nested_op_t::stop), nested_op_t*>,
-        "operation must provide a nothrow stop() method");
-    using op_type = typename _op<
-        nested_op_t>::template type<stop_token_type_t<Receiver>, StopsEarly>;
-    return op_type{
-        std::move(self.sender_),
-        std::forward<Receiver>(receiver),
-        get_stop_token(receiver)};
+  template <typename Receiver>
+  friend auto tag_invoke(
+      unifex::tag_t<connect>,
+      cancellable& self,
+      Receiver&&
+          receiver) noexcept(is_nothrow_connectable_v<Sender&, Receiver>) {
+    using nested_op_t = raw_connect_result_t<Sender&, Receiver>;
+    if constexpr (is_stop_never_possible_v<stop_token_type_t<Receiver>>) {
+      return typename _op<nested_op_t>::non_stop_type{
+          self.sender_, std::forward<Receiver>(receiver)};
+    } else {
+      static_assert(
+          std::is_nothrow_invocable_v<
+              decltype(&nested_op_t::stop),
+              nested_op_t*>,
+          "operation must provide a nothrow stop() method");
+      using op_type = typename _op<
+          nested_op_t>::template type<stop_token_type_t<Receiver>, StopsEarly>;
+      return op_type{
+          self.sender_,
+          std::forward<Receiver>(receiver),
+          get_stop_token(receiver)};
+    }
   }
 
 private:
