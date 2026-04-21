@@ -96,6 +96,7 @@
   * [`at_coroutine_exit`](#at_coroutine_exit)
 * [Other](#other)
   * [`async_scope`](#async_scope)
+  * [`canary`](#canary)
   * [`variant_sender`](#variant_sender)
 
 # Receiver Queries
@@ -1727,6 +1728,42 @@ namespace unifex
   };
 }
 ```
+
+### `canary`
+
+Defends against premature destruction of an operation state during `start()`.
+Solves the problem where an async operation launched from `start()` completes
+early - synchronously or on another thread - before `start()` finishes
+modifying the operation state.
+
+Three objects, three roles:
+
+* **`canary`** — lives in the operation state.
+* **`canary::watcher`** — stack-local in `start()`, created via
+  `canary.watch()` before making calls that may complete the sender.
+* **`canary::guard`** — returned by `watcher.alive()`. Truthy if the canary
+  is still alive; while the guard exists, the canary's destructor is blocked
+  by spinlock.
+
+```c++
+return [..., canary{unifex::canary{}}](auto event, auto* self) mutable {
+  if constexpr (event.is_start) {
+    auto watcher = canary.watch();
+    auto cancel_token = start_async_op(
+      [&receiver](Result r) {
+        set_value(std::move(receiver), r);
+      });
+    if (auto guard = watcher.alive()) {
+      saved_token = cancel_token;  // safe: op state still exists
+    }
+    // guard released here — canary destructor unblocked
+  }
+};
+```
+
+Only one watcher may be active on a canary at a time (asserted). Sequential
+`watch()` / destroy cycles on the same canary are permitted. When no watcher
+is attached, the canary's destructor is a no-op.
 
 ### `variant_sender`
 
