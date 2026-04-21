@@ -87,32 +87,37 @@ struct _sender : public Tr {
   explicit _sender(Fn&& fn) noexcept(std::is_nothrow_move_constructible_v<Fn>)
     : fn_(std::forward<Fn>(fn)) {}
 
-  // Overload 1: factory returns a type with start(). Returned directly.
-  template <typename Receiver>
-    requires receiver_of<Receiver, ValueTypes...> &&
-      std::is_invocable_v<
-                 _start_cpo::_fn,
-                 decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(Receiver)))&>
-  friend auto
-  tag_invoke(tag_t<connect>, _sender&& self, Receiver&& rec) noexcept(
-      std::is_nothrow_invocable_v<Fn, Receiver&&>) {
-    return std::move(self.fn_)(std::forward<Receiver>(rec));
+  // Shared logic for rvalue and lvalue connect. If the factory result
+  // has start(), returns it directly. Otherwise wraps in _lambda_op::_op
+  // which auto-selects: plain callable -> start() only;
+  // event-dispatch -> start() + stop().
+  template <typename FnRef, typename Receiver>
+  static auto connect_impl_(FnRef&& fn, Receiver&& rec) noexcept(
+      noexcept(std::forward<FnRef>(fn)(std::forward<Receiver>(rec)))) {
+    using state_t =
+        decltype(std::forward<FnRef>(fn)(std::forward<Receiver>(rec)));
+    if constexpr (std::is_invocable_v<_start_cpo::_fn, state_t&>) {
+      return std::forward<FnRef>(fn)(std::forward<Receiver>(rec));
+    } else {
+      return _lambda_op::_op<state_t>{
+          std::forward<FnRef>(fn)(std::forward<Receiver>(rec))};
+    }
   }
 
-  // Overload 2: factory returns a callable (no start()). Wrapped in
-  // _sender_op::_op which auto-selects the right specialization:
-  // plain callable → start() only; event-dispatch → start() + stop().
   template <typename Receiver>
-    requires receiver_of<Receiver, ValueTypes...> &&
-      (!std::is_invocable_v<
-          _start_cpo::_fn,
-          decltype(UNIFEX_DECLVAL(Fn)(UNIFEX_DECLVAL(Receiver)))&>)
+    requires receiver_of<Receiver, ValueTypes...>
   friend auto
-  tag_invoke(tag_t<connect>, _sender&& self, Receiver&& rec) noexcept(
-      std::is_nothrow_invocable_v<Fn, Receiver&&>) {
-    using state_t = decltype(std::move(self.fn_)(std::forward<Receiver>(rec)));
-    return _lambda_op::_op<state_t>{
-        std::move(self.fn_)(std::forward<Receiver>(rec))};
+  tag_invoke(tag_t<connect>, _sender&& self, Receiver&& rec) noexcept(noexcept(
+      connect_impl_(std::move(self.fn_), std::forward<Receiver>(rec)))) {
+    return connect_impl_(std::move(self.fn_), std::forward<Receiver>(rec));
+  }
+
+  template <typename Receiver>
+    requires receiver_of<Receiver, ValueTypes...>
+  friend auto
+  tag_invoke(tag_t<connect>, _sender& self, Receiver&& rec) noexcept(
+      noexcept(connect_impl_(self.fn_, std::forward<Receiver>(rec)))) {
+    return connect_impl_(self.fn_, std::forward<Receiver>(rec));
   }
 
   UNIFEX_NO_UNIQUE_ADDRESS Fn fn_;
