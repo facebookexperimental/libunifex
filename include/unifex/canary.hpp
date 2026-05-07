@@ -25,28 +25,44 @@
 namespace unifex {
 namespace _canary {
 
-// Two synchronization mechanisms:
+// Destructor arbitration uses tagged pointers (LSB = locked) on
+// both canary::watcher_ and watcher::canary_. Each destructor
+// locks its own pointer first, then accesses the other object.
+// Locking prevents the other destructor from completing (its CAS
+// on our pointer fails), ensuring the other object stays alive
+// while we access it.
 //
-// 1. CAS on canary::watcher_ (ownership arbitration):
-//    Both the canary destructor and watcher destructor try to CAS
-//    watcher_ from &watcher to nullptr. Exactly one wins:
-//    - Canary wins: it "owns" the watcher pointer and may access
-//      watcher members. The watcher destructor spins on canary_
-//      until the canary destructor signals completion.
-//    - Watcher wins: it clears the pointer. The canary destructor
-//      sees nullptr and does nothing.
+// Deadlock (both pointers locked) is resolved in favor of watcher:
+// canary unlocks watcher_ and spins until the watcher clears it.
 //
-// 2. Exchange on watcher::state_ (guard coordination):
-//    alive(0) → guarded(1)  by watcher::alive() [CAS]
-//    alive(0) → dead(2)     by canary::~canary() [exchange]
-//    guarded(1) → dead(2)   by canary::~canary() [exchange, then spinloop]
-//    dead(2) → done(3)      by guard::~guard() [store, unblocks spinloop]
+// Guard coordination uses watcher::state_ (unchanged):
+//   alive(0) → guarded(1)  by watcher::alive() [CAS]
+//   alive(0) → dead(2)     by canary::~canary() [exchange]
+//   guarded(1) → dead(2)   by canary::~canary() [exchange, then spinloop]
+//   dead(2) → done(3)      by guard::~guard() [store, unblocks spinloop]
 
 class canary {
   static constexpr uint8_t _alive = 0;
   static constexpr uint8_t _guarded = 1;
   static constexpr uint8_t _dead = 2;
   static constexpr uint8_t _done = 3;
+
+  static constexpr uintptr_t _lock_bit = 1;
+
+  template <typename T>
+  static T* _lock(T* p) noexcept {
+    return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(p) | _lock_bit);
+  }
+
+  template <typename T>
+  static T* _unlock(T* p) noexcept {
+    return reinterpret_cast<T*>(reinterpret_cast<uintptr_t>(p) & ~_lock_bit);
+  }
+
+  template <typename T>
+  static bool _is_locked(T* p) noexcept {
+    return reinterpret_cast<uintptr_t>(p) & _lock_bit;
+  }
 
 public:
   class watcher;
@@ -73,9 +89,6 @@ public:
     std::atomic<uint8_t>* state_;
   };
 
-  // Stack-local object that registers with the canary before a
-  // potentially-destroying call. Call alive() after the call to
-  // check whether the canary survived.
   class watcher {
   public:
     explicit watcher(canary& c) noexcept : canary_(&c) {
@@ -86,24 +99,41 @@ public:
     watcher& operator=(watcher&&) = delete;
 
     ~watcher() noexcept {
-      if (auto* c = canary_.load(std::memory_order_acquire)) {
-        watcher* expected = this;
-        if (c->watcher_.compare_exchange_strong(
-                expected, nullptr, std::memory_order_acq_rel)) {
-          // We cleared the pointer. Canary destructor will see nullptr.
-        } else {
-          // Canary destructor won the CAS — it holds a reference to
-          // us and will store nullptr to canary_ when done. Spin.
-          while (canary_.load(std::memory_order_acquire) != nullptr) {
-          }
-        }
+      // Step 1: lock our own pointer (canary_).
+      auto* c = canary_.load(std::memory_order_relaxed);
+      if (!c) {
+        return;
       }
+      if (_is_locked(c) ||
+          !canary_.compare_exchange_strong(
+              c, _lock(c), std::memory_order_acq_rel)) {
+        // Canary destructor locked or cleared canary_. It will
+        // store nullptr when done. Spin.
+        while (canary_.load(std::memory_order_acquire) != nullptr) {
+        }
+        return;
+      }
+      // canary_ is now locked. Canary destructor can't complete.
+
+      // Step 2: clear canary's watcher_ pointer.
+      // Canary is alive (its destructor can't complete while our
+      // canary_ is locked — its CAS on canary_ will fail).
+      watcher* expected = this;
+      while (!c->watcher_.compare_exchange_weak(
+          expected, nullptr, std::memory_order_acq_rel)) {
+        if (expected == nullptr) {
+          break;  // shouldn't happen, but handle gracefully
+        }
+        // watcher_ is locked (this|1) by canary destructor.
+        // Canary will detect deadlock and unlock watcher_.
+        // Spin-retry.
+        expected = this;
+      }
+
+      // Step 3: unlock and clear canary_.
+      canary_.store(nullptr, std::memory_order_release);
     }
 
-    // If the canary is still alive, atomically transitions to guarded
-    // state and returns a truthy guard that blocks the canary's
-    // destructor. If the canary has been destroyed, returns a falsy
-    // guard.
     [[nodiscard]] guard alive() noexcept {
       uint8_t expected = _alive;
       if (state_.compare_exchange_strong(
@@ -119,45 +149,73 @@ public:
     std::atomic<uint8_t> state_{_alive};
   };
 
+  static_assert(
+      alignof(watcher) >= 2,
+      "watcher must be at least 2-byte aligned for LSB tagging");
+
   canary() noexcept = default;
   canary(canary&&) = delete;
   canary& operator=(canary&&) = delete;
 
-  // Creates a watcher registered with this canary. The watcher is
-  // non-moveable and must be used as a stack-local variable.
-  // Returns a prvalue (C++17 guaranteed copy elision).
   [[nodiscard]] watcher watch() noexcept {
     UNIFEX_ASSERT(watcher_.load(std::memory_order_relaxed) == nullptr);
     return watcher{*this};
   }
 
   ~canary() noexcept {
-    auto* w = watcher_.load(std::memory_order_acquire);
+    // Step 1: lock our own pointer (watcher_).
+    auto* w = watcher_.load(std::memory_order_relaxed);
     if (!w) {
       return;
     }
-    // Try to claim ownership of the watcher pointer.
-    if (!watcher_.compare_exchange_strong(
-            w, nullptr, std::memory_order_acq_rel)) {
-      // Watcher destructor won — it cleared the pointer. Done.
+    if (_is_locked(w) ||
+        !watcher_.compare_exchange_strong(
+            w, _lock(w), std::memory_order_acq_rel)) {
+      // Watcher destructor locked or cleared watcher_. Done.
       return;
     }
-    // We own w. The watcher destructor will spin on canary_ until
-    // we signal completion.
+    // watcher_ is now locked. Watcher destructor can't complete.
+
+    // Step 2: lock watcher's canary_ pointer.
+    // Watcher is alive (its destructor can't complete while our
+    // watcher_ is locked — its CAS on watcher_ will fail).
+    canary* expected = this;
+    if (!w->canary_.compare_exchange_strong(
+            expected, _lock(this), std::memory_order_acq_rel)) {
+      // canary_ is locked (this|1) by watcher destructor. Deadlock.
+      // Canary yields: unlock watcher_ and let the watcher proceed.
+      watcher_.store(w, std::memory_order_release);  // unlock
+      // Watcher will clear watcher_ to nullptr. Spin until done.
+      while (watcher_.load(std::memory_order_acquire) != nullptr) {
+      }
+      return;
+    }
+    // Both pointers locked. We fully own the watcher.
+
+    // Step 3: guard coordination via state_.
     auto old = w->state_.exchange(_dead, std::memory_order_acq_rel);
     if (old == _guarded) {
-      // Guard is held — spin until it is released.
-      while (w->state_.load(std::memory_order_acquire) != _done) {
+      // Guard is held — spin until released. The guard destructor
+      // overwrites _dead with _done; we spin while state_ remains
+      // _dead (the value we wrote) rather than waiting for a
+      // specific successor value.
+      while (w->state_.load(std::memory_order_acquire) == _dead) {
       }
     }
-    // Signal the watcher destructor that we're done with its members.
+
+    // Step 4: signal completion and unlock.
     w->canary_.store(nullptr, std::memory_order_release);
+    watcher_.store(nullptr, std::memory_order_release);
   }
 
 private:
   friend class watcher;
   std::atomic<watcher*> watcher_{nullptr};
 };
+
+static_assert(
+    alignof(canary) >= 2,
+    "canary must be at least 2-byte aligned for LSB tagging");
 
 }  // namespace _canary
 
