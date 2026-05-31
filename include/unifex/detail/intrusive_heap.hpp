@@ -89,7 +89,12 @@ public:
     }
   }
 
-  void remove(T* item) noexcept {
+  // Returns true if the item was in the heap
+  bool remove(T* item) noexcept {
+    if (item->*Prev == nullptr && item != head_) {
+        return false;
+    }
+
     auto* prev = item->*Prev;
     auto* next = item->*Next;
     if (prev != nullptr) {
@@ -101,6 +106,7 @@ public:
     if (next != nullptr) {
       next->*Prev = prev;
     }
+    return true;
   }
 
 private:

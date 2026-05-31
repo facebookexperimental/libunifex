@@ -20,6 +20,7 @@
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/stop_token_concepts.hpp>
+#include <unifex/detail/intrusive_heap.hpp>
 
 #include <chrono>
 #include <condition_variable>
@@ -46,7 +47,7 @@ struct task_base {
 
   timed_single_thread_context* const context_;
   task_base* next_ = nullptr;
-  task_base** prevNextPtr_ = nullptr;
+  task_base* prev_ = nullptr;
   execute_fn* execute_;
   time_point dueTime_;
 
@@ -267,6 +268,11 @@ public:
 }  // namespace _timed_single_thread_context
 
 class timed_single_thread_context {
+public:
+  using clock_t = _timed_single_thread_context::clock_t;
+  using time_point = _timed_single_thread_context::time_point;
+
+private:
   using scheduler = _timed_single_thread_context::scheduler;
   using task_base = _timed_single_thread_context::task_base;
   using cancel_callback = _timed_single_thread_context::cancel_callback;
@@ -283,16 +289,19 @@ class timed_single_thread_context {
   std::mutex mutex_;
   std::condition_variable cv_;
 
-  // Head of a linked-list in ascending order of due-time.
-  task_base* head_ = nullptr;
+  using schedule_heap = intrusive_heap<
+      task_base,
+      &task_base::next_,
+      &task_base::prev_,
+      time_point,
+      &task_base::dueTime_>;
+
+  schedule_heap heap_;
   bool stop_ = false;
 
   std::thread thread_;
 
 public:
-  using clock_t = _timed_single_thread_context::clock_t;
-  using time_point = _timed_single_thread_context::time_point;
-
   timed_single_thread_context();
   ~timed_single_thread_context();
 
