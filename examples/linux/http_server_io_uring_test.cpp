@@ -96,7 +96,7 @@ parse_request(io_uring_context::async_read_write_file& readWriteFile) {
     }
     // protect from infite request
     if (req.size() > 8 * buffer.size()) {
-      std::printf("req too big=%ld\n", req.size());
+      std::printf("req too big=%zu\n", req.size());
       request.method = Method::OTHER;
       break;
     }
@@ -157,7 +157,7 @@ stopTrigger(std::chrono::milliseconds ms, io_uring_context::scheduler sched) {
   if (ms.count() > 0) {
     co_await stop_when(
         schedule_at(sched, now(sched) + ms) |
-            then([ms] { std::printf("Timeout after %ldms\n", ms.count()); }),
+            then([ms] { std::printf("Timeout after %lldms\n", ms.count()); }),
         quit(sched));
   } else {
     co_await quit(sched);
