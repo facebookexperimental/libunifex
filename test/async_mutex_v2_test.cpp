@@ -15,6 +15,19 @@
  */
 
 #include <unifex/coroutine.hpp>
+#include <unifex/inplace_stop_token.hpp>
+#include <unifex/single_thread_context.hpp>
+#include <unifex/v2/async_mutex.hpp>
+
+#include "failing_scheduler.hpp"
+
+#include <gtest/gtest.h>
+
+#include <future>
+
+using namespace unifex;
+using namespace unifex_test;
+using v2::async_mutex;
 
 #if !UNIFEX_NO_COROUTINES
 
@@ -22,18 +35,11 @@
 #  include <unifex/let_done.hpp>
 #  include <unifex/scheduler_concepts.hpp>
 #  include <unifex/scope_guard.hpp>
-#  include <unifex/single_thread_context.hpp>
 #  include <unifex/stop_when.hpp>
 #  include <unifex/sync_wait.hpp>
 #  include <unifex/task.hpp>
 #  include <unifex/timed_single_thread_context.hpp>
-#  include <unifex/v2/async_mutex.hpp>
 #  include <unifex/when_all.hpp>
-
-#  include <gtest/gtest.h>
-
-using namespace unifex;
-using v2::async_mutex;
 
 TEST(async_mutex_v2, multiple_threads) {
 #  if !defined(UNIFEX_TEST_LIMIT_ASYNC_MUTEX_ITERATIONS)
@@ -339,3 +345,118 @@ TEST_F(async_mutex_v2_test, dekker_pattern) {
 }
 
 #endif  // UNIFEX_NO_COROUTINES
+
+namespace {
+
+enum class lock_outcome { value, error, done };
+
+template <typename Scheduler>
+struct hop_receiver {
+  explicit hop_receiver(
+      Scheduler scheduler,
+      std::promise<lock_outcome>& promise,
+      inplace_stop_token token = {}) noexcept
+    : scheduler_(scheduler)
+    , promise_(&promise)
+    , token_(token) {}
+
+  void set_value() noexcept { promise_->set_value(lock_outcome::value); }
+  void set_error(std::exception_ptr) noexcept {
+    promise_->set_value(lock_outcome::error);
+  }
+  void set_done() noexcept { promise_->set_value(lock_outcome::done); }
+
+  friend Scheduler
+  tag_invoke(tag_t<get_scheduler>, const hop_receiver& r) noexcept {
+    return r.scheduler_;
+  }
+
+  friend inplace_stop_token
+  tag_invoke(tag_t<get_stop_token>, const hop_receiver& r) noexcept {
+    return r.token_;
+  }
+
+  Scheduler scheduler_;
+  std::promise<lock_outcome>* promise_;
+  inplace_stop_token token_;
+};
+
+using error_scheduler = failing_scheduler<schedule_failure::error>;
+using done_scheduler = failing_scheduler<schedule_failure::done>;
+
+}  // namespace
+
+TEST(async_mutex_v2, hop_error_releases_uncontended_lock) {
+  async_mutex mutex;
+  std::promise<lock_outcome> promise;
+  auto op{
+      connect(mutex.async_lock(), hop_receiver{error_scheduler{}, promise})};
+  start(op);
+
+  EXPECT_EQ(lock_outcome::error, promise.get_future().get());
+  EXPECT_TRUE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, hop_done_releases_uncontended_lock) {
+  async_mutex mutex;
+  std::promise<lock_outcome> promise;
+  auto op{connect(mutex.async_lock(), hop_receiver{done_scheduler{}, promise})};
+  start(op);
+
+  EXPECT_EQ(lock_outcome::done, promise.get_future().get());
+  EXPECT_TRUE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, hop_error_releases_lock_handed_over_by_unlock) {
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+
+  std::promise<lock_outcome> promise;
+  auto op{
+      connect(mutex.async_lock(), hop_receiver{error_scheduler{}, promise})};
+  start(op);
+  mutex.unlock();
+
+  EXPECT_EQ(lock_outcome::error, promise.get_future().get());
+  EXPECT_TRUE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, hop_failure_passes_lock_to_next_waiter) {
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+
+  single_thread_context ctx;
+  std::promise<lock_outcome> failed, next;
+  auto failedOp{
+      connect(mutex.async_lock(), hop_receiver{error_scheduler{}, failed})};
+  auto nextOp{
+      connect(mutex.async_lock(), hop_receiver{ctx.get_scheduler(), next})};
+  start(failedOp);
+  start(nextOp);
+  mutex.unlock();
+
+  EXPECT_EQ(lock_outcome::error, failed.get_future().get());
+  EXPECT_EQ(lock_outcome::value, next.get_future().get());
+  EXPECT_FALSE(mutex.try_lock());
+  mutex.unlock();
+}
+
+TEST(async_mutex_v2, hop_failure_after_cancel_does_not_release_lock) {
+  async_mutex mutex;
+  ASSERT_TRUE(mutex.try_lock());
+
+  inplace_stop_source stopSource;
+  stopSource.request_stop();
+  std::promise<lock_outcome> promise;
+  auto op{connect(
+      mutex.async_lock(),
+      hop_receiver{error_scheduler{}, promise, stopSource.get_token()})};
+  start(op);
+
+  EXPECT_EQ(lock_outcome::error, promise.get_future().get());
+  EXPECT_FALSE(mutex.try_lock());
+  mutex.unlock();
+}
