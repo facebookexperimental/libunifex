@@ -19,6 +19,7 @@
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
 #include <unifex/type_traits.hpp>
+#include <unifex/unstoppable_token.hpp>
 
 #include <unifex/detail/prologue.hpp>
 
@@ -26,8 +27,11 @@ namespace unifex {
 
 // When started with start(outer), will call outer.forward_set_value() on the
 // execution context obtained by scheduling on
-// get_scheduler(outer.get_receiver()). If schedule() fails or is cancelled,
-// will forward set_error()/set_done() to outer.get_receiver().
+// get_scheduler(outer.get_receiver()). The outcome is already decided when
+// start() is called, so the hop is connected with an unstoppable token.
+// WARNING: schedule() may fail with new_thread_context scheduler, resulting in
+// an undeclared error being delivered to the receiver and violation of sender's
+// contract.
 // outer.get_receiver() must return FinalReceiver&.
 // outer.forward_set_value must not throw.
 template <typename OpState, typename FinalReceiver>
@@ -67,6 +71,11 @@ private:
 
     void set_done() noexcept {
       unifex::set_done(std::move(outer_.get_receiver()));
+    }
+
+    friend unstoppable_token
+    tag_invoke(tag_t<get_stop_token>, const receiver&) noexcept {
+      return {};
     }
 
     template(typename CPO)                       //
