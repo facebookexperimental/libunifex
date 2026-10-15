@@ -27,6 +27,7 @@
 #include <unifex/detail/prologue.hpp>
 
 #include <atomic>
+#include <exception>
 
 namespace unifex::v2 {
 
@@ -69,7 +70,7 @@ private:
     using value_types = Variant<Tuple<>>;
 
     template <template <typename...> class Variant>
-    using error_types = Variant<>;
+    using error_types = Variant<std::exception_ptr>;
 
     static constexpr bool sends_done = true;
     static constexpr blocking_kind blocking = blocking_kind::maybe;
@@ -116,13 +117,29 @@ private:
           }
         }
 
+        // !cancelled_ means the lock was granted to this op.
+        template <typename Error>
+        void forward_hop_error(Error&& error) noexcept {
+          if (!cancelled_) {
+            mutex_.unlock();
+          }
+          unifex::set_error(std::move(receiver_), std::forward<Error>(error));
+        }
+
+        void forward_hop_done() noexcept {
+          if (!cancelled_) {
+            mutex_.unlock();
+          }
+          unifex::set_done(std::move(receiver_));
+        }
+
         void start() noexcept;
         void stop() noexcept;
 
       private:
         async_mutex& mutex_;
         Receiver receiver_;
-        completion_forwarder<type, Receiver> forwardingOp_;
+        completion_forwarder<type, Receiver, true> forwardingOp_;
         bool cancelled_{false};
         bool started_{false};
       };
