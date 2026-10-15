@@ -15,6 +15,7 @@
  */
 #pragma once
 
+#include <unifex/get_stop_token.hpp>
 #include <unifex/manual_lifetime.hpp>
 #include <unifex/receiver_concepts.hpp>
 #include <unifex/scheduler_concepts.hpp>
@@ -23,18 +24,29 @@
 
 #include <unifex/detail/prologue.hpp>
 
+#include <exception>
+
 namespace unifex {
 
 // When started with start(outer), will call outer.forward_set_value() on the
 // execution context obtained by scheduling on
 // get_scheduler(outer.get_receiver()). The outcome is already decided when
 // start() is called, so the hop is connected with an unstoppable token.
-// WARNING: schedule() may fail with new_thread_context scheduler, resulting in
-// an undeclared error being delivered to the receiver and violation of sender's
-// contract.
 // outer.get_receiver() must return FinalReceiver&.
 // outer.forward_set_value must not throw.
-template <typename OpState, typename FinalReceiver>
+//
+// If schedule() does not complete with set_value() (e.g. new_thread_context
+// failing to spawn a thread), by default an error calls std::terminate() and
+// done is forwarded to outer.get_receiver(). With HandlesHopFailure, both are
+// delegated to OpState's noexcept
+//   outer.forward_hop_error(error)
+//   outer.forward_hop_done()
+// which must be declared before the completion_forwarder member: with async
+// stacks enabled, they may be instantiated while OpState is incomplete.
+template <
+    typename OpState,
+    typename FinalReceiver,
+    bool HandlesHopFailure = false>
 class completion_forwarder {
 public:
   ~completion_forwarder() noexcept {
@@ -65,12 +77,22 @@ private:
 
     template <typename Error>
     void set_error(Error&& error) noexcept {
-      unifex::set_error(
-          std::move(outer_.get_receiver()), std::forward<Error>(error));
+      if constexpr (HandlesHopFailure) {
+        static_assert(
+            noexcept(outer_.forward_hop_error(std::forward<Error>(error))));
+        outer_.forward_hop_error(std::forward<Error>(error));
+      } else {
+        std::terminate();
+      }
     }
 
     void set_done() noexcept {
-      unifex::set_done(std::move(outer_.get_receiver()));
+      if constexpr (HandlesHopFailure) {
+        static_assert(noexcept(outer_.forward_hop_done()));
+        outer_.forward_hop_done();
+      } else {
+        unifex::set_done(std::move(outer_.get_receiver()));
+      }
     }
 
     friend unstoppable_token
