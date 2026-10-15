@@ -31,3 +31,15 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                  EXCLUDE_FROM_ALL)
+
+# googletest sources inherit our warnings-as-errors flags, which newer
+# compilers trip over (e.g. clang 21 -Wcharacter-conversion in gtest-printers.h)
+foreach(gtest_target gtest gtest_main gmock gmock_main)
+  if(TARGET ${gtest_target})
+    if(UNIFEX_CXX_COMPILER_MSVC)
+      target_compile_options(${gtest_target} PRIVATE /WX-)
+    else()
+      target_compile_options(${gtest_target} PRIVATE -Wno-error)
+    endif()
+  endif()
+endforeach()
