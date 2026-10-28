@@ -101,7 +101,7 @@ struct _replace_this<const this_&> {
 template <>
 struct _replace_this<const this_&&> {
   template <typename, typename T>
-  using type = const T&&;
+  using apply = const T&&;
 
   template <typename T>
   static const T&& get(detail::_ignore, T& obj) noexcept {
